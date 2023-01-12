@@ -38,7 +38,7 @@ packer.startup(function(use)
     -- Color Scheme
     use "Mofiqul/vscode.nvim" -- theme
     -- use {"svrana/neosolarized.nvim", requires = {"tjdevries/colorbuddy.nvim"}}
-    -- use "norcalli/nvim-colorizer.lua"
+    use "norcalli/nvim-colorizer.lua"
     use "nvim-lualine/lualine.nvim" -- Statusline
     use {"nvim-treesitter/nvim-treesitter", run = ":TSUpdate"}
     -- use 'kyazdani42/nvim-web-devicons' -- File icons

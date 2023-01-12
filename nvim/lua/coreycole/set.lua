@@ -18,14 +18,16 @@ opt.smartindent = true
 opt.wrap = false
 opt.clipboard = "unnamedplus" -- allows neovim to access the system clipboard
 opt.conceallevel = 0 -- so that `` is visible in markdown files
-format_on_save = true
-scrolloff = 10
-conceallevel = 0
+-- opt.format_on_save = true
+opt.scrolloff = 10
+opt.conceallevel = 0
 opt.termguicolors = true
+opt.fileformat = "unix"
+opt.fileformats = "unix,dos"
 
 -- spell suggestions
-opt.spell = true
-opt.spelllang = {"en_us"}
+-- opt.spell = true
+-- opt.spelllang = {"en_us"}
 
 -- Set completeopt to have a better completion experience
 -- :help completeopt
