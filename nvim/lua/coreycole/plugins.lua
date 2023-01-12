@@ -31,6 +31,7 @@ packer.startup(function(use)
         "folke/trouble.nvim",
         requires = "kyazdani42/nvim-web-devicons"
     }
+    use "terrortylor/nvim-comment" -- comments
 
     use "nvim-lua/plenary.nvim" -- Common utilities
 
