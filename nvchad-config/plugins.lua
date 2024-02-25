@@ -38,9 +38,17 @@ local plugins = {
   {
     "hrsh7th/nvim-cmp",
     opts = function()
-      local M = require "custom.configs.cmp"
-      table.insert(M.sources, {name = "crates"})
-      return M
+      local opts = require "plugins.configs.cmp"
+      local cmp = require "cmp"
+      opts.mapping["<C-S-k>"] = cmp.mapping.select_prev_item {}
+      opts.mapping["<C-S-j>"] = cmp.mapping.select_next_item {}
+      opts.mapping["<CR>"] = cmp.mapping.close {}
+      opts.mapping["<Tab>"] = cmp.mapping.confirm {
+        behavior = cmp.ConfirmBehavior.Insert,
+        select = true,
+      }
+      table.insert(opts.sources, { name = "crates" })
+      return opts
     end,
   },
   {
