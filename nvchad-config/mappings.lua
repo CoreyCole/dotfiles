@@ -20,6 +20,8 @@ function InsertMarkdownURL()
   end
 end
 
+vim.cmd("map <S-Down> <Nop>")
+vim.cmd("map <S-Up> <Nop>")
 M.cc = {
   plugin = false,
   n = {
