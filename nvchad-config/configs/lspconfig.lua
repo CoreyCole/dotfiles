@@ -51,16 +51,3 @@ lspconfig.tailwindcss.setup({
     init_options = { userLanguages = { templ = "html" } },
 })
 
-lspconfig.rust_analyzer.setup({
-  on_attach = on_attach,
-  capabilities = capabilities,
-  filetype = {"rust"},
-  root_dir = util.root_pattern("Cargo.toml"),
-  settings = {
-    ["rust-analyzer"] = {
-      cargo = {
-        allFeatures = true,
-      }
-    }
-  }
-})

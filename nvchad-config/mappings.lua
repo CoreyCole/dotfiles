@@ -31,7 +31,7 @@ M.cc = {
       ":lua InsertMarkdownURL()<CR>",
       "markdown paste url",
     },
-  }
+  },
 }
 M.dap = {
   plugin = true,
