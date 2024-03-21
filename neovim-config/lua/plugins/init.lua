@@ -38,13 +38,10 @@ local plugins = {
   },
   {
     "nvim-treesitter/nvim-treesitter",
-    init = function()
-      require("core.utils").lazy_load "nvim-treesitter"
-    end,
     cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
     build = ":TSUpdate",
     opts = function()
-      return require "custom.configs.treesitter"
+      return require "configs.treesitter"
     end,
     config = function(_, opts)
       dofile(vim.g.base46_cache .. "syntax")
@@ -54,7 +51,7 @@ local plugins = {
   {
     "hrsh7th/nvim-cmp",
     opts = function()
-      local opts = require "plugins.configs.cmp"
+      local opts = require "configs.cmp"
       local cmp = require "cmp"
       opts.mapping["<Tab>"] = cmp.config.disable
       opts.mapping["<S-Tab>"] = cmp.config.disable
@@ -73,20 +70,19 @@ local plugins = {
     "nvimtools/none-ls.nvim", -- community maintained null-ls
     ft = {"python", "go"}, -- file type
     opts = function()
-      return require "custom.configs.none-ls"
+      return require "configs.none-ls"
     end,
   },
   {
     "nvim-tree/nvim-tree.lua",
     opts = function()
-      return require "custom.configs.nvimtree"
+      return require "configs.nvimtree"
     end,
   },
   {
     "neovim/nvim-lspconfig",
     config = function()
-      require "plugins.configs.lspconfig"
-      require "custom.configs.lspconfig"
+      require "configs.lspconfig"
     end,
   },
   {
@@ -139,7 +135,7 @@ local plugins = {
     ft = { "rust" },
     dependencies = "neovim/nvim-lspconfig",
     config = function()
-      require "custom.configs.rustaceanvim"
+      require "configs.rustaceanvim"
     end
   },
   {
@@ -169,14 +165,14 @@ local plugins = {
     "mfussenegger/nvim-lint",
     event = "VeryLazy",
     config = function()
-      require "custom.configs.lint"
+      require "configs.lint"
     end
   },
   {
     "mhartington/formatter.nvim",
     event = "VeryLazy",
     opts = function()
-      return require "custom.configs.formatter"
+      return require "configs.formatter"
     end
   },
   {

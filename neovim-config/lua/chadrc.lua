@@ -1,7 +1,6 @@
 --@type ChadrcConfig
 local M = {}
 
--- require "custom.autocmds"
 M.ui = {
   theme = "vscode_dark",
   changed_themes = {
@@ -72,7 +71,5 @@ M.ui = {
     end,
   },
 }
-M.plugins = "custom.plugins"
-M.mappings = require "custom.mappings"
 
 return M
