@@ -1,24 +1,30 @@
-local enable_ai = function()
-  if vim.g.is_code_private() then
-    return false
-  end
-  return true
-end
-
-local plugins = {
+return {
+  {
+    "stevearc/conform.nvim",
+    event = "BufWritePre", -- format on save
+    config = function()
+      require "configs.conform"
+    end,
+  },
   {
     "williamboman/mason.nvim",
     opts = {
       ensure_installed = {
-      "clangd",
+        "lua-language-server",
+        "stylua",
+        "codespell",
+        "clangd",
         "clang-format",
         "codelldb",
+        "isort",
         "black",
         "mypy",
         "ruff",
+        "ruff-lsp",
         "pyright",
         "debugpy",
         "marksman",
+        "gofumpt",
         "gopls",
         "goimports-reviser",
         "golines",
@@ -27,8 +33,9 @@ local plugins = {
         "html-lsp",
         "tailwindcss-language-server",
         "rust-analyzer",
+        "rustywind",
         "shfmt",
-				"css-lsp",
+        "css-lsp",
         "typescript-language-server",
         "eslint-lsp",
         "js-debug-adapter",
@@ -67,14 +74,12 @@ local plugins = {
     end,
   },
   {
-    "nvimtools/none-ls.nvim", -- community maintained null-ls
-    ft = {"python", "go"}, -- file type
-    opts = function()
-      return require "configs.none-ls"
-    end,
+    "nvim-tree/nvim-web-devicons",
   },
   {
     "nvim-tree/nvim-tree.lua",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    event = "VeryLazy",
     opts = function()
       return require "configs.nvimtree"
     end,
@@ -89,35 +94,37 @@ local plugins = {
     "roberte777/keep-it-secret.nvim",
     config = function()
       return {
-        wildcards = { ".*(.env)$",".*(.env.local)$", ".*(.env.dev)$", ".*(.env.production)$", ".*(.secret)$" },
+        wildcards = { ".*(.env)$", ".*(.env.local)$", ".*(.env.dev)$", ".*(.env.production)$", ".*(.secret)$" },
         enabled = true,
       }
     end,
   },
-    {
+  {
     "iamcco/markdown-preview.nvim",
     cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
     ft = { "markdown" },
-    build = function() vim.fn["mkdp#util#install"]() end,
+    build = function()
+      vim.fn["mkdp#util#install"]()
+    end,
   },
   {
     "kylechui/nvim-surround",
     version = "*", -- Use for stability; omit to use `main` branch for the latest features
     event = "VeryLazy",
     config = function()
-      require("nvim-surround").setup({
+      require("nvim-surround").setup {
         surrounds = {
           ["c"] = {
             add = function()
               return { { "```" }, { "```" } }
             end,
-          }
+          },
         },
-      })
+      }
     end,
   },
   {
-    "nvim-tree/nvim-web-devicons",
+    "MunifTanjim/nui.nvim", -- ui component library
   },
   {
     "folke/trouble.nvim",
@@ -125,6 +132,16 @@ local plugins = {
     opts = {
       mode = "document_diagnostics",
     },
+  },
+  { "sindrets/diffview.nvim" },
+  {
+    "NeogitOrg/neogit",
+    dependencies = {
+      "nvim-lua/plenary.nvim", -- required
+      "sindrets/diffview.nvim", -- optional - Diff integration
+      "nvim-telescope/telescope.nvim", -- optional
+    },
+    config = true,
   },
   --
   -- Rust
@@ -136,27 +153,27 @@ local plugins = {
     dependencies = "neovim/nvim-lspconfig",
     config = function()
       require "configs.rustaceanvim"
-    end
+    end,
   },
   {
     "saecki/crates.nvim",
-    ft = {"toml"},
+    ft = { "toml" },
     config = function(_, opts)
-      local crates  = require('crates')
+      local crates = require "crates"
       crates.setup(opts)
-      require('cmp').setup.buffer({
-        sources = { { name = "crates" }}
-      })
+      require("cmp").setup.buffer {
+        sources = { { name = "crates" } },
+      }
       crates.show()
-      require("core.utils").load_mappings("crates")
+      require("core.utils").load_mappings "crates"
     end,
   },
   {
     "rust-lang/rust.vim",
     ft = "rust",
-    init = function ()
+    init = function()
       vim.g.rustfmt_autosave = 1
-    end
+    end,
   },
   --
   -- js/ts
@@ -166,17 +183,7 @@ local plugins = {
     event = "VeryLazy",
     config = function()
       require "configs.lint"
-    end
-  },
-  {
-    "mhartington/formatter.nvim",
-    event = "VeryLazy",
-    opts = function()
-      return require "configs.formatter"
-    end
-  },
-  {
-    "MunifTanjim/nui.nvim",
+    end,
   },
   {
     "vuki656/package-info.nvim",
@@ -186,13 +193,36 @@ local plugins = {
       require("package-info").setup()
     end,
   },
+  -- {
+  --   "mhartington/formatter.nvim",
+  --   event = "VeryLazy",
+  --   opts = function()
+  --     return require "configs.formatter"
+  --   end
+  -- },
+
   --
   -- Debugging
   --
   {
     "mfussenegger/nvim-dap",
-    config = function(_, _)
-      require("core.utils").load_mappings("dap")
+    -- config = function(_, _)
+    --   require("core.utils").load_mappings("dap")
+    -- end,
+  },
+  {
+    "nvim-neotest/nvim-nio",
+  },
+  {
+    "rcarriga/nvim-dap-ui",
+    dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
+    config = function()
+      local dap = require "dap"
+      local dapui = require "dapui"
+      dapui.setup()
+      dap.listeners.after.event_initialized["dapui_config"] = function()
+        dapui.open()
+      end
     end,
   },
 
@@ -206,7 +236,7 @@ local plugins = {
     config = function(_, _)
       local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
       require("dap-python").setup(path)
-      require("core.utils").load_mappings("dap_python")
+      -- require("core.utils").load_mappings("dap_python")
     end,
   },
   {
@@ -216,21 +246,8 @@ local plugins = {
       "mfussenegger/nvim-dap",
       "rcarriga/nvim-dap-ui",
     },
-    config = function(_, opts)
-      require("dap-go").setup(opts)
-      require("core.utils").load_mappings("dap_go")
-    end
-  },
-  {
-    "rcarriga/nvim-dap-ui",
-    dependencies = "mfussenegger/nvim-dap",
-    config = function()
-      local dap = require("dap")
-      local dapui = require("dapui")
-      dapui.setup()
-      dap.listeners.after.event_initialized["dapui_config"] = function()
-        dapui.open()
-      end
+    opts = function()
+      return require "configs.formatter"
     end,
   },
   --
@@ -251,7 +268,7 @@ local plugins = {
     },
     -- event = "VeryLazy",
     config = function()
-      require("chatgpt").setup({
+      require("chatgpt").setup {
         api_key_cmd = "bw get item b62de22d-e56c-406d-939b-b121013a699c | jq -r '.fields[] | select(.name==\"OPENAI_KEY\") | .value'",
         actions_paths = { "~/dotfiles/chatgpt-actions.json" },
         openai_params = {
@@ -264,7 +281,7 @@ local plugins = {
           top_p = 1,
           n = 1,
         },
-      })
+      }
     end,
   },
 
@@ -275,7 +292,6 @@ local plugins = {
       require("gen").model = "codellama"
     end,
   },
-
   -- {
   --   "zbirenbaum/copilot.lua",
   --   -- enabled = enable_ai,
@@ -313,7 +329,6 @@ local plugins = {
   --     end
   --   end,
   -- },
-
   -- copilot status in lualine
   -- this is taken from the copilot lazyvim extras at:
   -- https://www.lazyvim.org/plugins/extras/coding.copilot
@@ -349,6 +364,17 @@ local plugins = {
   --     })
   --   end,
   -- },
+  -- {
+  --   "nvimtools/none-ls-extras.nvim",
+  -- },
+  -- {
+  --   "nvimtools/none-ls.nvim", -- community maintained null-ls
+  --   ft = {"python", "go"}, -- file type
+  --   dependencies = {
+  --     "nvimtools/none-ls-extras.nvim",
+  --   },
+  --   opts = function()
+  --     return require "configs.none-ls"
+  --   end,
+  -- },
 }
-
-return plugins

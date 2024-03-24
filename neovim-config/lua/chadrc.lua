@@ -1,7 +1,28 @@
---@type ChadrcConfig
+--@type ChdrcConfig
 local M = {}
-
 M.ui = {
+  statusline = {
+    theme = "vscode",
+    order = {
+      "mode",
+      "file",
+      "dir",
+      "diagnostics",
+      "git",
+      "%=",
+      "lsp_msg",
+      "%=",
+      "lsp",
+      "cursor",
+      "cwd",
+    },
+    modules = {
+      -- show open file's directory
+      dir = function()
+        return "(" .. vim.fn.expand "%:p:h:t" .. ")"
+      end,
+    },
+  },
   theme = "vscode_dark",
   changed_themes = {
     vscode_dark = {
@@ -16,12 +37,28 @@ M.ui = {
         base07 = "#FFFFFF",
         base08 = "#D16969",
         base09 = "#B5CEA8",
-        base0A = "#D7BA7D",
+        base0A = "#05ad97",
         base0B = "#BD8D78",
         base0C = "#9CDCFE",
         base0D = "#DCDCAA",
         base0E = "#C586C0",
         base0F = "#E9E9E9",
+        -- base00 = "#000000",
+        -- base01 = "#262626",
+        -- base02 = "#303030",
+        -- base03 = "#3C3C3C",
+        -- base04 = "#464646",
+        -- base05 = "#D4D4D4",
+        -- base06 = "#E9E9E9",
+        -- base07 = "#FFFFFF",
+        -- base08 = "#D16969",
+        -- base09 = "#f6f2e1",
+        -- base0A = "#007acc",
+        -- base0B = "#BD8D78",
+        -- base0C = "#9CDCFE",
+        -- base0D = "#aef8fc",
+        -- base0E = "#C586C0",
+        -- base0F = "#E9E9E9",
       },
       base_30 = {
         white = "#dee1e6",
@@ -56,19 +93,7 @@ M.ui = {
         pmenu_bg = "#60a6e0",
         folder_bg = "#7A8A92",
       },
-    }
-  },
-  statusline = {
-    theme = "vscode",
-    overriden_modules = function(modules)
-      table.insert(
-        modules,
-        3,
-        (function()
-          return "(" .. vim.fn.expand('%:p:h:t') .. ")"
-        end)()
-      )
-    end,
+    },
   },
 }
 

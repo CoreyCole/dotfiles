@@ -1,7 +1,10 @@
 local options = {
   filters = {
+    git_ignored = false,
     dotfiles = false,
-    exclude = { vim.fn.stdpath "config" .. "/lua/custom" },
+    -- Custom list of vim regex for file/directory names that will not be shown.
+    custom = { "node_modules", ".tmp" },
+    -- exclude = { vim.fn.stdpath "config" .. "/lua/custom" },
   },
   disable_netrw = true,
   hijack_netrw = true,
@@ -18,6 +21,9 @@ local options = {
     width = 25,
     preserve_window_proportions = true,
   },
+  diagnostics = {
+    enable = true,
+  },
   git = {
     enable = false,
     ignore = true,
@@ -32,8 +38,8 @@ local options = {
   },
   renderer = {
     root_folder_label = false,
-    highlight_git = false,
-    highlight_opened_files = "none",
+    highlight_git = true,
+    highlight_opened_files = "all",
 
     indent_markers = {
       enable = false,
@@ -43,8 +49,8 @@ local options = {
       show = {
         file = true,
         folder = true,
-        folder_arrow = true,
-        git = false,
+        folder_arrow = false,
+        git = true,
       },
 
       glyphs = {
