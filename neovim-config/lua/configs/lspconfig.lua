@@ -6,6 +6,7 @@ local lspconfig = require "lspconfig"
 local util = require "lspconfig/util"
 local servers = {
   "gopls",
+  "bufls",
   "pyright",
   -- "ruff_lsp",
   "html",
@@ -55,6 +56,14 @@ lspconfig.gopls.setup {
       },
     },
   },
+}
+
+lspconfig.bufls.setup {
+  on_attach = on_attach,
+  on_init = on_init,
+  capabilities = capabilities,
+  filetypes = { "proto" },
+  root_dir = util.root_pattern ".git",
 }
 
 vim.filetype.add { extension = { templ = "templ" } }

@@ -4,7 +4,7 @@ local map = vim.keymap.set
 map("n", "<leader>s", ":noautocmd w <CR>", { desc = "Save without auto cmd/formatting" })
 map("n", ";", ":", { desc = "CMD enter command mode" })
 map("n", "<leader>cp", ':let @+ = expand("%:p")', { desc = "Copy full path" })
-map("n", "<leader>x", ":lua require('trouble').toggle()<CR>", { desc = "toggle trouble" })
+-- map("n", "<leader>x", ":lua require('trouble').toggle()<CR>", { desc = "toggle trouble" })
 
 --
 -- lsp
@@ -12,17 +12,15 @@ map("n", "<leader>x", ":lua require('trouble').toggle()<CR>", { desc = "toggle t
 map("n", "gi", function()
   vim.lsp.buf.implementation()
 end, { desc = "LSP implementation" })
-
 map("n", "gd", function()
   require("telescope.builtin").lsp_definitions()
   vim.cmd "norm! zz" -- center the cursor in the screen
 end, { desc = "LSP definition" })
-
 map("n", "gD", function()
   vim.lsp.buf.declaration()
 end, { desc = "LSP declaration" })
-
-map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [G]oto [R]eferences" })
+map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
+map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]ymbols" })
 
 --
 -- neogit
@@ -92,6 +90,9 @@ map("n", "<leader>db", "<cmd> DapToggleBreakpoint <CR>", { desc = "Add breakpoin
 map("n", "<leader>dgt", function()
   require("dap-go").test()
 end, { desc = "Debug go test" })
+map("n", "<leader>ca", function()
+  vim.lsp.buf.code_action()
+end, { desc = "code action" })
 
 -- python
 map("n", "<leader>dpr", function()
@@ -127,8 +128,16 @@ end, { desc = "close other tabs" })
 --
 -- paths
 --
-map("n", "<leader>cp", ':let @+ = expand("%:p")', { desc = "Copy full path" })
-map("n", "<leader>cpr", ':let @+ = expand("%")', { desc = "Copy relative path" })
+map("n", "<leader>cpp", function()
+  local path = vim.fn.expand "%:p"
+  vim.fn.setreg("+", path)
+  vim.notify('Copied "' .. path .. '" to the clipboard!')
+end, { desc = "Copy full path" })
+map("n", "<leader>cpr", function()
+  local path = vim.fn.expand "%:."
+  vim.fn.setreg("+", path)
+  vim.notify('Copied "' .. path .. '" to the clipboard!')
+end, { desc = "Copy relative path" })
 map("n", "<leader>cpf", ':let @+ = expand("%:t")', { desc = "Copy filename" })
 
 --
@@ -184,3 +193,15 @@ end
 map("n", "<leader>lf", function()
   custom_format()
 end, { desc = "format templ html" })
+
+--
+-- rest.nvim
+--
+map("n", "<leader>rr", "<cmd>Rest run<cr>", { desc = "Run request under the cursor" })
+map("n", "<leader>rl", "<cmd>Rest run last<cr>", { desc = "Re-run latest request" })
+
+--
+-- csv
+--
+map("n", "<leader>,", "<cmd>RainbowDelimSimple<cr>", { desc = "RainbowDelimSimple" })
+map("n", "<leader>l", "<cmd>RainbowAlign<cr>", { desc = "RainbowAlign" })

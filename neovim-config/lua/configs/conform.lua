@@ -1,9 +1,10 @@
 local opts = {
   formatters_by_ft = {
+    templ = { "htmlbeautifier", "gofumt" },
     lua = { "stylua" },
     python = { "isort", "black" },
     rust = { "rustfmt" },
-    json = { "prettier" },
+    json = { "prettierd" },
     javascript = { "prettier" },
     typescript = { "prettier" },
     typescriptreact = { "prettier" },
@@ -12,7 +13,8 @@ local opts = {
     html = { "prettier" },
     c = { "clang-format" },
     cpp = { "clang-format" },
-    go = { "gofumpt", "goimports-reviser", "golines" },
+    -- go = { "gofumpt", "goimports-reviser", "golines" },
+    go = { "gofumpt" },
     sh = { "shfmt" },
     yaml = { "yamlfmt" },
     swift = { "swiftformat" },
@@ -22,7 +24,7 @@ local opts = {
   format_on_save = {
     -- These options will be passed to conform.format()
     timeout_ms = 500,
-    lsp_fallback = true,
+    lsp_fallback = false,
   },
 }
 require("conform").setup(opts)

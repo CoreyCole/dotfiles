@@ -1,6 +1,10 @@
 require "nvchad.options"
 
--- add yours here!
+vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#e9e9e9", bg = "#D14242" })
+vim.api.nvim_set_hl(0, "NeogitDiffAdd", { fg = "#e9e9e9", bg = "#559955" })
+vim.api.nvim_set_hl(0, "NeogitDiffDeleteHighlight", { fg = "#e9e9e9", bg = "#D14242" })
+vim.api.nvim_set_hl(0, "NeogitDiffAddHighlight", { fg = "#e9e9e9", bg = "#559955" })
+
 vim.cmd "map <S-Down> <Nop>"
 vim.cmd "map <S-Up> <Nop>"
 -- local o = vim.o
@@ -9,6 +13,7 @@ vim.opt.listchars = "tab:▸ ,trail:·,nbsp:␣,extends:❯,precedes:❮" -- sho
 vim.opt.relativenumber = false -- relative line numbers
 -- vim.opt.scrolloff = 10 -- keep 20 lines above and below the cursor
 
+vim.g.copilot_no_tab_map = true
 vim.g.copilot_assume_mapped = true
 vim.g.copilot_tab_fallback = ""
 vim.opt.listchars = "tab:▸ ,trail:·,nbsp:␣,extends:❯,precedes:❮" -- show symbols for whitespace

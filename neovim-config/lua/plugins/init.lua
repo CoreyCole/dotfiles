@@ -7,6 +7,60 @@ return {
     end,
   },
   {
+    "cameron-wags/rainbow_csv.nvim",
+    config = true,
+    ft = {
+      "csv",
+      "tsv",
+      "csv_semicolon",
+      "csv_whitespace",
+      "csv_pipe",
+      "rfc_csv",
+      "rfc_semicolon",
+    },
+    cmd = {
+      "RainbowDelim",
+      "RainbowDelimSimple",
+      "RainbowDelimQuoted",
+      "RainbowMultiDelim",
+    },
+  },
+  -- {
+  --   "vhyrro/luarocks.nvim",
+  --   priority = 1000,
+  --   config = true,
+  -- },
+  {
+    "vhyrro/luarocks.nvim",
+    name = "luarocks",
+    opts = {
+      rocks = { "lua-curl", "nvim-nio", "mimetypes", "xml2lua" },
+    },
+  },
+  -- {
+  --   "vhyrro/luarocks.nvim",
+  --   branch = "go-away-python",
+  --   config = function()
+  --     require("luarocks").setup {}
+  --   end,
+  -- },
+  {
+    "rest-nvim/rest.nvim",
+    ft = "http",
+    dependencies = { "luarocks.nvim" },
+    config = function()
+      require("rest-nvim").setup()
+    end,
+  },
+  -- {
+  --   "neovim/pynvim",
+  --   ft = "http",
+  -- },
+  -- {
+  --   "BlackLight/nvim-http",
+  --   ft = "http",
+  -- },
+  {
     "williamboman/mason.nvim",
     opts = {
       ensure_installed = {
@@ -24,6 +78,7 @@ return {
         "pyright",
         "debugpy",
         "marksman",
+        "buf",
         "gofumpt",
         "gopls",
         "goimports-reviser",
@@ -40,6 +95,7 @@ return {
         "eslint-lsp",
         "js-debug-adapter",
         "prettier",
+        "prettierd",
       },
     },
   },
@@ -131,6 +187,39 @@ return {
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = {
       mode = "document_diagnostics",
+    },
+    cmd = "Trouble",
+    keys = {
+      {
+        "<leader>t",
+        "<cmd>Trouble diagnostics toggle<cr>",
+        desc = "Diagnostics (Trouble)",
+      },
+      {
+        "<leader>xX",
+        "<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
+        desc = "Buffer Diagnostics (Trouble)",
+      },
+      {
+        "<leader>cs",
+        "<cmd>Trouble symbols toggle focus=false<cr>",
+        desc = "Symbols (Trouble)",
+      },
+      {
+        "<leader>cl",
+        "<cmd>Trouble lsp toggle focus=false win.position=right<cr>",
+        desc = "LSP Definitions / references / ... (Trouble)",
+      },
+      {
+        "<leader>xL",
+        "<cmd>Trouble loclist toggle<cr>",
+        desc = "Location List (Trouble)",
+      },
+      {
+        "<leader>xQ",
+        "<cmd>Trouble qflist toggle<cr>",
+        desc = "Quickfix List (Trouble)",
+      },
     },
   },
   { "sindrets/diffview.nvim" },
