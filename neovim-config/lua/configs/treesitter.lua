@@ -17,6 +17,9 @@ local options = {
         jsx_attribute = "// %s",
         comment = "// %s",
       },
+      sql = {
+        __default = "-- %s",
+      },
     },
   },
 }

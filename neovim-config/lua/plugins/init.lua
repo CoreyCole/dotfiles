@@ -1,11 +1,321 @@
+local utils = require "utils"
+
 return {
+  {
+    "MagicDuck/grug-far.nvim",
+    event = "VeryLazy",
+    config = function()
+      require("grug-far").setup {
+        -- options, see Configuration section below
+        -- there are no required options atm
+        -- engine = 'ripgrep' is default, but 'astgrep' can be specified
+        keymaps = {
+          replace = { n = "<localleader>r" },
+          qflist = { n = "<localleader>q" },
+          syncLocations = { n = "<localleader>s" },
+          syncLine = { n = "<localleader>l" },
+          close = { n = "<localleader>c" },
+          historyOpen = { n = "<localleader>t" },
+          historyAdd = { n = "<localleader>a" },
+          refresh = { n = "<localleader>f" },
+          openLocation = { n = "<localleader>o" },
+          openNextLocation = { n = "<down>" },
+          openPrevLocation = { n = "<up>" },
+          gotoLocation = { n = "<enter>" },
+          pickHistoryEntry = { n = "<enter>" },
+          abort = { n = "<localleader>b" },
+          help = { n = "g?" },
+          toggleShowCommand = { n = "<localleader>p" },
+          swapEngine = { n = "<localleader>e" },
+          previewLocation = { n = "<localleader>i" },
+          swapReplacementInterpreter = { n = "<localleader>x" },
+          applyNext = { n = "<localleader>j" },
+          applyPrev = { n = "<localleader>k" },
+        },
+      }
+    end,
+  },
+  {
+    "numToStr/Comment.nvim",
+    event = "VeryLazy",
+    config = function()
+      require("Comment").setup {
+        pre_hook = require("ts_context_commentstring.integrations.comment_nvim").create_pre_hook(),
+      }
+    end,
+  },
+  {
+    "JoosepAlviste/nvim-ts-context-commentstring",
+    event = "VeryLazy",
+    depenenices = {
+      "nvim-treesitter/nvim-treesitter",
+      "numToStr/Comment.nvim",
+    },
+    init = function()
+      vim.g.skip_ts_context_commentstring_module = true
+      require("nvim-treesitter.configs").setup {}
+    end,
+  },
+  {
+    "tpope/vim-dadbod",
+  },
+  {
+    "kristijanhusak/vim-dadbod-completion",
+  },
+  {
+    "kristijanhusak/vim-dadbod-ui",
+    dependencies = {
+      { "tpope/vim-dadbod", lazy = true },
+      { "kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" }, lazy = true }, -- Optional
+    },
+    cmd = {
+      "DBUI",
+      "DBUIToggle",
+      "DBUIAddConnection",
+      "DBUIFindBuffer",
+    },
+    init = function()
+      -- Your DBUI configuration
+      vim.g.db_ui_use_nerd_fonts = 1
+    end,
+  },
+  {
+    "sebdah/vim-delve",
+  },
+  {
+    "gelguy/wilder.nvim",
+    init = function()
+      local wilder = require "wilder"
+      wilder.setup { modes = { ":", "/", "?" } }
+    end,
+  },
+  {
+    "hat0uma/csvview.nvim",
+    config = function()
+      require("csvview").setup {
+        parser = {
+          --- The number of lines that the asynchronous parser processes per cycle.
+          --- This setting is used to prevent monopolization of the main thread when displaying large files.
+          --- If the UI freezes, try reducing this value.
+          async_chunksize = 50,
+        },
+        view = {
+          --- minimum width of a column
+          min_column_width = 5,
+
+          --- spacing between columns
+          spacing = 2,
+
+          --- The display method of the delimiter
+          --- "highlight" highlights the delimiter
+          --- "border" displays the delimiter with `│`
+          --- see `Features` section of the README.
+          ---@type "highlight" | "border"
+          display_mode = "border",
+        },
+      }
+    end,
+  },
+  {
+    "windwp/nvim-autopairs",
+    enabled = false,
+  },
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      {
+        "nvim-telescope/telescope-fzf-native.nvim",
+        build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
+      },
+    },
+    config = function()
+      require("telescope").setup {
+        pickers = {
+          find_files = {
+            theme = "ivy",
+          },
+        },
+      }
+      vim.keymap.set("n", "<leader>fd", require("telescope.builtin").find_files)
+      vim.keymap.set("n", "<leader>fe", function()
+        require("telescope.builtin").find_files {
+          cwd = "~/cn/monorepo/frontend",
+        }
+      end)
+    end,
+  },
   {
     "stevearc/conform.nvim",
     event = "BufWritePre", -- format on save
-    config = function()
-      require "configs.conform"
+    cmd = { "ConformInfo" },
+    opts = function()
+      return {
+        formatters_by_ft = {
+          lua = { "stylua" },
+          python = { "isort", "black" },
+          rust = { "rustfmt" },
+          json = { "prettierd" },
+          javascript = { "prettierd" },
+          typescript = { "prettierd" },
+          typescriptreact = { "prettierd" },
+          javascriptreact = { "prettierd" },
+          css = { "prettier" },
+          html = { "prettier" },
+          c = { "clang-format" },
+          cpp = { "clang-format" },
+          -- go = { "gofumpt", "goimports-reviser", "golines" },
+          go = {
+            -- "gofumpt",
+            "goimports",
+            "gci",
+            "golines",
+          },
+          sh = { "shfmt" },
+          yaml = { "yamlfmt" },
+          swift = { "swiftformat" },
+          html = { "htmlbeautifier" },
+          markdown = { "mdformat" },
+          proto = { "buf" },
+          sql = { "sqlfluff_format", "sqlfluff_fix" },
+        },
+        format_on_save = {
+          -- These options will be passed to conform.format()
+          timeout_ms = 2000,
+          lsp_fallback = false,
+        },
+        formatters = {
+          prettierd = {
+            -- Optional: specify the command path if needed
+            command = vim.fn.stdpath "data" .. "/mason/bin/prettierd",
+          },
+          golines = {
+            prepend_args = { "--max-len=90", "--base-formatter=gofumpt" },
+          },
+          gci = function()
+            return {
+              -- A function that calculates the directory to run the command in
+              cwd = require("conform.util").root_file { "go.mod", "go.sum" },
+              -- When cwd is not found, don't run the formatter (default false)
+              require_cwd = true,
+              append_args = {
+                "-s",
+                "standard",
+                "-s",
+                "default",
+                "-s",
+                "prefix(github.com/premiumlabs/monorepo)",
+                "-s",
+                "localmodule",
+              },
+            }
+          end,
+          sqlfluff_format = function()
+            return {
+              command = "sqlfluff",
+              args = { "format", "-" },
+              stdin = true,
+              cwd = require("conform.util").root_file {
+                ".sqlfluff",
+                "pep8.ini",
+                "pyproject.toml",
+                "setup.cfg",
+                "tox.ini",
+              },
+              require_cwd = true,
+            }
+          end,
+          sqlfluff_fix = function()
+            return {
+              command = "sqlfluff",
+              args = { "fix", "-" },
+              exit_codes = { 0, 1 }, -- ignore exit code 1 as this happens when there simply exist unfixable lints
+              stdin = true,
+              cwd = require("conform.util").root_file {
+                ".sqlfluff",
+                "pep8.ini",
+                "pyproject.toml",
+                "setup.cfg",
+                "tox.ini",
+              },
+              require_cwd = true,
+            }
+          end,
+        },
+      }
+    end,
+    config = function(_, opts)
+      require("conform").setup(opts)
+      vim.api.nvim_create_autocmd("BufEnter", {
+        pattern = "*.templ",
+        callback = function()
+          vim.cmd "TSBufEnable highlight"
+        end,
+      })
+
+      -- vim.api.nvim_create_autocmd({ "BufWritePre" }, {
+      --   pattern = { "*.templ" },
+      --   callback = function()
+      --     print "here"
+      --     vim.lsp.buf.format()
+      --   end,
+      -- })
     end,
   },
+  {
+    "cameron-wags/rainbow_csv.nvim",
+    config = true,
+    ft = {
+      "csv",
+      "tsv",
+      "csv_semicolon",
+      "csv_whitespace",
+      "csv_pipe",
+      "rfc_csv",
+      "rfc_semicolon",
+    },
+    cmd = {
+      "RainbowDelim",
+      "RainbowDelimSimple",
+      "RainbowDelimQuoted",
+      "RainbowMultiDelim",
+    },
+  },
+  -- {
+  --   "vhyrro/luarocks.nvim",
+  --   priority = 1000,
+  --   config = true,
+  -- },
+  {
+    "vhyrro/luarocks.nvim",
+    name = "luarocks",
+    opts = {
+      rocks = { "lua-curl", "nvim-nio", "mimetypes", "xml2lua" },
+    },
+  },
+  -- {
+  --   "vhyrro/luarocks.nvim",
+  --   branch = "go-away-python",
+  --   config = function()
+  --     require("luarocks").setup {}
+  --   end,
+  -- },
+  -- {
+  --   "rest-nvim/rest.nvim",
+  --   ft = "http",
+  --   dependencies = { "luarocks.nvim" },
+  --   config = function()
+  --     require("rest-nvim").setup()
+  --   end,
+  -- },
+  -- {
+  --   "neovim/pynvim",
+  --   ft = "http",
+  -- },
+  -- {
+  --   "BlackLight/nvim-http",
+  --   ft = "http",
+  -- },
   {
     "williamboman/mason.nvim",
     opts = {
@@ -24,6 +334,7 @@ return {
         "pyright",
         "debugpy",
         "marksman",
+        "buf",
         "gofumpt",
         "gopls",
         "goimports-reviser",
@@ -37,9 +348,11 @@ return {
         "shfmt",
         "css-lsp",
         "typescript-language-server",
+        "vtsls",
         "eslint-lsp",
         "js-debug-adapter",
         "prettier",
+        "prettierd",
       },
     },
   },
@@ -47,12 +360,39 @@ return {
     "nvim-treesitter/nvim-treesitter",
     cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
     build = ":TSUpdate",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter-textobjects",
+    },
     opts = function()
       return require "configs.treesitter"
     end,
     config = function(_, opts)
       dofile(vim.g.base46_cache .. "syntax")
       require("nvim-treesitter.configs").setup(opts)
+    end,
+  },
+  {
+    "nvim-treesitter/nvim-treesitter-context",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    event = "VeryLazy",
+    opts = function()
+      return {
+        enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
+        max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
+        min_window_height = 0, -- Minimum editor window height to enable context. Values <= 0 mean no limit.
+        line_numbers = true,
+        multiline_threshold = 20, -- Maximum number of lines to show for a single context
+        trim_scope = "outer", -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
+        mode = "cursor", -- Line used to calculate context. Choices: 'cursor', 'topline'
+        -- Separator between context and content. Should be a single character string, like '-'.
+        -- When separator is set, the context will only show up when there are at least 2 lines above cursorline.
+        separator = nil,
+        zindex = 20, -- The Z-index of the context window
+        on_attach = nil, -- (fun(buf: integer): boolean) return false to disable attaching
+      }
+    end,
+    config = function(_, opts)
+      require("treesitter-context").setup(opts)
     end,
   },
   {
@@ -132,6 +472,39 @@ return {
     opts = {
       mode = "document_diagnostics",
     },
+    cmd = "Trouble",
+    keys = {
+      {
+        "<leader>t",
+        "<cmd>Trouble diagnostics toggle<cr>",
+        desc = "Diagnostics (Trouble)",
+      },
+      {
+        "<leader>xX",
+        "<cmd>Trouble diagnostics toggle filter.buf=0<cr>",
+        desc = "Buffer Diagnostics (Trouble)",
+      },
+      {
+        "<leader>cs",
+        "<cmd>Trouble symbols toggle focus=false<cr>",
+        desc = "Symbols (Trouble)",
+      },
+      {
+        "<leader>cl",
+        "<cmd>Trouble lsp toggle focus=false win.position=right<cr>",
+        desc = "LSP Definitions / references / ... (Trouble)",
+      },
+      {
+        "<leader>xL",
+        "<cmd>Trouble loclist toggle<cr>",
+        desc = "Location List (Trouble)",
+      },
+      {
+        "<leader>xQ",
+        "<cmd>Trouble qflist toggle<cr>",
+        desc = "Quickfix List (Trouble)",
+      },
+    },
   },
   { "sindrets/diffview.nvim" },
   {
@@ -142,6 +515,13 @@ return {
       "nvim-telescope/telescope.nvim", -- optional
     },
     config = true,
+  },
+  {
+    "FabijanZulj/blame.nvim",
+    lazy = false,
+    config = function()
+      require("blame").setup {}
+    end,
   },
   --
   -- Rust
@@ -181,8 +561,60 @@ return {
   {
     "mfussenegger/nvim-lint",
     event = "VeryLazy",
-    config = function()
-      require "configs.lint"
+    -- config = function()
+    --   require "configs.lint"
+    -- end,
+    -- after lint is initialized, run this
+    init = function()
+      require("lint").linters_by_ft = {
+        javascript = { "eslint_d" },
+        typescript = { "eslint_d" },
+        typescriptreact = { "eslint_d" },
+        javascriptreact = { "eslint_d" },
+        jsx = { "eslint" },
+        tsx = { "eslint" },
+        json = { "jsonlint" },
+        -- go = { "golangcilint" },
+        markdown = { "codespell" },
+        proto = { "buf_lint" },
+        ["*"] = { "codespell" },
+      }
+      -- require("lint").linters.golangcilint.args = {
+      --   "run",
+      --   "--tests",
+      --   "--build-tags=integration,unit",
+      --   "--concurrency=16",
+      --   "--max-issues-per-linter=0",
+      --   "--max-same-issues=0",
+      --   "--out-format=json",
+      --   -- "--exclude",
+      --   -- '.*declaration of "err" shadows declaration.*',
+      --   "--issues-exit-code=0",
+      --   "--show-stats=false",
+      --   "--print-issued-lines=false",
+      --   "--print-linter-name=false",
+      --   function()
+      --     return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
+      --   end,
+      -- }
+      vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+        callback = function(args)
+          require("lint").try_lint()
+        end,
+      })
+      print("golangci args: " .. vim.inspect(require("lint").linters.golangcilint.args))
+      require("lint").linters.golangcilint.on_output = function(output, bufnr)
+        -- Print the raw output (as a Lua table)
+        print("golangci-lint raw output: " .. vim.inspect(output))
+        vim.notify("golangci-lint raw output: " .. vim.inspect(output))
+        -- Continue processing the output using the default parser
+        return require("lint.linters").get_default_on_output()(output, bufnr)
+      end
+      require("lint").linters.golangcilint.on_stderr = function(output, bufnr)
+        print("golangci-lint stderr output: " .. vim.inspect(output))
+        vim.notify("golangci-lint stderr output:\n" .. vim.inspect(output))
+        return output
+      end
     end,
   },
   {
@@ -204,28 +636,245 @@ return {
   --
   -- Debugging
   --
+  -- DAP setup
   {
     "mfussenegger/nvim-dap",
-    -- config = function(_, _)
-    --   require("core.utils").load_mappings("dap")
-    -- end,
+    event = "VeryLazy",
+    keys = {
+      {
+        "<leader>db",
+        function()
+          require("dap").toggle_breakpoint()
+        end,
+        desc = "toggle [d]ebug [b]reakpoint",
+      },
+      {
+        "<leader>dB",
+        function()
+          require("dap").set_breakpoint(vim.fn.input "Breakpoint condition: ")
+        end,
+        desc = "[d]ebug [B]reakpoint",
+      },
+      {
+        "<leader>dc",
+        function()
+          require("dap").continue()
+        end,
+        desc = "[d]ebug [c]ontinue (start here)",
+      },
+      {
+        "<leader>dC",
+        function()
+          require("dap").run_to_cursor()
+        end,
+        desc = "[d]ebug [C]ursor",
+      },
+      {
+        "<leader>dg",
+        function()
+          require("dap").goto_()
+        end,
+        desc = "[d]ebug [g]o to line",
+      },
+      {
+        "<leader>do",
+        function()
+          require("dap").step_over()
+        end,
+        desc = "[d]ebug step [o]ver",
+      },
+      {
+        "<leader>dO",
+        function()
+          require("dap").step_out()
+        end,
+        desc = "[d]ebug step [O]ut",
+      },
+      {
+        "<leader>di",
+        function()
+          require("dap").step_into()
+        end,
+        desc = "[d]ebug [i]nto",
+      },
+      {
+        "<leader>dj",
+        function()
+          require("dap").down()
+        end,
+        desc = "[d]ebug [j]ump down",
+      },
+      {
+        "<leader>dk",
+        function()
+          require("dap").up()
+        end,
+        desc = "[d]ebug [k]ump up",
+      },
+      {
+        "<leader>dl",
+        function()
+          require("dap").run_last()
+        end,
+        desc = "[d]ebug [l]ast",
+      },
+      {
+        "<leader>dp",
+        function()
+          require("dap").pause()
+        end,
+        desc = "[d]ebug [p]ause",
+      },
+      {
+        "<leader>dr",
+        function()
+          require("dap").repl.toggle()
+        end,
+        desc = "[d]ebug [r]epl",
+      },
+      {
+        "<leader>dR",
+        function()
+          require("dap").clear_breakpoints()
+        end,
+        desc = "[d]ebug [R]emove breakpoints",
+      },
+      {
+        "<leader>ds",
+        function()
+          require("dap").session()
+        end,
+        desc = "[d]ebug [s]ession",
+      },
+      {
+        "<leader>dt",
+        function()
+          require("dap").terminate()
+        end,
+        desc = "[d]ebug [t]erminate",
+      },
+      {
+        "<leader>dw",
+        function()
+          require("dap.ui.widgets").hover()
+        end,
+        desc = "[d]ebug [w]idgets",
+      },
+    },
   },
   {
     "nvim-neotest/nvim-nio",
   },
   {
-    "rcarriga/nvim-dap-ui",
-    dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
-    config = function()
-      local dap = require "dap"
-      local dapui = require "dapui"
-      dapui.setup()
-      dap.listeners.after.event_initialized["dapui_config"] = function()
-        dapui.open()
-      end
+    "leoluz/nvim-dap-go",
+    ft = "go",
+    dependencies = {
+      "mfussenegger/nvim-dap",
+      "rcarriga/nvim-dap-ui",
+    },
+    opts = function()
+      return require "configs.formatter"
     end,
   },
+  {
+    "nvim-neotest/neotest",
+    event = "VeryLazy",
+    dependencies = {
+      "nvim-neotest/nvim-nio",
+      "nvim-lua/plenary.nvim",
+      "antoinemadec/FixCursorHold.nvim",
+      "nvim-treesitter/nvim-treesitter",
 
+      "nvim-neotest/neotest-plenary",
+      "nvim-neotest/neotest-vim-test",
+
+      {
+        "fredrikaverpil/neotest-golang",
+        dependencies = {
+          {
+            "leoluz/nvim-dap-go",
+            opts = {},
+          },
+        },
+        branch = "main",
+      },
+    },
+    opts = function(_, opts)
+      opts.adapters = opts.adapters or {}
+      opts.adapters["neotest-golang"] = {
+        go_test_args = {
+          "-count=1",
+          "-tags=integration,unit",
+        },
+      }
+    end,
+    config = function()
+      require("neotest").setup {
+        adapters = {
+          require "neotest-golang" {
+            go_test_args = {
+              "-count=1",
+              "-tags=integration,unit",
+            },
+            go_list_args = {
+              "-tags=integration,unit",
+            },
+            dap_go_opts = {
+              delve = {
+                build_flags = { "-tags=integration,unit" },
+              },
+            },
+          },
+        },
+      }
+    end,
+  },
+  -- DAP UI setup
+  {
+    "rcarriga/nvim-dap-ui",
+    event = "VeryLazy",
+    dependencies = {
+      "nvim-neotest/nvim-nio",
+      "mfussenegger/nvim-dap",
+    },
+    opts = {},
+    config = function(_, opts)
+      -- setup dap config by VsCode launch.json file
+      -- require("dap.ext.vscode").load_launchjs()
+      local dap = require "dap"
+      local dapui = require "dapui"
+      dapui.setup(opts)
+      dap.listeners.after.event_initialized["dapui_config"] = function()
+        dapui.open {}
+      end
+      dap.listeners.before.event_terminated["dapui_config"] = function()
+        dapui.close {}
+      end
+      dap.listeners.before.event_exited["dapui_config"] = function()
+        dapui.close {}
+      end
+    end,
+    keys = {
+      {
+        "<leader>du",
+        function()
+          require("dapui").toggle {}
+        end,
+        desc = "[d]ap [u]i",
+      },
+      {
+        "<leader>de",
+        function()
+          require("dapui").eval()
+        end,
+        desc = "[d]ap [e]val",
+      },
+    },
+  },
+  {
+    "theHamsta/nvim-dap-virtual-text",
+    opts = {},
+  },
   {
     "mfussenegger/nvim-dap-python",
     ft = "python",
@@ -237,17 +886,6 @@ return {
       local path = "~/.local/share/nvim/mason/packages/debugpy/venv/bin/python"
       require("dap-python").setup(path)
       -- require("core.utils").load_mappings("dap_python")
-    end,
-  },
-  {
-    "leoluz/nvim-dap-go",
-    ft = "go",
-    dependencies = {
-      "mfussenegger/nvim-dap",
-      "rcarriga/nvim-dap-ui",
-    },
-    opts = function()
-      return require "configs.formatter"
     end,
   },
   --
@@ -266,17 +904,22 @@ return {
       { "nvim-lua/plenary.nvim" },
       { "nvim-telescope/telescope.nvim" },
     },
-    -- event = "VeryLazy",
+    cmd = { "ChatGPT", "ChatGPTActAs", "ChatGPTRun", "ChatGPTEditWithInstructions" },
     config = function()
       require("chatgpt").setup {
-        api_key_cmd = "bw get item b62de22d-e56c-406d-939b-b121013a699c | jq -r '.fields[] | select(.name==\"OPENAI_KEY\") | .value'",
+        api_key_cmd = "ks show openai",
         actions_paths = { "~/dotfiles/chatgpt-actions.json" },
         openai_params = {
           model = "gpt-4",
           max_tokens = 4000,
+          frequency_penalty = 0,
+          presence_penalty = 0,
+          temperature = 0.2,
+          top_p = 0.1,
+          n = 1,
         },
         openai_edit_params = {
-          model = "gpt-3.5-turbo",
+          model = "gpt-4",
           temperature = 0,
           top_p = 1,
           n = 1,

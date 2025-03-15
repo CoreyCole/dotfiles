@@ -1,18 +1,44 @@
-require("lint").linters_by_ft = {
-  javascript = { "eslint" },
-  typescript = { "eslint" },
-  typescriptreact = { "eslint" },
-  javascriptreact = { "eslint" },
-  jsx = { "eslint" },
-  tsx = { "eslint" },
-  json = { "jsonlint" },
-  go = { "golangcilint" },
-  markdown = { "codespell" },
-}
--- "pyright"
-
-vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-  callback = function()
-    require("lint").try_lint()
-  end,
-})
+-- require("lint").linters_by_ft = {
+--   javascript = { "eslint_d" },
+--   typescript = { "eslint_d" },
+--   typescriptreact = { "eslint_d" },
+--   javascriptreact = { "eslint_d" },
+--   jsx = { "eslint" },
+--   tsx = { "eslint" },
+--   json = { "jsonlint" },
+--   go = { "golangcilint" },
+--   markdown = { "codespell" },
+--   proto = { "buf_lint" },
+--   ["*"] = { "codespell" },
+-- }
+-- require("lint").linters.golangcilint.args = {
+--   "run",
+--   "--tests",
+--   "--build-tags",
+--   "integration,unit",
+--   "--concurrency",
+--   "16",
+--   "--max-issues-per-linter",
+--   "0",
+--   "--max-same-issues",
+--   "0",
+--   "--out-format",
+--   "json",
+--   "--exclude",
+--   '.*declaration of "err" shadows declaration.*',
+--   "--issues-exit-code",
+--   "0",
+--   "--show-stats",
+--   "false",
+--   "--print-issued-lines",
+--   "false",
+--   "--print-linter-name",
+--   "false",
+-- }
+-- -- "pyright"
+--
+-- vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+--   callback = function(args)
+--     require("lint").try_lint()
+--   end,
+-- })

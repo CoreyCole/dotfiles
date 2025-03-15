@@ -16,9 +16,9 @@ local options = {
     update_root = false,
   },
   view = {
-    adaptive_size = false,
+    adaptive_size = true,
     side = "left",
-    width = 25,
+    -- width = 35,
     preserve_window_proportions = true,
   },
   diagnostics = {

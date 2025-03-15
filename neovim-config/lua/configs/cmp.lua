@@ -76,6 +76,10 @@ local options = {
     ["<C-Space>"] = cmp.mapping.complete(),
     ["<C-e>"] = cmp.mapping.close(),
 
+    ["<C-y>"] = cmp.mapping.confirm {
+      behavior = cmp.ConfirmBehavior.Insert,
+      select = true,
+    },
     ["<CR>"] = cmp.mapping.confirm {
       behavior = cmp.ConfirmBehavior.Insert,
       select = true,
@@ -113,5 +117,12 @@ local options = {
 if cmp_style ~= "atom" and cmp_style ~= "atom_colored" then
   options.window.completion.border = border "CmpBorder"
 end
+
+cmp.setup.filetype({ "sql" }, {
+  sources = {
+    { name = "vim-dadbod-completion" },
+    { name = "buffer" },
+  },
+})
 
 return options

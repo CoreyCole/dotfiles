@@ -23,7 +23,7 @@ return {
     -- a string that defines the port to start delve debugger.
     -- default to string "${port}" which instructs nvim-dap
     -- to start the process in a random available port
-    port = "${port}",
+    port = "4040",
     -- additional args to pass to dlv
     args = {},
     -- the build flags that are passed to delve.
