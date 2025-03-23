@@ -43,6 +43,53 @@ end, { desc = "Get current node type" })
 -- nmap("<leader>ds", require("telescope.builtin").lsp_document_symbols, "[D]ocument [S]symbols")
 -- nmap("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "[W]orkspace [S]symbols")
 --
+map("n", "gq", function()
+  -- Get the function name under cursor
+  local func_name = vim.fn.expand "<cword>"
+  -- Use ripgrep to search for the definition pattern in db/queries
+  -- Looking for lines like: -- name: FunctionName
+  local rg_cmd = string.format('rg --fixed-strings --line-number "name: %s" db/queries', func_name)
+  -- copy to clipboard
+  vim.fn.setreg("+", rg_cmd)
+  -- Execute ripgrep and get results
+  local results = vim.fn.systemlist(rg_cmd)
+
+  if #results == 0 then
+    vim.notify("No query definition found for: " .. func_name, vim.log.levels.WARN)
+    return
+  end
+
+  -- Parse the first result using a more reliable method
+  -- ripgrep output format is typically: file:line:content
+  local first_result = results[1]
+
+  -- Find the first and second colon positions
+  local first_colon_pos = string.find(first_result, ":", 1, true)
+  if not first_colon_pos then
+    vim.notify("Unexpected ripgrep output format", vim.log.levels.ERROR)
+    return
+  end
+
+  local second_colon_pos = string.find(first_result, ":", first_colon_pos + 1, true)
+  if not second_colon_pos then
+    vim.notify("Unexpected ripgrep output format", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Extract file path and line number
+  local file_path = string.sub(first_result, 1, first_colon_pos - 1)
+  local line_number = tonumber(string.sub(first_result, first_colon_pos + 1, second_colon_pos - 1))
+
+  if not file_path or not line_number then
+    vim.notify(string.format("Failed to parse query definition: %s", results[1]), vim.log.levels.ERROR)
+    return
+  end
+
+  -- Open the file at the specific line
+  vim.cmd(string.format("edit +%d %s", line_number, file_path))
+  vim.notify("Found query definition for: " .. func_name)
+end, { desc = "Go to Query Definition" })
+
 map("n", "gi", function()
   -- vim.lsp.buf.implementation()
   require("telescope.builtin").lsp_implementations()
@@ -185,9 +232,28 @@ end, { desc = "Debug python test method" })
 -- copilot
 vim.g.copilot_assume_mapped = true
 vim.g.copilot_tab_fallback = ""
+-- map("i", "<C-l>", function()
+--   vim.fn.feedkeys(vim.fn["copilot#Accept"](), "")
+-- end, { desc = "Copilot Accept" })
+local function accept_line(suggestion_function)
+  local line = vim.fn.line "."
+  local line_count = vim.fn.line "$"
+
+  suggestion_function()
+
+  local added_lines = vim.fn.line "$" - line_count
+
+  if added_lines > 1 then
+    vim.api.nvim_buf_set_lines(0, line + 1, line + added_lines, false, {})
+    local last_col = #vim.api.nvim_buf_get_lines(0, line, line + 1, true)[1] or 0
+    vim.api.nvim_win_set_cursor(0, { line + 1, last_col })
+  end
+end
+
 map("i", "<C-l>", function()
-  vim.fn.feedkeys(vim.fn["copilot#Accept"](), "")
-end, { desc = "Copilot Accept" })
+  -- supermaven accept
+  require("supermaven-nvim.completion_preview").on_accept_suggestion()
+end, { desc = "Supermaven Accept" })
 map("i", "<C-;>", function()
   vim.fn.feedkeys(vim.fn["copilot#Accept#Line"](), "")
 end, { desc = "Copilot Accept Line" })
@@ -308,5 +374,83 @@ map("n", "<leader>l", function()
 end, { desc = "RainbowAlign" })
 
 --
--- templ
+-- diagnostics
 --
+map("n", "<leader>dt", function()
+  local current = vim.diagnostic.config().virtual_text
+  vim.diagnostic.config {
+    virtual_text = not current,
+    -- Keep other diagnostic displays enabled
+    signs = true,
+    underline = true,
+    update_in_insert = false,
+    severity_sort = true,
+  }
+end, { desc = "Toggle inline diagnostic text" })
+
+local function get_pr_link_for_current_line()
+  -- Get the current file path
+  local file_path = vim.fn.expand "%:p"
+
+  -- Get the current line number
+  local line_number = vim.fn.line "."
+
+  -- Get the commit hash that last modified the current line using git blame
+  local blame_cmd = string.format('git blame -L %d,%d %s | cut -d " " -f 1', line_number, line_number, file_path)
+  local commit_hash = vim.fn.trim(vim.fn.system(blame_cmd))
+
+  -- Get the commit message for this hash
+  local commit_msg_cmd = string.format("git show -s --format=%%s %s", commit_hash)
+  local commit_message = vim.fn.trim(vim.fn.system(commit_msg_cmd))
+
+  -- Often PR squash commit messages start with the PR title followed by "(#1234)"
+  -- Try to extract PR number from the commit message if it follows this pattern
+  local pr_number = commit_message:match "%(#(%d+)%)"
+
+  if not pr_number then
+    vim.notify("No PR number found in commit message", vim.log.levels.WARN)
+  end
+  -- If we found a PR number directly in the commit message
+  local repo_url = "github.com/premiumlabs/monorepo"
+  local pr_url = string.format("https://%s/pull/%s", repo_url, pr_number)
+
+  return pr_url
+end
+
+-- Function to open URL in browser based on OS
+local function open_url_in_browser(url)
+  local platform = vim.loop.os_uname().sysname
+
+  if platform == "Darwin" then
+    -- macOS
+    os.execute('open "' .. url .. '"')
+  elseif platform == "Linux" then
+    -- Linux
+    os.execute('xdg-open "' .. url .. '"')
+  elseif platform == "Windows_NT" then
+    -- Windows
+    os.execute('start "" "' .. url .. '"')
+  else
+    print("Unsupported platform: " .. platform)
+    return false
+  end
+
+  return true
+end
+
+-- Function to show the PR link or error message
+local function open_pr_for_current_line()
+  local pr_link, error_msg = get_pr_link_for_current_line()
+
+  if not pr_link then
+    vim.notify("Failed to find PR link", vim.log.levels.ERROR)
+  end
+  vim.notify(pr_link, vim.log.levels.INFO)
+
+  -- Open in browser
+  if not open_url_in_browser(pr_link) then
+    vim.notify("Failed to open PR in browser", vim.log.levels.ERROR)
+  end
+end
+
+map("n", "<leader>gp", open_pr_for_current_line, { desc = "Open GitHub PR for current line" })

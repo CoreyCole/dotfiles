@@ -1,5 +1,8 @@
 require "nvchad.options"
 
+-- avante recommended
+vim.opt.laststatus = 3
+
 vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#e9e9e9", bg = "#D14242" })
 vim.api.nvim_set_hl(0, "NeogitDiffAdd", { fg = "#e9e9e9", bg = "#559955" })
 vim.api.nvim_set_hl(0, "NeogitDiffDeleteHighlight", { fg = "#e9e9e9", bg = "#D14242" })

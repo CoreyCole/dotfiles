@@ -27,20 +27,20 @@ local options = {
         },
         base_30 = {
           white = "#dee1e6",
-          darker_black = "#070707",
-          black = "#303030", --  nvim bg
-          black2 = "#000000",
+          darker_black = "#000000", -- non code bg
+          black = "#101010", -- active fil in nvim tree bg
+          black2 = "#000000", -- tab and bottom bg
           one_bg = "#282828",
-          one_bg2 = "#313131",
-          one_bg3 = "#3a3a3a",
-          grey = "#444444",
-          grey_fg = "#4e4e4e",
+          one_bg2 = "#000000", -- mode / dir bg
+          one_bg3 = "#000000", -- light/dark toggle bg
+          grey = "#707070", -- line numbers
+          grey_fg = "#909090", -- comments
           grey_fg2 = "#585858",
-          light_grey = "#626262",
+          light_grey = "#727272", -- non-active tab text
           red = "#D16969",
           baby_pink = "#ea696f",
           pink = "#bb7cb6",
-          line = "#2e2e2e", -- for lines like vertsplit
+          line = "#111111", -- for lines like vertsplit
           green = "#B5CEA8",
           green1 = "#4EC994",
           vibrant_green = "#bfd8b2",
@@ -53,10 +53,10 @@ local options = {
           teal = "#4294D6",
           orange = "#d3967d",
           cyan = "#9CDCFE",
-          statusline_bg = "#242424",
+          statusline_bg = "#000000",
           lightbg = "#303030",
           pmenu_bg = "#60a6e0",
-          folder_bg = "#7A8A92",
+          folder_bg = "#707070", -- folder text color
         },
 
         -- base_30 = {
@@ -112,21 +112,33 @@ local options = {
       theme = "vscode",
       order = {
         "mode",
+        "cursor",
+        "diagnostics",
+        "lsp_msg",
+
+        "%=",
         "file",
         "dir",
-        "diagnostics",
+        "%=",
         "git",
         "%=",
-        "lsp_msg",
-        "%=",
+
         "lsp",
-        "cursor",
         "cwd",
       },
       modules = {
         -- show open file's directory
         dir = function()
-          return "(" .. vim.fn.expand "%:p:h:t" .. ")"
+          return "("
+            -- Get the parent directory's parent directory's parent directory name (3 levels up)
+            .. vim.fn.fnamemodify(vim.fn.expand "%:p:h", ":h:h:t")
+            .. "/"
+            -- Get the parent directory's parent directory name (2 levels up)
+            .. vim.fn.fnamemodify(vim.fn.expand "%:p:h", ":h:t")
+            .. "/"
+            -- Get the parent directory name (1 level up)
+            .. vim.fn.expand "%:p:h:t"
+            .. ")"
         end,
       },
     },

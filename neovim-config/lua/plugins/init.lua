@@ -410,6 +410,7 @@ return {
         select = true,
       }
       table.insert(opts.sources, { name = "crates" })
+      table.insert(opts.sources, { name = "supermaven" })
       return opts
     end,
   },
@@ -615,6 +616,43 @@ return {
         vim.notify("golangci-lint stderr output:\n" .. vim.inspect(output))
         return output
       end
+      require("lint").linters.eslint_d = {
+        cmd = "eslint_d",
+        args = function(params)
+          -- Try to find eslint config in current file's directory or any parent
+          local function find_eslint_config(start_dir)
+            local current = start_dir
+            while current and current ~= "" do
+              local config_path = current .. "/.eslintrc.json"
+              if vim.fn.filereadable(config_path) == 1 then
+                return config_path
+              end
+              -- Move up to parent directory
+              current = vim.fn.fnamemodify(current, ":h")
+              -- Stop if we reach root
+              if current == vim.fn.fnamemodify(current, ":h") then
+                break
+              end
+            end
+            return nil
+          end
+
+          -- Get file's directory
+          local file_dir = vim.fn.fnamemodify(params.filename, ":h")
+          local config_path = find_eslint_config(file_dir)
+
+          if config_path then
+            return { "--format", "json", "--config", config_path, "--stdin", "--stdin-filename" }
+          else
+            -- Default args if no config found
+            return { "--format", "json", "--stdin", "--stdin-filename" }
+          end
+        end,
+        stdin = true,
+        append_fname = true,
+        stream = "stdout",
+        ignore_exitcode = true,
+      }
     end,
   },
   {
@@ -772,9 +810,6 @@ return {
       "mfussenegger/nvim-dap",
       "rcarriga/nvim-dap-ui",
     },
-    opts = function()
-      return require "configs.formatter"
-    end,
   },
   {
     "nvim-neotest/neotest",
@@ -891,10 +926,92 @@ return {
   --
   -- AI Plugins
   --
+  -- {
+  --   "github/copilot.vim",
+  --   lazy = false,
+  --   enabled = true,
+  -- },
   {
-    "github/copilot.vim",
-    lazy = false,
-    enabled = true,
+    "supermaven-inc/supermaven-nvim",
+    event = "VeryLazy",
+    config = function()
+      require("supermaven-nvim").setup {
+        keymaps = {
+          accept_suggestion = "<C-l>",
+          clear_suggestion = "<C-]>",
+          accept_word = "<C-j>",
+        },
+        ignore_filetypes = { cpp = true }, -- or { "cpp", }
+        color = {
+          suggestion_color = "#ffffff",
+          cterm = 244,
+        },
+        log_level = "info", -- set to "off" to disable logging completely
+        disable_inline_completion = false, -- disables inline completion for use with cmp
+        disable_keymaps = false, -- disables built in keymaps for more manual control
+        condition = function()
+          return false
+        end, -- condition to check for stopping supermaven, `true` means to stop supermaven when the condition is true.
+      }
+    end,
+  },
+  {
+    "yetone/avante.nvim",
+    event = "VeryLazy",
+    version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
+    opts = {
+      -- add any opts here
+      -- for example
+      provider = "claude",
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-3-7-sonnet-20250219",
+        timeout = 30000, -- Timeout in milliseconds
+        temperature = 0,
+        max_tokens = 20480,
+      },
+    },
+    -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+    build = "make",
+    -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "stevearc/dressing.nvim",
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      --- The below dependencies are optional,
+      "echasnovski/mini.pick", -- for file_selector provider mini.pick
+      "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
+      "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
+      "ibhagwan/fzf-lua", -- for file_selector provider fzf
+      "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+      "zbirenbaum/copilot.lua", -- for providers='copilot'
+      {
+        -- support for image pasting
+        "HakonHarnes/img-clip.nvim",
+        event = "VeryLazy",
+        opts = {
+          -- recommended settings
+          default = {
+            embed_image_as_base64 = false,
+            prompt_for_file_name = false,
+            drag_and_drop = {
+              insert_mode = true,
+            },
+            -- required for Windows users
+            use_absolute_path = true,
+          },
+        },
+      },
+      {
+        -- Make sure to set this up properly if you have lazy=true
+        "MeanderingProgrammer/render-markdown.nvim",
+        opts = {
+          file_types = { "markdown", "Avante" },
+        },
+        ft = { "markdown", "Avante" },
+      },
+    },
   },
   -- https://github.com/jackMort/ChatGPT.nvim
   {
