@@ -20,7 +20,7 @@ local servers = {
   -- "ruff_lsp",
   "html",
   "templ",
-  "htmx",
+  -- "htmx",
   "ts_ls",
   "tailwindcss",
   "cssls",

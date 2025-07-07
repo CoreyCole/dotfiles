@@ -84,6 +84,7 @@ return {
   },
   {
     "gelguy/wilder.nvim",
+    enabled = false,
     init = function()
       local wilder = require "wilder"
       wilder.setup { modes = { ":", "/", "?" } }
@@ -470,14 +471,26 @@ return {
   {
     "folke/trouble.nvim",
     dependencies = { "nvim-tree/nvim-web-devicons" },
+    event = "VeryLazy",
     opts = {
-      mode = "document_diagnostics",
+      modes = {
+        my_diagnostics = {
+          mode = "diagnostics",
+          filter = {
+            ["not"] = {
+              function(item)
+                return (item.filename or ""):match "_templ%.go$" ~= nil
+              end,
+            },
+          },
+        },
+      },
     },
     cmd = "Trouble",
     keys = {
       {
         "<leader>t",
-        "<cmd>Trouble diagnostics toggle<cr>",
+        "<cmd>Trouble my_diagnostics toggle<cr>",
         desc = "Diagnostics (Trouble)",
       },
       {
@@ -603,16 +616,12 @@ return {
           require("lint").try_lint()
         end,
       })
-      print("golangci args: " .. vim.inspect(require("lint").linters.golangcilint.args))
       require("lint").linters.golangcilint.on_output = function(output, bufnr)
-        -- Print the raw output (as a Lua table)
-        print("golangci-lint raw output: " .. vim.inspect(output))
         vim.notify("golangci-lint raw output: " .. vim.inspect(output))
         -- Continue processing the output using the default parser
         return require("lint.linters").get_default_on_output()(output, bufnr)
       end
       require("lint").linters.golangcilint.on_stderr = function(output, bufnr)
-        print("golangci-lint stderr output: " .. vim.inspect(output))
         vim.notify("golangci-lint stderr output:\n" .. vim.inspect(output))
         return output
       end

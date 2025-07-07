@@ -1,6 +1,7 @@
 --@type TreesitterOptions
 local options = {
-  ensure_installed = "all",
+  ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "go", "python", "html", "css", "typescript", "javascript", "tsx" },
+  auto_install = false,
   highlight = {
     enable = true,
     use_languagetree = true,

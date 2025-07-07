@@ -1,5 +1,18 @@
 require "nvchad.options"
 
+-- Auto-read files when changed externally
+vim.opt.autoread = true
+
+-- Check for file changes more frequently
+vim.opt.updatetime = 100
+
+-- Trigger checktime on various events
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+  pattern = "*",
+  command = "checktime",
+})
+vim.opt.swapfile = false
+
 -- avante recommended
 vim.opt.laststatus = 3
 
