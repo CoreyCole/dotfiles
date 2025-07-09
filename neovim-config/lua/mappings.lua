@@ -133,29 +133,76 @@ map("n", "<leader>gd", ":DiffviewOpen<CR>", { desc = "Open DiffView" })
 map("n", "<leader>gh", ":DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
 map("n", "<leader>gb", ":BlameToggle virtual<CR>", { desc = "Toggle Blame" })
 local function open_recent_pr_for_current_file()
-  local filepath = vim.fn.expand "%:p:h" .. "/" .. vim.fn.expand "%:t"
-  -- Get the most recent commit affecting the file
-  local get_commit_cmd = "git log -n 1 --pretty=format:%H -- " .. filepath
-  local commit_hash = vim.fn.system(get_commit_cmd):match "^%S+"
+  local filepath = vim.fn.expand "%:p"
+  local line_number = vim.fn.line "."
+  
+  -- Get the commit that last modified the current line using git blame
+  local blame_cmd = string.format('git blame -L %d,%d "%s" | cut -d " " -f 1', line_number, line_number, filepath)
+  local commit_hash = vim.fn.trim(vim.fn.system(blame_cmd))
 
-  if not commit_hash or commit_hash == "" then
-    vim.notify("No recent commits found for the file.", vim.log.levels.ERROR)
+  if not commit_hash or commit_hash == "" or commit_hash == "00000000" then
+    vim.notify("No commit found for current line.", vim.log.levels.ERROR)
     return
   end
 
-  -- Assuming PR number is mentioned in the commit message in the format 'PR: #123'
-  local extract_pr_cmd = "git log -n 1 --pretty=format:%s "
-    .. commit_hash
-    .. " | grep -o 'PR: #[0-9]\\+' | cut -d'#' -f2"
-  local pr_number = vim.fn.system(extract_pr_cmd)
+  -- Get the full commit message
+  local commit_msg_cmd = "git log -n 1 --pretty=format:%s " .. commit_hash
+
+  local commit_message = vim.fn.system(commit_msg_cmd)
+
+  -- Try multiple patterns for PR numbers
+  -- Pattern 1: PR: #123
+  -- Pattern 2: (#123) - common in squash commits
+  -- Pattern 3: Merge pull request #123
+  local pr_number = nil
+
+  -- Try pattern 1: PR: #123
+  pr_number = commit_message:match "PR: #(%d+)"
+  if not pr_number then
+    -- Try pattern 2: (#123)
+    pr_number = commit_message:match "%(#(%d+)%)"
+  end
+  if not pr_number then
+    -- Try pattern 3: pull request #123
+    pr_number = commit_message:match "pull request #(%d+)"
+  end
+
 
   if pr_number and pr_number ~= "" then
-    -- Construct URL manually (assuming GitHub and repository info)
-    local repo_url = "https://github.com/<username>/<repository>/pull/" .. pr_number
-    vim.fn.system("xdg-open " .. repo_url)
-    vim.notify("Opening PR #" .. pr_number)
+    -- Get repository info from git remote
+    local remote_cmd = "git remote get-url origin"
+    local remote_url = vim.fn.trim(vim.fn.system(remote_cmd))
+
+    -- Extract repo info from remote URL
+    local repo_path = nil
+    -- Handle SSH format: git@github.com:user/repo.git
+    repo_path = remote_url:match "git@github%.com:(.+)%.git"
+    if not repo_path then
+      -- Handle HTTPS format: https://github.com/user/repo.git
+      repo_path = remote_url:match "https://github%.com/(.+)%.git"
+    end
+    if not repo_path then
+      -- Handle without .git suffix
+      repo_path = remote_url:match "github%.com[:/](.+)$"
+    end
+
+    if repo_path then
+      local repo_url = "https://github.com/" .. repo_path .. "/pull/" .. pr_number
+
+      -- Use the same open_url_in_browser function
+      local platform = vim.loop.os_uname().sysname
+      if platform == "Darwin" then
+        os.execute('open "' .. repo_url .. '"')
+      elseif platform == "Linux" then
+        os.execute('xdg-open "' .. repo_url .. '"')
+      end
+
+      vim.notify("Opening PR #" .. pr_number)
+    else
+      vim.notify("Could not parse repository from remote URL", vim.log.levels.ERROR)
+    end
   else
-    vim.notify("No PR number found in the commit message.", vim.log.levels.ERROR)
+    vim.notify("No PR number found in commit message.", vim.log.levels.ERROR)
   end
 end
 
@@ -452,5 +499,36 @@ local function open_pr_for_current_line()
     vim.notify("Failed to open PR in browser", vim.log.levels.ERROR)
   end
 end
-
 map("n", "<leader>gp", open_pr_for_current_line, { desc = "Open GitHub PR for current line" })
+
+-- Function to open the current file in Cursor at the current line
+local function open_in_cursor()
+  local file_path = vim.fn.expand "%:p"
+  local line_number = vim.fn.line "."
+  local workspace_dir = "/Users/coreycole/cn/monorepo"
+
+  -- First: Open the folder via URL scheme
+  local folder_url = "cursor://file/" .. workspace_dir .. "?windowId=_blank"
+
+  vim.notify("Opening folder: " .. folder_url, vim.log.levels.INFO)
+
+  -- Open the folder first
+  if open_url_in_browser(folder_url) then
+    -- Now use CLI to open the specific file at the right line
+    local cmd = string.format('cursor --goto "%s:%s"', file_path, line_number)
+
+    vim.notify("Running command: " .. cmd, vim.log.levels.INFO)
+
+    -- Execute the command
+    local result = vim.fn.system(cmd)
+
+    if vim.v.shell_error == 0 then
+      vim.notify("Opened file in Cursor", vim.log.levels.INFO)
+    else
+      vim.notify("Failed to open file (cmd: " .. cmd .. ")", vim.log.levels.ERROR)
+    end
+  else
+    vim.notify("Failed to open folder in Cursor", vim.log.levels.ERROR)
+  end
+end
+map("n", "<leader>cu", open_in_cursor, { desc = "Open in Cursor at current line" })
