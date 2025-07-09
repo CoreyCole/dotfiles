@@ -24,6 +24,7 @@ local servers = {
   "ts_ls",
   "tailwindcss",
   "cssls",
+  "just",
 }
 
 local golangci_lint_args = function()
@@ -82,6 +83,17 @@ lspconfig.pyright.setup {
 --   capabilities = capabilities,
 --   filetypes = { "python" },
 -- }
+
+lspconfig.just.setup {
+  on_attach = on_attach,
+  capabilities = capabilities,
+  cmd = { "/Users/coreycole/.cargo/bin/just-lsp" },
+  filetypes = { "just" },
+  root_dir = function(fname)
+    return util.find_git_ancestor(fname)
+  end,
+  settings = {},
+}
 
 lspconfig.gopls.setup {
   on_attach = on_attach,
