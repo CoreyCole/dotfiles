@@ -13,12 +13,17 @@ local options = {
   sync_root_with_cwd = true,
   update_focused_file = {
     enable = true,
-    update_root = false,
+    update_root = {
+      enable = false,
+    },
+    exclude = function(event)
+      return vim.api.nvim_buf_get_option(event.buf, "filetype") == "gitcommit" or vim.fn.expand("%"):match "migrations"
+    end,
   },
   view = {
-    adaptive_size = true,
+    adaptive_size = false,
     side = "left",
-    -- width = 35,
+    width = 40,
     preserve_window_proportions = true,
   },
   diagnostics = {
