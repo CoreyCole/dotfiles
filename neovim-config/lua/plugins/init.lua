@@ -118,10 +118,6 @@ return {
     end,
   },
   {
-    "windwp/nvim-autopairs",
-    enabled = false,
-  },
-  {
     "nvim-telescope/telescope.nvim",
     dependencies = {
       "nvim-lua/plenary.nvim",
@@ -168,9 +164,10 @@ return {
           -- go = { "gofumpt", "goimports-reviser", "golines" },
           go = {
             -- "gofumpt",
-            "goimports",
-            "gci",
-            "golines",
+            -- "goimports",
+            -- "gci",
+            -- "golines",
+            "golangci_lint",
           },
           sh = { "shfmt" },
           yaml = { "yamlfmt" },
@@ -182,10 +179,17 @@ return {
         },
         format_on_save = {
           -- These options will be passed to conform.format()
-          timeout_ms = 2000,
+          timeout_ms = 3000,
           lsp_fallback = false,
         },
         formatters = {
+          golangci_lint = {
+            command = "golangci-lint",
+            args = { "fmt", "--stdin" },
+            stdin = true,
+            cwd = require("conform.util").root_file { "go.mod", "go.sum" },
+            require_cwd = true,
+          },
           prettierd = {
             -- Optional: specify the command path if needed
             command = vim.fn.stdpath "data" .. "/mason/bin/prettierd",
@@ -479,7 +483,29 @@ return {
           filter = {
             ["not"] = {
               function(item)
-                return (item.filename or ""):match "_templ%.go$" ~= nil
+                -- Check filename patterns
+                if
+                  (item.filename or ""):match "_templ%.go$" ~= nil
+                  or (item.filename or ""):match "go%.mod$" ~= nil
+                  or (item.filename or ""):match "pb.go$" ~= nil
+                then
+                  return true
+                end
+
+                -- Check message for go.mod related errors
+                if
+                  item.message
+                  and (
+                    item.message:match "is not in your go%.mod file"
+                    or item.message:match "go%.mod"
+                    or item.message:match "go mod tidy"
+                    or item.message:match "should be direct"
+                  )
+                then
+                  return true
+                end
+
+                return false
               end,
             },
           },
@@ -588,7 +614,7 @@ return {
         jsx = { "eslint" },
         tsx = { "eslint" },
         json = { "jsonlint" },
-        -- go = { "golangcilint" },
+        go = {}, -- Using golangci-lint language server instead
         markdown = { "codespell" },
         proto = { "buf_lint" },
         ["*"] = { "codespell" },
@@ -616,15 +642,66 @@ return {
           require("lint").try_lint()
         end,
       })
-      require("lint").linters.golangcilint.on_output = function(output, bufnr)
-        vim.notify("golangci-lint raw output: " .. vim.inspect(output))
-        -- Continue processing the output using the default parser
-        return require("lint.linters").get_default_on_output()(output, bufnr)
-      end
-      require("lint").linters.golangcilint.on_stderr = function(output, bufnr)
-        vim.notify("golangci-lint stderr output:\n" .. vim.inspect(output))
-        return output
-      end
+      -- Disabled - using golangci-lint language server instead
+      -- require("lint").linters.golangcilint = {
+      -- cmd = "golangci-lint",
+      -- stdin = false,
+      -- append_fname = true,
+      -- args = {
+      --   "run",
+      --   "--tests",
+      --   "--build-tags=integration,unit",
+      --   "--allow-parallel-runners",
+      --   "--max-issues-per-linter=0",
+      --   "--max-same-issues=0",
+      --   "--output.json.path",
+      --   "stdout",
+      --   "--issues-exit-code=0",
+      -- },
+      -- stream = "stdout",
+      -- ignore_exitcode = true,
+      -- parser = function(output, bufnr)
+      --   -- Parse JSON output from golangci-lint
+      --   local diagnostics = {}
+      --   if output and output ~= "" then
+      --     local ok, decoded = pcall(vim.json.decode, output)
+      --     if ok and decoded and decoded.Issues then
+      --       for _, issue in ipairs(decoded.Issues) do
+      --         table.insert(diagnostics, {
+      --           lnum = issue.Pos.Line - 1,
+      --           col = issue.Pos.Column - 1,
+      --           message = issue.Text,
+      --           severity = vim.diagnostic.severity.WARN,
+      --           source = "golangcilint",
+      --         })
+      --       end
+      --     end
+      --   end
+      --   return diagnostics
+      -- end,
+      -- cwd = function()
+      --   local bufname = vim.api.nvim_buf_get_name(0)
+      --   if bufname == "" then
+      --     return nil
+      --   end
+      --
+      --   -- Search upward for go.mod
+      --   local dir = vim.fn.fnamemodify(bufname, ":h")
+      --   while dir and dir ~= "/" and dir ~= "." do
+      --     if vim.fn.filereadable(dir .. "/go.mod") == 1 then
+      --       return dir
+      --     end
+      --     local parent = vim.fn.fnamemodify(dir, ":h")
+      --     if parent == dir then
+      --       break
+      --     end
+      --     dir = parent
+      --   end
+      --
+      --   -- If no go.mod found, don't run the linter
+      --   return nil
+      -- end,
+      -- }
       require("lint").linters.eslint_d = {
         cmd = "eslint_d",
         args = function(params)
@@ -972,12 +1049,16 @@ return {
       -- add any opts here
       -- for example
       provider = "claude",
-      claude = {
-        endpoint = "https://api.anthropic.com",
-        model = "claude-3-7-sonnet-20250219",
-        timeout = 30000, -- Timeout in milliseconds
-        temperature = 0,
-        max_tokens = 20480,
+      providers = {
+        claude = {
+          endpoint = "https://api.anthropic.com",
+          model = "claude-sonnet-4-20250514",
+          timeout = 30000, -- Timeout in milliseconds
+          extra_request_body = {
+            temperature = 0,
+            max_tokens = 20480,
+          },
+        },
       },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`

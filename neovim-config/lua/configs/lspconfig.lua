@@ -31,29 +31,27 @@ local golangci_lint_args = function()
   local defaults = {
     "golangci-lint",
     "run",
-    "--tests",
-    "--build-tags",
-    "integration,unit",
-    "--allow-parallel-runners",
-    "--max-issues-per-linter",
-    "0",
-    "--max-same-issues",
-    "0",
-    "--out-format",
-    "json",
+    "--fix",
+    "--output.json.path=stdout",
+    -- Overwrite values possibly set in .golangci.yml
+    "--output.text.path=",
+    "--output.tab.path=",
+    "--output.html.path=",
+    "--output.checkstyle.path=",
+    "--output.code-climate.path=",
+    "--output.junit-xml.path=",
+    "--output.teamcity.path=",
+    "--output.sarif.path=",
+    "--show-stats=false",
+    "--build-tags=integration,unit",
   }
 
   local config = vim.fs.find(
     { ".golangci.yml" },
     { path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p:h"), upward = true }
   )
-  if #config == 0 then
-    return defaults
-  end
-
-  local config_path = vim.fn.fnamemodify(config[1], ":p")
-  if config_path ~= nil then
-    vim.notify(config_path)
+  if #config > 0 then
+    local config_path = vim.fn.fnamemodify(config[1], ":p")
     table.insert(defaults, "--config")
     table.insert(defaults, config_path)
   end
@@ -160,7 +158,15 @@ lspconfig.golangci_lint_ls.setup {
   on_init = on_init,
   capabilities = capabilities,
   filetypes = { "go" },
-  root_dir = util.root_pattern ".git",
+  -- root_dir = function(fname)
+  --   -- First try to find go.mod
+  --   local go_mod_root = util.root_pattern("go.mod")(fname)
+  --   if go_mod_root then
+  --     return go_mod_root
+  --   end
+  --   -- Fall back to git root
+  --   return util.root_pattern(".git")(fname)
+  -- end,
 }
 
 lspconfig.buf_ls.setup {

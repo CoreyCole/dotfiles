@@ -132,28 +132,25 @@ end, { desc = "Open Neogit split" })
 map("n", "<leader>gd", ":DiffviewOpen<CR>", { desc = "Open DiffView" })
 map("n", "<leader>gh", ":DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
 map("n", "<leader>gb", ":BlameToggle virtual<CR>", { desc = "Toggle Blame" })
-local function open_recent_pr_for_current_file()
+
+-- Helper function to get PR number for current line
+local function get_pr_number_for_current_line()
   local filepath = vim.fn.expand "%:p"
   local line_number = vim.fn.line "."
-  
+
   -- Get the commit that last modified the current line using git blame
   local blame_cmd = string.format('git blame -L %d,%d "%s" | cut -d " " -f 1', line_number, line_number, filepath)
   local commit_hash = vim.fn.trim(vim.fn.system(blame_cmd))
 
   if not commit_hash or commit_hash == "" or commit_hash == "00000000" then
-    vim.notify("No commit found for current line.", vim.log.levels.ERROR)
-    return
+    return nil, "No commit found for current line."
   end
 
   -- Get the full commit message
   local commit_msg_cmd = "git log -n 1 --pretty=format:%s " .. commit_hash
-
   local commit_message = vim.fn.system(commit_msg_cmd)
 
   -- Try multiple patterns for PR numbers
-  -- Pattern 1: PR: #123
-  -- Pattern 2: (#123) - common in squash commits
-  -- Pattern 3: Merge pull request #123
   local pr_number = nil
 
   -- Try pattern 1: PR: #123
@@ -167,50 +164,96 @@ local function open_recent_pr_for_current_file()
     pr_number = commit_message:match "pull request #(%d+)"
   end
 
-
-  if pr_number and pr_number ~= "" then
-    -- Get repository info from git remote
-    local remote_cmd = "git remote get-url origin"
-    local remote_url = vim.fn.trim(vim.fn.system(remote_cmd))
-
-    -- Extract repo info from remote URL
-    local repo_path = nil
-    -- Handle SSH format: git@github.com:user/repo.git
-    repo_path = remote_url:match "git@github%.com:(.+)%.git"
-    if not repo_path then
-      -- Handle HTTPS format: https://github.com/user/repo.git
-      repo_path = remote_url:match "https://github%.com/(.+)%.git"
-    end
-    if not repo_path then
-      -- Handle without .git suffix
-      repo_path = remote_url:match "github%.com[:/](.+)$"
-    end
-
-    if repo_path then
-      local repo_url = "https://github.com/" .. repo_path .. "/pull/" .. pr_number
-
-      -- Use the same open_url_in_browser function
-      local platform = vim.loop.os_uname().sysname
-      if platform == "Darwin" then
-        os.execute('open "' .. repo_url .. '"')
-      elseif platform == "Linux" then
-        os.execute('xdg-open "' .. repo_url .. '"')
-      end
-
-      vim.notify("Opening PR #" .. pr_number)
-    else
-      vim.notify("Could not parse repository from remote URL", vim.log.levels.ERROR)
-    end
-  else
-    vim.notify("No PR number found in commit message.", vim.log.levels.ERROR)
+  if not pr_number or pr_number == "" then
+    return nil, "No PR number found in commit message."
   end
+
+  return pr_number, nil
+end
+
+-- Helper function to get repository info
+local function get_repo_info()
+  local remote_cmd = "git remote get-url origin"
+  local remote_url = vim.fn.trim(vim.fn.system(remote_cmd))
+
+  -- Extract repo info from remote URL
+  local repo_path = nil
+  -- Handle SSH format: git@github.com:user/repo.git
+  repo_path = remote_url:match "git@github%.com:(.+)%.git"
+  if not repo_path then
+    -- Handle HTTPS format: https://github.com/user/repo.git
+    repo_path = remote_url:match "https://github%.com/(.+)%.git"
+  end
+  if not repo_path then
+    -- Handle without .git suffix
+    repo_path = remote_url:match "github%.com[:/](.+)$"
+  end
+
+  return repo_path
+end
+
+local function open_recent_pr_for_current_file()
+  local pr_number, error_msg = get_pr_number_for_current_line()
+
+  if not pr_number then
+    vim.notify(error_msg, vim.log.levels.ERROR)
+    return
+  end
+
+  local repo_path = get_repo_info()
+  if not repo_path then
+    vim.notify("Could not parse repository from remote URL", vim.log.levels.ERROR)
+    return
+  end
+
+  local repo_url = "https://github.com/" .. repo_path .. "/pull/" .. pr_number
+
+  -- Use the same open_url_in_browser function
+  local platform = vim.loop.os_uname().sysname
+  if platform == "Darwin" then
+    os.execute('open "' .. repo_url .. '"')
+  elseif platform == "Linux" then
+    os.execute('xdg-open "' .. repo_url .. '"')
+  end
+
+  vim.notify("Opening PR #" .. pr_number)
+end
+
+-- Function to open Graphite PR for current line
+local function open_graphite_pr_for_current_line()
+  local pr_number, error_msg = get_pr_number_for_current_line()
+
+  if not pr_number then
+    vim.notify(error_msg, vim.log.levels.ERROR)
+    return
+  end
+
+  local repo_path = get_repo_info()
+  if not repo_path then
+    vim.notify("Could not parse repository from remote URL", vim.log.levels.ERROR)
+    return
+  end
+
+  local graphite_url = "https://app.graphite.dev/github/pr/" .. repo_path .. "/" .. pr_number
+
+  -- Use the same open_url_in_browser function
+  local platform = vim.loop.os_uname().sysname
+  if platform == "Darwin" then
+    os.execute('open "' .. graphite_url .. '"')
+  elseif platform == "Linux" then
+    os.execute('xdg-open "' .. graphite_url .. '"')
+  end
+
+  vim.notify("Opening Graphite PR #" .. pr_number)
 end
 
 -- Register the function as a Neovim command
 vim.api.nvim_create_user_command("OpenRecentPR", open_recent_pr_for_current_file, {})
+vim.api.nvim_create_user_command("OpenGraphitePR", open_graphite_pr_for_current_line, {})
 
 -- Bind the new command to a key
-vim.keymap.set("n", "<leader>pr", ":OpenRecentPR<CR>", { desc = "Open the most recent PR for the current file" })
+vim.keymap.set("n", "<leader>gpr", ":OpenRecentPR<CR>", { desc = "Open the most recent PR for the current file" })
+vim.keymap.set("n", "<leader>pr", ":OpenGraphitePR<CR>", { desc = "Open the Graphite PR for the current line" })
 
 --
 -- rust
@@ -532,3 +575,36 @@ local function open_in_cursor()
   end
 end
 map("n", "<leader>cu", open_in_cursor, { desc = "Open in Cursor at current line" })
+
+-- Function to open current line on develop branch in GitHub
+local function open_line_on_develop()
+  local repo_path = get_repo_info()
+  if not repo_path then
+    vim.notify("Could not parse repository from remote URL", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Get current file path relative to git root
+  local file_path = vim.fn.expand "%:p"
+  local git_root = vim.fn.system("git rev-parse --show-toplevel"):gsub("\n", "")
+  local relative_path = file_path:sub(#git_root + 2) -- +2 to skip the trailing slash
+
+  -- Get current line number
+  local line_number = vim.fn.line "."
+
+  -- Construct GitHub URL for develop branch
+  local github_url = string.format("https://github.com/%s/blob/develop/%s#L%d", repo_path, relative_path, line_number)
+
+  -- Open in browser
+  if not open_url_in_browser(github_url) then
+    vim.notify("Failed to open GitHub URL", vim.log.levels.ERROR)
+  else
+    vim.notify("Opening line " .. line_number .. " on develop branch")
+  end
+end
+
+map("n", "<leader>gl", open_line_on_develop, { desc = "Open current line on develop branch in GitHub" })
+
+-- Remap j/k to include scrolling
+map("n", "j", "j<C-e>", { desc = "Move down and scroll down" })
+map("n", "k", "k<C-y>", { desc = "Move up and scroll up" })
