@@ -1,0 +1,41 @@
+# First stage: partition the disk and reboot
+vm/partition:
+	ssh $(SSH_OPTIONS) -p$(NIXPORT) root@$(NIXADDR) " \
+		umount -R /mnt 2>/dev/null || true; \
+		umount -R /nix 2>/dev/null || true; \
+		umount $(NIXDISK)* 2>/dev/null || true; \
+		swapoff -a 2>/dev/null || true; \
+		wipefs -a -f $(NIXDISK) 2>/dev/null || true; \
+		echo -e 'g\nn\n3\n\n+512M\nt\n1\nn\n1\n\n-8G\nn\n2\n\n\nt\n2\n19\nw' | fdisk $(NIXDISK); \
+		echo 'Partitions created. Rebooting to apply changes...'; \
+		reboot; \
+	"
+
+# Second stage: format and install after reboot
+vm/install:
+	ssh $(SSH_OPTIONS) -p$(NIXPORT) root@$(NIXADDR) " \
+		set -e; \
+		mkfs.fat -F 32 -n boot $(NIXDISK)3; \
+		mkfs.ext4 -F -L nixos $(NIXDISK)1; \
+		mkswap -L swap $(NIXDISK)2; \
+		mount /dev/disk/by-label/nixos /mnt; \
+		mkdir -p /mnt/boot; \
+		mount /dev/disk/by-label/boot /mnt/boot; \
+		nixos-generate-config --root /mnt; \
+		echo '' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  # Nix configuration' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  nix.package = pkgs.nixVersions.latest;' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  nix.extraOptions = \"experimental-features = nix-command flakes\";' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  nix.settings.substituters = [\"https://mitchellh-nixos-config.cachix.org\"];' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  nix.settings.trusted-public-keys = [\"mitchellh-nixos-config.cachix.org-1:bjEbXJyLrL1HZZHBbO4QALnI5faYZppzkU4D2s0G8RQ=\"];' >> /mnt/etc/nixos/configuration.nix; \
+		echo '' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  # SSH configuration' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  services.openssh.enable = true;' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  services.openssh.settings.PasswordAuthentication = true;' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  services.openssh.settings.PermitRootLogin = \"yes\";' >> /mnt/etc/nixos/configuration.nix; \
+		echo '' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  # Root password' >> /mnt/etc/nixos/configuration.nix; \
+		echo '  users.users.root.initialPassword = \"root\";' >> /mnt/etc/nixos/configuration.nix; \
+		echo '}' >> /mnt/etc/nixos/configuration.nix; \
+		nixos-install --no-root-passwd && reboot; \
+	"
