@@ -6,6 +6,9 @@ vim.o.foldlevel = 99
 vim.o.foldlevelstart = 99
 vim.o.foldcolumn = "auto:9"
 
+-- Add diagonal lines for diff deletions
+vim.opt.fillchars:append({ diff = "╱" })
+
 -- Auto-read files when changed externally
 vim.opt.autoread = true
 
@@ -22,10 +25,27 @@ vim.opt.swapfile = false
 -- avante recommended
 vim.opt.laststatus = 3
 
-vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#e9e9e9", bg = "#D14242" })
-vim.api.nvim_set_hl(0, "NeogitDiffAdd", { fg = "#e9e9e9", bg = "#559955" })
-vim.api.nvim_set_hl(0, "NeogitDiffDeleteHighlight", { fg = "#e9e9e9", bg = "#D14242" })
-vim.api.nvim_set_hl(0, "NeogitDiffAddHighlight", { fg = "#e9e9e9", bg = "#559955" })
+vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#D14242" })
+vim.api.nvim_set_hl(0, "NeogitDiffAdd", { fg = "#559955" })
+vim.api.nvim_set_hl(0, "NeogitDiffDeleteHighlight", { fg = "#D14242" })
+vim.api.nvim_set_hl(0, "NeogitDiffAddHighlight", { fg = "#559955" })
+
+-- Standard diff highlight groups (for regular diffs outside Neogit)
+vim.api.nvim_set_hl(0, "DiffAdd", { bg = "#2a3d2a" })
+vim.api.nvim_set_hl(0, "DiffDelete", { bg = "#3d2a2a" })
+vim.api.nvim_set_hl(0, "DiffChange", { bg = "#3d3d2a" })
+vim.api.nvim_set_hl(0, "DiffText", { bg = "#4d4d2a", bold = true })
+
+-- Diffview.nvim highlight groups
+vim.api.nvim_set_hl(0, "DiffviewDiffAddAsDelete", { fg = "#808080" })
+vim.api.nvim_set_hl(0, "DiffviewDiffDelete", { fg = "#505050" })
+vim.api.nvim_set_hl(0, "DiffviewDiffAdd", { bg = "#2a3d2a" })
+vim.api.nvim_set_hl(0, "DiffviewDiffChange", { bg = "#3d3d2a" })
+vim.api.nvim_set_hl(0, "DiffviewDiffText", { bg = "#4d4d2a", bold = true })
+
+-- Style for deletion placeholder lines (the diagonal lines)
+vim.api.nvim_set_hl(0, "DiffviewDim1", { fg = "#404040" })
+vim.api.nvim_set_hl(0, "DiffviewFillChar", { fg = "#303030" })
 
 vim.cmd "map <S-Down> <Nop>"
 vim.cmd "map <S-Up> <Nop>"
