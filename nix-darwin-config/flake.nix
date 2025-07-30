@@ -14,7 +14,7 @@
       # $ nix-env -qaP | grep wget
       environment.systemPackages =
         [ pkgs.vim
-          pkgs.go
+          pkgs.go_1_24
         ];
 
       # Necessary for using flakes on this system.

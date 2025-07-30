@@ -129,9 +129,10 @@ end, { desc = "open commit popup" })
 map("n", "<leader>gs", function()
   require("neogit").open { kind = "split" }
 end, { desc = "Open Neogit split" })
-map("n", "<leader>gd", ":DiffviewOpen<CR>", { desc = "Open DiffView" })
-map("n", "<leader>gh", ":DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
-map("n", "<leader>gb", ":BlameToggle virtual<CR>", { desc = "Toggle Blame" })
+map("n", "<leader>gd", "<cmd>DiffviewOpen<CR>", { desc = "Open DiffView" })
+map("n", "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
+map("n", "<leader>gH", "<cmd>DiffviewFileHistory<CR>", { desc = "Open DiffView File History for repository" })
+map("n", "<leader>gb", "<cmd>BlameToggle virtual<CR>", { desc = "Toggle Blame" })
 
 -- Helper function to get PR number for current line
 local function get_pr_number_for_current_line()
