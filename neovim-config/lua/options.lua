@@ -99,6 +99,7 @@ vim.g.is_code_private = function()
 end
 
 -- Diagnostic configuration.
+local diagnostic_icons = require("icons").diagnostics
 vim.diagnostic.config {
     virtual_text = {
         prefix = "",
