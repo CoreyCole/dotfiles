@@ -7,7 +7,7 @@ vim.o.foldlevelstart = 99
 vim.o.foldcolumn = "auto:9"
 
 -- Add diagonal lines for diff deletions
-vim.opt.fillchars:append({ diff = "╱" })
+vim.opt.fillchars:append { diff = "╱" }
 
 -- Auto-read files when changed externally
 vim.opt.autoread = true
@@ -17,8 +17,8 @@ vim.opt.updatetime = 100
 
 -- Trigger checktime on various events
 vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
-  pattern = "*",
-  command = "checktime",
+    pattern = "*",
+    command = "checktime",
 })
 vim.opt.swapfile = false
 
@@ -65,27 +65,61 @@ vim.opt.relativenumber = false -- relative line numbers
 -- sync with system clipboard
 vim.opt.clipboard = "unnamedplus"
 if vim.fn.has "wsl" == 1 then
-  vim.api.nvim_create_autocmd("TextYankPost", {
+    vim.api.nvim_create_autocmd("TextYankPost", {
 
-    group = vim.api.nvim_create_augroup("Yank", { clear = true }),
+        group = vim.api.nvim_create_augroup("Yank", { clear = true }),
 
-    callback = function()
-      vim.fn.system("clip.exe", vim.fn.getreg '"')
-    end,
-  })
+        callback = function()
+            vim.fn.system("clip.exe", vim.fn.getreg '"')
+        end,
+    })
 end
 
 vim.g.is_code_private = function()
-  local current_dir = vim.fn.getcwd()
-  local home_dir = os.getenv "HOME" or os.getenv "USERPROFILE"
+    local current_dir = vim.fn.getcwd()
+    local home_dir = os.getenv "HOME" or os.getenv "USERPROFILE"
 
-  -- if git repo is filed under ~/private, do not allow AI
-  local private_path = home_dir .. "/private"
-  local is_code_private = string.find(current_dir, private_path) == 1
+    -- if git repo is filed under ~/private, do not allow AI
+    local private_path = home_dir .. "/private"
+    local is_code_private = string.find(current_dir, private_path) == 1
 
-  if is_code_private then
-    return true
-  else
-    return false
-  end
+    if is_code_private then
+        return true
+    else
+        return false
+    end
 end
+
+-- Diagnostic configuration.
+vim.diagnostic.config {
+    virtual_text = {
+        prefix = "",
+        spacing = 2,
+        format = function(diagnostic)
+            -- Use shorter, nicer names for some sources:
+            local special_sources = {
+                ["Lua Diagnostics."] = "lua",
+                ["Lua Syntax Check."] = "lua",
+            }
+
+            local message = diagnostic_icons[vim.diagnostic.severity[diagnostic.severity]]
+            if diagnostic.source then
+                message = string.format("%s %s", message, special_sources[diagnostic.source] or diagnostic.source)
+            end
+            if diagnostic.code then
+                message = string.format("%s[%s]", message, diagnostic.code)
+            end
+
+            return message .. " "
+        end,
+    },
+    float = {
+        source = "if_many",
+        -- Show severity icons as prefixes.
+        prefix = function(diag)
+            local level = vim.diagnostic.severity[diag.severity]
+            local prefix = string.format(" %s ", diagnostic_icons[level])
+            return prefix, "Diagnostic" .. level:gsub("^%l", string.upper)
+        end,
+    },
+}
