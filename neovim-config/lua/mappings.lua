@@ -18,6 +18,9 @@ map("n", "<leader>s", ":noautocmd w <CR>", { desc = "Save without auto cmd/forma
 map("n", ";", ":", { desc = "CMD enter command mode" })
 map("n", "<leader>cp", ':let @+ = expand("%:p")', { desc = "Copy full path" })
 
+map("v", "<", "<gv")
+map("v", ">", ">gv")
+
 map("n", "<leader>tc", function()
   local ts_utils = require "nvim-treesitter.ts_utils"
   local node = ts_utils.get_node_at_cursor()
@@ -605,6 +608,35 @@ local function open_line_on_develop()
 end
 
 map("n", "<leader>gl", open_line_on_develop, { desc = "Open current line on develop branch in GitHub" })
+
+-- Convert tabs to spaces and fix line endings
+map("n", "<leader>tt", function()
+  -- Set expandtab to ensure spaces are used
+  vim.opt.expandtab = true
+  -- Convert all tabs to spaces using current tabstop setting
+  vim.cmd "retab"
+  -- Convert CRLF to LF immediately in the buffer
+  vim.cmd [[%s/\r$//e]]
+  vim.notify "Converted tabs to spaces and fixed line endings"
+end, { desc = "Convert tabs to spaces and fix line endings" })
+
+map("n", "<leader>fr", "<cmd>GrugFar<cr>", { desc = "GrugFar" })
+map("n", "<leader>fw", function()
+  local word = vim.fn.expand "<cword>"
+  vim.fn.setreg("+", word)
+  require("grug-far").open {
+    prefills = { search = word },
+    instance_name = "main",
+  }
+end, { desc = "GrugFar word under cursor" })
+map("n", "<leader>fW", function()
+  local word = vim.fn.expand "<cWORD>"
+  vim.fn.setreg("+", word)
+  require("grug-far").open {
+    prefills = { search = word },
+    instance_name = "main",
+  }
+end, { desc = "GrugFar WORD under cursor" })
 
 -- Remap j/k to include scrolling
 map("n", "j", "j<C-e>", { desc = "Move down and scroll down" })

@@ -204,6 +204,7 @@ return {
           javascriptreact = { "prettierd" },
           css = { "prettier" },
           html = { "prettier" },
+          templ = { "templ" },
           c = { "clang-format" },
           cpp = { "clang-format" },
           -- go = { "gofumpt", "goimports-reviser", "golines" },
@@ -228,6 +229,11 @@ return {
           lsp_fallback = false,
         },
         formatters = {
+          templ = {
+            command = "templ",
+            args = { "fmt" },
+            stdin = false,
+          },
           golangci_lint = {
             command = "golangci-lint",
             args = { "fmt", "--stdin" },
@@ -460,7 +466,7 @@ return {
         select = true,
       }
       table.insert(opts.sources, { name = "crates" })
-      table.insert(opts.sources, { name = "supermaven" })
+      -- table.insert(opts.sources, { name = "supermaven" })
       return opts
     end,
   },
@@ -596,7 +602,7 @@ return {
     dependencies = { "nvim-lua/plenary.nvim" },
     cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
     config = function()
-      require("diffview").setup({
+      require("diffview").setup {
         diff_binaries = false,
         enhanced_diff_hl = false,
         git_cmd = { "git" },
@@ -637,7 +643,7 @@ return {
           win_config = {
             position = "left",
             width = 35,
-            win_opts = {}
+            win_opts = {},
           },
         },
         file_history_panel = {
@@ -654,7 +660,7 @@ return {
           win_config = {
             position = "bottom",
             height = 10,
-            win_opts = {}
+            win_opts = {},
           },
         },
         commit_log_panel = {
@@ -668,7 +674,7 @@ return {
         keymaps = {
           disable_defaults = false,
         },
-      })
+      }
     end,
   },
   {
