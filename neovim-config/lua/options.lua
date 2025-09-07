@@ -44,16 +44,21 @@ vim.api.nvim_set_hl(0, "DiffDelete", { bg = "#3d2a2a" })
 vim.api.nvim_set_hl(0, "DiffChange", { bg = "#3d3d2a" })
 vim.api.nvim_set_hl(0, "DiffText", { bg = "#4d4d2a", bold = true })
 
--- Diffview.nvim highlight groups
-vim.api.nvim_set_hl(0, "DiffviewDiffAddAsDelete", { fg = "#808080" })
-vim.api.nvim_set_hl(0, "DiffviewDiffDelete", { fg = "#505050" })
+-- Diffview.nvim highlight groups (with enhanced_diff_hl enabled)
+-- Left side deletions (shows what was removed)
+vim.api.nvim_set_hl(0, "DiffviewDiffAddAsDelete", { bg = "#3d2828", fg = "#e88388" })
+vim.api.nvim_set_hl(0, "DiffviewDiffDelete", { fg = "#6c5b5f" })
+
+-- Right side additions (shows what was added)
 vim.api.nvim_set_hl(0, "DiffviewDiffAdd", { bg = "#2a3d2a" })
+
+-- Changes (modifications)
 vim.api.nvim_set_hl(0, "DiffviewDiffChange", { bg = "#3d3d2a" })
-vim.api.nvim_set_hl(0, "DiffviewDiffText", { bg = "#4d4d2a", bold = true })
+vim.api.nvim_set_hl(0, "DiffviewDiffText", { bg = "#5f5f3a", bold = true, italic = true })
 
 -- Style for deletion placeholder lines (the diagonal lines)
-vim.api.nvim_set_hl(0, "DiffviewDim1", { fg = "#404040" })
-vim.api.nvim_set_hl(0, "DiffviewFillChar", { fg = "#303030" })
+vim.api.nvim_set_hl(0, "DiffviewDim1", { fg = "#585b70" })
+vim.api.nvim_set_hl(0, "DiffviewFillChar", { fg = "#45475a" })
 
 vim.cmd "map <S-Down> <Nop>"
 vim.cmd "map <S-Up> <Nop>"

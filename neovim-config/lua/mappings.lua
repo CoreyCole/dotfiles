@@ -132,6 +132,7 @@ end, { desc = "open commit popup" })
 map("n", "<leader>gs", function()
     require("neogit").open { kind = "split" }
 end, { desc = "Open Neogit split" })
+map("n", "gwq", "<cmd>DiffviewClose<CR>", { desc = "Close DiffView" })
 map("n", "<leader>gd", "<cmd>DiffviewOpen<CR>", { desc = "Open DiffView" })
 map("n", "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
 map("n", "<leader>gH", "<cmd>DiffviewFileHistory<CR>", { desc = "Open DiffView File History for repository" })
