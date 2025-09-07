@@ -595,7 +595,14 @@ return {
                     DiffviewOpen = {},
                     DiffviewFileHistory = {},
                 },
-                hooks = {},
+                hooks = {
+                    diff_buf_win_enter = function(bufnr, winid, ctx)
+                        -- Disable line wrap in diff buffers
+                        if ctx.symbol == "a" or ctx.symbol == "b" then
+                            vim.wo[winid].wrap = false
+                        end
+                    end,
+                },
                 keymaps = {
                     disable_defaults = false,
                 },
