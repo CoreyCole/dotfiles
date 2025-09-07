@@ -413,81 +413,6 @@ return {
         },
     },
     {
-        "nvim-treesitter/nvim-treesitter",
-        cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
-        build = ":TSUpdate",
-        dependencies = {
-            "nvim-treesitter/nvim-treesitter-textobjects",
-        },
-        opts = function()
-            return require "configs.treesitter"
-        end,
-        config = function(_, opts)
-            dofile(vim.g.base46_cache .. "syntax")
-            require("nvim-treesitter.configs").setup(opts)
-        end,
-    },
-    {
-        "nvim-treesitter/nvim-treesitter-context",
-        dependencies = { "nvim-treesitter/nvim-treesitter" },
-        event = "VeryLazy",
-        opts = function()
-            return {
-                enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
-                max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
-                min_window_height = 0, -- Minimum editor window height to enable context. Values <= 0 mean no limit.
-                line_numbers = true,
-                multiline_threshold = 20, -- Maximum number of lines to show for a single context
-                trim_scope = "outer", -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
-                mode = "cursor", -- Line used to calculate context. Choices: 'cursor', 'topline'
-                -- Separator between context and content. Should be a single character string, like '-'.
-                -- When separator is set, the context will only show up when there are at least 2 lines above cursorline.
-                separator = nil,
-                zindex = 20, -- The Z-index of the context window
-                on_attach = nil, -- (fun(buf: integer): boolean) return false to disable attaching
-            }
-        end,
-        config = function(_, opts)
-            require("treesitter-context").setup(opts)
-        end,
-    },
-    {
-        "hrsh7th/nvim-cmp",
-        opts = function()
-            local opts = require "configs.cmp"
-            local cmp = require "cmp"
-            opts.mapping["<Tab>"] = cmp.config.disable
-            opts.mapping["<S-Tab>"] = cmp.config.disable
-            opts.mapping["<C-S-k>"] = cmp.mapping.select_prev_item {}
-            opts.mapping["<C-S-j>"] = cmp.mapping.select_next_item {}
-            opts.mapping["<CR>"] = cmp.mapping.close {}
-            opts.mapping["<C-y>"] = cmp.mapping.confirm {
-                behavior = cmp.ConfirmBehavior.Insert,
-                select = true,
-            }
-            table.insert(opts.sources, { name = "crates" })
-            -- table.insert(opts.sources, { name = "supermaven" })
-            return opts
-        end,
-    },
-    {
-        "nvim-tree/nvim-web-devicons",
-    },
-    {
-        "nvim-tree/nvim-tree.lua",
-        dependencies = { "nvim-tree/nvim-web-devicons" },
-        event = "VeryLazy",
-        opts = function()
-            return require "configs.nvimtree"
-        end,
-    },
-    {
-        "neovim/nvim-lspconfig",
-        config = function()
-            require "configs.lspconfig"
-        end,
-    },
-    {
         "roberte777/keep-it-secret.nvim",
         config = function()
             return {
@@ -678,15 +603,6 @@ return {
         end,
     },
     {
-        "NeogitOrg/neogit",
-        dependencies = {
-            "nvim-lua/plenary.nvim", -- required
-            "sindrets/diffview.nvim", -- optional - Diff integration
-            "nvim-telescope/telescope.nvim", -- optional
-        },
-        config = true,
-    },
-    {
         "FabijanZulj/blame.nvim",
         lazy = false,
         config = function()
@@ -696,15 +612,6 @@ return {
     --
     -- Rust
     --
-    {
-        "mrcjkb/rustaceanvim",
-        version = "^4",
-        ft = { "rust" },
-        dependencies = "neovim/nvim-lspconfig",
-        config = function()
-            require "configs.rustaceanvim"
-        end,
-    },
     {
         "saecki/crates.nvim",
         ft = { "toml" },
@@ -1018,14 +925,6 @@ return {
     },
     {
         "nvim-neotest/nvim-nio",
-    },
-    {
-        "leoluz/nvim-dap-go",
-        ft = "go",
-        dependencies = {
-            "mfussenegger/nvim-dap",
-            "rcarriga/nvim-dap-ui",
-        },
     },
     {
         "nvim-neotest/neotest",

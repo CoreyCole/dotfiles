@@ -1,10 +1,18 @@
 require "nvchad.options"
+local arrows = require("icons").arrows
 
 -- ufo options
-vim.o.fillchars = [[eob: ,fold: ,foldopen:,foldsep: ,foldclose:]]
+vim.opt.fillchars = {
+    eob = " ",
+    fold = " ",
+    foldclose = arrows.right,
+    foldopen = arrows.down,
+    foldsep = " ",
+    msgsep = "─",
+}
 vim.o.foldlevel = 99
 vim.o.foldlevelstart = 99
-vim.o.foldcolumn = "auto:9"
+vim.o.foldcolumn = "1"
 
 -- Add diagonal lines for diff deletions
 vim.opt.fillchars:append { diff = "╱" }
