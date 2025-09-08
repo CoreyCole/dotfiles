@@ -1,6 +1,8 @@
 local wezterm = require("wezterm")
 local act = wezterm.action
 local on_windows = wezterm.target_triple:find("windows")
+local disable = "DisableDefaultAssignment"
+
 local config = {}
 if wezterm.config_builder then
 	config = wezterm.config_builder()
@@ -10,10 +12,16 @@ if on_windows then
 	config.default_prog = { "powershell.exe" }
 end
 
+config.term = "wezterm"
+config.font_size = 14
 config.font = wezterm.font("Hasklug Nerd Font Mono Med")
+config.bold_brightens_ansi_colors = true
 config.audible_bell = "Disabled"
+
+-- Cursor
+config.default_cursor_style = "BlinkingBar"
+config.window_padding = { left = 0, right = 0, top = 0, bottom = 0 }
 config.scrollback_lines = 10000
-local disable = "DisableDefaultAssignment"
 
 -- Disable all default mouse bindings so only ours apply
 config.mouse_bindings = {
