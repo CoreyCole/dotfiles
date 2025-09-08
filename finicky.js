@@ -7,5 +7,9 @@ export default {
       match: "meet.google.com/*",
       browser: "Arc",
     },
+    {
+      match: "https://teams.microsoft.com/*",
+      browser: "Arc",
+    },
   ],
 };
