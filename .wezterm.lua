@@ -19,7 +19,6 @@ config.bold_brightens_ansi_colors = true
 config.audible_bell = "Disabled"
 
 -- Cursor
-config.default_cursor_style = "BlinkingBar"
 config.window_padding = { left = 0, right = 0, top = 0, bottom = 0 }
 config.scrollback_lines = 10000
 
