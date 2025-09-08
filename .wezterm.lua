@@ -66,7 +66,7 @@ config.keys = {
 	{ key = "V", mods = "CTRL", action = act.PasteFrom("Clipboard") },
 	{ key = "V", mods = "SHIFT|CTRL", action = act.PasteFrom("Clipboard") },
 	{ key = "v", mods = "SHIFT|CTRL", action = act.PasteFrom("Clipboard") },
-	{ key = "v", mods = "SUPER", action = act.PasteFrom("Clipboard") },
+	{ key = "v", mods = "ALT", action = act.PasteFrom("Clipboard") },
 	{ key = "F", mods = "CTRL", action = act.Search("CurrentSelectionOrEmptyString") },
 	{ key = "F", mods = "SHIFT|CTRL", action = act.Search("CurrentSelectionOrEmptyString") },
 	{ key = "N", mods = "CTRL", action = act.SpawnWindow },
