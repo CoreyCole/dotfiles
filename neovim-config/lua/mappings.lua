@@ -583,7 +583,7 @@ map("n", "<leader>gp", open_pr_for_current_line, { desc = "Open GitHub PR for cu
 local function open_in_cursor()
     local file_path = vim.fn.expand "%:p"
     local line_number = vim.fn.line "."
-    local workspace_dir = "/Users/coreycole/cn/monorepo"
+    local workspace_dir = "/Users/coreycole/cn/chestnut-flake/monorepo"
 
     -- First: Open the folder via URL scheme
     local folder_url = "cursor://file/" .. workspace_dir .. "?windowId=_blank"
