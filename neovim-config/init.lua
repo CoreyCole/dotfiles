@@ -28,6 +28,7 @@ require("lazy").setup({
 }, {
     defaults = { lazy = true },
     install = { colorscheme = { "nvchad" } },
+    change_detection = { notify = false },
 
     ui = {
         icons = {
@@ -79,10 +80,7 @@ dofile(vim.g.base46_cache .. "statusline")
 
 require "nvchad.autocmds"
 require "autocmds"
-
-vim.schedule(function()
-    require "mappings"
-end)
+require "mappings"
 
 -- format on save
 vim.api.nvim_create_autocmd("BufWritePre", {

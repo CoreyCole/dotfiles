@@ -46,6 +46,7 @@ return {
             { "<leader>fg", "<cmd>FzfLua grep_visual<cr>", desc = "Grep", mode = "x" },
             { "<leader>fh", "<cmd>FzfLua help_tags<cr>", desc = "Help" },
             { "<leader>fr", "<cmd>FzfLua oldfiles<cr>", desc = "Recently opened files" },
+            { "<leader>fk", "<cmd>FzfLua keymaps<cr>", desc = "Keymaps" },
             { "z=", "<cmd>FzfLua spell_suggest<cr>", desc = "Spelling suggestions" },
         },
         opts = function()

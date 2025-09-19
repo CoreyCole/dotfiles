@@ -122,7 +122,7 @@ end, { desc = "jump context upward" })
 --
 -- neogit
 --
-map("n", "<leader>gg", function()
+map("n", "<leader>gn", function()
     require("neogit").open()
 end, { desc = "Open Neogit" })
 map("n", "<leader>gc", function()

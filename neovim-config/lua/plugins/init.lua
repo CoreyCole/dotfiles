@@ -2,40 +2,6 @@ local utils = require "utils"
 
 return {
     {
-        "MagicDuck/grug-far.nvim",
-        event = "VeryLazy",
-        config = function()
-            require("grug-far").setup {
-                -- options, see Configuration section below
-                -- there are no required options atm
-                -- engine = 'ripgrep' is default, but 'astgrep' can be specified
-                keymaps = {
-                    replace = { n = "<localleader>r" },
-                    qflist = { n = "<localleader>q" },
-                    syncLocations = { n = "<localleader>s" },
-                    syncLine = { n = "<localleader>l" },
-                    close = { n = "<localleader>c" },
-                    historyOpen = { n = "<localleader>t" },
-                    historyAdd = { n = "<localleader>a" },
-                    refresh = { n = "<localleader>f" },
-                    openLocation = { n = "<localleader>o" },
-                    openNextLocation = { n = "<down>" },
-                    openPrevLocation = { n = "<up>" },
-                    gotoLocation = { n = "<enter>" },
-                    pickHistoryEntry = { n = "<enter>" },
-                    abort = { n = "<localleader>b" },
-                    help = { n = "g?" },
-                    toggleShowCommand = { n = "<localleader>p" },
-                    swapEngine = { n = "<localleader>e" },
-                    previewLocation = { n = "<localleader>i" },
-                    swapReplacementInterpreter = { n = "<localleader>x" },
-                    applyNext = { n = "<localleader>j" },
-                    applyPrev = { n = "<localleader>k" },
-                },
-            }
-        end,
-    },
-    {
         "kevinhwang91/nvim-ufo",
         dependencies = {
             "kevinhwang91/promise-async",
@@ -419,14 +385,6 @@ return {
                 wildcards = { ".*(.env)$", ".*(.env.local)$", ".*(.env.dev)$", ".*(.env.production)$", ".*(.secret)$" },
                 enabled = true,
             }
-        end,
-    },
-    {
-        "iamcco/markdown-preview.nvim",
-        cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-        ft = { "markdown" },
-        build = function()
-            vim.fn["mkdp#util#install"]()
         end,
     },
     {
@@ -1077,107 +1035,107 @@ return {
             }
         end,
     },
-    {
-        "yetone/avante.nvim",
-        event = "VeryLazy",
-        version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
-        opts = {
-            -- add any opts here
-            -- for example
-            provider = "claude",
-            providers = {
-                claude = {
-                    endpoint = "https://api.anthropic.com",
-                    model = "claude-sonnet-4-20250514",
-                    timeout = 30000, -- Timeout in milliseconds
-                    extra_request_body = {
-                        temperature = 0,
-                        max_tokens = 20480,
-                    },
-                },
-            },
-        },
-        -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-        build = "make",
-        -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
-        dependencies = {
-            "nvim-treesitter/nvim-treesitter",
-            "stevearc/dressing.nvim",
-            "nvim-lua/plenary.nvim",
-            "MunifTanjim/nui.nvim",
-            --- The below dependencies are optional,
-            "echasnovski/mini.pick", -- for file_selector provider mini.pick
-            "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
-            "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
-            "ibhagwan/fzf-lua", -- for file_selector provider fzf
-            "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
-            "zbirenbaum/copilot.lua", -- for providers='copilot'
-            {
-                -- support for image pasting
-                "HakonHarnes/img-clip.nvim",
-                event = "VeryLazy",
-                opts = {
-                    -- recommended settings
-                    default = {
-                        embed_image_as_base64 = false,
-                        prompt_for_file_name = false,
-                        drag_and_drop = {
-                            insert_mode = true,
-                        },
-                        -- required for Windows users
-                        use_absolute_path = true,
-                    },
-                },
-            },
-            {
-                -- Make sure to set this up properly if you have lazy=true
-                "MeanderingProgrammer/render-markdown.nvim",
-                opts = {
-                    file_types = { "markdown", "Avante" },
-                },
-                ft = { "markdown", "Avante" },
-            },
-        },
-    },
+    -- {
+    --     "yetone/avante.nvim",
+    --     event = "VeryLazy",
+    --     version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
+    --     opts = {
+    --         -- add any opts here
+    --         -- for example
+    --         provider = "claude",
+    --         providers = {
+    --             claude = {
+    --                 endpoint = "https://api.anthropic.com",
+    --                 model = "claude-sonnet-4-20250514",
+    --                 timeout = 30000, -- Timeout in milliseconds
+    --                 extra_request_body = {
+    --                     temperature = 0,
+    --                     max_tokens = 20480,
+    --                 },
+    --             },
+    --         },
+    --     },
+    --     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+    --     build = "make",
+    --     -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+    --     dependencies = {
+    --         "nvim-treesitter/nvim-treesitter",
+    --         "stevearc/dressing.nvim",
+    --         "nvim-lua/plenary.nvim",
+    --         "MunifTanjim/nui.nvim",
+    --         --- The below dependencies are optional,
+    --         "echasnovski/mini.pick", -- for file_selector provider mini.pick
+    --         "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
+    --         "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
+    --         "ibhagwan/fzf-lua", -- for file_selector provider fzf
+    --         "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+    --         "zbirenbaum/copilot.lua", -- for providers='copilot'
+    --         {
+    --             -- support for image pasting
+    --             "HakonHarnes/img-clip.nvim",
+    --             event = "VeryLazy",
+    --             opts = {
+    --                 -- recommended settings
+    --                 default = {
+    --                     embed_image_as_base64 = false,
+    --                     prompt_for_file_name = false,
+    --                     drag_and_drop = {
+    --                         insert_mode = true,
+    --                     },
+    --                     -- required for Windows users
+    --                     use_absolute_path = true,
+    --                 },
+    --             },
+    --         },
+    --         {
+    --             -- Make sure to set this up properly if you have lazy=true
+    --             "MeanderingProgrammer/render-markdown.nvim",
+    --             opts = {
+    --                 file_types = { "markdown", "Avante" },
+    --             },
+    --             ft = { "markdown", "Avante" },
+    --         },
+    --     },
+    -- },
     -- https://github.com/jackMort/ChatGPT.nvim
-    {
-        "jackMort/ChatGPT.nvim",
-        dependencies = {
-            { "MunifTanjim/nui.nvim" },
-            { "nvim-lua/plenary.nvim" },
-            { "nvim-telescope/telescope.nvim" },
-        },
-        cmd = { "ChatGPT", "ChatGPTActAs", "ChatGPTRun", "ChatGPTEditWithInstructions" },
-        config = function()
-            require("chatgpt").setup {
-                api_key_cmd = "ks show openai",
-                actions_paths = { "~/dotfiles/chatgpt-actions.json" },
-                openai_params = {
-                    model = "gpt-4",
-                    max_tokens = 4000,
-                    frequency_penalty = 0,
-                    presence_penalty = 0,
-                    temperature = 0.2,
-                    top_p = 0.1,
-                    n = 1,
-                },
-                openai_edit_params = {
-                    model = "gpt-4",
-                    temperature = 0,
-                    top_p = 1,
-                    n = 1,
-                },
-            }
-        end,
-    },
+    -- {
+    --     "jackMort/ChatGPT.nvim",
+    --     dependencies = {
+    --         { "MunifTanjim/nui.nvim" },
+    --         { "nvim-lua/plenary.nvim" },
+    --         { "nvim-telescope/telescope.nvim" },
+    --     },
+    --     cmd = { "ChatGPT", "ChatGPTActAs", "ChatGPTRun", "ChatGPTEditWithInstructions" },
+    --     config = function()
+    --         require("chatgpt").setup {
+    --             api_key_cmd = "ks show openai",
+    --             actions_paths = { "~/dotfiles/chatgpt-actions.json" },
+    --             openai_params = {
+    --                 model = "gpt-4",
+    --                 max_tokens = 4000,
+    --                 frequency_penalty = 0,
+    --                 presence_penalty = 0,
+    --                 temperature = 0.2,
+    --                 top_p = 0.1,
+    --                 n = 1,
+    --             },
+    --             openai_edit_params = {
+    --                 model = "gpt-4",
+    --                 temperature = 0,
+    --                 top_p = 1,
+    --                 n = 1,
+    --             },
+    --         }
+    --     end,
+    -- },
 
     -- https://github.com/David-Kunz/gen.nvim
-    {
-        "David-Kunz/gen.nvim",
-        config = function()
-            require("gen").model = "codellama"
-        end,
-    },
+    -- {
+    --     "David-Kunz/gen.nvim",
+    --     config = function()
+    --         require("gen").model = "codellama"
+    --     end,
+    -- },
     -- {
     --   "zbirenbaum/copilot.lua",
     --   -- enabled = enable_ai,
