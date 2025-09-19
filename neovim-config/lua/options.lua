@@ -1,6 +1,8 @@
 require "nvchad.options"
 local arrows = require("icons").arrows
 
+vim.o.cmdheight = 1
+
 -- ufo options
 vim.opt.fillchars = {
     eob = " ",

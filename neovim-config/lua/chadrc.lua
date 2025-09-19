@@ -100,7 +100,6 @@ local options = {
 
     nvdash = {
         load_on_startup = true,
-
         header = {
             "                                             .... . .....                                           ",
             "                               .. ...-@@@@#----------------*@@@@...  .                              ",
@@ -158,6 +157,7 @@ local options = {
         telescope = { style = "borderless" }, -- borderless / bordered
 
         statusline = {
+            enabled = true,
             theme = "vscode",
             order = {
                 "mode",
@@ -203,6 +203,7 @@ local options = {
     },
 
     term = {
+        enabled = false,
         winopts = { number = false, relativenumber = false },
         sizes = { sp = 0.3, vsp = 0.2, ["bo sp"] = 0.3, ["bo vsp"] = 0.2 },
         float = {
