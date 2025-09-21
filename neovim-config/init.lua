@@ -18,7 +18,7 @@ require("lazy").setup({
         "NvChad/NvChad",
         lazy = false,
         branch = "v2.5",
-        import = "nvchad.plugins",
+        -- import = "nvchad.plugins",
         config = function()
             require "options"
         end,
@@ -81,6 +81,8 @@ dofile(vim.g.base46_cache .. "statusline")
 require "nvchad.autocmds"
 require "autocmds"
 require "mappings"
+require "statusline"
+require "winbar"
 
 -- format on save
 vim.api.nvim_create_autocmd("BufWritePre", {
