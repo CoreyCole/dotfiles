@@ -1,8 +1,7 @@
 return {
     "nvim-tree/nvim-tree.lua",
-    enabled = false,
-    dependencies = { "nvim-tree/nvim-web-devicons" },
     event = "VeryLazy",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
         return {
             filters = {

@@ -2,17 +2,21 @@
 return {
     {
         "akinsho/bufferline.nvim",
-        enabled = false,
         event = "VeryLazy",
         opts = {
             options = {
+                offsets = {
+                    {
+                        filetype = "NvimTree",
+                        text = "File Explorer",
+                        text_align = "center",
+                        separator = true,
+                    },
+                },
                 show_close_icon = false,
                 show_buffer_close_icons = false,
                 truncate_names = false,
                 indicator = { style = "underline" },
-                close_command = function(bufnr)
-                    require("mini.bufremove").delete(bufnr, false)
-                end,
                 diagnostics = "nvim_lsp",
                 diagnostics_indicator = function(_, _, diag)
                     local icons = require("icons").diagnostics
