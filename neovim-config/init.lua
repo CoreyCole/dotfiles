@@ -81,6 +81,8 @@ dofile(vim.g.base46_cache .. "statusline")
 require "nvchad.autocmds"
 require "autocmds"
 require "mappings"
+require "statusline"
+require "winbar"
 
 -- format on save
 vim.api.nvim_create_autocmd("BufWritePre", {
