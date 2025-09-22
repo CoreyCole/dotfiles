@@ -26,7 +26,8 @@ function M.render()
         -- sure to pick the longest prefix).
         ---@type table<string, string>
         local special_dirs = {
-            DOTFILES = vim.env.XDG_CONFIG_HOME,
+            DOTFILES = vim.env.HOME .. "/dotfiles",
+            CN = vim.env.HOME .. "/cn/chestnut-flake/monorepo",
             HOME = vim.env.HOME,
         }
         for dir_name, dir_path in pairs(special_dirs) do
@@ -35,7 +36,7 @@ function M.render()
             end
         end
         if prefix ~= "" then
-            path = path:gsub("^" .. prefix_path, "")
+            path = path:gsub("^" .. vim.pesc(prefix_path), "")
             prefix = string.format("%s %s%s", folder_icon, prefix, separator)
         end
     end

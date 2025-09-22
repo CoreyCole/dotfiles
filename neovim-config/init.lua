@@ -19,6 +19,7 @@ require("lazy").setup({
         lazy = false,
         branch = "v2.5",
         -- import = "nvchad.plugins",
+--        import "nvchad.plugins.nvdash",
         config = function()
             require "options"
         end,

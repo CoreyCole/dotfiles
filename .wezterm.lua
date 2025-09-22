@@ -12,7 +12,7 @@ if on_windows then
 	config.default_prog = { "powershell.exe" }
 end
 
-config.term = "wezterm"
+config.term = "xterm-256color"
 config.font_size = 14
 config.font = wezterm.font("Hasklug Nerd Font Mono Med")
 config.bold_brightens_ansi_colors = true

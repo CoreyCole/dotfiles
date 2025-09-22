@@ -394,21 +394,21 @@ end, { desc = "Copilot Next" })
 --
 -- nvchad tabufline
 --
-map("n", "<leader>wq", function()
-    require("nvchad.tabufline").close_buffer()
-end, { desc = "close tab" })
+-- map("n", "<leader>wq", function()
+--     require("nvchad.tabufline").close_buffer()
+-- end, { desc = "close tab" })
 
 -- closes tab + other buffers except the current one
-local function closeOtherBufs(c_buf)
-    for _, buf in ipairs(vim.t.bufs) do
-        if buf ~= c_buf then
-            require("nvchad.tabufline").close_buffer(buf)
-        end
-    end
-end
-map("n", "<leader>wo", function()
-    closeOtherBufs(vim.api.nvim_get_current_buf())
-end, { desc = "close other tabs" })
+-- local function closeOtherBufs(c_buf)
+--     for _, buf in ipairs(vim.t.bufs) do
+--         if buf ~= c_buf then
+--             require("nvchad.tabufline").close_buffer(buf)
+--         end
+--     end
+-- end
+-- map("n", "<leader>wo", function()
+--     closeOtherBufs(vim.api.nvim_get_current_buf())
+-- end, { desc = "close other tabs" })
 
 --
 -- paths
@@ -651,7 +651,6 @@ map("n", "<leader>tt", function()
     vim.notify "Converted tabs to spaces and fixed line endings"
 end, { desc = "Convert tabs to spaces and fix line endings" })
 
-map("n", "<leader>fr", "<cmd>GrugFar<cr>", { desc = "GrugFar" })
 map("n", "<leader>fw", function()
     local word = vim.fn.expand "<cword>"
     vim.fn.setreg("+", word)
