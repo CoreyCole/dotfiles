@@ -25,7 +25,7 @@ return {
                     show_close_icon = true,
                     show_buffer_close_icons = true,
                     truncate_names = false,
-                    indicator = { style = "underline" },
+                    indicator = { style = "icon" },
                     diagnostics = "nvim_lsp",
                     diagnostics_indicator = function(_, _, diag)
                         local icons = require("icons").diagnostics
