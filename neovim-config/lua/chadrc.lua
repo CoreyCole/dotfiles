@@ -157,7 +157,7 @@ local options = {
         telescope = { style = "borderless" }, -- borderless / bordered
 
         statusline = {
-            enabled = true,
+            enabled = false,
             theme = "vscode",
             order = {
                 "mode",
@@ -194,7 +194,7 @@ local options = {
 
         -- lazyload it when there are 1+ buffers
         tabufline = {
-            enabled = true,
+            enabled = false,
             lazyload = false,
             bufwidth = 35,
             order = { "treeOffset", "buffers", "tabs", "btns" },

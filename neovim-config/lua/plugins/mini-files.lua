@@ -29,7 +29,7 @@ end
 return {
     {
         "nvim-mini/mini.files",
-        lazy = false,
+        lazy = true,
         keys = {
             {
                 "<leader>m",

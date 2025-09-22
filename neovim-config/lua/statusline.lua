@@ -8,6 +8,9 @@ vim.g.qf_disable_statusline = 1
 -- Show the mode in my custom component instead.
 vim.o.showmode = false
 
+vim.api.nvim_set_hl(0, "StatusLine", { bg = "#000000" })
+vim.api.nvim_set_hl(0, "StatusLineNC", { bg = "#000000" })
+
 --- Keeps track of the highlight groups I've already created.
 ---@type table<string, boolean>
 local statusline_hls = {}
