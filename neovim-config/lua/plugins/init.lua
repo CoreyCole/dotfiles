@@ -185,7 +185,7 @@ return {
                     yaml = { "yamlfmt" },
                     swift = { "swiftformat" },
                     html = { "htmlbeautifier" },
-                    markdown = { "mdformat" },
+                    -- markdown = { "mdformat" },
                     proto = { "buf" },
                     sql = { "sqlfluff_format", "sqlfluff_fix" },
                 },

@@ -41,7 +41,13 @@ return {
             },
             { "<leader>fc", "<cmd>FzfLua highlights<cr>", desc = "Highlights" },
             { "<leader>fd", "<cmd>FzfLua lsp_document_diagnostics<cr>", desc = "Document diagnostics" },
-            { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find files" },
+            {
+                "<leader>ff",
+                function()
+                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --exclude .git" }
+                end,
+                desc = "Find files",
+            },
             { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Grep" },
             { "<leader>fg", "<cmd>FzfLua grep_visual<cr>", desc = "Grep", mode = "x" },
             { "<leader>fh", "<cmd>FzfLua help_tags<cr>", desc = "Help" },
