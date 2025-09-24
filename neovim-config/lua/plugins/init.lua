@@ -1,5 +1,3 @@
-local utils = require "utils"
-
 return {
     {
         "nvchad/ui",
@@ -52,7 +50,7 @@ return {
             end
             require("ufo").setup {
                 fold_virt_text_handler = handler,
-                provider_selector = function(bufnr, filetype, buftype)
+                provider_selector = function(_, _, _)
                     return { "treesitter", "indent" }
                 end,
             }
@@ -183,7 +181,7 @@ return {
                     typescriptreact = { "prettierd" },
                     javascriptreact = { "prettierd" },
                     css = { "prettier" },
-                    html = { "prettier" },
+                    -- html = { "prettier" },
                     templ = { "templ" },
                     c = { "clang-format" },
                     cpp = { "clang-format" },
@@ -528,7 +526,7 @@ return {
                     DiffviewFileHistory = {},
                 },
                 hooks = {
-                    diff_buf_win_enter = function(bufnr, winid, ctx)
+                    diff_buf_win_enter = function(_, winid, ctx)
                         -- Disable line wrap in diff buffers
                         if ctx.symbol == "a" or ctx.symbol == "b" then
                             vim.wo[winid].wrap = false
@@ -614,7 +612,7 @@ return {
             --   end,
             -- }
             vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-                callback = function(args)
+                callback = function(_)
                     require("lint").try_lint()
                 end,
             })
