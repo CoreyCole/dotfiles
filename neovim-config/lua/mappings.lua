@@ -124,16 +124,12 @@ map("n", "gq", function()
 end, { desc = "Go to Query Definition" })
 
 map("n", "gi", function()
-    -- vim.lsp.buf.implementation()
-    require("telescope.builtin").lsp_implementations()
+    require("fzf-lua").lsp_implementations { jump1 = true }
 end, { desc = "LSP implementation" })
 map("n", "gd", function()
-    require("telescope.builtin").lsp_definitions()
+    require("fzf-lua").lsp_definitions { jump1 = true }
     vim.cmd "norm! zz" -- center the cursor in the screen
 end, { desc = "LSP definition" })
-map("n", "gD", function()
-    vim.lsp.buf.declaration()
-end, { desc = "LSP declaration" })
 map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
 map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]symbols" })
 map("n", "<leader>gt", require("telescope.builtin").lsp_type_definitions, { desc = "LSP [G]oto [T]ype Definition" })
@@ -152,7 +148,7 @@ end, { desc = "jump context upward" })
 --
 -- neogit
 --
-map("n", "<leader>gn", function()
+map("n", "<leader>gg", function()
     require("neogit").open()
 end, { desc = "Open Neogit" })
 map("n", "<leader>gc", function()

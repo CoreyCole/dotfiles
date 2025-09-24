@@ -140,33 +140,33 @@ return {
             }
         end,
     },
-    {
-        "nvim-telescope/telescope.nvim",
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-            {
-                "nvim-telescope/telescope-fzf-native.nvim",
-                build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
-            },
-        },
-        config = function()
-            require("telescope").setup {
-                pickers = {
-                    find_files = {
-                        theme = "ivy",
-                    },
-                },
-            }
-            vim.keymap.set("n", "<leader>fd", function()
-                require("telescope.builtin").find_files { hidden = true }
-            end)
-            vim.keymap.set("n", "<leader>fe", function()
-                require("telescope.builtin").find_files {
-                    cwd = "~/cn/monorepo/frontend",
-                }
-            end)
-        end,
-    },
+    -- {
+    --     "nvim-telescope/telescope.nvim",
+    --     dependencies = {
+    --         "nvim-lua/plenary.nvim",
+    --         {
+    --             "nvim-telescope/telescope-fzf-native.nvim",
+    --             build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
+    --         },
+    --     },
+    --     config = function()
+    --         require("telescope").setup {
+    --             pickers = {
+    --                 find_files = {
+    --                     theme = "ivy",
+    --                 },
+    --             },
+    --         }
+    --         vim.keymap.set("n", "<leader>fd", function()
+    --             require("telescope.builtin").find_files { hidden = true }
+    --         end)
+    --         vim.keymap.set("n", "<leader>fe", function()
+    --             require("telescope.builtin").find_files {
+    --                 cwd = "~/cn/monorepo/frontend",
+    --             }
+    --         end)
+    --     end,
+    -- },
     {
         "stevearc/conform.nvim",
         event = "BufWritePre", -- format on save
@@ -352,46 +352,6 @@ return {
     --   "BlackLight/nvim-http",
     --   ft = "http",
     -- },
-    {
-        "williamboman/mason.nvim",
-        opts = {
-            ensure_installed = {
-                "lua-language-server",
-                "stylua",
-                "codespell",
-                "clangd",
-                "clang-format",
-                "codelldb",
-                "isort",
-                "black",
-                "mypy",
-                "ruff",
-                "ruff-lsp",
-                "pyright",
-                "debugpy",
-                "marksman",
-                "buf",
-                "gofumpt",
-                "gopls",
-                "goimports-reviser",
-                "golines",
-                "templ",
-                "htmx-lsp",
-                "html-lsp",
-                "tailwindcss-language-server",
-                "rust-analyzer",
-                "rustywind",
-                "shfmt",
-                "css-lsp",
-                "typescript-language-server",
-                "vtsls",
-                "eslint-lsp",
-                "js-debug-adapter",
-                "prettier",
-                "prettierd",
-            },
-        },
-    },
     {
         "roberte777/keep-it-secret.nvim",
         config = function()

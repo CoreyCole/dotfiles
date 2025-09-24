@@ -49,9 +49,9 @@ return {
                 nmap("<leader>gR", gs.reset_buffer, "Reset buffer")
                 nmap("<leader>gb", gs.blame_line, "Blame line")
                 nmap("<leader>gp", gs.preview_hunk, "Preview hunk")
-                nmap("<leader>gr", gs.reset_hunk, "Reset hunk")
+                -- nmap("<leader>gr", gs.reset_hunk, "Reset hunk")
                 nmap("<leader>gs", gs.stage_hunk, "Stage hunk")
-                nmap("<leader>gg", function()
+                nmap("<leader>lg", function()
                     require("float_term").float_term("lazygit", {
                         size = { width = 0.85, height = 0.8 },
                         cwd = vim.b.gitsigns_status_dict.root,

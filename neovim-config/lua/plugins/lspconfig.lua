@@ -1,9 +1,50 @@
 return {
     "neovim/nvim-lspconfig",
+    event = "BufReadPre",
+    dependencies = {
+        {
+            "williamboman/mason.nvim",
+            opts = {
+                ensure_installed = {
+                    "lua-language-server",
+                    "stylua",
+                    "codespell",
+                    "clangd",
+                    "clang-format",
+                    "codelldb",
+                    "isort",
+                    "black",
+                    "mypy",
+                    "ruff",
+                    "ruff-lsp",
+                    "pyright",
+                    "debugpy",
+                    "marksman",
+                    "buf",
+                    "gofumpt",
+                    "gopls",
+                    "goimports-reviser",
+                    "golines",
+                    "templ",
+                    "htmx-lsp",
+                    "html-lsp",
+                    "tailwindcss-language-server",
+                    "rust-analyzer",
+                    "rustywind",
+                    "shfmt",
+                    "css-lsp",
+                    "typescript-language-server",
+                    "vtsls",
+                    "eslint-lsp",
+                    "js-debug-adapter",
+                    "prettier",
+                    "prettierd",
+                },
+            },
+        },
+    },
     config = function()
-        local on_attach = require("nvchad.configs.lspconfig").on_attach
-        local on_init = require("nvchad.configs.lspconfig").on_init
-        local capabilities = require("nvchad.configs.lspconfig").capabilities
+        local capabilities = vim.lsp.protocol.make_client_capabilities()
 
         local client_capabilities = function()
             return vim.tbl_deep_extend("force", capabilities, {
@@ -17,6 +58,7 @@ return {
         local lspconfig = require "lspconfig"
         local util = require "lspconfig/util"
         local servers = {
+            "lua_ls",
             "gopls",
             "buf_ls",
             "pyright",
@@ -65,28 +107,21 @@ return {
         -- lsps with default config
         for _, lsp in ipairs(servers) do
             lspconfig[lsp].setup {
-                on_attach = on_attach,
-                on_init = on_init,
                 capabilities = capabilities,
             }
         end
 
         lspconfig.pyright.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "python" },
         }
 
         -- lspconfig.ruff_lsp.setup {
-        --   on_attach = on_attach,
-        --   on_init = on_init,
         --   capabilities = capabilities,
         --   filetypes = { "python" },
         -- }
 
         lspconfig.just.setup {
-            on_attach = on_attach,
             capabilities = capabilities,
             cmd = { "/Users/coreycole/.cargo/bin/just-lsp" },
             filetypes = { "just" },
@@ -97,8 +132,6 @@ return {
         }
 
         lspconfig.gopls.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             cmd = { "gopls" },
             filetypes = { "go", "gomod", "gowork", "gotmpl" },
@@ -157,8 +190,6 @@ return {
             init_options = {
                 command = golangci_lint_args(),
             },
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "go" },
             -- root_dir = function(fname)
@@ -173,8 +204,6 @@ return {
         }
 
         lspconfig.buf_ls.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "proto" },
             root_dir = util.root_pattern ".git",
@@ -182,28 +211,20 @@ return {
 
         vim.filetype.add { extension = { templ = "templ" } }
         lspconfig.templ.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
         }
 
         lspconfig.html.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "html", "templ", "jsx", "tsx", "typescriptreact" },
         }
 
         lspconfig.htmx.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "html", "templ" },
         }
 
         lspconfig.tailwindcss.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             filetypes = { "templ", "astro", "javascript", "typescript", "react" },
             settings = {
@@ -216,8 +237,6 @@ return {
         }
 
         lspconfig.ts_ls.setup {
-            on_attach = on_attach,
-            on_init = on_init,
             capabilities = capabilities,
             -- init_options = {
             --   preferences = {
@@ -240,7 +259,6 @@ return {
         -- local servers = { 'ccls', 'cmake', 'templ' }
         -- for _, lsp in ipairs(servers) do
         --   lspconfig[lsp].setup({
-        --     on_attach = on_attach,
         --     capabilities = capabilities,
         --   })
         -- end
