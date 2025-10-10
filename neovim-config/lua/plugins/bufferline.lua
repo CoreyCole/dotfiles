@@ -24,7 +24,8 @@ return {
                     style_preset = require("bufferline").style_preset.no_italic,
                     show_close_icon = true,
                     show_buffer_close_icons = true,
-                    truncate_names = false,
+                    truncate_names = true,
+                    max_name_length = 24,
                     indicator = { style = "icon" },
                     diagnostics = "nvim_lsp",
                     diagnostics_indicator = function(_, _, diag)
@@ -46,7 +47,18 @@ return {
             { "<leader>wo", "<cmd>BufferLineCloseOthers<cr>", desc = "Close other buffers" },
             { "<Tab>", "<cmd>BufferLineCycleNext<cr>", desc = "Cycle to the next buffer" },
             { "<S-Tab>", "<cmd>BufferLineCyclePrev<cr>", desc = "Cycle to the previous buffer" },
-            { "<leader>wq", "<cmd>bd<cr>", desc = "Close current buffer" },
+            {
+                "<leader>wq",
+                function()
+                    -- Store the current buffer number before switching
+                    local current_buf = vim.fn.bufnr()
+                    -- Cycle to the previous buffer
+                    vim.cmd "BufferLineCyclePrev"
+                    -- Close the buffer we were just in
+                    vim.cmd("bd " .. current_buf)
+                end,
+                desc = "Cycle to previous buffer and close the current one",
+            },
         },
     },
 }

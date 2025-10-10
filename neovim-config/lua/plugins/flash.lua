@@ -3,6 +3,7 @@ return {
     {
         "folke/flash.nvim",
         event = "VeryLazy",
+        enabled = false,
         opts = {
             jump = { nohlsearch = true },
             prompt = {

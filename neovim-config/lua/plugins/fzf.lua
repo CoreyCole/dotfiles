@@ -48,7 +48,19 @@ return {
                 end,
                 desc = "Find files",
             },
-            { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Grep" },
+            {
+                "<leader>fg",
+                function()
+                    require("fzf-lua").live_grep {
+                        rg_opts = "--column --line-number --no-heading --color=always --smart-case --max-columns=4096 "
+                            .. "--glob '!pkg/proto' "
+                            .. "--glob '!pkg/db/mocks' "
+                            .. "--glob '!frontend/packages/proto' "
+                            .. "-e",
+                    }
+                end,
+                desc = "Grep",
+            },
             { "<leader>fg", "<cmd>FzfLua grep_visual<cr>", desc = "Grep", mode = "x" },
             { "<leader>fh", "<cmd>FzfLua help_tags<cr>", desc = "Help" },
             { "<leader>fr", "<cmd>FzfLua oldfiles<cr>", desc = "Recently opened files" },

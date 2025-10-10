@@ -1,6 +1,7 @@
 require "nvchad.options"
 local arrows = require("icons").arrows
 
+vim.o.linebreak = true
 vim.o.cmdheight = 1
 vim.o.laststatus = 3
 
@@ -32,9 +33,6 @@ vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHo
     command = "checktime",
 })
 vim.opt.swapfile = false
-
--- avante recommended
-vim.opt.laststatus = 3
 
 vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#D14242" })
 vim.api.nvim_set_hl(0, "NeogitDiffAdd", { fg = "#559955" })

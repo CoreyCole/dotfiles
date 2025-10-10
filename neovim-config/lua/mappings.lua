@@ -159,7 +159,12 @@ map("n", "<leader>gs", function()
     require("neogit").open { kind = "split" }
 end, { desc = "Open Neogit split" })
 map("n", "gwq", "<cmd>DiffviewClose<CR>", { desc = "Close DiffView" })
-map("n", "<leader>gd", "<cmd>DiffviewOpen<CR>", { desc = "Open DiffView" })
+map("n", "<leader>gd", function()
+    -- First close any existing Diffview to reuse the same view
+    pcall(vim.cmd, "DiffviewClose")
+    -- Open Diffview
+    vim.cmd("DiffviewOpen")
+end, { desc = "Open DiffView" })
 map("n", "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
 map("n", "<leader>gH", "<cmd>DiffviewFileHistory<CR>", { desc = "Open DiffView File History for repository" })
 map("n", "<leader>gb", "<cmd>BlameToggle virtual<CR>", { desc = "Toggle Blame" })
@@ -574,6 +579,94 @@ local function open_pr_for_current_line()
     end
 end
 map("n", "<leader>gp", open_pr_for_current_line, { desc = "Open GitHub PR for current line" })
+
+-- Open Diffview comparing current to parent branch
+map("n", "<leader>gP", function()
+    -- Get parent branch using gt parent
+    local parent_branch = vim.fn.trim(vim.fn.system("gt parent"))
+
+    -- Check if gt parent command was successful
+    if vim.v.shell_error ~= 0 or parent_branch == "" then
+        -- Fallback to HEAD~1 if gt parent fails
+        pcall(vim.cmd, "DiffviewClose")
+        vim.cmd("DiffviewOpen HEAD~1")
+        vim.notify("Comparing HEAD~1 to current")
+    else
+        -- Close any existing Diffview to reuse the same view
+        pcall(vim.cmd, "DiffviewClose")
+        -- Open Diffview comparing parent branch commit to current HEAD
+        vim.cmd("DiffviewOpen " .. parent_branch .. "..HEAD")
+        vim.notify("Comparing " .. parent_branch .. " to current")
+    end
+end, { desc = "Open DiffView (parent branch to current)" })
+
+-- Open picker to select a downstack branch and show diff
+map("n", "<leader>gD", function()
+    -- Get current branch
+    local current_branch = vim.fn.trim(vim.fn.system("git branch --show-current"))
+
+    -- Get the trunk branch (develop)
+    local trunk = vim.fn.trim(vim.fn.system("gt trunk 2>/dev/null"))
+    if vim.v.shell_error ~= 0 then
+        trunk = "develop"  -- fallback to develop if gt trunk fails
+    end
+
+    -- Get all commits from trunk to HEAD with one-line format showing commit message
+    -- Each Graphite branch is one commit, so we can show the commit messages
+    local cmd = string.format("git log --oneline origin/%s..HEAD 2>/dev/null", trunk)
+    local log_output = vim.fn.system(cmd)
+
+    if vim.v.shell_error ~= 0 or log_output == "" then
+        vim.notify("No commits found between " .. trunk .. " and HEAD", vim.log.levels.INFO)
+        return
+    end
+
+    local commits = {}
+    -- Parse each line: hash + message
+    for line in log_output:gmatch("[^\r\n]+") do
+        local hash, message = line:match("^([%w]+)%s+(.+)$")
+        if hash and message then
+            table.insert(commits, { hash = hash, display = line })
+        end
+    end
+
+    -- Add develop/trunk as first option
+    table.insert(commits, 1, { hash = trunk, display = trunk })
+
+    if #commits == 0 then
+        vim.notify("No commits found", vim.log.levels.INFO)
+        return
+    end
+
+    -- Extract just the display strings for fzf
+    local display_items = {}
+    for _, commit in ipairs(commits) do
+        table.insert(display_items, commit.display)
+    end
+
+    -- Use fzf-lua to show a picker
+    require("fzf-lua").fzf_exec(display_items, {
+        prompt = "Select commit/branch> ",
+        actions = {
+            ["default"] = function(selected)
+                if selected and selected[1] then
+                    -- Extract the hash from the selected item
+                    local hash = selected[1]:match("^([%w]+)") or selected[1]
+                    -- Close any existing Diffview
+                    pcall(vim.cmd, "DiffviewClose")
+                    -- Open Diffview comparing selected commit to current
+                    local cmd = string.format("DiffviewOpen %s..%s", hash, current_branch)
+                    vim.cmd(cmd)
+                    vim.notify(string.format("Comparing %s to %s", hash, current_branch))
+                end
+            end
+        },
+        winopts = {
+            height = 0.6,
+            width = 0.7,
+        }
+    })
+end, { desc = "Pick downstack commit for DiffView" })
 
 -- Function to open the current file in Cursor at the current line
 local function open_in_cursor()

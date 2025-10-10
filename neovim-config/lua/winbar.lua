@@ -60,7 +60,8 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
             and vim.bo[args.buf].buftype == "" -- Normal buffer
             and vim.api.nvim_buf_get_name(args.buf) ~= "" -- Has a file name
             and not vim.wo[0].diff -- Not in diff mode
-            and not vim.endswith(vim.api.nvim_buf_get_name(args.buf), ".dbout") -- dadbod output
+            and not vim.endswith(vim.api.nvim_buf_get_name(args.buf), ".dbout")
+            and not vim.endswith(vim.api.nvim_buf_get_name(args.buf), "dbui")
         then
             vim.wo.winbar = "%{%v:lua.require'winbar'.render()%}"
         end
