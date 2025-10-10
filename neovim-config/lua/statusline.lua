@@ -213,7 +213,19 @@ function M.diagnostics_component()
         end)
         :totable()
 
-    return table.concat(parts, " ")
+    local sidekickStatus = ""
+    local sidekickStatusGet = require("sidekick.status").get()
+    if sidekickStatusGet ~= nil then
+        if sidekickStatusGet.kind == "Error" then
+            sidekickStatus = " DiagnosticError"
+        elseif sidekickStatusGet.busy then
+            sidekickStatus = " DiagnosticWarn"
+        else
+            sidekickStatus = " Special"
+        end
+    end
+
+    return sidekickStatus .. table.concat(parts, " ")
 end
 
 --- The buffer's filetype.

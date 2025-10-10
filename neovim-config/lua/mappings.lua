@@ -130,10 +130,10 @@ map("n", "gd", function()
     require("fzf-lua").lsp_definitions { jump1 = true }
     vim.cmd "norm! zz" -- center the cursor in the screen
 end, { desc = "LSP definition" })
-map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
-map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]symbols" })
-map("n", "<leader>gt", require("telescope.builtin").lsp_type_definitions, { desc = "LSP [G]oto [T]ype Definition" })
-map("n", "<leader>r", ":LspRestart<CR>", { desc = "LSP Restart" })
+-- map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
+-- map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]symbols" })
+-- map("n", "<leader>gt", require("telescope.builtin").lsp_type_definitions, { desc = "LSP [G]oto [T]ype Definition" })
+-- map("n", "<leader>r", ":LspRestart<CR>", { desc = "LSP Restart" })
 map("n", "<leader>cc", function()
     require("treesitter-context").enable()
     vim.cmd [[
@@ -163,7 +163,7 @@ map("n", "<leader>gd", function()
     -- First close any existing Diffview to reuse the same view
     pcall(vim.cmd, "DiffviewClose")
     -- Open Diffview
-    vim.cmd("DiffviewOpen")
+    vim.cmd "DiffviewOpen"
 end, { desc = "Open DiffView" })
 map("n", "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", { desc = "Open DiffView File History for current file" })
 map("n", "<leader>gH", "<cmd>DiffviewFileHistory<CR>", { desc = "Open DiffView File History for repository" })
@@ -376,21 +376,19 @@ local function accept_line(suggestion_function)
     end
 end
 
-map("i", "<C-l>", function()
-    -- supermaven accept
-    require("supermaven-nvim.completion_preview").on_accept_suggestion()
-end, { desc = "Supermaven Accept" })
-map("i", "<C-;>", function()
-    vim.fn.feedkeys(vim.fn["copilot#Accept#Line"](), "")
-end, { desc = "Copilot Accept Line" })
-
-map("i", "<C-k>", function()
-    vim.fn.feedkeys(vim.fn["copilot#Previous"](), "")
-end, { desc = "Copilot Previous" })
-
-map("i", "<C-j>", function()
-    vim.fn.feedkeys(vim.fn["copilot#Next"](), "")
-end, { desc = "Copilot Next" })
+-- map("i", "<C-l>", function()
+--     -- supermaven accept
+--     require("supermaven-nvim.completion_preview").on_accept_suggestion()
+-- end, { desc = "Supermaven Accept" })
+-- map("i", "<C-;>", function()
+--     vim.fn.feedkeys(vim.fn["copilot#Accept#Line"](), "")
+-- end, { desc = "Copilot Accept Line" })
+-- map("i", "<C-k>", function()
+--     vim.fn.feedkeys(vim.fn["copilot#Previous"](), "")
+-- end, { desc = "Copilot Previous" })
+-- map("i", "<C-j>", function()
+--     vim.fn.feedkeys(vim.fn["copilot#Next"](), "")
+-- end, { desc = "Copilot Next" })
 
 --
 -- nvchad tabufline
@@ -583,14 +581,14 @@ map("n", "<leader>gp", open_pr_for_current_line, { desc = "Open GitHub PR for cu
 -- Open Diffview comparing current to parent branch
 map("n", "<leader>gP", function()
     -- Get parent branch using gt parent
-    local parent_branch = vim.fn.trim(vim.fn.system("gt parent"))
+    local parent_branch = vim.fn.trim(vim.fn.system "gt parent")
 
     -- Check if gt parent command was successful
     if vim.v.shell_error ~= 0 or parent_branch == "" then
         -- Fallback to HEAD~1 if gt parent fails
         pcall(vim.cmd, "DiffviewClose")
-        vim.cmd("DiffviewOpen HEAD~1")
-        vim.notify("Comparing HEAD~1 to current")
+        vim.cmd "DiffviewOpen HEAD~1"
+        vim.notify "Comparing HEAD~1 to current"
     else
         -- Close any existing Diffview to reuse the same view
         pcall(vim.cmd, "DiffviewClose")
@@ -603,12 +601,12 @@ end, { desc = "Open DiffView (parent branch to current)" })
 -- Open picker to select a downstack branch and show diff
 map("n", "<leader>gD", function()
     -- Get current branch
-    local current_branch = vim.fn.trim(vim.fn.system("git branch --show-current"))
+    local current_branch = vim.fn.trim(vim.fn.system "git branch --show-current")
 
     -- Get the trunk branch (develop)
-    local trunk = vim.fn.trim(vim.fn.system("gt trunk 2>/dev/null"))
+    local trunk = vim.fn.trim(vim.fn.system "gt trunk 2>/dev/null")
     if vim.v.shell_error ~= 0 then
-        trunk = "develop"  -- fallback to develop if gt trunk fails
+        trunk = "develop" -- fallback to develop if gt trunk fails
     end
 
     -- Get all commits from trunk to HEAD with one-line format showing commit message
@@ -623,8 +621,8 @@ map("n", "<leader>gD", function()
 
     local commits = {}
     -- Parse each line: hash + message
-    for line in log_output:gmatch("[^\r\n]+") do
-        local hash, message = line:match("^([%w]+)%s+(.+)$")
+    for line in log_output:gmatch "[^\r\n]+" do
+        local hash, message = line:match "^([%w]+)%s+(.+)$"
         if hash and message then
             table.insert(commits, { hash = hash, display = line })
         end
@@ -651,7 +649,7 @@ map("n", "<leader>gD", function()
             ["default"] = function(selected)
                 if selected and selected[1] then
                     -- Extract the hash from the selected item
-                    local hash = selected[1]:match("^([%w]+)") or selected[1]
+                    local hash = selected[1]:match "^([%w]+)" or selected[1]
                     -- Close any existing Diffview
                     pcall(vim.cmd, "DiffviewClose")
                     -- Open Diffview comparing selected commit to current
@@ -659,12 +657,12 @@ map("n", "<leader>gD", function()
                     vim.cmd(cmd)
                     vim.notify(string.format("Comparing %s to %s", hash, current_branch))
                 end
-            end
+            end,
         },
         winopts = {
             height = 0.6,
             width = 0.7,
-        }
+        },
     })
 end, { desc = "Pick downstack commit for DiffView" })
 
