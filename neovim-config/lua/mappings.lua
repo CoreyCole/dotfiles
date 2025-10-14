@@ -133,7 +133,7 @@ end, { desc = "LSP definition" })
 -- map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
 -- map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]symbols" })
 -- map("n", "<leader>gt", require("telescope.builtin").lsp_type_definitions, { desc = "LSP [G]oto [T]ype Definition" })
--- map("n", "<leader>r", ":LspRestart<CR>", { desc = "LSP Restart" })
+map("n", "<leader>r", ":LspRestart<CR>", { desc = "LSP Restart" })
 map("n", "<leader>cc", function()
     require("treesitter-context").enable()
     vim.cmd [[

@@ -86,20 +86,4 @@ require "statusline"
 require "winbar"
 require "lsp"
 
--- format on save
-vim.api.nvim_create_autocmd("BufWritePre", {
-    pattern = "*",
-    callback = function(args)
-        local bufnr = args.buf
-        local filename = vim.api.nvim_buf_get_name(bufnr)
-
-        if filename:match "_templ%.go$" then
-            -- Skip conform formatting for _templ.go files
-            return
-        else
-            require("conform").format { bufnr = args.buf }
-        end
-    end,
-})
-
 require("vim._extui").enable {}

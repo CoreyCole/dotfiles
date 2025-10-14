@@ -259,4 +259,61 @@ vim.api.nvim_create_autocmd({ "BufReadPre", "BufNewFile" }, {
     end,
 })
 
+-- Create LspRestart command
+vim.api.nvim_create_user_command("LspRestart", function(opts)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local clients_to_restart = {}
+
+    if #opts.fargs == 0 then
+        -- No arguments: restart all active clients for current buffer
+        clients_to_restart = vim.lsp.get_clients { bufnr = bufnr }
+        if #clients_to_restart == 0 then
+            vim.notify("No LSP clients attached to current buffer", vim.log.levels.WARN)
+            return
+        end
+    else
+        -- Specific server names provided
+        for _, name in ipairs(opts.fargs) do
+            local client = vim.iter(vim.lsp.get_clients()):find(function(c)
+                return c.name == name
+            end)
+            if client then
+                table.insert(clients_to_restart, client)
+            else
+                vim.notify(("LSP client '%s' not found"):format(name), vim.log.levels.WARN)
+            end
+        end
+    end
+
+    if #clients_to_restart == 0 then
+        return
+    end
+
+    -- Store server names and buffers before stopping
+    local restart_info = {}
+    for _, client in ipairs(clients_to_restart) do
+        table.insert(restart_info, {
+            name = client.name,
+            buffers = vim.tbl_keys(client.attached_buffers),
+        })
+        client:stop()
+    end
+
+    -- Wait for clean shutdown, then re-enable
+    vim.defer_fn(function()
+        for _, info in ipairs(restart_info) do
+            vim.lsp.enable(info.name)
+            vim.notify(("Restarted LSP: %s"):format(info.name), vim.log.levels.INFO)
+        end
+    end, 500)
+end, {
+    desc = "Restart LSP clients",
+    nargs = "*",
+    complete = function()
+        return vim.tbl_map(function(client)
+            return client.name
+        end, vim.lsp.get_clients())
+    end,
+})
+
 return M
