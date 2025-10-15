@@ -177,6 +177,26 @@ function M.lsp_progress_component()
     }
 end
 
+function M.sidekick_component()
+    if not package.loaded["sidekick"] then
+        return ""
+    end
+
+    local sidekick_status = require("sidekick.status").get()
+    if not sidekick_status then
+        return ""
+    end
+
+    local component = ""
+    if sidekick_status.kind == "Error" then
+        component = component .. " Error"
+    elseif sidekick_status.busy then
+        component = component .. " Busy"
+    end
+
+    return component
+end
+
 local last_diagnostic_component = ""
 --- Diagnostic counts in the current buffer.
 ---@return string
@@ -213,19 +233,7 @@ function M.diagnostics_component()
         end)
         :totable()
 
-    local sidekickStatus = ""
-    local sidekickStatusGet = require("sidekick.status").get()
-    if sidekickStatusGet ~= nil then
-        if sidekickStatusGet.kind == "Error" then
-            sidekickStatus = " DiagnosticError"
-        elseif sidekickStatusGet.busy then
-            sidekickStatus = " DiagnosticWarn"
-        else
-            sidekickStatus = " Special"
-        end
-    end
-
-    return sidekickStatus .. table.concat(parts, " ")
+    return table.concat(parts, " ")
 end
 
 --- The buffer's filetype.
@@ -314,6 +322,7 @@ function M.render()
         },
         "%#StatusLine#%=",
         concat_components {
+            M.sidekick_component(),
             M.diagnostics_component(),
             M.filetype_component(),
             M.encoding_component(),
