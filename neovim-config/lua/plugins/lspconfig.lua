@@ -56,8 +56,7 @@ return {
         end
         capabilities = client_capabilities()
 
-        local lspconfig = require "lspconfig"
-        local util = require "lspconfig/util"
+        local util = require "lspconfig.util"
         local servers = {
             "lua_ls",
             "gopls",
@@ -107,22 +106,22 @@ return {
 
         -- lsps with default config
         for _, lsp in ipairs(servers) do
-            lspconfig[lsp].setup {
+            vim.lsp.config[lsp] = {
                 capabilities = capabilities,
             }
         end
 
-        lspconfig.pyright.setup {
+        vim.lsp.config.pyright = {
             capabilities = capabilities,
             filetypes = { "python" },
         }
 
-        -- lspconfig.ruff_lsp.setup {
+        -- vim.lsp.config.ruff_lsp = {
         --   capabilities = capabilities,
         --   filetypes = { "python" },
         -- }
 
-        lspconfig.just.setup {
+        vim.lsp.config.just = {
             capabilities = capabilities,
             cmd = { "/Users/coreycole/.cargo/bin/just-lsp" },
             filetypes = { "just" },
@@ -132,7 +131,7 @@ return {
             settings = {},
         }
 
-        lspconfig.gopls.setup {
+        vim.lsp.config.gopls = {
             capabilities = capabilities,
             cmd = { "gopls" },
             filetypes = { "go", "gomod", "gowork", "gotmpl" },
@@ -181,7 +180,7 @@ return {
             },
         }
 
-        lspconfig.golangci_lint_ls.setup {
+        vim.lsp.config.golangci_lint_ls = {
             cmd = (function(debug)
                 if debug then
                     return { "golangci-lint-langserver", "-debug" }
@@ -204,28 +203,28 @@ return {
             -- end,
         }
 
-        lspconfig.buf_ls.setup {
+        vim.lsp.config.buf_ls = {
             capabilities = capabilities,
             filetypes = { "proto" },
             root_dir = util.root_pattern ".git",
         }
 
         vim.filetype.add { extension = { templ = "templ" } }
-        lspconfig.templ.setup {
+        vim.lsp.config.templ = {
             capabilities = capabilities,
         }
 
-        lspconfig.html.setup {
+        vim.lsp.config.html = {
             capabilities = capabilities,
             filetypes = { "html", "templ", "jsx", "tsx", "typescriptreact" },
         }
 
-        lspconfig.htmx.setup {
+        vim.lsp.config.htmx = {
             capabilities = capabilities,
             filetypes = { "html", "templ" },
         }
 
-        lspconfig.tailwindcss.setup {
+        vim.lsp.config.tailwindcss = {
             capabilities = capabilities,
             filetypes = { "templ", "astro", "javascript", "typescript", "react" },
             settings = {
@@ -237,7 +236,7 @@ return {
             },
         }
 
-        lspconfig.ts_ls.setup {
+        vim.lsp.config.ts_ls = {
             capabilities = capabilities,
             -- init_options = {
             --   preferences = {

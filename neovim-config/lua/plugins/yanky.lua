@@ -1,8 +1,14 @@
 -- Better copy/pasting.
 return {
     "gbprod/yanky.nvim",
+    event = { "BufReadPost", "BufNewFile" },
     opts = {
-        ring = { history_length = 20 },
+        ring = {
+            history_length = 20,
+            permanent_wrapper = function()
+                return require("yanky.wrappers").remove_carriage_return
+            end,
+        },
         highlight = { timer = 250 },
     },
     keys = {
