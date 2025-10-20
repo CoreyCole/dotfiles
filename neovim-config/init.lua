@@ -33,10 +33,10 @@ require("lazy").setup({
 
     ui = {
         icons = {
-            ft = "∩â╢",
-            lazy = "≤░éá ",
-            loaded = "∩üÿ",
-            not_loaded = "∩äî",
+            ft = "",
+            lazy = "󰂠 ",
+            loaded = "",
+            not_loaded = "",
         },
     },
 
