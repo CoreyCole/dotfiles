@@ -57,19 +57,10 @@ return {
         capabilities = client_capabilities()
 
         local util = require "lspconfig.util"
+        -- Simple servers with default config
         local servers = {
             "lua_ls",
-            "gopls",
-            "buf_ls",
-            "pyright",
-            -- "ruff_lsp",
-            "html",
-            "templ",
-            -- "htmx",
-            "ts_ls",
-            "tailwindcss",
             "cssls",
-            "just",
         }
 
         local golangci_lint_args = function()
@@ -109,6 +100,7 @@ return {
             vim.lsp.config[lsp] = {
                 capabilities = capabilities,
             }
+            vim.lsp.enable(lsp)
         end
 
         vim.lsp.config.pyright = {
@@ -255,6 +247,23 @@ return {
             --   description = "Organize Imports",
             -- },
         }
+
+        -- Enable all configured LSP servers
+        local configured_servers = {
+            "pyright",
+            "just",
+            "gopls",
+            "golangci_lint_ls",
+            "buf_ls",
+            "templ",
+            "html",
+            "htmx",
+            "tailwindcss",
+            "ts_ls",
+        }
+        for _, lsp in ipairs(configured_servers) do
+            vim.lsp.enable(lsp)
+        end
 
         -- local servers = { 'ccls', 'cmake', 'templ' }
         -- for _, lsp in ipairs(servers) do

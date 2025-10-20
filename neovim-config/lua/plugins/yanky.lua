@@ -1,6 +1,7 @@
 -- Better copy/pasting.
 return {
     "gbprod/yanky.nvim",
+    enabled = false,
     event = { "BufReadPost", "BufNewFile" },
     opts = {
         ring = {

@@ -2,7 +2,10 @@
 return {
     {
         "saghen/blink.cmp",
-        dependencies = "LuaSnip",
+        dependencies = {
+            "LuaSnip",
+            "saghen/blink.compat",
+        },
         build = "cargo +nightly build --release",
         event = "InsertEnter",
         opts = {
@@ -46,6 +49,13 @@ return {
                 end,
                 per_filetype = {
                     codecompanion = { "codecompanion", "buffer" },
+                    toml = { "crates", "lsp", "buffer", "path" },
+                },
+                providers = {
+                    crates = {
+                        name = "crates",
+                        module = "blink.compat.source",
+                    },
                 },
             },
             appearance = {
