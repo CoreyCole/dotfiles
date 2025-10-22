@@ -125,11 +125,7 @@ return {
 
         vim.lsp.config.gopls = {
             capabilities = capabilities,
-            cmd = { "gopls" },
-            filetypes = { "go", "gomod", "gowork", "gotmpl" },
-            root_dir = util.root_pattern("go.work", "go.mod", ".git"),
             flags = { debounce_text_changes = 200 },
-            single_file_support = false,
             settings = {
                 gopls = {
                     usePlaceholders = true,
@@ -197,8 +193,6 @@ return {
 
         vim.lsp.config.buf_ls = {
             capabilities = capabilities,
-            filetypes = { "proto" },
-            root_dir = util.root_pattern ".git",
         }
 
         vim.filetype.add { extension = { templ = "templ" } }
