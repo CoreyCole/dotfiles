@@ -8,7 +8,7 @@ return {
                 git_ignored = false,
                 dotfiles = false,
                 -- Custom list of vim regex for file/directory names that will not be shown.
-                custom = { "node_modules", ".tmp" },
+                custom = { "node_modules", ".tmp", "*_templ.go" },
                 -- exclude = { vim.fn.stdpath "config" .. "/lua/custom" },
             },
             disable_netrw = true,

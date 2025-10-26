@@ -28,6 +28,8 @@ function M.render()
         local special_dirs = {
             DOTFILES = vim.env.HOME .. "/dotfiles",
             CN = vim.env.HOME .. "/cn/chestnut-flake/monorepo",
+            THOUGHTS = vim.env.HOME .. "/cn/chestnut-flake/thoughts",
+            DSUI = vim.env.HOME .. "/cn/chestnut-flake/thoughts/pkg/datastarui",
             HOME = vim.env.HOME,
         }
         for dir_name, dir_path in pairs(special_dirs) do

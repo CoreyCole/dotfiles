@@ -151,6 +151,11 @@ return {
                 else
                     Config.cli.tools["claude"] = nil
                 end
+
+                -- Close and toggle to ensure clean state
+                require("sidekick.cli").close()
+                require("sidekick.cli").toggle()
+
                 vim.notify "Claude restarted with --continue"
             end,
             desc = "Kill Claude and restart with --continue",

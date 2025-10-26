@@ -44,7 +44,7 @@ return {
             {
                 "<leader>ff",
                 function()
-                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --exclude .git" }
+                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --no-ignore-vcs --exclude .git --exclude node_modules" }
                 end,
                 desc = "Find files",
             },
@@ -53,6 +53,9 @@ return {
                 function()
                     require("fzf-lua").live_grep {
                         rg_opts = "--column --line-number --no-heading --color=always --smart-case --max-columns=4096 "
+                            .. "--hidden --no-ignore "
+                            .. "--glob '!.git/' "
+                            .. "--glob '!node_modules/' "
                             .. "--glob '!pkg/proto' "
                             .. "--glob '!pkg/db/mocks' "
                             .. "--glob '!frontend/packages/proto' "
