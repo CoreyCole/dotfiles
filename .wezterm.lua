@@ -47,20 +47,21 @@ config.mouse_bindings = {
 }
 
 config.keys = {
-	-- Alt+1 through Alt+9 for tab switching
-	{ key = "1", mods = "ALT", action = act.ActivateTab(0) },
-	{ key = "2", mods = "ALT", action = act.ActivateTab(1) },
-	{ key = "3", mods = "ALT", action = act.ActivateTab(2) },
-	{ key = "4", mods = "ALT", action = act.ActivateTab(3) },
-	{ key = "5", mods = "ALT", action = act.ActivateTab(4) },
-	{ key = "6", mods = "ALT", action = act.ActivateTab(5) },
-	{ key = "7", mods = "ALT", action = act.ActivateTab(6) },
-	{ key = "8", mods = "ALT", action = act.ActivateTab(7) },
-	{ key = "9", mods = "ALT", action = act.ActivateTab(8) },
+	-- Ctrl+1/2/3/q/w/e/a/s/d for WezTerm tab switching
+	{ key = "1", mods = "CTRL", action = act.ActivateTab(0) },
+	{ key = "2", mods = "CTRL", action = act.ActivateTab(1) },
+	{ key = "3", mods = "CTRL", action = act.ActivateTab(2) },
+	{ key = "q", mods = "CTRL", action = act.ActivateTab(3) },
+	{ key = "w", mods = "CTRL", action = act.ActivateTab(4) },
+	{ key = "e", mods = "CTRL", action = act.ActivateTab(5) },
+	{ key = "a", mods = "CTRL", action = act.ActivateTab(6) },
+	{ key = "s", mods = "CTRL", action = act.ActivateTab(7) },
+	{ key = "d", mods = "CTRL", action = act.ActivateTab(8) },
 	{ key = "Tab", mods = "CTRL", action = act.ActivateTabRelative(1) },
 	{ key = "Tab", mods = "SHIFT|CTRL", action = act.ActivateTabRelative(-1) },
 	{ key = "Enter", mods = "ALT", action = act.ToggleFullScreen },
-	{ key = "w", mods = "ALT", action = act.CloseCurrentTab({ confirm = true }) },
+	-- Disabled to allow tmux Alt+w binding
+	-- { key = "w", mods = "ALT", action = act.CloseCurrentTab({ confirm = true }) },
 	{ key = "x", mods = "SHIFT|CTRL", action = act.ActivateCopyMode },
 	{ key = "X", mods = "CTRL", action = act.ActivateCopyMode },
 	{ key = "X", mods = "SHIFT|CTRL", action = act.ActivateCopyMode },
