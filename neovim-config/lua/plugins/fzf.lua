@@ -44,7 +44,7 @@ return {
             {
                 "<leader>ff",
                 function()
-                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --no-ignore-vcs --exclude .git --exclude node_modules" }
+                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules" }
                 end,
                 desc = "Find files",
             },

@@ -21,6 +21,7 @@ config.audible_bell = "Disabled"
 -- Cursor
 config.window_padding = { left = 0, right = 0, top = 0, bottom = 0 }
 config.scrollback_lines = 10000
+config.hide_tab_bar_if_only_one_tab = true
 
 -- Disable all default mouse bindings so only ours apply
 config.mouse_bindings = {
@@ -51,12 +52,13 @@ config.keys = {
 	{ key = "1", mods = "CTRL", action = act.ActivateTab(0) },
 	{ key = "2", mods = "CTRL", action = act.ActivateTab(1) },
 	{ key = "3", mods = "CTRL", action = act.ActivateTab(2) },
-	{ key = "q", mods = "CTRL", action = act.ActivateTab(3) },
-	{ key = "w", mods = "CTRL", action = act.ActivateTab(4) },
-	{ key = "e", mods = "CTRL", action = act.ActivateTab(5) },
-	{ key = "a", mods = "CTRL", action = act.ActivateTab(6) },
-	{ key = "s", mods = "CTRL", action = act.ActivateTab(7) },
-	{ key = "d", mods = "CTRL", action = act.ActivateTab(8) },
+	{ key = "4", mods = "CTRL", action = act.ActivateTab(3) },
+	{ key = "5", mods = "CTRL", action = act.ActivateTab(4) },
+	{ key = "6", mods = "CTRL", action = act.ActivateTab(5) },
+	{ key = "7", mods = "CTRL", action = act.ActivateTab(6) },
+	{ key = "8", mods = "CTRL", action = act.ActivateTab(7) },
+	{ key = "9", mods = "CTRL", action = act.ActivateTab(8) },
+
 	{ key = "Tab", mods = "CTRL", action = act.ActivateTabRelative(1) },
 	{ key = "Tab", mods = "SHIFT|CTRL", action = act.ActivateTabRelative(-1) },
 	{ key = "Enter", mods = "ALT", action = act.ToggleFullScreen },
