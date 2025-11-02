@@ -47,6 +47,24 @@ return {
             end,
             desc = "Store DB results",
         },
+        {
+            "<leader>dy",
+            function()
+                -- Store to yank register
+                require("dbee").store("json", "yank", {})
+                -- Also try copying unnamed register to system clipboard
+                vim.defer_fn(function()
+                    local yanked = vim.fn.getreg('"')
+                    if yanked and yanked ~= "" then
+                        vim.fn.setreg("+", yanked)
+                        vim.notify("Copied to clipboard", vim.log.levels.INFO)
+                    else
+                        vim.notify("Nothing to copy", vim.log.levels.WARN)
+                    end
+                end, 100)
+            end,
+            desc = "Yank DB results as JSON",
+        },
     },
     config = function()
         require("dbee").setup {
