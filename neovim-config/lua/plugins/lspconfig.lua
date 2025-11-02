@@ -48,9 +48,16 @@ return {
         capabilities = require("blink.cmp").get_lsp_capabilities(capabilities)
 
         local client_capabilities = function()
+            -- Enable file watching on all platforms
+            -- On Linux, if you experience performance issues:
+            --   1. Install inotifytools
+            --   2. Increase watch limit: sudo sysctl fs.inotify.max_user_watches=524288
+            --   3. See :help inotify-limitations
             return vim.tbl_deep_extend("force", capabilities, {
                 workspace = {
-                    didChangeWatchedFiles = { dynamicRegistration = false }, -- this is broken on mac
+                    didChangeWatchedFiles = {
+                        dynamicRegistration = true,
+                    },
                 },
             })
         end

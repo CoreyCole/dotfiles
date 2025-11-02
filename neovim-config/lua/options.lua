@@ -28,8 +28,8 @@ vim.opt.autoread = true
 -- Check for file changes more frequently
 vim.opt.updatetime = 100
 
--- Trigger checktime on various events
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+-- Trigger checktime on various events to watch for file changes
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI", "WinEnter", "TermResponse" }, {
     pattern = "*",
     command = "checktime",
 })
