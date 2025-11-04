@@ -21,10 +21,7 @@ return {
                     "debugpy",
                     -- "marksman",
                     "buf",
-                    "gofumpt",
                     "gopls",
-                    "goimports-reviser",
-                    "golines",
                     "templ",
                     "htmx-lsp",
                     "html-lsp",
@@ -39,6 +36,7 @@ return {
                     "js-debug-adapter",
                     "prettier",
                     "prettierd",
+                    "sqls",
                 },
             },
         },
@@ -249,6 +247,10 @@ return {
             -- },
         }
 
+        vim.lsp.config.sqls = {
+            capabilities = capabilities,
+        }
+
         -- Enable all configured LSP servers
         local configured_servers = {
             "pyright",
@@ -261,6 +263,7 @@ return {
             "htmx",
             "tailwindcss",
             "ts_ls",
+            "sqls",
         }
         for _, lsp in ipairs(configured_servers) do
             vim.lsp.enable(lsp)

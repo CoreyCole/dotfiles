@@ -70,5 +70,29 @@ return {
         require("dbee").setup {
             require("dbee.sources").EnvSource:new "DBEE_CONNECTIONS",
         }
+
+        -- Override <leader>e in dbee buffers
+        vim.api.nvim_create_autocmd("BufEnter", {
+            callback = function(args)
+                local bufname = vim.api.nvim_buf_get_name(args.buf)
+                if bufname:match("dbee") then
+                    -- <leader>e focuses the drawer
+                    vim.keymap.set("n", "<leader>e", function()
+                        -- Find the drawer window and focus it
+                        for _, win in ipairs(vim.api.nvim_list_wins()) do
+                            local buf = vim.api.nvim_win_get_buf(win)
+                            local name = vim.api.nvim_buf_get_name(buf)
+                            if name:match("dbee%-drawer") then
+                                vim.api.nvim_set_current_win(win)
+                                return
+                            end
+                        end
+                    end, { buffer = args.buf, desc = "Focus DB sidebar" })
+
+                    -- Disable <C-n> in dbee buffers
+                    vim.keymap.set("n", "<C-n>", "<Nop>", { buffer = args.buf, desc = "Disabled in dbee" })
+                end
+            end,
+        })
     end,
 }

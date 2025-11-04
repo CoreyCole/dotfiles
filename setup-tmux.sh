@@ -12,16 +12,16 @@ DATASTARUI_DIR="$CN_AGENTS_DIR/pkg/datastarui"
 tmux has-session -t $SESSION_NAME 2>/dev/null
 
 if [ $? == 0 ]; then
-  echo "Session '$SESSION_NAME' already exists."
-  # Check if we're already in a tmux session
-  if [ -n "$TMUX" ]; then
-    echo "Switching to session '$SESSION_NAME'..."
-    tmux switch-client -t $SESSION_NAME
-  else
-    echo "Attaching to session '$SESSION_NAME'..."
-    tmux attach-session -t $SESSION_NAME
-  fi
-  exit 0
+    echo "Session '$SESSION_NAME' already exists."
+    # Check if we're already in a tmux session
+    if [ -n "$TMUX" ]; then
+        echo "Switching to session '$SESSION_NAME'..."
+        tmux switch-client -t $SESSION_NAME
+    else
+        echo "Attaching to session '$SESSION_NAME'..."
+        tmux attach-session -t $SESSION_NAME
+    fi
+    exit 0
 fi
 
 # Create new session with actual terminal size to preserve pane proportions
@@ -46,6 +46,7 @@ tmux select-pane -t $SESSION_NAME:2.1
 tmux resize-pane -t $SESSION_NAME:2.1 -y 33%
 tmux select-pane -t $SESSION_NAME:2.2
 tmux resize-pane -t $SESSION_NAME:2.2 -y 50%
+tmux select-pane -t $SESSION_NAME:2.0
 
 # Window 3: monorepo with dbee
 tmux new-window -t $SESSION_NAME:3 -c "$MONOREPO_DIR"
@@ -65,7 +66,7 @@ tmux send-keys -t $SESSION_NAME:4.0 "nvim -c 'lua require(\"fzf-lua\").files({ c
 
 # Wait for Docker then run just up in the right panes
 tmux send-keys -t $SESSION_NAME:4.1 "$(
-  cat <<'EOF'
+    cat <<'EOF'
 echo "Waiting for Docker..."
 until docker info >/dev/null 2>&1; do
   sleep 1
@@ -77,7 +78,7 @@ EOF
 )" C-m
 
 tmux send-keys -t $SESSION_NAME:4.2 "$(
-  cat <<'EOF'
+    cat <<'EOF'
 echo "Waiting for Docker..."
 until docker info >/dev/null 2>&1; do
   sleep 1
@@ -111,7 +112,7 @@ tmux select-window -t $SESSION_NAME:1
 
 # Send startup script to left pane of window 2
 tmux send-keys -t $SESSION_NAME:2.0 "$(
-  cat <<'EOF'
+    cat <<'EOF'
 # Ensure OrbStack is running
 if ! pgrep -q "OrbStack"; then
   echo "Starting OrbStack..."
