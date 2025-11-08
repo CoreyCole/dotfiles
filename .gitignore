@@ -1,1 +1,14 @@
 .DS_Store
+.claude/data
+.claude/debug
+.claude/file-history
+.claude/logs
+.claude/plugins
+.claude/projects
+.claude/session-env
+.claude/shell-snapshots
+.claude/statsig
+.claude/status_lines
+.claude/todos
+.claude/.update.lock
+.claude/history.jsonl
