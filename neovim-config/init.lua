@@ -1,3 +1,10 @@
+require "autocmds"
+require "mappings"
+require "statusline"
+require "winbar"
+require "lsp"
+require("vim._extui").enable {}
+
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
@@ -19,9 +26,10 @@ require("lazy").setup({
         lazy = false,
         branch = "v2.5",
         -- import = "nvchad.plugins",
---        import "nvchad.plugins.nvdash",
+        --        import "nvchad.plugins.nvdash",
         config = function()
             require "options"
+            require "nvchad.autocmds"
         end,
     },
 
@@ -79,12 +87,6 @@ require("lazy").setup({
 dofile(vim.g.base46_cache .. "defaults")
 dofile(vim.g.base46_cache .. "statusline")
 
-require "nvchad.autocmds"
-require "autocmds"
-require "mappings"
-require "statusline"
-require "winbar"
-
 -- format on save
 vim.api.nvim_create_autocmd("BufWritePre", {
     pattern = "*",
@@ -100,5 +102,3 @@ vim.api.nvim_create_autocmd("BufWritePre", {
         end
     end,
 })
-
-require("vim._extui").enable {}

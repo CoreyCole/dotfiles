@@ -2,6 +2,20 @@ return {
     "nvim-tree/nvim-tree.lua",
     event = "VeryLazy",
     dependencies = { "nvim-tree/nvim-web-devicons" },
+    keys = {
+        {
+            "<leader>e",
+            "<cmd>NvimTreeFocus<CR>",
+            desc = "nvimtree focus",
+            mode = { "n" },
+        },
+        {
+            "<C-n>",
+            "<cmd>NvimTreeToggle<CR>",
+            desc = "nvimtree toggle",
+            mode = { "n" },
+        },
+    },
     opts = function()
         return {
             filters = {

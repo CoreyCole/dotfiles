@@ -17,12 +17,11 @@ map("n", "<Esc>", "<cmd>noh<CR>", { desc = "general clear highlights" })
 map("n", "<C-s>", "<cmd>w<CR>", { desc = "general save file" })
 map("n", "<C-c>", "<cmd>%y+<CR>", { desc = "general copy whole file" })
 
-map("n", "<leader>n", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>rn", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
 map("n", "<leader>ch", "<cmd>NvCheatsheet<CR>", { desc = "toggle nvcheatsheet" })
 
-map("n", "<C-n>", "<cmd>NvimTreeToggle<CR>", { desc = "nvimtree toggle window" })
-map("n", "<leader>e", "<cmd>NvimTreeFocus<CR>", { desc = "nvimtree focus window" })
+-- map("n", "<C-n>", "<cmd>NvimTreeToggle<CR>", { desc = "nvimtree toggle window" })
+-- map("n", "<leader>e", "<cmd>NvimTreeFocus<CR>", { desc = "nvimtree focus window" })
 
 -- global lsp mappings
 map("n", "<leader>ds", vim.diagnostic.setloclist, { desc = "LSP diagnostic loclist" })
@@ -126,9 +125,6 @@ end, { desc = "Go to Query Definition" })
 map("n", "gi", function()
     require("fzf-lua").lsp_implementations { jump1 = true }
 end, { desc = "LSP implementation" })
-map("n", "<leader>gr", require("telescope.builtin").lsp_references, { desc = "LSP [G]oto [R]eferences" })
-map("n", "<leader>ds", require("telescope.builtin").lsp_document_symbols, { desc = "LSP [D]ocument [S]symbols" })
-map("n", "<leader>gt", require("telescope.builtin").lsp_type_definitions, { desc = "LSP [G]oto [T]ype Definition" })
 map("n", "<leader>r", ":LspRestart<CR>", { desc = "LSP Restart" })
 map("n", "<leader>cc", function()
     require("treesitter-context").enable()
