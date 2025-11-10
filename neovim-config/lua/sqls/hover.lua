@@ -1,7 +1,5 @@
-local M = {}
-
 -- Helper function to align markdown table columns in SQL hover responses
-function M.align_markdown_table(lines)
+local function align_markdown_table(lines)
     local result = {}
     local table_rows = {}
     local col_widths = {}
@@ -103,7 +101,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
                     end
 
                     if has_table then
-                        local formatted = sqls_hover.align_markdown_table(lines)
+                        local formatted = align_markdown_table(lines)
 
                         -- Update the buffer
                         vim.api.nvim_buf_set_option(buf, "modifiable", true)
@@ -115,6 +113,4 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
         end
     end,
 })
-
-return M
 
