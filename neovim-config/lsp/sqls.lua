@@ -1,20 +1,11 @@
-vim.api.nvim_create_autocmd("FileType", {
-    pattern = { "sql", "mysql" },
-    callback = function()
-        vim.notify "starting sqls"
-        vim.lsp.start(vim.lsp.config.sqls)
-    end,
-})
-
 ---@type vim.lsp.Config
 return {
-    cmd = { "/usr/local/go/bin/sqls" },
+    cmd = { "sqls", "-config", "~/.config/sqls/config.yml" },
     filetypes = { "sql", "mysql" },
-    root_markers = { ".git" }, -- Simplified from function
+    root_markers = { ".git", ".sqruff" },
     single_file_support = true,
     autostart = true,
     settings = {},
-    capabilities = capabilities,
     on_attach = function(client, bufnr)
         vim.notify "attached sqls"
         -- Enable executeCommand and codeAction capabilities
