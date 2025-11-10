@@ -32,6 +32,7 @@
         pkgs.stylua # Lua code formatter
 
         # Python
+        pkgs.uv # depedency management and runtime
         pkgs.mypy # Python static type checker
         pkgs.ruff # Fast Python linter and formatter (replaces black, isort, flake8)
         pkgs.pyright # Python LSP from Microsoft
