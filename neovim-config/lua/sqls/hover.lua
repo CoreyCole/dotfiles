@@ -9,7 +9,7 @@ function M.align_markdown_table(lines)
     -- Helper: Calculate visible width accounting for concealed backticks
     local function get_visible_width(cell)
         local width = #cell
-        if cell:match("^`.*`$") then
+        if cell:match "^`.*`$" then
             return width - 2 -- Backticks are concealed in markdown
         end
         return width
@@ -37,7 +37,7 @@ function M.align_markdown_table(lines)
 
     -- Process lines
     for _, line in ipairs(lines) do
-        if line:match("^%s*|") and line:match("|%s*$") then
+        if line:match "^%s*|" and line:match "|%s*$" then
             -- This is a table row
             local cells = {}
             local raw_cells = vim.split(line, "|", { plain = true })
@@ -49,7 +49,7 @@ function M.align_markdown_table(lines)
             end
 
             -- Check if separator row
-            local is_sep = cells[1] and cells[1]:match("^[%s%-:]*$") ~= nil
+            local is_sep = cells[1] and cells[1]:match "^[%s%-:]*$" ~= nil
 
             -- Calculate column widths (exclude separator rows)
             if not is_sep then
@@ -78,4 +78,43 @@ function M.align_markdown_table(lines)
     return result
 end
 
+-- Set up an autocmd to format tables in floating windows after they're created
+vim.api.nvim_create_autocmd("BufWinEnter", {
+    callback = function(args)
+        local win = vim.api.nvim_get_current_win()
+        local config = vim.api.nvim_win_get_config(win)
+
+        -- Check if this is a floating window (hover, signature help, etc.)
+        if config.relative ~= "" then
+            -- Small delay to let content render
+            vim.defer_fn(function()
+                -- Check if window is still valid
+                if vim.api.nvim_win_is_valid(win) then
+                    local buf = vim.api.nvim_win_get_buf(win)
+                    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
+                    -- Check if there's a markdown table
+                    local has_table = false
+                    for _, line in ipairs(lines) do
+                        if line:match "^%s*|.*|.*|" then
+                            has_table = true
+                            break
+                        end
+                    end
+
+                    if has_table then
+                        local formatted = sqls_hover.align_markdown_table(lines)
+
+                        -- Update the buffer
+                        vim.api.nvim_buf_set_option(buf, "modifiable", true)
+                        vim.api.nvim_buf_set_lines(buf, 0, -1, false, formatted)
+                        vim.api.nvim_buf_set_option(buf, "modifiable", false)
+                    end
+                end
+            end, 10)
+        end
+    end,
+})
+
 return M
+

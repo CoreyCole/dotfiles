@@ -100,4 +100,5 @@ require "winbar"
 require "lsp"
 require "options"
 require "nvchad.autocmds"
+require "sqls.hover"
 require("vim._extui").enable {}
