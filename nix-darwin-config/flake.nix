@@ -22,6 +22,9 @@
         pkgs.go
         pkgs.direnv # Directory-based environment variables
         pkgs.fd
+        pkgs.codespell # Spell checker for source code
+        pkgs.templ # HTML templating language for Go
+        pkgs.alejandra # Nix code formatter
 
         # Language Servers and Formatters
         # Lua
@@ -69,11 +72,6 @@
         pkgs.sqruff # SQL formatter
         pkgs.sqlc # Generate type-safe Go code from SQL
         pkgs.postgresql # PostgreSQL database (includes psql client)
-
-        # Other tools
-        pkgs.codespell # Spell checker for source code
-        pkgs.templ # HTML templating language for Go
-        pkgs.alejandra # Nix code formatter
       ];
 
       # Necessary for using flakes on this system.
