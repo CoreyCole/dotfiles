@@ -29,10 +29,11 @@ return {
                 sh = { "shfmt" },
                 yaml = { "yamlfmt" },
                 swift = { "swiftformat" },
-                html = { "htmlbeautifier" },
-                -- markdown = { "mdformat" },
+                -- html = { "htmlbeautifier" },
+                markdown = { "mdformat" },
                 proto = { "buf" },
-                sql = { "sqlfluff_format", "sqlfluff_fix" },
+                sql = { "sqruff" },
+                nix = { "alejandra" },
             },
             format_on_save = {
                 -- These options will be passed to conform.format()
@@ -40,6 +41,13 @@ return {
                 lsp_fallback = false,
             },
             formatters = {
+                -- Override the built-in sqruff formatter to work properly
+                sqruff = {
+                    command = "sqruff",
+                    args = { "fix", "$FILENAME" },
+                    stdin = false,
+                    exit_codes = { 0, 1 }, -- sqruff returns 1 if there are unfixable violations
+                },
                 templ = {
                     command = "templ",
                     args = { "fmt", "-stdin-filepath", "$FILENAME" },

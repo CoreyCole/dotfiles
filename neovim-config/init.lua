@@ -19,10 +19,8 @@ require("lazy").setup({
         lazy = false,
         branch = "v2.5",
         -- import = "nvchad.plugins",
---        import "nvchad.plugins.nvdash",
-        config = function()
-            require "options"
-        end,
+        --        import "nvchad.plugins.nvdash",
+        config = function() end,
     },
 
     { import = "plugins" },
@@ -79,12 +77,6 @@ require("lazy").setup({
 dofile(vim.g.base46_cache .. "defaults")
 dofile(vim.g.base46_cache .. "statusline")
 
-require "nvchad.autocmds"
-require "autocmds"
-require "mappings"
-require "statusline"
-require "winbar"
-
 -- format on save
 vim.api.nvim_create_autocmd("BufWritePre", {
     pattern = "*",
@@ -101,4 +93,11 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     end,
 })
 
+require "autocmds"
+require "mappings"
+require "statusline"
+require "winbar"
+require "lsp"
+require "options"
+require "nvchad.autocmds"
 require("vim._extui").enable {}

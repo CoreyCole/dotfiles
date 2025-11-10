@@ -4,6 +4,7 @@ return {
         "nvim-lua/plenary.nvim", -- required
         "sindrets/diffview.nvim", -- optional - Diff integration
         "nvim-telescope/telescope.nvim", -- optional
+        "ibhagwan/fzf-lua",
     },
     opts = {
         -- Hides the hints at the top of the status buffer
@@ -25,11 +26,6 @@ return {
         -- "ascii"   is the graph the git CLI generates
         -- "unicode" is the graph like https://github.com/rbong/vim-flog
         graph_style = "ascii",
-        -- Allows a different telescope sorter. Defaults to 'fuzzy_with_index_bias'. The example below will use the native fzf
-        -- sorter instead. By default, this function returns `nil`.
-        telescope_sorter = function()
-            return require("telescope").extensions.fzf.native_fzf_sorter()
-        end,
         -- Persist the values of switches/options within and across sessions
         remember_settings = true,
         -- Scope persisted settings on a per-project basis
@@ -111,12 +107,12 @@ return {
             -- The diffview integration enables the diff popup.
             --
             -- Requires you to have `sindrets/diffview.nvim` installed.
-            diffview = nil,
+            diffview = true,
 
             -- If enabled, uses fzf-lua for menu selection. If the telescope integration
             -- is also selected then telescope is used instead
             -- Requires you to have `ibhagwan/fzf-lua` installed.
-            fzf_lua = nil,
+            fzf_lua = true,
         },
         sections = {
             -- Reverting/Cherry Picking

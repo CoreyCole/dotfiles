@@ -44,7 +44,9 @@ return {
             {
                 "<leader>ff",
                 function()
-                    require("fzf-lua").files { cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules --exclude '*_templ.go'" }
+                    require("fzf-lua").files {
+                        cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules --exclude '*_templ.go'",
+                    }
                 end,
                 desc = "Find files",
             },
@@ -54,11 +56,14 @@ return {
                     require("fzf-lua").live_grep {
                         rg_opts = "--column --line-number --no-heading --color=always --smart-case --max-columns=4096 "
                             .. "--hidden --no-ignore "
-                            .. "--glob '!.git/' "
-                            .. "--glob '!node_modules/' "
-                            .. "--glob '!pkg/proto' "
-                            .. "--glob '!pkg/db/mocks' "
-                            .. "--glob '!frontend/packages/proto' "
+                            .. "--glob '!.git/**' "
+                            .. "--glob '!.claude/file-history/**' "
+                            .. "--glob '!.claude/shell-snapshots/**' "
+                            .. "--glob '!.claude/projects/**' "
+                            .. "--glob '!node_modules/**' "
+                            .. "--glob '!pkg/proto/**' "
+                            .. "--glob '!pkg/db/mocks/**' "
+                            .. "--glob '!frontend/packages/proto/**' "
                             .. "-e",
                     }
                 end,
