@@ -235,28 +235,6 @@ vim.api.nvim_create_user_command("LspInfo", function()
     vim.cmd "checkhealth vim.lsp"
 end, {})
 
--- Debug command to check hover handler
-vim.api.nvim_create_user_command("LspDebugHover", function()
-    local handler = vim.lsp.handlers["textDocument/hover"]
-    vim.notify("Current hover handler: " .. tostring(handler), vim.log.levels.INFO)
-
-    -- Test the formatting function
-    local test_lines = {
-        "# Table Test",
-        "",
-        "| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |",
-        "| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |",
-        "| `id` | `uuid` | `YES` | `uuid_generate_v7()` |  |",
-        "| `created_at` | `timestamp with time zone` | `NO` | `now()` |  |",
-    }
-
-    local formatted = sqls_hover.align_markdown_table(test_lines)
-    vim.notify("Test formatting result:", vim.log.levels.INFO)
-    for _, line in ipairs(formatted) do
-        vim.notify(line, vim.log.levels.INFO)
-    end
-end, {})
-
 vim.api.nvim_create_autocmd("LspAttach", {
     desc = "Configure LSP keymaps",
     callback = function(args)
