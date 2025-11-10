@@ -44,6 +44,8 @@ return {
                 "typescript",
                 "javascript",
                 "tsx",
+                "markdown",
+                "markdown_inline",
             },
             auto_install = false,
             highlight = {
@@ -74,4 +76,3 @@ return {
         require("nvim-treesitter.configs").setup(opts)
     end,
 }
-
