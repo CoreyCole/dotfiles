@@ -1,153 +1,8 @@
 local diagnostic_icons = require("icons").diagnostics
 local methods = vim.lsp.protocol.Methods
+local sqls_hover = require("sqls.hover")
 
 local M = {}
-
--- Helper function to align markdown table columns
-local function align_markdown_table(lines)
-    local result = {}
-    local in_table = false
-    local table_rows = {}
-    local col_widths = {}
-    local is_separator = {}
-
-    -- First pass: collect table rows and calculate column widths
-    for _, line in ipairs(lines) do
-        if line:match "^%s*|" and line:match "|%s*$" then
-            in_table = true
-            local cells = {}
-
-            -- Split by | and extract cells
-            local raw_cells = vim.split(line, "|", { plain = true })
-
-            -- Remove first and last empty elements (from leading/trailing pipes)
-            for i = 2, #raw_cells - 1 do
-                local cell = vim.trim(raw_cells[i])
-                -- Clean HTML entities
-                cell = cell:gsub("&nbsp;", " ")
-                table.insert(cells, cell)
-            end
-
-            -- Check if this is a separator row (contains only -, :, and spaces)
-            local is_sep = true
-            for _, cell in ipairs(cells) do
-                if not cell:match("^[%s%-:]*$") then
-                    is_sep = false
-                    break
-                end
-            end
-
-            -- Calculate column widths (don't count separator rows)
-            if not is_sep then
-                for i, cell in ipairs(cells) do
-                    -- Calculate visible width (backticks are concealed in markdown)
-                    local visible_width = #cell
-
-                    -- Check if cell is wrapped in backticks (inline code)
-                    if cell:match("^`.*`$") then
-                        -- Subtract 2 for the concealed backticks
-                        visible_width = visible_width - 2
-                    end
-
-                    col_widths[i] = math.max(col_widths[i] or 0, visible_width)
-                end
-            end
-
-            table.insert(table_rows, { cells = cells, is_separator = is_sep })
-        else
-            -- Process accumulated table if we're leaving a table
-            if in_table and #table_rows > 0 then
-                -- Format each row with aligned columns
-                for _, row in ipairs(table_rows) do
-                    local formatted = "|"
-                    for i, cell in ipairs(row.cells) do
-                        local width = col_widths[i] or 0
-
-                        if row.is_separator then
-                            -- For separator rows, add 2 to width to account for padding spaces
-                            local sep_width = width + 2
-                            if cell == "" then
-                                -- Empty separator cell
-                                formatted = formatted .. string.rep("-", sep_width) .. "|"
-                            elseif cell:match("^:%-+:$") then
-                                -- Center aligned
-                                formatted = formatted .. ":" .. string.rep("-", sep_width - 2) .. ":|"
-                            elseif cell:match("^:%-+$") then
-                                -- Left aligned
-                                formatted = formatted .. ":" .. string.rep("-", sep_width - 1) .. "|"
-                            elseif cell:match("^%-+:$") then
-                                -- Right aligned
-                                formatted = formatted .. string.rep("-", sep_width - 1) .. ":|"
-                            else
-                                -- Default (no alignment markers)
-                                formatted = formatted .. string.rep("-", sep_width) .. "|"
-                            end
-                        else
-                            -- Regular cells - pad with spaces
-                            -- Account for concealed backticks when calculating padding
-                            local visible_width = #cell
-                            if cell:match("^`.*`$") then
-                                visible_width = visible_width - 2
-                            end
-                            formatted = formatted .. " " .. cell .. string.rep(" ", width - visible_width) .. " |"
-                        end
-                    end
-                    table.insert(result, formatted)
-                end
-
-                -- Reset for next table
-                table_rows = {}
-                col_widths = {}
-                in_table = false
-            end
-
-            -- Add non-table line
-            table.insert(result, line)
-        end
-    end
-
-    -- Process any remaining table at end of content
-    if in_table and #table_rows > 0 then
-        for _, row in ipairs(table_rows) do
-            local formatted = "|"
-            for i, cell in ipairs(row.cells) do
-                local width = col_widths[i] or 0
-
-                if row.is_separator then
-                    -- For separator rows, add 2 to width to account for padding spaces
-                    local sep_width = width + 2
-                    if cell == "" then
-                        -- Empty separator cell
-                        formatted = formatted .. string.rep("-", sep_width) .. "|"
-                    elseif cell:match("^:%-+:$") then
-                        -- Center aligned
-                        formatted = formatted .. ":" .. string.rep("-", sep_width - 2) .. ":|"
-                    elseif cell:match("^:%-+$") then
-                        -- Left aligned
-                        formatted = formatted .. ":" .. string.rep("-", sep_width - 1) .. "|"
-                    elseif cell:match("^%-+:$") then
-                        -- Right aligned
-                        formatted = formatted .. string.rep("-", sep_width - 1) .. ":|"
-                    else
-                        -- Default (no alignment markers)
-                        formatted = formatted .. string.rep("-", sep_width) .. "|"
-                    end
-                else
-                    -- Regular cells - pad with spaces
-                    -- Account for concealed backticks when calculating padding
-                    local visible_width = #cell
-                    if cell:match("^`.*`$") then
-                        visible_width = visible_width - 2
-                    end
-                    formatted = formatted .. " " .. cell .. string.rep(" ", width - visible_width) .. " |"
-                end
-            end
-            table.insert(result, formatted)
-        end
-    end
-
-    return result
-end
 
 --- Sets up LSP keymaps and autocommands for the given buffer.
 ---@param client vim.lsp.Client
@@ -371,7 +226,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
                     end
 
                     if has_table then
-                        local formatted = align_markdown_table(lines)
+                        local formatted = sqls_hover.align_markdown_table(lines)
 
                         -- Update the buffer
                         vim.api.nvim_buf_set_option(buf, "modifiable", true)
@@ -434,7 +289,7 @@ vim.api.nvim_create_user_command("LspDebugHover", function()
         "| `created_at` | `timestamp with time zone` | `NO` | `now()` |  |",
     }
 
-    local formatted = align_markdown_table(test_lines)
+    local formatted = sqls_hover.align_markdown_table(test_lines)
     vim.notify("Test formatting result:", vim.log.levels.INFO)
     for _, line in ipairs(formatted) do
         vim.notify(line, vim.log.levels.INFO)
