@@ -22,9 +22,15 @@
         pkgs.go
         pkgs.direnv # Directory-based environment variables
         pkgs.fd
+        pkgs.ripgrep
         pkgs.codespell # Spell checker for source code
         pkgs.templ # HTML templating language for Go
         pkgs.alejandra # Nix code formatter
+        pkgs.graphite-cli
+        pkgs.gnupg
+        pkgs.gnugrep
+        pkgs.delta
+        pkgs.just
 
         # Language Servers and Formatters
         # Lua
