@@ -31,6 +31,7 @@
         pkgs.gnugrep
         pkgs.delta
         pkgs.just
+        pkgs.gh
 
         # Language Servers and Formatters
         # Lua
@@ -163,6 +164,10 @@
             enable = true;
             # onActivation.cleanup = "uninstall"; # COMMENTED OUT - was removing existing packages!
 
+            taps = [
+              "localstack/tap"
+            ];
+
             casks = [
               "virtualbox"
               "1password-cli"
@@ -186,6 +191,8 @@
               "gettext"
               "curl"
               "git"
+              "localstack-cli" # LocalStack CLI
+              "pspg"
             ];
           };
         }

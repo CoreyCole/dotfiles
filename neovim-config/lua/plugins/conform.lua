@@ -13,7 +13,7 @@ return {
                 typescript = { "prettierd" },
                 typescriptreact = { "prettierd" },
                 javascriptreact = { "prettierd" },
-                css = { "prettier" },
+                css = { "prettierd" },
                 -- html = { "prettier" },
                 templ = { "templ" },
                 c = { "clang-format" },
@@ -59,10 +59,6 @@ return {
                     stdin = true,
                     cwd = require("conform.util").root_file { "go.mod", "go.sum" },
                     require_cwd = true,
-                },
-                prettierd = {
-                    -- Optional: specify the command path if needed
-                    command = vim.fn.stdpath "data" .. "/mason/bin/prettierd",
                 },
                 golines = {
                     prepend_args = { "--max-len=90", "--base-formatter=gofumpt" },

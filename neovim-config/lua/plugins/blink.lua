@@ -55,6 +55,7 @@ return {
 
             keymap = {
                 preset = "super-tab",
+                ["<C-y>"] = { "accept" },
             },
 
             signature = {

@@ -1,0 +1,2 @@
+init: |
+  \echo welcome to the jungle `date`
