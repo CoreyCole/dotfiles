@@ -73,7 +73,7 @@ until docker info >/dev/null 2>&1; do
 done
 echo "Docker ready! Starting cn-agents..."
 just up
-docker logs --follow thoughts-local-app-1
+just logs-follow
 EOF
 )" C-m
 

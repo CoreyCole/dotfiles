@@ -1,2 +1,12 @@
+connections:
+  dev:
+    protocol: postgresql
+    username: premium
+    password: development
+    hostname: localhost
+    port: 15432
+    database: premium
+pager: pspg
 init: |
   \echo welcome to the jungle `date`
+    
