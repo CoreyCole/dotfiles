@@ -82,7 +82,7 @@ return {
         {
             "<leader>ac",
             function()
-                require("sidekick.cli").toggle { name = "claude", focus = true }
+                require("sidekick.cli").toggle { name = "claude" }
             end,
             desc = "Sidekick Toggle Claude",
         },
@@ -136,7 +136,7 @@ return {
 
                 -- Modify the source config (not a copy)
                 Config.cli.tools["claude"] = Config.cli.tools["claude"] or {}
-                Config.cli.tools["claude"].cmd = { "claude", "--continue" }
+                Config.cli.tools["claude"].cmd = { "claude", "--continue", "--dangerously-skip-permissions" }
 
                 -- Bypass toggle (which opens picker) and directly create/attach session
                 local State = require "sidekick.cli.state"

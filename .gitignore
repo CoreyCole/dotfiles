@@ -11,3 +11,5 @@
 .claude/todos
 .claude/.update.lock
 .claude/history.jsonl
+.claude/plans
+.claude/stats-cache.json

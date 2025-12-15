@@ -45,7 +45,7 @@ return {
                 "<leader>ff",
                 function()
                     require("fzf-lua").files {
-                        cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules --exclude '*_templ.go' --exclude frontend/apps/web/.next",
+                        cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules --exclude '*_templ.go' --exclude frontend/apps/web/.next --exclude static/js",
                     }
                 end,
                 desc = "Find files",
