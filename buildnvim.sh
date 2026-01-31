@@ -19,13 +19,13 @@ function buildnvim() {
   git checkout master
 
   # Fetch the latest changes.
-  git fetch upstream master
+  git fetch origin master
 
   # Log the upstream commits.
-  git --no-pager log --decorate=short --pretty=short master..upstream/master
+  git --no-pager log --decorate=short --pretty=short master..origin/master
 
   # Merge the latest changes.
-  git merge upstream/master
+  git merge origin/master
 
   # Go back to the given commit or HEAD.
   local commit="${1:-HEAD}"
@@ -38,7 +38,7 @@ function buildnvim() {
   make distclean
 
   # Build.
-  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX="$install_dir" install
+  make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX="$install_dir" install
 
   # Remove the patched changes.
   git checkout .
