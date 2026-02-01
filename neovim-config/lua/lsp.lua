@@ -231,6 +231,10 @@ vim.lsp.handlers[methods.client_registerCapability] = function(err, res, ctx)
     return register_capability(err, res, ctx)
 end
 
+vim.api.nvim_create_user_command("LspRestart", function()
+    vim.cmd "lsp restart"
+end, {})
+
 vim.api.nvim_create_user_command("LspInfo", function()
     vim.cmd "checkhealth vim.lsp"
 end, {})

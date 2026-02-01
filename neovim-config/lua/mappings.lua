@@ -275,6 +275,14 @@ local function open_graphite_pr_for_current_line()
     vim.notify("Opening Graphite PR #" .. pr_number)
 end
 
+-- write quit with shift
+vim.api.nvim_create_user_command("WQ", function()
+    vim.cmd "wq"
+end, {})
+vim.api.nvim_create_user_command("Wq", function()
+    vim.cmd "wq"
+end, {})
+
 -- Register the function as a Neovim command
 vim.api.nvim_create_user_command("OpenRecentPR", open_recent_pr_for_current_file, {})
 vim.api.nvim_create_user_command("OpenGraphitePR", open_graphite_pr_for_current_line, {})
