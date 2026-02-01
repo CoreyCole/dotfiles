@@ -1,7 +1,6 @@
 local wezterm = require("wezterm")
 local act = wezterm.action
 local on_windows = wezterm.target_triple:find("windows")
-local disable = "DisableDefaultAssignment"
 
 local config = {}
 if wezterm.config_builder then

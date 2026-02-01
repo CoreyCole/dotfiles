@@ -47,20 +47,24 @@ return {
         command = golangci_lint_args(),
     },
     -- Version detection can be done in before_init if needed
-    before_init = function(params, config)
-        -- Detect golangci-lint version and adjust command if needed
-        local version_output = vim.fn.system "golangci-lint version --format short"
-        local major = version_output:match "(%d+)%."
-        if major and tonumber(major) < 2 then
-            -- Adjust for v1 compatibility
-            local cmd = config.init_options.command
-            for i, arg in ipairs(cmd) do
-                if arg:find "^%-%-output%." then
-                    cmd[i] = nil
-                end
-            end
+    before_init = function(_, config)
+        -- Add support for golangci-lint V1 (in V2 `--out-format=json` was replaced by
+        -- `--output.json.path=stdout`).
+        local v1, v2 = false, false
+        -- PERF: `golangci-lint version` is very slow (about 0.1 sec) so let's find
+        -- version using `go version -m $(which golangci-lint) | grep '^\smod'`.
+        if vim.fn.executable "go" == 1 then
+            local exe = vim.fn.exepath "golangci-lint"
+            local version = vim.system({ "go", "version", "-m", exe }):wait()
+            v1 = string.match(version.stdout, "\tmod\tgithub.com/golangci/golangci%-lint\t")
+            v2 = string.match(version.stdout, "\tmod\tgithub.com/golangci/golangci%-lint/v2\t")
+        end
+        if not v1 and not v2 then
+            local version = vim.system({ "golangci-lint", "version" }):wait()
+            v1 = string.match(version.stdout, "version v?1%.")
+        end
+        if v1 then
+            config.init_options.command = { "golangci-lint", "run", "--out-format", "json" }
         end
     end,
-    capabilities = capabilities,
 }
-

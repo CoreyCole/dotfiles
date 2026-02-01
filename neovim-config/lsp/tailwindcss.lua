@@ -45,6 +45,4 @@ return {
             new_config.settings.editor.tabSize = vim.lsp.util.get_effective_tabstop()
         end
     end,
-    capabilities = capabilities,
 }
-

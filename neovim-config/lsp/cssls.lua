@@ -10,6 +10,4 @@ return {
         scss = { validate = true },
         less = { validate = true },
     },
-    capabilities = capabilities,
 }
-

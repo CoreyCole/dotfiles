@@ -21,7 +21,5 @@ return {
             },
         },
     },
-    capabilities = capabilities,
     -- Note: Commands (PyrightOrganizeImports, PyrightSetPythonPath) can be added in on_attach
 }
-

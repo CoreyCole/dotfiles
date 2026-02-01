@@ -15,6 +15,4 @@ return {
     single_file_support = true,
     log_level = vim.lsp.protocol.MessageType.Warning,
     settings = {},
-    capabilities = capabilities, -- Will be injected from main setup
 }
-
