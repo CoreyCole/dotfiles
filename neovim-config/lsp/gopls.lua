@@ -139,5 +139,4 @@ return {
             buildFlags = { "-tags=integration,unit,e2e" },
         },
     },
-    capabilities = capabilities,
 }
