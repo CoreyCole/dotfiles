@@ -24,6 +24,7 @@ return {
                     -- "goimports",
                     -- "gci",
                     -- "golines",
+                    "golangci_lint_fix",
                     "golangci_lint",
                 },
                 sh = { "shfmt" },
@@ -59,6 +60,14 @@ return {
                     stdin = true,
                     cwd = require("conform.util").root_file { "go.mod", "go.sum" },
                     require_cwd = true,
+                },
+                golangci_lint_fix = {
+                    command = "golangci-lint",
+                    args = { "run", "--fix", "$FILENAME" },
+                    stdin = false,
+                    cwd = require("conform.util").root_file { "go.mod", "go.sum" },
+                    require_cwd = true,
+                    exit_codes = { 0, 1 }, -- returns 1 if there are unfixable lint issues
                 },
                 golines = {
                     prepend_args = { "--max-len=90", "--base-formatter=gofumpt" },

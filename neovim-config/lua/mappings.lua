@@ -760,3 +760,27 @@ end, { desc = "GrugFar WORD under cursor" })
 -- Remap j/k to include scrolling
 map("n", "j", "j<C-e>", { desc = "Move down and scroll down" })
 map("n", "k", "k<C-y>", { desc = "Move up and scroll up" })
+
+-- Open thoughts file in browser
+local function open_thoughts_in_browser()
+    local file_path = vim.fn.expand "%:p"
+
+    -- Find the part starting with "thoughts/"
+    local thoughts_path = file_path:match "(thoughts/.+)$"
+
+    if not thoughts_path then
+        vim.notify("Current file is not in a thoughts/ directory", vim.log.levels.WARN)
+        return
+    end
+
+    local base_url = "https://c99pipp5ue.execute-api.us-east-2.amazonaws.com/"
+    local full_url = base_url .. thoughts_path
+
+    if not open_url_in_browser(full_url) then
+        vim.notify("Failed to open thoughts URL", vim.log.levels.ERROR)
+    else
+        vim.notify("Opening " .. thoughts_path)
+    end
+end
+
+map("n", "<leader>gt", open_thoughts_in_browser, { desc = "Open thoughts file in browser" })

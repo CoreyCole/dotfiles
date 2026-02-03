@@ -13,3 +13,7 @@
 .claude/history.jsonl
 .claude/plans
 .claude/stats-cache.json
+.claude/cache
+.claude/paste-cache
+.claude/tasks
+.claude/telemetry

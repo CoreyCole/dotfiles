@@ -3,7 +3,7 @@ local function golangci_lint_args()
     local defaults = {
         "golangci-lint",
         "run",
-        "--fix",
+        -- "--fix", -- disabled: causes auto-formatting on file open
         "--output.json.path=stdout",
         -- Overwrite values possibly set in .golangci.yml
         "--output.text.path=",

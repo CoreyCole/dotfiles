@@ -8,6 +8,8 @@
 
 import json
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -18,7 +20,7 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_session_start(input_data):
+def log_session_start(input_data, duration_ms):
     """Log session start event to logs directory."""
     # Ensure logs directory exists
     log_dir = Path.home() / ".claude" / "logs"
@@ -35,8 +37,15 @@ def log_session_start(input_data):
     else:
         log_data = []
 
-    # Append the entire input data
-    log_data.append(input_data)
+    # Create log entry with timestamp and duration
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "duration_ms": duration_ms,
+        "input_data": input_data,
+    }
+
+    # Append the log entry
+    log_data.append(log_entry)
 
     # Write back to file with formatting
     with open(log_file, "w") as f:
@@ -44,12 +53,16 @@ def log_session_start(input_data):
 
 
 def main():
+    start_time = time.perf_counter()
     try:
         # Read JSON input from stdin
         input_data = json.loads(sys.stdin.read())
 
+        # Calculate duration in milliseconds
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+
         # Log the session start event
-        log_session_start(input_data)
+        log_session_start(input_data, duration_ms)
 
         # Success
         sys.exit(0)

@@ -32,6 +32,7 @@
         pkgs.delta
         pkgs.just
         pkgs.gh
+        pkgs.mergiraf
 
         # Language Servers and Formatters
         # Lua
@@ -80,6 +81,13 @@
         pkgs.sqruff # SQL formatter
         pkgs.sqlc # Generate type-safe Go code from SQL
         pkgs.postgresql # PostgreSQL database (includes psql client)
+
+        # Markdown
+        (pkgs.python3.withPackages (ps:
+          with ps; [
+            mdformat
+            mdformat-frontmatter
+          ]))
       ];
 
       # Necessary for using flakes on this system.
@@ -193,6 +201,9 @@
               "git"
               "localstack-cli" # LocalStack CLI
               "pspg"
+              "pkgconf"
+              "gstreamer" # now includes all gst-plugins-* packages
+              "opus" # libopus for opusenc/opusdec
             ];
           };
         }

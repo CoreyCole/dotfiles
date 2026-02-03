@@ -9,6 +9,8 @@
 import argparse
 import json
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -19,7 +21,7 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_user_prompt(session_id, input_data):
+def log_user_prompt(input_data, duration_ms):
     """Log user prompt to logs directory."""
     # Ensure logs directory exists
     log_dir = Path.home() / Path(".claude/logs")
@@ -36,8 +38,15 @@ def log_user_prompt(session_id, input_data):
     else:
         log_data = []
 
-    # Append the entire input data
-    log_data.append(input_data)
+    # Create log entry with timestamp and duration
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "duration_ms": duration_ms,
+        "input_data": input_data,
+    }
+
+    # Append the log entry
+    log_data.append(log_entry)
 
     # Write back to file with formatting
     with open(log_file, "w") as f:
@@ -75,6 +84,7 @@ def store_last_prompt(session_id, prompt):
 
 
 def main():
+    start_time = time.perf_counter()
     try:
         # Parse command line arguments
         parser = argparse.ArgumentParser()
@@ -92,12 +102,15 @@ def main():
         session_id = input_data.get("session_id", "unknown")
         prompt = input_data.get("prompt", "")
 
-        # Log the user prompt
-        log_user_prompt(session_id, input_data)
-
         # Store last prompt if requested
         if args.store_last_prompt:
             store_last_prompt(session_id, prompt)
+
+        # Calculate duration in milliseconds
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+
+        # Log the user prompt
+        log_user_prompt(input_data, duration_ms)
 
         # Success - prompt will be processed
         sys.exit(0)
