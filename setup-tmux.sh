@@ -33,31 +33,27 @@ tmux new-window -t $SESSION_NAME:1 -c "$MONOREPO_DIR"
 tmux send-keys -t $SESSION_NAME:1 "nvim" C-m
 
 # Window 2: 4 left panes + 3 right panes
-# Left: cn-agents, monorepo, monorepo2, monorepo3
-# Right: monorepo (just up), monorepo (api logs), monorepo (worker logs)
-tmux new-window -t $SESSION_NAME:2 -c "$MONOREPO_DIR"
+# Left: cn-agents, monorepo (just up), monorepo2, monorepo3
+# Right: monorepo (empty), monorepo (api logs), monorepo (worker logs)
+tmux new-window -t $SESSION_NAME:2 -c "$CN_AGENTS_DIR"
+PANE_CN_AGENTS=$(tmux display-message -t "$SESSION_NAME:2" -p '#{pane_id}')
 
-# Create cn-agents pane on the LEFT using -b flag
-tmux split-window -t $SESSION_NAME:2.0 -h -b -p 50 -c "$CN_AGENTS_DIR"
-# After -b split: pane 0 = monorepo (right), pane 1 = cn-agents (left)
+# Create right column
+PANE_R1=$(tmux split-window -t "$PANE_CN_AGENTS" -h -p 50 -c "$MONOREPO_DIR" -P -F '#{pane_id}')
 
-# Split left column (pane 1, cn-agents) into 4 panes
-tmux split-window -t $SESSION_NAME:2.1 -v -p 75 -c "$MONOREPO_DIR"
-# Pane 1: cn-agents (top 25%), pane 2: monorepo (bottom 75%)
-tmux split-window -t $SESSION_NAME:2.2 -v -p 67 -c "$MONOREPO2_DIR"
-# Pane 2: monorepo (top), pane 3: monorepo2 (bottom 67%)
-tmux split-window -t $SESSION_NAME:2.3 -v -p 50 -c "$MONOREPO3_DIR"
-# Pane 3: monorepo2 (top), pane 4: monorepo3 (bottom 50%)
-# Left column: 1 (cn-agents), 2 (monorepo), 3 (monorepo2), 4 (monorepo3)
+# Split left column: 3 more panes below cn-agents
+PANE_L2=$(tmux split-window -t "$PANE_CN_AGENTS" -v -p 75 -c "$MONOREPO_DIR" -P -F '#{pane_id}')
+PANE_L3=$(tmux split-window -t "$PANE_L2" -v -p 67 -c "$MONOREPO2_DIR" -P -F '#{pane_id}')
+PANE_L4=$(tmux split-window -t "$PANE_L3" -v -p 50 -c "$MONOREPO3_DIR" -P -F '#{pane_id}')
+# Left: PANE_CN_AGENTS (25%), PANE_L2 (25%), PANE_L3 (25%), PANE_L4 (25%)
 
-# Split right column (pane 0, monorepo) into 3 panes
-tmux split-window -t $SESSION_NAME:2.0 -v -p 67 -c "$MONOREPO_DIR"
-# Pane 0: monorepo (top 33%), pane 5: monorepo (bottom 67%)
-tmux split-window -t $SESSION_NAME:2.5 -v -p 50 -c "$MONOREPO_DIR"
-# Right column: 0 (top), 5 (middle), 6 (bottom) - all monorepo
+# Split right column: 2 more panes below top
+PANE_R2=$(tmux split-window -t "$PANE_R1" -v -p 67 -c "$MONOREPO_DIR" -P -F '#{pane_id}')
+PANE_R3=$(tmux split-window -t "$PANE_R2" -v -p 50 -c "$MONOREPO_DIR" -P -F '#{pane_id}')
+# Right: PANE_R1 (33%), PANE_R2 (33%), PANE_R3 (33%)
 
-# Select top-right pane (monorepo)
-tmux select-pane -t $SESSION_NAME:2.0
+# Select top-left pane
+tmux select-pane -t "$PANE_CN_AGENTS"
 
 # Window 3: monorepo with dbee
 tmux new-window -t $SESSION_NAME:3 -c "$MONOREPO_DIR"
@@ -124,9 +120,9 @@ tmux send-keys -t $SESSION_NAME:9 "nvim -c 'lua require(\"fzf-lua\").files({ cmd
 # Select window 1 (nvim) to start
 tmux select-window -t $SESSION_NAME:1
 
-# Send startup script to top-right pane of window 2 (monorepo)
-tmux send-keys -t $SESSION_NAME:2.0 "$(
-    cat <<'EOF'
+# Send startup script to 2nd left pane (monorepo) - runs just up
+tmux send-keys -t "$PANE_L2" "$(
+    cat <<EOF
 # Ensure OrbStack is running
 if ! pgrep -q "OrbStack"; then
   echo "Starting OrbStack..."
@@ -137,21 +133,20 @@ fi
 echo "Waiting for Docker to be ready..."
 TIMEOUT=30
 ELAPSED=0
-until docker info >/dev/null 2>&1 || [ $ELAPSED -ge $TIMEOUT ]; do
+until docker info >/dev/null 2>&1 || [ \$ELAPSED -ge \$TIMEOUT ]; do
   sleep 1
-  ELAPSED=$((ELAPSED + 1))
+  ELAPSED=\$((ELAPSED + 1))
 done
 
-if [ $ELAPSED -ge $TIMEOUT ]; then
-  echo "Warning: Docker did not become ready within ${TIMEOUT} seconds"
+if [ \$ELAPSED -ge \$TIMEOUT ]; then
+  echo "Warning: Docker did not become ready within \${TIMEOUT} seconds"
 else
   echo "Docker is ready! Starting services..."
   just up
 
   # After just up completes, start the log commands in right panes
-  # Right column: pane 0 (top, just up), pane 5 (middle, api logs), pane 6 (bottom, worker logs)
-  tmux send-keys -t cn:2.5 "just logs api" C-m
-  tmux send-keys -t cn:2.6 "just logs worker" C-m
+  tmux send-keys -t $PANE_R2 "just logs api" C-m
+  tmux send-keys -t $PANE_R3 "just logs worker" C-m
 fi
 EOF
 )" C-m
