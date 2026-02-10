@@ -30,6 +30,8 @@ tmux new-session -d -s $SESSION_NAME -c "$FLAKE_DIR" -x "$(tput cols)" -y "$(tpu
 
 # Window 1: monorepo with nvim
 tmux new-window -t $SESSION_NAME:1 -c "$MONOREPO_DIR"
+direnv allow
+nix develop --command true # builds the chestnut-flake, then exits
 tmux send-keys -t $SESSION_NAME:1 "nvim" C-m
 
 # Window 2: 4 left panes + 3 right panes
