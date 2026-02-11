@@ -3,45 +3,45 @@ set -x
 set -eo pipefail
 
 function buildnvim() {
-  # Make sure I cloned the thing.
-  local nvim_dir="/Users/coreycole/cdev/neovim"
-  [ ! -d "$nvim_dir" ] && echo "Silly boy, you haven't cloned neovim..." && return
+    # Make sure I cloned the thing.
+    local nvim_dir="/Users/coreycole/cdev/neovim"
+    [ ! -d "$nvim_dir" ] && echo "Silly boy, you haven't cloned neovim..." && return
 
-  # Go to the neovim directory.
-  cd "$nvim_dir" || { printf '\n========== COULD NOT CD TO NEOVIM DIRECTORY ==========\n' && return; }
+    # Go to the neovim directory.
+    cd "$nvim_dir" || { printf '\n========== COULD NOT CD TO NEOVIM DIRECTORY ==========\n' && return; }
 
-  if ! git diff --exit-code; then
-    printf '\n========== LOCAL NEOVIM CHANGES! ==========\n'
-    return
-  fi
+    if ! git diff --exit-code; then
+        printf '\n========== LOCAL NEOVIM CHANGES! ==========\n'
+        return
+    fi
 
-  # Checkout the master branch.
-  git checkout master
+    # Checkout the master branch.
+    git checkout master
 
-  # Fetch the latest changes.
-  git fetch upstream master
+    # Fetch the latest changes.
+    git fetch origin master
 
-  # Log the upstream commits.
-  git --no-pager log --decorate=short --pretty=short master..upstream/master
+    # Log the origin commits.
+    git --no-pager log --decorate=short --pretty=short master..origin/master
 
-  # Merge the latest changes.
-  git merge upstream/master
+    # Merge the latest changes.
+    git merge origin/master
 
-  # Go back to the given commit or HEAD.
-  local commit="${1:-HEAD}"
-  printf '\n========== CHECKING OUT COMMIT %s... ==========\n' "$commit"
-  git reset --hard "$commit"
+    # Go back to the given commit or HEAD.
+    local commit="${1:-HEAD}"
+    printf '\n========== CHECKING OUT COMMIT %s... ==========\n' "$commit"
+    git reset --hard "$commit"
 
-  # Clear the previous build.
-  local install_dir="$HOME/.nvim"
-  rm -rf "$install_dir"
-  make distclean
+    # Clear the previous build.
+    local install_dir="$HOME/.nvim"
+    rm -rf "$install_dir"
+    make distclean
 
-  # Build.
-  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebrew/bin" make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX="$install_dir" install
+    # Build.
+    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebrew/bin" make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX="$install_dir" install
 
-  # Remove the patched changes.
-  git checkout .
+    # Remove the patched changes.
+    git checkout .
 }
 
 buildnvim "$@"

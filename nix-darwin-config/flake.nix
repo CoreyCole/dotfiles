@@ -146,69 +146,72 @@
       # sudo with touch ID
       security.pam.services.sudo_local.touchIdAuth = true;
     };
+    darwinModules = [
+      configuration
+      nix-homebrew.darwinModules.nix-homebrew
+      {
+        nix-homebrew = {
+          # Install Homebrew under the default prefix
+          enable = true;
+
+          # Apple Silicon: Also install Homebrew under Intel prefix for Rosetta 2
+          enableRosetta = true;
+
+          # User owning the Homebrew prefix
+          user = "coreycole";
+
+          # Automatically migrate existing Homebrew installations
+          autoMigrate = true;
+        };
+
+        # Use nix-darwin's homebrew module to manage packages
+        homebrew = {
+          enable = true;
+          # onActivation.cleanup = "uninstall"; # COMMENTED OUT - was removing existing packages!
+
+          taps = [
+            "localstack/tap"
+          ];
+
+          casks = [
+            "virtualbox"
+            "1password-cli"
+            "arc"
+            "finicky"
+            "orbstack"
+            "rectangle"
+            "signal"
+            "slack"
+            "wezterm"
+          ];
+
+          # Command-line tools installed via Homebrew formulas
+          brews = [
+            "fnm" # Fast Node Manager
+            "fzf" # Command-line fuzzy finder
+            "tmux"
+            "cmake"
+            "ninja"
+            "gettext"
+            "curl"
+            "git"
+            "localstack-cli" # LocalStack CLI
+            "pspg"
+            "pkgconf"
+            "gstreamer" # now includes all gst-plugins-* packages
+            "opus" # libopus for opusenc/opusdec
+          ];
+        };
+      }
+    ];
   in {
     # Build darwin flake using:
-    # $ darwin-rebuild build --flake .#simple
+    # $ darwin-rebuild switch --flake .
+    darwinConfigurations."Coreys-MacBook-Pro" = nix-darwin.lib.darwinSystem {
+      modules = darwinModules;
+    };
     darwinConfigurations."Coreys-MacBook-Pro-2" = nix-darwin.lib.darwinSystem {
-      modules = [
-        configuration
-        nix-homebrew.darwinModules.nix-homebrew
-        {
-          nix-homebrew = {
-            # Install Homebrew under the default prefix
-            enable = true;
-
-            # Apple Silicon: Also install Homebrew under Intel prefix for Rosetta 2
-            enableRosetta = true;
-
-            # User owning the Homebrew prefix
-            user = "coreycole";
-
-            # Automatically migrate existing Homebrew installations
-            autoMigrate = true;
-          };
-
-          # Use nix-darwin's homebrew module to manage packages
-          homebrew = {
-            enable = true;
-            # onActivation.cleanup = "uninstall"; # COMMENTED OUT - was removing existing packages!
-
-            taps = [
-              "localstack/tap"
-            ];
-
-            casks = [
-              "virtualbox"
-              "1password-cli"
-              "alt-tab"
-              "arc"
-              "finicky"
-              "orbstack"
-              "rectangle"
-              "signal"
-              "slack"
-              "wezterm"
-            ];
-
-            # Command-line tools installed via Homebrew formulas
-            brews = [
-              "fnm" # Fast Node Manager
-              "fzf" # Command-line fuzzy finder
-              "tmux"
-              "cmake"
-              "ninja"
-              "gettext"
-              "curl"
-              "git"
-              "localstack-cli" # LocalStack CLI
-              "pspg"
-              "pkgconf"
-              "gstreamer" # now includes all gst-plugins-* packages
-              "opus" # libopus for opusenc/opusdec
-            ];
-          };
-        }
-      ];
+      modules = darwinModules;
     };
   };
 }
