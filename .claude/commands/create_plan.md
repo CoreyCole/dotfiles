@@ -180,17 +180,18 @@ After structure approval:
 
 1. **Gather metadata for the plan:**
 
-   - Generate all relevant metadata (`./scripts/spec_metadata.sh`)
-	 - Use the git_username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/plans/2025-01-01-plan-topic.md`
+   - Generate all relevant metadata (`~/dotfiles/spec_metadata.sh`)
+	 - Use the git_username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/plans/2025-01-01_13-55-22_plan-topic.md`
 
-1. **Write the plan** to `thoughts/[git_username]/plans/YYYY-MM-DD-PRO-XXXX-description.md`
-   - Format: `YYYY-MM-DD-PRO-XXXX-description.md` where:
+1. **Write the plan** to `thoughts/[git_username]/plans/YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md`
+   - Format: `YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md` where:
      - YYYY-MM-DD is today's date
+     - HH-MM-SS is the hours, minutes and seconds based on the current time, in 24-hour format (i.e. use `13:00` for `1:00 pm`)
      - PRO-XXXX is the ticket number (omit if no ticket)
      - description is a brief kebab-case description
    - Examples:
-     - With ticket: `2025-01-08-PRO-1478-parent-child-tracking.md`
-     - Without ticket: `2025-01-08-improve-error-handling.md`
+     - With ticket: `2025-01-08_13-55-22_PRO-1478_parent-child-tracking.md`
+     - Without ticket: `2025-01-08_13-55-22_improve-error-handling.md`
 1. **Use this template structure**:
 
 ````markdown

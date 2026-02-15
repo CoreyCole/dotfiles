@@ -217,10 +217,10 @@ Flag these patterns when you see them:
 
 ## Generate Review Output
 
-Run the `scripts/spec_metadata.sh` script to generate metadata for your review document:
+Run the `~/dotfiles/spec_metadata.sh` script to generate metadata for your review document:
 
 ```bash
-scripts/spec_metadata.sh
+~/dotfiles/spec_metadata.sh
 ```
 
 Create your review file at:

@@ -21,6 +21,7 @@
         pkgs.vim
         pkgs.go
         pkgs.direnv # Directory-based environment variables
+        pkgs.fzf # Command-line fuzzy finder (ctrl+r history, ctrl+t files, alt+c dirs)
         pkgs.fd
         pkgs.ripgrep
         pkgs.codespell # Spell checker for source code
@@ -98,8 +99,11 @@
       #   };
       # };
 
-      # Enable alternative shell support in nix-darwin.
-      # programs.fish.enable = true;
+      # Enable zsh with fzf integration for ctrl+r history search
+      programs.zsh.enable = true;
+      programs.zsh.interactiveShellInit = ''
+        eval "$(fzf --zsh)"
+      '';
 
       # Set Git commit hash for darwin-version.
       system.configurationRevision = self.rev or self.dirtyRev or null;
@@ -188,7 +192,6 @@
           # Command-line tools installed via Homebrew formulas
           brews = [
             "fnm" # Fast Node Manager
-            "fzf" # Command-line fuzzy finder
             "tmux"
             "cmake"
             "ninja"

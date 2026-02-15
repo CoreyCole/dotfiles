@@ -102,4 +102,4 @@ require "lsp"
 require "options"
 require "nvchad.autocmds"
 require "sqls.hover"
-require("vim._extui").enable {}
+require("vim._core.ui2").enable {}

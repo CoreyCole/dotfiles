@@ -55,16 +55,17 @@ Then wait for the user's research query.
 
 1. **Gather metadata for the research document:**
 
-   - Generate all relevant metadata (`./scripts/spec_metadata.sh`)
-	 - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01-research-topic.md`
-   - Filename: `thoughts/[git_username]/research/YYYY-MM-DD-PRO-XXXX-description.md`
-     - Format: `YYYY-MM-DD-PRO-XXXX-description.md` where:
+   - Generate all relevant metadata (`~/dotfiles/spec_metadata.sh`)
+	 - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01_13-55-22_research-topic.md`
+   - Filename: `thoughts/[git_username]/research/YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md`
+     - Format: `YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md` where:
        - YYYY-MM-DD is today's date
+       - HH-MM-SS is the hours, minutes and seconds based on the current time, in 24-hour format (i.e. use `13:00` for `1:00 pm`)
        - PRO-XXXX is the ticket number (omit if no ticket)
        - description is a brief kebab-case description of the research topic
      - Examples:
-       - With ticket: `2025-01-08-PRO-1478-parent-child-tracking.md`
-       - Without ticket: `2025-01-08-authentication-flow.md`
+       - With ticket: `2025-01-08_13-55-22_PRO-1478_parent-child-tracking.md`
+       - Without ticket: `2025-01-08_13-55-22_authentication-flow.md`
 
 1. **Generate research document:**
 
@@ -153,8 +154,8 @@ Then wait for the user's research query.
 
 ## Important notes:
 
-- Always call `./scripts/spec_metadata.sh` to gather the document path and metadata
-  - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01-research-topic.md`
+- Always call `~/dotfiles/spec_metadata.sh` to gather the document path and metadata
+  - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01_13-55-22_research-topic.md`
 - Always use parallel Task agents to maximize efficiency and minimize context usage
 - Always run fresh codebase research - never rely solely on existing research documents
 - The thoughts/ directory provides historical context to supplement live findings
@@ -171,7 +172,7 @@ Then wait for the user's research query.
 - **Critical ordering**: Follow the numbered steps exactly
   - ALWAYS read mentioned files first before spawning sub-tasks (step 1)
   - ALWAYS wait for all sub-agents to complete before synthesizing (step 4)
-  - ALWAYS gather metadata (`./scripts/spec_metadata.sh`) before writing the document (step 5 before step 6)
+  - ALWAYS gather metadata (`~/dotfiles/spec_metadata.sh`) before writing the document (step 5 before step 6)
   - NEVER write the research document with placeholder values
 - **Path handling**: The thoughts/searchable/ directory contains hard links for searching
   - Always document paths by removing ONLY "searchable/" - preserve all other subdirectories
