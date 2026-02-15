@@ -77,8 +77,7 @@ vim.opt.listchars = "tab:▸ ,trail:·,nbsp:␣,extends:❯,precedes:❮" -- sho
 vim.opt.relativenumber = false -- relative line numbers
 -- vim.opt.scrolloff = 10 -- keep 20 lines above and below the cursor
 
--- sync with system clipboard
-vim.opt.clipboard = "unnamedplus"
+-- clipboard provider must be set before vim.opt.clipboard
 if vim.fn.has "wsl" == 1 then
     vim.api.nvim_create_autocmd("TextYankPost", {
 
@@ -88,7 +87,12 @@ if vim.fn.has "wsl" == 1 then
             vim.fn.system("clip.exe", vim.fn.getreg '"')
         end,
     })
+elseif vim.fn.has "linux" == 1 and (vim.env.DISPLAY or "") == "" and (vim.env.WAYLAND_DISPLAY or "") == "" then
+    -- headless linux (e.g. Ubuntu Server over SSH) - use OSC 52 terminal clipboard
+    vim.g.clipboard = "osc52"
 end
+-- sync with system clipboard
+vim.opt.clipboard = "unnamedplus"
 
 vim.g.is_code_private = function()
     local current_dir = vim.fn.getcwd()
