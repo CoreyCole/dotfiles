@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Collect metadata
-DATETIME_TZ=$(date '+%Y-%m-%d %H:%M:%S %Z')
-FILENAME_TS=$(date '+%Y-%m-%d_%H-%M-%S')
+DATETIME_TZ=$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M:%S %Z')
+FILENAME_TS=$(TZ=America/Los_Angeles date '+%Y-%m-%d_%H-%M-%S')
 
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 	REPO_NAME=$(basename "$(git remote get-url origin 2>/dev/null || git rev-parse --show-toplevel)" .git)
