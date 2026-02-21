@@ -6,6 +6,7 @@
     nix-darwin.url = "github:nix-darwin/nix-darwin/master";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
     nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3";
   };
 
   outputs = inputs @ {
@@ -13,6 +14,7 @@
     nix-darwin,
     nixpkgs,
     nix-homebrew,
+    determinate,
   }: let
     configuration = {pkgs, ...}: {
       # List packages installed in system profile. To search by name, run:
@@ -22,6 +24,7 @@
         pkgs.go
         pkgs.direnv # Directory-based environment variables
         pkgs.fzf # Command-line fuzzy finder (ctrl+r history, ctrl+t files, alt+c dirs)
+        pkgs.nix-direnv # Fast, persistent use_nix/use_flake for direnv
         pkgs.fd
         pkgs.ripgrep
         pkgs.codespell # Spell checker for source code
@@ -91,7 +94,7 @@
           ]))
       ];
 
-      nix.enable = false;
+      determinateNix.enable = true;
       # Necessary for using flakes on this system.
       # nix = {
       #   settings = {
@@ -151,6 +154,7 @@
       security.pam.services.sudo_local.touchIdAuth = true;
     };
     darwinModules = [
+      determinate.darwinModules.default
       configuration
       nix-homebrew.darwinModules.nix-homebrew
       {

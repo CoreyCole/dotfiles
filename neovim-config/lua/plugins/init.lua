@@ -68,7 +68,7 @@ return {
     {
         "JoosepAlviste/nvim-ts-context-commentstring",
         event = "VeryLazy",
-        depenenices = {
+        dependencies = {
             "nvim-treesitter/nvim-treesitter",
             "numToStr/Comment.nvim",
         },

@@ -2,8 +2,9 @@ local M = {}
 
 local has_in_cwd = function(filename)
     local cwd = vim.fn.getcwd()
-    if module_exists "mini.misc" then
-        local mini_cwd = require("mini.misc").find_root(0)
+    local ok, mini_misc = pcall(require, "mini.misc")
+    if ok then
+        local mini_cwd = mini_misc.find_root(0)
         if mini_cwd ~= nil then
             cwd = mini_cwd
         end

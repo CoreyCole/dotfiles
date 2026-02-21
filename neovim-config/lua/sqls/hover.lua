@@ -104,9 +104,9 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
                         local formatted = align_markdown_table(lines)
 
                         -- Update the buffer
-                        vim.api.nvim_buf_set_option(buf, "modifiable", true)
+                        vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
                         vim.api.nvim_buf_set_lines(buf, 0, -1, false, formatted)
-                        vim.api.nvim_buf_set_option(buf, "modifiable", false)
+                        vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
                     end
                 end
             end, 10)

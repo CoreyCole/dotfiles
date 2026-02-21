@@ -62,16 +62,6 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 vim.api.nvim_create_autocmd("FileType", {
-    pattern = { "python" },
-    callback = function()
-        vim.g.python3_host_prog = find_python_executable() -- python executable
-        vim.opt_local.colorcolumn = "72,88" -- Ruler at column number
-        vim.opt_local.tabstop = 4 -- Number of spaces tabs count for
-        vim.opt_local.shiftwidth = 4 -- Size of an indent
-    end,
-})
-
-vim.api.nvim_create_autocmd("FileType", {
     pattern = { "go" },
     callback = function()
         vim.opt_local.colorcolumn = "120" -- Ruler at column number

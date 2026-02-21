@@ -19,3 +19,4 @@
 .claude/telemetry
 .claude/usage-data
 .claude/image-cache
+.claude/backups

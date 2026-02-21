@@ -237,7 +237,7 @@ local function open_recent_pr_for_current_file()
     local repo_url = "https://github.com/" .. repo_path .. "/pull/" .. pr_number
 
     -- Use the same open_url_in_browser function
-    local platform = vim.loop.os_uname().sysname
+    local platform = vim.uv.os_uname().sysname
     if platform == "Darwin" then
         os.execute('open "' .. repo_url .. '"')
     elseif platform == "Linux" then
@@ -265,7 +265,7 @@ local function open_graphite_pr_for_current_line()
     local graphite_url = "https://app.graphite.dev/github/pr/" .. repo_path .. "/" .. pr_number
 
     -- Use the same open_url_in_browser function
-    local platform = vim.loop.os_uname().sysname
+    local platform = vim.uv.os_uname().sysname
     if platform == "Darwin" then
         os.execute('open "' .. graphite_url .. '"')
     elseif platform == "Linux" then
@@ -294,11 +294,10 @@ vim.keymap.set("n", "<leader>pr", ":OpenGraphitePR<CR>", { desc = "Open the Grap
 --
 -- rust
 --
-local bufnr = vim.api.nvim_get_current_buf()
 map("n", "<leader>a", function()
     vim.cmd.RustLsp "codeAction" -- supports rust-analyzer's grouping
     -- or vim.lsp.buf.codeAction() if you don't want grouping.
-end, { silent = true, buffer = bufnr })
+end, { silent = true, buffer = 0 })
 map("n", "<leader>rcu", function()
     require("crates").update_all_crates()
 end, { desc = "upgrade all crates" })
@@ -545,7 +544,7 @@ end
 
 -- Function to open URL in browser based on OS
 local function open_url_in_browser(url)
-    local platform = vim.loop.os_uname().sysname
+    local platform = vim.uv.os_uname().sysname
 
     if platform == "Darwin" then
         -- macOS

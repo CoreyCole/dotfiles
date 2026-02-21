@@ -393,7 +393,7 @@ return {
                         { silent = true }
                     )
                     -- Additional keymaps
-                    local opts = { noremap = true, silent = true, buffer = bufnr }
+                    local opts = { noremap = true, silent = true, buffer = args.buf }
 
                     -- Execute query operator mappings
                     vim.keymap.set("n", "<leader>se", "<Plug>(sqls-execute-query)", opts)
@@ -412,9 +412,9 @@ return {
                     vim.keymap.set("n", "<leader>sC", "<cmd>SqlsSwitchConnection<CR>", opts)
 
                     -- Execute current line or paragraph
-                    vim.keymap.set("n", "<leader>sel", "<leader>se_", { remap = true, buffer = bufnr })
-                    vim.keymap.set("n", "<leader>sep", "<leader>seip", { remap = true, buffer = bufnr })
-                    vim.keymap.set("n", "<leader>sea", "<leader>seG", { remap = true, buffer = bufnr })
+                    vim.keymap.set("n", "<leader>sel", "<leader>se_", { remap = true, buffer = args.buf })
+                    vim.keymap.set("n", "<leader>sep", "<leader>seip", { remap = true, buffer = args.buf })
+                    vim.keymap.set("n", "<leader>sea", "<leader>seG", { remap = true, buffer = args.buf })
                 end
             end,
         })
