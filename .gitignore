@@ -20,3 +20,4 @@
 .claude/usage-data
 .claude/image-cache
 .claude/backups
+.claude/.credentials.json
