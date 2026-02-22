@@ -1,12 +1,13 @@
 {
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
   "runtime": {
     "version": "LuaJIT"
   },
-  "diagnostics": {
-    "globals": ["vim"]
-  },
   "workspace": {
-    "library": ["${3rd}/luv/library"],
-    "checkThirdParty": false
+    "checkThirdParty": false,
+    "library": [
+      "$VIMRUNTIME/lua",
+      "${3rd}/luv/library"
+    ]
   }
 }
