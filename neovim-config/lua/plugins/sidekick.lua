@@ -64,6 +64,15 @@ return {
             "<leader>af",
             function()
                 require("sidekick.cli").send { msg = "{file}" }
+                -- Focus the tmux pane since external splits don't auto-focus
+                local State = require("sidekick.cli.state")
+                local states = State.get({ attached = true })
+                for _, state in ipairs(states) do
+                    if state.session and state.session.tmux_pane_id then
+                        vim.fn.system("tmux select-pane -t " .. state.session.tmux_pane_id)
+                        break
+                    end
+                end
             end,
             desc = "Send File",
         },
@@ -71,6 +80,15 @@ return {
             "<leader>av",
             function()
                 require("sidekick.cli").send { msg = "{selection}" }
+                -- Focus the tmux pane since external splits don't auto-focus
+                local State = require("sidekick.cli.state")
+                local states = State.get({ attached = true })
+                for _, state in ipairs(states) do
+                    if state.session and state.session.tmux_pane_id then
+                        vim.fn.system("tmux select-pane -t " .. state.session.tmux_pane_id)
+                        break
+                    end
+                end
             end,
             mode = { "x" },
             desc = "Send Visual Selection",
