@@ -21,3 +21,7 @@
 .claude/image-cache
 .claude/backups
 .claude/.credentials.json
+.claude/sessions/
+.claude/downloads
+context/
+.pi-config/node_modules/

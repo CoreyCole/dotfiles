@@ -24,7 +24,7 @@ return {
                     -- "goimports",
                     -- "gci",
                     -- "golines",
-                    "golangci_lint_fix",
+                    -- "golangci_lint_fix",
                     "golangci_lint",
                 },
                 sh = { "shfmt" },
