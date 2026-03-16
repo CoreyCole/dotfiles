@@ -6,6 +6,7 @@
 .claude/plugins
 .claude/projects
 .claude/session-env
+.claude/sessions
 .claude/shell-snapshots
 .claude/statsig
 .claude/todos
