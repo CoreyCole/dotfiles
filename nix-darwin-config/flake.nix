@@ -207,6 +207,7 @@
             "pkgconf"
             "gstreamer" # now includes all gst-plugins-* packages
             "opus" # libopus for opusenc/opusdec
+            "snowflake-cli" # Snowflake CLI (snow) for querying Snowflake
           ];
         };
       }
