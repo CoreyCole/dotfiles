@@ -10,7 +10,7 @@ You are tasked with generating a comprehensive pull request description followin
 
 1. **Read the PR description template:**
 
-   - First, check if `pull_request_template.md` exists in the root of the repository
+   - First, check if `pull_request_template.md` exists in the root of the repository (fall back to `~/dotfiles/pull_request_template.md`)
    - Read the template carefully to understand all sections and requirements
 
 1. **Identify the PR to describe:**
