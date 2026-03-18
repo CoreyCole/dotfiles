@@ -40,6 +40,27 @@ This must ALWAYS be printed right after a session was started and once again at 
 - Agents MUST place tmux sockets under `PI_TMUX_SOCKET_DIR` (defaults to `${TMPDIR:-/tmp}/pi-tmux-sockets`) and use `tmux -S "$SOCKET"` so we can enumerate/clean them. Create the dir first: `mkdir -p "$PI_TMUX_SOCKET_DIR"`.
 - Default socket path to use unless you must isolate further: `SOCKET="$PI_TMUX_SOCKET_DIR/pi.sock"`.
 
+## Running inside cmux (user's tmux session)
+
+When running inside a cmux workspace, the user already has a tmux session
+(named `cmux-{workspace_id}`). `$TMUX` will be set.
+
+**For user-visible work** (dev servers, test runners, build watchers), create
+windows/panes in the user's existing session:
+
+```bash
+tmux new-window -n "dev-server" -c "/path/to/project"
+tmux send-keys -t "dev-server" 'npm run dev' Enter
+tmux capture-pane -p -J -t "dev-server" -S -200
+```
+
+**For isolated agent work** (REPL exploration, experiments the user didn't ask
+to see), use the private socket as described below.
+
+**Rule:** If the user asked you to run something, put it in their session.
+If you need to explore interactively as part of your own reasoning, use the
+private socket.
+
 ## Targeting panes and naming
 
 - Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `pi-py`, `pi-gdb`).

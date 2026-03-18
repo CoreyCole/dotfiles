@@ -105,6 +105,11 @@
       # Enable zsh with fzf integration for ctrl+r history search
       programs.zsh.enable = true;
       programs.zsh.interactiveShellInit = ''
+        # Auto-start tmux inside cmux workspaces
+        if [[ -n "$CMUX_WORKSPACE_ID" && -z "$TMUX" ]]; then
+          exec tmux new-session -A -s "cmux-''${CMUX_WORKSPACE_ID}"
+        fi
+
         eval "$(fzf --zsh)"
       '';
 

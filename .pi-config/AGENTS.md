@@ -282,7 +282,7 @@ Skills provide specialized instructions for specific tasks. Load them when the c
 | Asked to simplify/clean up/refactor code | `code-simplifier` |
 | Reading, reviewing, or analyzing a pi session JSONL file | `session-reader` |
 | Adding or configuring an MCP server (global or project-local) | `add-mcp-server` |
-| Running dev servers, test watchers, background tasks, or any process in a separate terminal | `cmux` |
-| Interactive tmux session driving (Python REPL, debugger, etc.) | `tmux` |
+| Running dev servers, test watchers, background tasks, interactive sessions (REPL, debugger), or any process in a separate terminal | `tmux` |
+| Creating cmux workspaces, sending notifications, or workspace-level operations | `cmux` |
 
 **The `commit` skill is mandatory for every single commit.** No quick `git commit -m "fix stuff"` — every commit gets the full treatment with a descriptive subject and body.

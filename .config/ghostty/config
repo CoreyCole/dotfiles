@@ -1,0 +1,13 @@
+font-family = Hasklug Nerd Font Mono Med
+font-size = 14
+
+background = 000000
+foreground = ffffff
+
+bold-is-bright = true
+
+window-padding-x = 0
+window-padding-y = 0
+
+# 100MB lazily allocated
+scrollback-limit = 100000000
