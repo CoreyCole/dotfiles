@@ -55,15 +55,15 @@ tmux select-pane -t "$PANE_CN_AGENTS"
 tmux new-window -t $SESSION_NAME:1 -c "$MONOREPO_DIR"
 direnv allow
 nix develop --command true # builds the chestnut-flake, then exits
-tmux send-keys -t $SESSION_NAME:1 "nvim" C-m
+tmux send-keys -t $SESSION_NAME:1 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
 
 # Window 2: monorepo2 with nvim
 tmux new-window -t $SESSION_NAME:2 -c "$MONOREPO2_DIR"
-tmux send-keys -t $SESSION_NAME:2 "nvim" C-m
+tmux send-keys -t $SESSION_NAME:2 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
 
 # Window 3: monorepo3 with nvim
 tmux new-window -t $SESSION_NAME:3 -c "$MONOREPO3_DIR"
-tmux send-keys -t $SESSION_NAME:3 "nvim" C-m
+tmux send-keys -t $SESSION_NAME:3 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
 
 # Window 4: cn-agents with nvim and fzf file search
 tmux new-window -t $SESSION_NAME:4 -c "$CN_AGENTS_DIR"
