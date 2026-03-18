@@ -1,4 +1,5 @@
 ---
+name: cc-create-plan
 description: Implementation Plan
 ---
 

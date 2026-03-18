@@ -1,4 +1,5 @@
 ---
+name: cc-describe-pr
 description: Generate PR Description
 ---
 

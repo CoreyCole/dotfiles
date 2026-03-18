@@ -1,4 +1,5 @@
 ---
+name: cc-cite
 description: Research online verified sources like official documentation, provide links and direct quotes. Use when the user needs citations, references, or verified information from authoritative web sources.
 ---
 

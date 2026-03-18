@@ -1,4 +1,5 @@
 ---
+name: cc-tkt
 description: Create Worktree for Linear Ticket
 ---
 

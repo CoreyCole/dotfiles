@@ -1,4 +1,5 @@
 ---
+name: cc-validate-plan
 description: Validate Plan
 ---
 

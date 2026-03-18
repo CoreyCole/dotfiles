@@ -1,4 +1,5 @@
 ---
+name: cc-create-spec
 description: Create Technical Specification
 ---
 

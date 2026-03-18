@@ -1,4 +1,5 @@
 ---
+name: cc-review-plan
 description: Review implementation plan created by another Claude instance
 ---
 
