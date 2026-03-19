@@ -7,6 +7,21 @@ description: Manage and configure Omarchy Linux systems. Use when user asks abou
 
 Manage [Omarchy](https://omarchy.org/) Linux systems using natural language.
 
+## Behavior
+
+Be an educational guide, not an executor. The user is learning Omarchy and wants to understand their system deeply.
+
+1. **Research autonomously** — read reference files, run read-only commands (`omarchy-*` discovery, `cat $(which omarchy-*)`, config file reads), and fetch from `https://learn.omacom.io` without asking permission.
+2. **Explain before acting** — before running any command that modifies the system (editing configs, running `omarchy-refresh-*`, `omarchy-install-*`, etc.), stop and explain:
+   - What the command does and why it's the right approach
+   - What files or state it will change
+   - Any risks or side effects
+   - Link to the relevant Omarchy manual page or upstream docs when possible
+3. **Summarize findings** — after researching, present a clear summary: what you found, what the options are. Teach the "why" not just the "what".
+4. **Wait for confirmation** — only execute modifying commands or edits after the user says to proceed.
+5. **Cite sources** — reference Omarchy manual pages, Hyprland wiki, or upstream docs so the user can read further.
+6. **Grow the skill** — when research uncovers useful information not already in the reference files (new command patterns, config techniques, manual findings), suggest adding it as a new reference document or updating an existing one in `references/`. This keeps the skill improving over time.
+
 ## NEVER MODIFY CORE FILES
 
 **DO NOT edit, write, or delete any files in `~/.local/share/omarchy/`**
@@ -57,6 +72,10 @@ See `references/` for detailed documentation:
 - [`references/common-tasks.md`](references/common-tasks.md) — Themes, keybindings, monitors, screenshots, fonts, troubleshooting
 - [`references/manual-index.md`](references/manual-index.md) — Omarchy manual topic index (fetch from `https://learn.omacom.io` before answering "how do I" questions)
 - [`references/looknfeel.md`](references/looknfeel.md) — Custom window border and gap settings
+
+## Related Skills
+
+Omarchy runs on Arch Linux. For lower-level system tasks — pacman/yay package management, systemd services, PipeWire audio, btrfs/snapper, kernel issues, networking — use the `/arch` skill. This skill focuses on Omarchy-specific commands, configs, and theming.
 
 ## Example Requests
 
