@@ -10,6 +10,7 @@ references:
   - references/boot-kernel.md
   - references/network.md
   - references/maintenance.md
+  - references/virtualization.md
 ---
 
 # Arch Linux System Skill

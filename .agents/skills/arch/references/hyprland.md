@@ -112,6 +112,36 @@ killall waybar && waybar &
 waybar -l debug
 ```
 
+## Clipboard (Wayland)
+
+Wayland restricts clipboard access — only the focused app can read/write it, mediated by the compositor. X11 clipboard tools (`xclip`, `xsel`) do not work natively. Use `wl-clipboard` instead.
+
+```bash
+# Copy to clipboard
+echo "text" | wl-copy
+wl-copy < file.txt
+wl-copy "literal string"
+
+# Paste from clipboard
+wl-paste                              # stdout
+wl-paste > file.txt                   # to file
+wl-paste --no-newline                 # no trailing newline
+
+# Watch clipboard — runs command on every clipboard change
+wl-paste --watch echo "clipboard changed"
+wl-paste --watch sh -c 'wl-paste > /tmp/last-clip.txt'
+
+# Copy image
+wl-copy --type image/png < screenshot.png
+
+# List available MIME types on clipboard
+wl-paste --list-types
+```
+
+**X11 apps under XWayland:** clipboard bridging between XWayland and native Wayland apps can be inconsistent. Hyprland handles this via its built-in clipboard sync, but edge cases exist.
+
+**Key limitation:** any tool that relies on X11 clipboard APIs (e.g., `spice-vdagent`, `xclip`) will NOT work for Wayland-native apps. This affects VM clipboard sharing — see `references/virtualization.md`.
+
 ## Display Troubleshooting
 
 ```bash
