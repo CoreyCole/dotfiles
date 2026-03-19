@@ -26,3 +26,4 @@
 .claude/downloads
 context/
 .pi-config/node_modules/
+*.local*
