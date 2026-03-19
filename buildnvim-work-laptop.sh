@@ -4,7 +4,7 @@ set -eo pipefail
 
 function buildnvim() {
     # Make sure I cloned the thing.
-    local nvim_dir="/Users/coreycole/cdev/neovim"
+    local nvim_dir="~/cdev/neovim"
     [ ! -d "$nvim_dir" ] && echo "Silly boy, you haven't cloned neovim..." && return
 
     # Go to the neovim directory.
