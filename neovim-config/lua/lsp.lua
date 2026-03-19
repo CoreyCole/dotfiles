@@ -54,8 +54,11 @@ local function on_attach(client, bufnr)
 
     if client:supports_method(methods.textDocument_definition) then
         keymap("gd", function()
-            require("fzf-lua").lsp_definitions { jump1 = true }
-            vim.cmd "norm! zz" -- center the cursor in the screen
+            require("fzf-lua").lsp_definitions {
+                jump1 = true,
+                regex_filter = { "ReactNode", exclude = true },
+            }
+            vim.cmd "norm! zz"
         end, "Go to definition")
         keymap("gD", function()
             require("fzf-lua").lsp_definitions { jump1 = false }
