@@ -184,6 +184,8 @@
 
           taps = [
             "localstack/tap"
+            "manaflow-ai/cmux"
+            "steipete/tap"
           ];
 
           casks = [
@@ -196,6 +198,7 @@
             "signal"
             "slack"
             "wezterm"
+            "cmux"
           ];
 
           # Command-line tools installed via Homebrew formulas
@@ -213,6 +216,7 @@
             "gstreamer" # now includes all gst-plugins-* packages
             "opus" # libopus for opusenc/opusdec
             "snowflake-cli" # Snowflake CLI (snow) for querying Snowflake
+            "gogcli" # Google Workspace CLI (gog) - Gmail, Sheets, Drive, Calendar, etc.
           ];
         };
       }
