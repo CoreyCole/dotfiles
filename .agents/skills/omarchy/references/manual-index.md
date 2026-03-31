@@ -73,4 +73,5 @@ Use keywords from this index to form better search queries:
 | Input Devices | keyboard, mouse, trackpad, touchpad, input |
 | Fingerprint / Fido2 | fingerprint, fido, yubikey, biometric |
 | Monitors | monitor, display, screen, resolution, scaling |
+| DisplayLink | displaylink, dock, evdi, usb display, dvi, multi-monitor dock |
 | Running Omarchy | vm, virtualbox, vmware, platforms |
