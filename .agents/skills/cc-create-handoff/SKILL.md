@@ -81,7 +81,7 @@ Once this is completed, you should respond to the user with:
 Handoff created and synced! You can resume from this handoff in a new session with the following command:
 
 ```bash
-/resume-handoff path/to/handoff.md
+/cc-resume-handoff path/to/handoff.md
 ```
 
 ______________________________________________________________________

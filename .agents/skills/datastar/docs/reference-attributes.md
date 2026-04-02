@@ -181,6 +181,84 @@ Custom aliases available through bundler. Datastar maintains `data-star-*` alias
 </script>
 ```
 
+## Pro Attributes
+
+Pro attributes extend core Datastar with advanced functionality. Available with Datastar Pro license.
+
+### `data-animate`
+Enables animation of element attributes over time. Animated attributes are updated reactively whenever signals used in the expression change.
+
+### `data-custom-validity`
+Adds custom validation messaging to form elements using expressions. Empty string = valid, non-empty = invalid with custom error message.
+```html
+<form>
+    <input data-bind:foo name="foo" />
+    <input data-bind:bar name="bar"
+           data-custom-validity="$foo === $bar ? '' : 'Values must be the same.'" />
+    <button>Submit form</button>
+</form>
+```
+
+### `data-match-media`
+Sets a signal to whether a media query matches and keeps it in sync.
+```html
+<div data-match-media:is-dark="'prefers-color-scheme: dark'"
+     data-computed:theme="$isDark ? 'dark' : 'light'"></div>
+```
+
+### `data-on-raf`
+Runs an expression on every `requestAnimationFrame` event.
+```html
+<div data-on-raf="$count++"></div>
+```
+Modifiers: `__throttle.500ms`, `__throttle.1s`, `__throttle.noleading`, `__throttle.trailing`
+
+### `data-on-resize`
+Runs an expression whenever an element's dimensions change.
+```html
+<div data-on-resize="$count++"></div>
+```
+Modifiers: `__debounce.500ms`, `__debounce.1s`, `__debounce.leading`, `__debounce.notrailing`, `__throttle.500ms`, `__throttle.1s`
+
+### `data-persist`
+Persists signals in local storage between page loads.
+```html
+<div data-persist></div>
+<div data-persist="{include: /foo/, exclude: /bar/}"></div>
+<div data-persist:mykey></div>
+```
+Modifiers: `__session` — use session storage instead of local storage
+
+### `data-query-string`
+Syncs query string params to signal values on page load, and signal values to query string params on change.
+```html
+<div data-query-string></div>
+<div data-query-string="{include: /foo/, exclude: /bar/}"></div>
+```
+Modifiers: `__filter` (omit empty values), `__history` (adds history entries on change)
+
+### `data-replace-url`
+Replaces the URL in the browser without reloading the page.
+```html
+<div data-replace-url="`/page${page}`"></div>
+```
+
+### `data-rocket`
+Creates a Rocket web component. See `reference-rocket.md` for details.
+
+### `data-scroll-into-view`
+Scrolls the element into view. Useful after backend DOM updates.
+```html
+<div data-scroll-into-view></div>
+```
+Modifiers: `__smooth`, `__instant`, `__auto`, `__hstart`, `__hcenter`, `__hend`, `__hnearest`, `__vstart`, `__vcenter`, `__vend`, `__vnearest`, `__focus`
+
+### `data-view-transition`
+Sets the `view-transition-name` style attribute explicitly.
+```html
+<div data-view-transition="$foo"></div>
+```
+
 ## Expressions
 
 Expressions support standard JavaScript including operators, function calls, ternary expressions, and literals. An `el` variable references the current element:
