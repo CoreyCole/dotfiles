@@ -72,6 +72,7 @@ See `references/` for detailed documentation:
 - [`references/common-tasks.md`](references/common-tasks.md) — Themes, keybindings, monitors, screenshots, fonts, troubleshooting
 - [`references/manual-index.md`](references/manual-index.md) — Omarchy manual topic index (fetch from `https://learn.omacom.io` before answering "how do I" questions)
 - [`references/looknfeel.md`](references/looknfeel.md) — Custom window border and gap settings
+- [`references/monitors.md`](references/monitors.md) — desc:-based monitor matching for robust multi-monitor/DisplayLink setups
 
 ## Related Skills
 
