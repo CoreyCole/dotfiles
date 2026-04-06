@@ -38,6 +38,13 @@ When explaining any topic, apply the 80/20 rule:
 
 3. **Layer depth on request** — after covering the vital 20%, offer to go deeper. Say what the next layer covers so the user can decide if they need it. Don't front-load complexity.
 
+### Cite with Links
+
+When explaining topics, provide section-specific links so the user can read more:
+
+- **Arch Wiki sections:** `https://wiki.archlinux.org/title/<Page_Title>#<Section_Name>` (replace spaces with underscores in section names)
+- **Man pages:** `man <command>` or link to `https://man.archlinux.org/man/<command>.<section>`
+
 ### Research and Action
 
 1. **Research autonomously** — read reference files, search the Arch Wiki, inspect system state (read-only commands like `systemctl status`, `journalctl`, `ip link`, `pacman -Q`, etc.) without asking permission.
@@ -45,15 +52,21 @@ When explaining any topic, apply the 80/20 rule:
    - What the command does and why it's the right fix
    - What it will change on the system
    - Any risks or side effects
-   - Link to the relevant Arch Wiki section when possible
+   - Link to the relevant Arch Wiki section
 3. **Summarize findings** — after researching, present a clear summary: what you found, what the problem is, what the options are. Teach the "why" not just the "what".
 4. **Wait for confirmation** — only execute modifying commands or edits after the user says to proceed.
-5. **Cite sources** — reference Arch Wiki pages, man pages, or upstream docs so the user can read further.
-6. **Grow the skill** — when research uncovers useful information not already in the reference files (new troubleshooting steps, config patterns, wiki findings), suggest adding it as a new reference document or updating an existing one in `references/`. This keeps the skill improving over time.
+5. **Cite sources** — reference Arch Wiki section links, man pages, or upstream docs so the user can read further. Always include clickable links.
+6. **Grow the skill** — when research uncovers useful information not already in the reference files (new troubleshooting steps, config patterns, wiki findings):
+   - Add a new reference document or update an existing one in `references/`
+   - Add a link to the new reference in the `References` section of `SKILL.md`
+   - Include links to the relevant Arch Wiki sections and upstream docs *inside* the reference file so future sessions can go straight to the source
+   - The goal is to build a knowledge base that accumulates over time — each session should leave the skill better than it found it.
 
 ## Searching the Arch Wiki
 
 Research tool — use freely during the autonomous research phase. For questions not covered in this skill, use Brave LLM Context API with Goggles to search the Arch Wiki:
+
+### Step 1: Search for relevant pages
 
 ```bash
 curl -s "https://api.search.brave.com/res/v1/llm/context" \
@@ -65,7 +78,36 @@ curl -s "https://api.search.brave.com/res/v1/llm/context" \
 $site=wiki.archlinux.org'
 ```
 
-This returns pre-extracted page content (text, tables, code) directly — no need for a separate WebFetch.
+This returns snippets and URLs. Use it to identify the right wiki article(s).
+
+### Step 2: Get section index
+
+Fetch the table of contents to find relevant sections without loading the full page:
+
+```bash
+curl -s "https://wiki.archlinux.org/api.php?action=parse&page=<Page_Title>&prop=sections&format=json" \
+  | python3 -c "
+import json, sys
+for s in json.load(sys.stdin)['parse']['sections']:
+    indent = '  ' * (int(s['toclevel']) - 1)
+    print(f\"{s['index']:>3}. {indent}{s['line']}\")
+"
+```
+
+Replace spaces with underscores in the page title. For subpages, URL-encode the slash (e.g. `Localization%2FKorean`).
+
+### Step 3: Fetch specific sections
+
+Fetch only the sections you need by index number:
+
+```bash
+curl -s "https://wiki.archlinux.org/api.php?action=parse&page=<Page_Title>&prop=wikitext&section=<N>&format=json" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['parse']['wikitext']['*'])"
+```
+
+This returns MediaWiki wikitext: `== Section ==` for headers, `{{Pkg|name}}` for packages, `{{ic|code}}` for inline code.
+
+**Note:** Do NOT use WebFetch for the Arch Wiki — it is blocked by Cloudflare/Anubis. The MediaWiki API above bypasses this reliably.
 
 ## System Hardware
 

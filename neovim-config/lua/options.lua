@@ -1,9 +1,10 @@
-require "nvchad.options"
+-- require "nvchad.options"
 local arrows = require("icons").arrows
 
 vim.o.linebreak = true
 vim.o.cmdheight = 1
 vim.o.laststatus = 3
+vim.o.winborder = "shadow"
 
 -- ufo options
 vim.opt.fillchars = {
@@ -28,11 +29,6 @@ vim.opt.autoread = true
 -- Check for file changes more frequently
 vim.opt.updatetime = 100
 
--- Trigger checktime on various events to watch for file changes
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI", "WinEnter", "TermResponse" }, {
-    pattern = "*",
-    command = "checktime",
-})
 vim.opt.swapfile = false
 
 vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#D14242" })
@@ -61,6 +57,9 @@ vim.api.nvim_set_hl(0, "DiffviewDiffText", { bg = "#5f5f3a", bold = true, italic
 -- Style for deletion placeholder lines (the diagonal lines)
 vim.api.nvim_set_hl(0, "DiffviewDim1", { fg = "#585b70" })
 vim.api.nvim_set_hl(0, "DiffviewFillChar", { fg = "#45475a" })
+
+-- floating window border
+vim.api.nvim_set_hl(0, "FloatBorder", { fg = "#585b70" })
 
 vim.cmd "map <S-Down> <Nop>"
 vim.cmd "map <S-Up> <Nop>"

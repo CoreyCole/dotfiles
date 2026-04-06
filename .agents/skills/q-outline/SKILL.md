@@ -5,6 +5,8 @@ description: Create a structured outline (~2 pages) — signatures, types, verti
 
 # Structured Outline — How Do We Get There?
 
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 You are the fourth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. This is the last human review gate before code is written.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
@@ -18,7 +20,7 @@ You are the fourth stage of the QRSPI pipeline. You answer the question **"how d
 I'll create a structured outline from your approved design.
 
 Please provide the plan directory path:
-e.g. `/q-outline thoughts/creative-mode-agent/plans/2026-03-29_12-26-32_feature-name`
+e.g. `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
 ```
 
 Then wait for input.
@@ -36,9 +38,9 @@ Then wait for input.
    - Key signatures and types (what, not how)
    - Test checkpoint — how to verify this slice works before moving on
 
-4. **Present the outline to the user** for review. This is the final human gate. If the structure is wrong, this is where you redirect — not during implementation.
+5. **Present the outline to the user** for review. This is the final human gate. If the structure is wrong, this is where you redirect — not during implementation.
 
-5. **Iterate** until the user approves. Then write the final version.
+6. **Iterate** until the user approves. Then write the final version.
 
 ## Output Template
 
@@ -49,7 +51,7 @@ Write to `[plan_dir]/outline.md`:
 date: [ISO datetime with timezone]
 researcher: [git_username]
 stage: outline
-plan_dir: "[plan_dir]"
+plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
 # Outline: [Feature Name]
@@ -95,6 +97,22 @@ plan_dir: "[plan_dir]"
 - [Things explicitly not included in this implementation]
 ```
 
+## Response
+
+When outline.md is written, respond to the user with:
+
+```
+Outline written to [exact path to outline.md].
+
+[brief summary of slices and their test checkpoints]
+
+This is the last review gate before code. Ready to proceed? Generate the plan with:
+
+/q-plan [exact path to plan_dir]
+```
+
+**If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if more context would be helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above. This is the last gate — get it right. Repeat until the user approves and moves to the next stage.
+
 ## Rules
 
 - This is the structural backbone — longer than the design, shorter than the plan. Include type definitions, schemas, API surfaces, and package structures that the design deliberately omits.
@@ -102,4 +120,3 @@ plan_dir: "[plan_dir]"
 - Show signatures and types, NOT full function bodies. The plan stage fills in the implementation.
 - Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
 - Present to the user BEFORE writing the final file. This is the last review gate.
-- Tell the user the plan directory path when done — they'll pass it to `/q-plan`.

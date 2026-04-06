@@ -5,6 +5,8 @@ description: Expand the structured outline into a detailed implementation plan �
 
 # Plan — The Implementation
 
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 You are the fifth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. The human does NOT review this. The human reviews the code.
 
 ## When Invoked
@@ -16,7 +18,7 @@ You are the fifth stage of the QRSPI pipeline. You expand the structured outline
 I'll expand your outline into a detailed implementation plan.
 
 Please provide the plan directory path:
-e.g. `/q-plan thoughts/creative-mode-agent/plans/2026-03-29_12-26-32_feature-name`
+e.g. `/q-plan thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
 ```
 
 Then wait for input.
@@ -49,7 +51,7 @@ Write to `[plan_dir]/plan.md`:
 date: [ISO datetime with timezone]
 researcher: [git_username]
 stage: plan
-plan_dir: "[plan_dir]"
+plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
 # Implementation Plan: [Feature Name]
@@ -87,6 +89,22 @@ plan_dir: "[plan_dir]"
 ...
 ```
 
+## Response
+
+When plan.md is written, respond to the user with:
+
+```
+Plan written to [exact path to plan.md].
+
+[number] slices ready for implementation.
+
+Start implementation with:
+
+/q-implement [exact path to plan_dir]
+```
+
+No human review of the plan — alignment already happened in design and outline. The human reviews the code.
+
 ## Rules
 
 - This plan is for the coding agent, not the human. Be explicit. Include full code, exact file paths, exact commands.
@@ -94,4 +112,3 @@ plan_dir: "[plan_dir]"
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
 - Every slice must end with a verify step — a command the implementing agent can run.
 - Do NOT leave TODOs or open questions. The design and outline resolved those. If something is genuinely unresolved, stop and ask.
-- Tell the user the plan directory path when done — they'll pass it to `/q-implement`.

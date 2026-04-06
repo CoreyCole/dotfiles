@@ -16,8 +16,11 @@
   diffFilter = delta --color-only
 
 [delta]
+  file-modified-label = "modified:"
+  hunk-header-style = omit
   navigate = true  # use n and N to move between diff sections
   dark = true      # or light = true, or omit for auto-detection
+  syntax-theme = "base16"
 
 [merge]
   conflictStyle = zdiff3

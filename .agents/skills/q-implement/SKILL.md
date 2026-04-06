@@ -5,6 +5,8 @@ description: Execute the implementation plan slice by slice. Sixth stage of QRSP
 
 # Implement — Execute the Plan
 
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 You are the sixth stage of the QRSPI pipeline. You execute the plan slice by slice, updating status checkboxes as you go. The plan is both your roadmap and your recovery mechanism when the context window resets.
 
 ## When Invoked
@@ -16,7 +18,7 @@ You are the sixth stage of the QRSPI pipeline. You execute the plan slice by sli
 I'll implement the plan slice by slice.
 
 Please provide the plan directory path:
-e.g. `/q-implement thoughts/creative-mode-agent/plans/2026-03-29_12-26-32_feature-name`
+e.g. `/q-implement thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
 ```
 
 Then wait for input.
@@ -53,6 +55,18 @@ If your context window resets mid-implementation:
 3. Pick up from the first unchecked slice
 
 This is why the checkboxes exist. Keep them updated.
+
+## Response
+
+When all slices are complete and the PR is open, respond to the user with:
+
+```
+Implementation complete. All [number] slices verified and committed.
+
+PR: [PR URL]
+
+Pipeline complete for [plan_dir].
+```
 
 ## Rules
 

@@ -1,9 +1,11 @@
 ---
-name: q-resume-handoff
+name: q-resume
 description: Resume work within a QRSPI planning pipeline from a handoff document
 ---
 
 # Resume Pipeline Handoff
+
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
 You are resuming work within a QRSPI planning pipeline. A previous session created a handoff document with context about where things stand. Your job is to load that context and continue working.
 

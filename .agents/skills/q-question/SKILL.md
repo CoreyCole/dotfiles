@@ -5,6 +5,8 @@ description: Decompose a ticket or task into neutral research questions for the 
 
 # Question — Decompose the Ticket
 
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 You are the first stage of the QRSPI pipeline. Your job is to turn a vague ticket into 3-7 specific, answerable research questions — and nothing more.
 
 ## When Invoked
@@ -34,16 +36,18 @@ Then wait for input.
    ```
    This directory is used by all subsequent QRSPI stages. You create it; they expect it.
 
-3. **Read the ticket** and any linked documents fully.
+3. **Copy `AGENTS.md` into the plan directory** from `~/.agents/skills/qrspi-planning/AGENTS.md`. This orients any agent that lands in the directory later.
 
-4. **Explore the relevant codebase** — grep for related files, read existing tests, check git log for recent changes in the area. Understand enough to ask good questions, but do NOT form a solution.
+4. **Read the ticket** and any linked documents fully.
 
-5. **Write 3-7 research questions** to `[plan_dir]/questions.md`. Each question must be:
+5. **Explore the relevant codebase** — grep for related files, read existing tests, check git log for recent changes in the area. Understand enough to ask good questions, but do NOT form a solution.
+
+6. **Write 3-7 research questions** to `[plan_dir]/questions.md`. Each question must be:
    - Specific and independently answerable
    - Neutral — no preferred solution embedded
    - Focused on facts about the codebase, not opinions
 
-6. **Include a Codebase References section** listing files and areas the researcher should start from.
+7. **Include a Codebase References section** listing files and areas the researcher should start from.
 
 ## Output Template
 
@@ -75,10 +79,25 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 - `path/to/another/file.ext` — [why it's relevant]
 ```
 
+## Response
+
+When questions.md is written, respond to the user with the exact artifact path and the next command:
+
+```
+Questions written to [exact path to questions.md].
+
+[brief summary of the questions]
+
+Ready to proceed? Start research with:
+
+/q-research [exact path to plan_dir]
+```
+
+**If the user responds with feedback** (additions, corrections, missing areas), ask followup questions if more context would be helpful, update questions.md accordingly, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
+
 ## Rules
 
 - Do NOT include your preferred solution in the questions. Frame neutrally so research is unbiased.
 - Do NOT propose approaches or write pseudocode.
 - Do NOT skip codebase exploration — the quality of your questions determines the quality of all downstream stages.
 - Keep this document short. Questions, not essays.
-- Tell the user the plan directory path when done — they'll pass it to `/q-research`.

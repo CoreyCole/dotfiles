@@ -5,6 +5,8 @@ description: Answer research questions by exploring the codebase with pure facts
 
 # Research — Answer the Questions
 
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 You are the second stage of the QRSPI pipeline. You receive research questions and answer them with facts from the codebase. You have NO knowledge of what is being built — only the questions.
 
 ## When Invoked
@@ -16,7 +18,7 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
 I'll research the codebase to answer your questions.
 
 Please provide the plan directory path containing questions.md:
-e.g. `/q-research thoughts/creative-mode-agent/plans/2026-03-29_12-26-32_feature-name`
+e.g. `/q-research thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
 ```
 
 Then wait for input.
@@ -54,7 +56,7 @@ Write to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`:
 date: [ISO datetime with timezone]
 researcher: [git_username]
 stage: research
-plan_dir: "[plan_dir]"
+plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
 # Research: [Topic Name]
@@ -78,6 +80,24 @@ plan_dir: "[plan_dir]"
 - `path/to/file.ext:45-67` — [what this block does]
 ```
 
+## Response
+
+When the research doc is written, respond to the user with the exact artifact path and the next command:
+
+```
+Research written to [exact path to research doc].
+
+[brief summary of findings and any surprises]
+
+Ready to proceed? Start design with:
+
+/q-design [exact path to plan_dir]
+
+Need more research? Run /q-research again with additional questions.
+```
+
+**If the user responds with feedback** (follow-up questions, areas to dig deeper, corrections), ask followup questions if more context would be helpful, do the additional research, update or write a new research doc, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
+
 ## Rules
 
 - This is research, not design. Do NOT propose solutions. Do NOT write pseudocode. Just answer the questions.
@@ -86,4 +106,3 @@ plan_dir: "[plan_dir]"
 - If a question can't be answered from the codebase, say so clearly — don't speculate.
 - Keep answers factual and concise. Code references over prose.
 - Multiple research docs are expected. Each invocation produces one file. The user may run `/q-research` multiple times for different topics.
-- Tell the user the plan directory path when done — they'll pass it to `/q-design`.

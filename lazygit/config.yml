@@ -1,6 +1,9 @@
 notARepository: 'quit'
+promptToReturnFromSubprocess: false
 git:
   overrideGpg: true
+  pagers:
+    - pager: delta --paging=never -n --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}" --file-style="omit"
 os:
   editPreset: nvim
 gui:
@@ -9,7 +12,7 @@ gui:
     activeBorderColor:
       - magenta
     selectedLineBgColor:
-      - black
+      - "#0e0e0e"
     unstagedChangesColor:
       - yellow
   border: rounded

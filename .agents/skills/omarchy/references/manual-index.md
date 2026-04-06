@@ -10,11 +10,16 @@
 - Questions about concepts, workflows, or best practices
 - Topics where Omarchy may have a specific approach
 
-## Searching the Manual
+## Searching for Answers
 
-Use Brave LLM Context API with Goggles to scope results to the Omarchy docs:
+Search **both** Omarchy docs and the Arch Wiki. Omarchy is built on Arch, so many answers live in the Arch Wiki even if there's no Omarchy-specific page.
+
+### Step 1: Search for relevant pages
+
+Search Omarchy docs first, then Arch Wiki:
 
 ```bash
+# Search Omarchy docs
 curl -s "https://api.search.brave.com/res/v1/llm/context" \
   -H "Accept: application/json" \
   -H "X-Subscription-Token: ${BRAVE_SEARCH_API_KEY}" \
@@ -22,14 +27,51 @@ curl -s "https://api.search.brave.com/res/v1/llm/context" \
   --data-urlencode "q=<search terms>" \
   --data-urlencode 'goggles=$discard
 $site=learn.omacom.io'
+
+# Search Arch Wiki
+curl -s "https://api.search.brave.com/res/v1/llm/context" \
+  -H "Accept: application/json" \
+  -H "X-Subscription-Token: ${BRAVE_SEARCH_API_KEY}" \
+  -G \
+  --data-urlencode "q=<search terms>" \
+  --data-urlencode 'goggles=$discard
+$site=wiki.archlinux.org'
 ```
 
-This returns pre-extracted page content (text, tables, code) directly — no need for a separate WebFetch.
+These return snippets and URLs. Use them to identify the right article(s).
+
+### Step 2: Get Arch Wiki section index
+
+For Arch Wiki articles, fetch the table of contents to find relevant sections without loading the full page:
+
+```bash
+curl -s "https://wiki.archlinux.org/api.php?action=parse&page=<Page_Title>&prop=sections&format=json" \
+  | python3 -c "
+import json, sys
+for s in json.load(sys.stdin)['parse']['sections']:
+    indent = '  ' * (int(s['toclevel']) - 1)
+    print(f\"{s['index']:>3}. {indent}{s['line']}\")
+"
+```
+
+Replace spaces with underscores in the page title.
+
+### Step 3: Fetch specific sections
+
+Fetch only the sections you need by index number:
+
+```bash
+curl -s "https://wiki.archlinux.org/api.php?action=parse&page=<Page_Title>&prop=wikitext&section=<N>&format=json" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['parse']['wikitext']['*'])"
+```
+
+**Note:** Do NOT use WebFetch for the Arch Wiki — it is blocked by Cloudflare/Anubis. The MediaWiki API above bypasses this reliably. WebFetch is fine for Omarchy docs (`learn.omacom.io`).
 
 **Examples:**
 - "How do I set up my fingerprint reader?" → `q=fingerprint setup`
 - "How do I install Windows on Omarchy?" → `q=install windows vm`
 - "How do I install Steam?" → `q=install steam gaming`
+- "fcitx5 keybinding config" → search Arch Wiki (not in Omarchy docs)
 
 ## Manual Topic Index
 

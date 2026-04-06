@@ -92,6 +92,23 @@ Common terminals: `org.wezfurlong.wezterm.desktop`, `com.mitchellh.ghostty.deskt
 
 Controls which app opens when you open a file by type (e.g., images → imv, PDFs → Evince, videos → mpv). Edit this file to change what app handles each file type.
 
+### fcitx5 (Input Method)
+
+```
+~/.config/fcitx5/
+├── profile                # Input method groups/layouts
+└── conf/
+    ├── keyboard.conf      # Spell hints, completion, candidate keys
+    ├── clipboard.conf     # Clipboard manager
+    ├── xcb.conf           # XCB settings
+    └── notifications.conf # Notification preferences
+```
+
+**Restart:** `killall fcitx5; sleep 1; fcitx5 --disable notificationitem -d`
+(`fcitx5-remote -r` does NOT reliably reload keybinding changes)
+
+See [`references/fcitx5.md`](fcitx5.md) for keybinding details and config format gotchas.
+
 ### Other Configs
 
 | App | Location |

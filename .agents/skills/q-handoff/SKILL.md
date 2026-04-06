@@ -1,9 +1,12 @@
 ---
-name: q-create-handoff
+name: q-handoff
 description: Create a handoff document to carry context forward within a QRSPI planning pipeline. Use "continue" arg to advance to the next stage.
 ---
 
 # Create Pipeline Handoff
+
+> **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
@@ -71,7 +74,7 @@ branch: [current branch]
 stage: [question|research|design|outline|plan|implement]
 status: [in_progress|complete]
 next_stage: [next stage name, or null if in_progress or pipeline complete]
-plan_dir: [relative path to plan directory]
+plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
 # [Stage] Handoff
@@ -105,18 +108,20 @@ Run `just sync-thoughts` to save.
 
 ### 6. Tell the user
 
+Always include the full `thoughts/...` path so the user can copy-paste the resume command directly.
+
 If `continue` mode:
 ```
-Stage [current] complete. Handoff created at [path].
+Stage [current] complete. Handoff created at [handoff_path].
 
 Next stage: [next_stage] — resume with:
 
-/q-resume-handoff [path]
+/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/[handoff_filename]
 ```
 
 If checkpoint mode:
 ```
-Handoff created at [path]. Resume with:
+Handoff created at [handoff_path]. Resume with:
 
-/q-resume-handoff [path]
+/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/[handoff_filename]
 ```
