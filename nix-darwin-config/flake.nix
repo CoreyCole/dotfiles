@@ -37,6 +37,7 @@
         pkgs.just
         pkgs.gh
         pkgs.mergiraf
+        pkgs.tailscale
 
         # Language Servers and Formatters
         # Lua
@@ -155,8 +156,15 @@
         })
       ];
 
+      # Point xcrun at the real Command Line Tools so /usr/bin/clang works
+      # (nix apple-sdk overrides xcode-select but doesn't ship a full toolchain)
+      environment.variables.DEVELOPER_DIR = "/Library/Developer/CommandLineTools";
+
       # sudo with touch ID
       security.pam.services.sudo_local.touchIdAuth = true;
+
+      # tailscale daemon (non-sandboxed, supports SSH server)
+      services.tailscale.enable = true;
     };
     darwinModules = [
       determinate.darwinModules.default
@@ -189,7 +197,6 @@
           ];
 
           casks = [
-            "virtualbox"
             "1password-cli"
             "arc"
             "finicky"
@@ -198,7 +205,6 @@
             "signal"
             "slack"
             "wezterm"
-            "cmux"
           ];
 
           # Command-line tools installed via Homebrew formulas
@@ -229,6 +235,14 @@
     };
     darwinConfigurations."Coreys-MacBook-Pro-2" = nix-darwin.lib.darwinSystem {
       modules = darwinModules;
+    };
+    darwinConfigurations."swarms-MacBook-Pro" = nix-darwin.lib.darwinSystem {
+      modules = darwinModules ++ [
+        ({lib, ...}: {
+          system.primaryUser = lib.mkForce "swarm";
+          nix-homebrew.user = lib.mkForce "swarm";
+        })
+      ];
     };
   };
 }
