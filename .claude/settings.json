@@ -56,6 +56,12 @@
         "source": "github",
         "repo": "anthropics/skills"
       }
+    },
+    "trailhead": {
+      "source": {
+        "source": "github",
+        "repo": "ranger-testing/trailhead"
+      }
     }
   },
   "alwaysThinkingEnabled": true,

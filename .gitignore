@@ -29,3 +29,4 @@ context/
 .pi-config/auth.json
 .pi-config/sessions/
 *.local*
+.claude/.ranger_cache.json
