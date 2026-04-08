@@ -16,6 +16,7 @@ config.font_size = 14
 config.font = wezterm.font("Hasklug Nerd Font Mono Med")
 config.bold_brightens_ansi_colors = true
 config.audible_bell = "Disabled"
+config.enable_osc52_clipboard_paste = true
 
 -- Cursor
 config.window_padding = { left = 0, right = 0, top = 0, bottom = 0 }

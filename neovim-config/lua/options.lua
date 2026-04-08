@@ -86,9 +86,19 @@ if vim.fn.has "wsl" == 1 then
             vim.fn.system("clip.exe", vim.fn.getreg '"')
         end,
     })
-elseif vim.fn.has "linux" == 1 and (vim.env.DISPLAY or "") == "" and (vim.env.WAYLAND_DISPLAY or "") == "" then
-    -- headless linux (e.g. Ubuntu Server over SSH) - use OSC 52 terminal clipboard
-    vim.g.clipboard = "osc52"
+elseif vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
+    -- remote SSH session - use OSC 52 to tunnel clipboard through terminal
+    vim.g.clipboard = {
+        name = "OSC 52",
+        copy = {
+            ["+"] = require("vim.ui.clipboard.osc52").copy("+"),
+            ["*"] = require("vim.ui.clipboard.osc52").copy("*"),
+        },
+        paste = {
+            ["+"] = require("vim.ui.clipboard.osc52").paste("+"),
+            ["*"] = require("vim.ui.clipboard.osc52").paste("*"),
+        },
+    }
 end
 -- sync with system clipboard
 vim.opt.clipboard = "unnamedplus"
