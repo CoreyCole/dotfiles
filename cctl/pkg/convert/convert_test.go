@@ -87,6 +87,51 @@ func splitLines(data []byte) [][]byte {
 	return lines
 }
 
+func TestStringContent(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "05_string_content")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestImageAndDocument(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "06_image_and_document")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestThinking(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "07_thinking_blocks")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestErrorToolResult(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "10_error_tool_result")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestToolResultListContent(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "12_tool_result_list_content")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
 func TestStreamingMerge(t *testing.T) {
 	claude, expectedPi := loadTestData(t, "03_streaming_merge")
 	got, err := ConvertSession(claude)

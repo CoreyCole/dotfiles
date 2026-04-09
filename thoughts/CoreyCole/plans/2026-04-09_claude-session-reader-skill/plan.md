@@ -11,7 +11,7 @@ plan_dir: "thoughts/CoreyCole/plans/2026-04-09_claude-session-reader-skill"
 - [x] Slice 1: Types + simple chat conversion + test harness
 - [x] Slice 2: Tool use cycle (tool_use → tool_result extraction)
 - [x] Slice 3: Streaming merge
-- [ ] Slice 4: Content edge cases (string content, images, documents, thinking, error results, list tool_result)
+- [x] Slice 4: Content edge cases (string content, images, documents, thinking, error results, list tool_result)
 - [ ] Slice 5: Agent and Task tools
 - [ ] Slice 6: Noise filtering (comprehensive)
 - [ ] Slice 7: Session discovery
