@@ -159,6 +159,21 @@ func TestToolUseCycle(t *testing.T) {
 	comparePiOutput(t, got, expectedPi)
 }
 
+func TestNoiseFiltering(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "04_noise_filtering")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+
+	// Verify exactly 3 lines: session header + user + assistant
+	gotLines := splitJSONL(got)
+	if len(gotLines) != 3 {
+		t.Errorf("expected 3 lines, got %d", len(gotLines))
+	}
+}
+
 func TestAgentSubagent(t *testing.T) {
 	claude, expectedPi := loadTestData(t, "08_agent_subagent")
 	got, err := ConvertSession(claude)

@@ -1,0 +1,19 @@
+{"type":"progress","data":{"type":"hook_progress","hookEvent":"SessionStart","hookName":"SessionStart:startup"},"timestamp":"2026-03-24T18:58:56.000Z","uuid":"n1","sessionId":"session-004","cwd":"/Users/test/project"}
+{"type":"progress","data":{"type":"agent_progress"},"timestamp":"2026-03-24T18:59:00.000Z","uuid":"n2","sessionId":"session-004"}
+{"type":"progress","data":{"type":"bash_progress"},"timestamp":"2026-03-24T18:59:01.000Z","uuid":"n3","sessionId":"session-004"}
+{"type":"progress","data":{"type":"query_update"},"timestamp":"2026-03-24T18:59:02.000Z","uuid":"n4","sessionId":"session-004"}
+{"type":"progress","data":{"type":"search_results_received"},"timestamp":"2026-03-24T18:59:03.000Z","uuid":"n5","sessionId":"session-004"}
+{"type":"progress","data":{"type":"waiting_for_task"},"timestamp":"2026-03-24T18:59:04.000Z","uuid":"n6","sessionId":"session-004"}
+{"type":"file-history-snapshot","messageId":"msg-snap","snapshot":{"trackedFileBackups":{},"timestamp":"2026-03-24T18:59:05.000Z"},"isSnapshotUpdate":false}
+{"type":"system","subtype":"turn_duration","durationMs":1234,"timestamp":"2026-03-24T18:59:06.000Z","uuid":"n7","sessionId":"session-004"}
+{"type":"system","subtype":"bridge_status","timestamp":"2026-03-24T18:59:07.000Z","uuid":"n8","sessionId":"session-004"}
+{"type":"last-prompt","lastPrompt":"hello","timestamp":"2026-03-24T18:59:08.000Z","sessionId":"session-004"}
+{"type":"queue-operation","operation":"enqueue","content":"queued text","timestamp":"2026-03-24T18:59:09.000Z","uuid":"n9","sessionId":"session-004"}
+{"type":"attachment","subtype":"deferred_tools_delta","timestamp":"2026-03-24T18:59:10.000Z","uuid":"n10","sessionId":"session-004"}
+{"type":"attachment","subtype":"hook_non_blocking_error","timestamp":"2026-03-24T18:59:11.000Z","uuid":"n11","sessionId":"session-004"}
+{"type":"attachment","subtype":"nested_memory","timestamp":"2026-03-24T18:59:11.500Z","uuid":"n11b","sessionId":"session-004"}
+{"type":"custom-title","title":"Test Session","timestamp":"2026-03-24T18:59:12.000Z","uuid":"n12","sessionId":"session-004"}
+{"type":"agent-name","name":"claude","timestamp":"2026-03-24T18:59:13.000Z","uuid":"n13","sessionId":"session-004"}
+{"type":"permission-mode","mode":"bypassPermissions","timestamp":"2026-03-24T18:59:14.000Z","uuid":"n14","sessionId":"session-004"}
+{"type":"user","message":{"role":"user","content":"hello noise test"},"uuid":"uuid-1","parentUuid":null,"timestamp":"2026-03-24T19:00:00.000Z","cwd":"/Users/test/project","sessionId":"session-004"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hello! The noise has been filtered."}],"model":"claude-opus-4-6","id":"msg_004","stop_reason":"end_turn","usage":{"input_tokens":5,"output_tokens":8}},"uuid":"uuid-2","parentUuid":"uuid-1","timestamp":"2026-03-24T19:00:01.000Z","cwd":"/Users/test/project","sessionId":"session-004"}
