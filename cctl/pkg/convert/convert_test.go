@@ -87,6 +87,15 @@ func splitLines(data []byte) [][]byte {
 	return lines
 }
 
+func TestToolUseCycle(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "02_tool_use_cycle")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
 func TestSimpleChat(t *testing.T) {
 	claude, expectedPi := loadTestData(t, "01_simple_chat")
 	got, err := ConvertSession(claude)

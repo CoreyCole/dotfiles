@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"session-002","timestamp":"2026-03-24T19:00:00.000Z","cwd":"/Users/test/project"}
+{"type":"message","id":"msg-1","parentId":"","timestamp":"2026-03-24T19:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"read the file foo.md"}]}}
+{"type":"message","id":"msg-2","parentId":"msg-1","timestamp":"2026-03-24T19:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"I'll read that file for you."},{"type":"toolCall","id":"toolu_01X","name":"read","arguments":{"file_path":"/foo.md"}}],"model":"claude-opus-4-6","provider":"anthropic","api":"anthropic-messages","usage":{"input":20,"output":30,"cacheRead":0,"cacheWrite":0,"totalTokens":50,"cost":{"input":0,"output":0,"total":0}},"stopReason":"toolUse"}}
+{"type":"message","id":"msg-3","parentId":"msg-2","timestamp":"2026-03-24T19:00:02.000Z","message":{"role":"toolResult","toolCallId":"toolu_01X","toolName":"read","content":[{"type":"text","text":"# Foo\nThis is foo.md content."}]}}
+{"type":"message","id":"msg-4","parentId":"msg-3","timestamp":"2026-03-24T19:00:02.000Z","message":{"role":"user","content":[{"type":"text","text":"now edit it"}]}}
