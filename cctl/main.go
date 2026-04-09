@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/coreycole/cctl/cmd"
 	"github.com/coreycole/cctl/pkg/selfupdate"
 )
 
@@ -14,9 +15,8 @@ func main() {
 	// Self-update check before anything else
 	if err := selfupdate.CheckAndRebuild(version); err != nil {
 		fmt.Fprintf(os.Stderr, "selfupdate: %v\n", err)
-		// Continue anyway
 	}
 
-	// Cobra commands will be wired in slice 9
-	fmt.Println("cctl version", version)
+	cmd.Version = version
+	cmd.Execute()
 }

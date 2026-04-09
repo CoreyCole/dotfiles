@@ -16,7 +16,7 @@ plan_dir: "thoughts/CoreyCole/plans/2026-04-09_claude-session-reader-skill"
 - [x] Slice 6: Noise filtering (comprehensive)
 - [x] Slice 7: Session discovery
 - [x] Slice 8: Self-update mechanism + AGENTS.md
-- [ ] Slice 9: CLI + fzf picker + launch
+- [x] Slice 9: CLI + fzf picker + launch
 
 ---
 
