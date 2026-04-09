@@ -87,6 +87,24 @@ func splitLines(data []byte) [][]byte {
 	return lines
 }
 
+func TestStreamingMerge(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "03_streaming_merge")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestMultiToolStreaming(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "11_multi_tool_streaming")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
 func TestToolUseCycle(t *testing.T) {
 	claude, expectedPi := loadTestData(t, "02_tool_use_cycle")
 	got, err := ConvertSession(claude)
