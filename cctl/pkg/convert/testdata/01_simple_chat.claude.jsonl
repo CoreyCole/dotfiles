@@ -1,0 +1,5 @@
+{"type":"progress","data":{"type":"hook_progress"},"timestamp":"2026-03-24T18:58:56.150Z","uuid":"noise-1","cwd":"/Users/test/project","sessionId":"session-001"}
+{"type":"user","message":{"role":"user","content":"hello"},"uuid":"uuid-1","parentUuid":null,"timestamp":"2026-03-24T19:00:00.000Z","cwd":"/Users/test/project","sessionId":"session-001"}
+{"type":"system","subtype":"turn_duration","timestamp":"2026-03-24T19:00:01.000Z","uuid":"noise-2","sessionId":"session-001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Hi there! How can I help you?"}],"model":"claude-opus-4-6","id":"msg_001","stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":15}},"uuid":"uuid-2","parentUuid":"uuid-1","timestamp":"2026-03-24T19:00:02.000Z","cwd":"/Users/test/project","sessionId":"session-001"}
+{"type":"last-prompt","lastPrompt":"hello","timestamp":"2026-03-24T19:00:03.000Z","sessionId":"session-001"}
