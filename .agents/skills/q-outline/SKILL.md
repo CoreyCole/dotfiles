@@ -13,7 +13,12 @@ You are the fourth stage of the QRSPI pipeline. You answer the question **"how d
 
 ## When Invoked
 
-1. **If a plan directory path was provided**, read `[plan_dir]/design.md` and all files in `[plan_dir]/research/` fully, then begin.
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/questions.md`
+   - Read `[plan_dir]/design.md`
+   - Read all files in `[plan_dir]/research/`
+1. **If a plan directory path was provided**, load the artifacts above, then begin.
 2. **If no parameters**, respond:
 
 ```
@@ -27,7 +32,7 @@ Then wait for input.
 
 ## Process
 
-1. **Read `[plan_dir]/design.md` and ALL files in `[plan_dir]/research/` fully.** The design contains the approved approach. There may be multiple research documents.
+1. **Verify artifacts are loaded** from step 0: `questions.md`, `design.md`, and all `research/*.md` files.
 
 2. **Define the structural foundation** — the types, interfaces, schemas, and package structures that the plan will implement. This is the "C header" view of the entire system.
 
@@ -50,7 +55,12 @@ Write to `[plan_dir]/outline.md`:
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
+last_updated_by: [git_username]
+git_commit: [current commit hash]
+branch: [current branch]
+repository: [repository name]
 stage: outline
+ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
@@ -99,17 +109,19 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When outline.md is written, respond to the user with:
+When outline.md is written, respond to the user with the **full file path** (not just the directory):
 
 ```
-Outline written to [exact path to outline.md].
+Outline written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/outline.md
 
 [brief summary of slices and their test checkpoints]
 
 This is the last review gate before code. Ready to proceed? Generate the plan with:
 
-/q-plan [exact path to plan_dir]
+/q-plan thoughts/[git_username]/plans/[timestamp]_[plan-name]
 ```
+
+Always include the complete `thoughts/.../outline.md` path. Never abbreviate to just the directory.
 
 **If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if more context would be helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above. This is the last gate — get it right. Repeat until the user approves and moves to the next stage.
 

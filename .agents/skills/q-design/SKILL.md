@@ -13,8 +13,12 @@ You are the third stage of the QRSPI pipeline. You answer the question **"where 
 
 ## When Invoked
 
-1. **If a plan directory path was provided**, read `[plan_dir]/questions.md` and all files in `[plan_dir]/research/` fully, then begin.
-1. **If no parameters**, respond:
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/questions.md`
+   - Read all files in `[plan_dir]/research/`
+1. **If a plan directory path was provided**, load the artifacts above, then begin.
+2. **If no parameters**, respond:
 
 ```
 I'll create a design document from your research findings.
@@ -27,9 +31,9 @@ Then wait for input.
 
 ## Process
 
-1. **Read `[plan_dir]/questions.md` and ALL files in `[plan_dir]/research/` fully.** These are your primary inputs. There may be multiple research documents covering different topics.
+1. **Verify artifacts are loaded** from step 0: `questions.md` and all `research/*.md` files.
 
-1. **Read the original ticket** if referenced in `questions.md`. Now you know what's being built.
+2. **Read the original ticket** if referenced in `questions.md`. Now you know what's being built.
 
 1. **Read key files** identified in the research findings — especially patterns the implementation should follow.
 
@@ -55,7 +59,12 @@ Write to `[plan_dir]/design.md`:
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
+last_updated_by: [git_username]
+git_commit: [current commit hash]
+branch: [current branch]
+repository: [repository name]
 stage: design
+ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
@@ -98,10 +107,10 @@ Going with Approach [X] because [reasons grounded in research findings].
 
 ## Response
 
-When design.md is written, respond to the user with:
+When design.md is written, respond to the user with the **full file path** (not just the directory):
 
 ```
-Design written to [exact path to design.md].
+Design written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/design.md
 
 [brief summary of the recommended approach and key decisions]
 
@@ -110,8 +119,10 @@ Open questions for you:
 
 Ready to proceed? Start the structured outline with:
 
-/q-outline [exact path to plan_dir]
+/q-outline thoughts/[git_username]/plans/[timestamp]_[plan-name]
 ```
+
+Always include the complete `thoughts/.../design.md` path. Never abbreviate to just the directory.
 
 **If the user responds with feedback** (corrections, different approach, answered questions, new concerns), ask any followup questions if more context would be helpful, do any additional research needed, update design.md accordingly, then respond again with the same format above. This is brain surgery — expect multiple rounds. Repeat until the user approves and moves to the next stage.
 

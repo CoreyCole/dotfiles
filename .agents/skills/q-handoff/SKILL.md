@@ -10,6 +10,11 @@ description: Create a handoff document to carry context forward within a QRSPI p
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
+## When Invoked
+
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+
 ## Arguments
 
 - **(no argument)** — checkpoint the current stage as `in_progress`. The next session resumes where you left off in the same stage.
@@ -67,14 +72,17 @@ Use this template:
 
 ```markdown
 ---
-date: [ISO timestamp with timezone]
-researcher: [git username]
+date: [ISO datetime with timezone]
+researcher: [git_username]
+last_updated_by: [git_username]
 git_commit: [current commit hash]
 branch: [current branch]
+repository: [repository name]
 stage: [question|research|design|outline|plan|implement]
+ticket: "[ticket reference if any]"
+plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 status: [in_progress|complete]
 next_stage: [next stage name, or null if in_progress or pipeline complete]
-plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
 # [Stage] Handoff
@@ -110,18 +118,24 @@ Run `just sync-thoughts` to save.
 
 Always include the full `thoughts/...` path so the user can copy-paste the resume command directly.
 
+Always include the **full file path** to the handoff document (not just the directory).
+
 If `continue` mode:
 ```
-Stage [current] complete. Handoff created at [handoff_path].
+Stage [current] complete. Handoff created at thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
 
 Next stage: [next_stage] — resume with:
 
-/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/[handoff_filename]
+/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
 ```
 
 If checkpoint mode:
 ```
-Handoff created at [handoff_path]. Resume with:
+Handoff created at thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
 
-/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/[handoff_filename]
+Resume with:
+
+/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
 ```
+
+Never abbreviate paths. Always use the complete `thoughts/.../handoffs/filename.md` path so the user can copy-paste directly.

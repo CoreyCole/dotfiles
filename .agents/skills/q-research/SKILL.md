@@ -11,6 +11,10 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
 
 ## When Invoked
 
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/questions.md`
+   - Do NOT load design.md, outline.md, or the ticket. Research answers questions with pure codebase facts.
 1. **If a plan directory path was provided**, read `[plan_dir]/questions.md` fully and begin.
 2. **If no parameters**, respond:
 
@@ -55,7 +59,12 @@ Write to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`:
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
+last_updated_by: [git_username]
+git_commit: [current commit hash]
+branch: [current branch]
+repository: [repository name]
 stage: research
+ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
@@ -82,19 +91,21 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When the research doc is written, respond to the user with the exact artifact path and the next command:
+When the research doc is written, respond to the user with the **full file path** (not just the directory) and the next command:
 
 ```
-Research written to [exact path to research doc].
+Research written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md
 
 [brief summary of findings and any surprises]
 
 Ready to proceed? Start design with:
 
-/q-design [exact path to plan_dir]
+/q-design thoughts/[git_username]/plans/[timestamp]_[plan-name]
 
 Need more research? Run /q-research again with additional questions.
 ```
+
+Always include the complete `thoughts/.../research/filename.md` path. Never abbreviate to just the directory.
 
 **If the user responds with feedback** (follow-up questions, areas to dig deeper, corrections), ask followup questions if more context would be helpful, do the additional research, update or write a new research doc, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
 

@@ -11,7 +11,13 @@ You are the fifth stage of the QRSPI pipeline. You expand the structured outline
 
 ## When Invoked
 
-1. **If a plan directory path was provided**, read `[plan_dir]/outline.md`, `[plan_dir]/design.md`, and all files in `[plan_dir]/research/` fully, then begin.
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/questions.md`
+   - Read `[plan_dir]/design.md`
+   - Read `[plan_dir]/outline.md`
+   - Read all files in `[plan_dir]/research/`
+1. **If a plan directory path was provided**, load the artifacts above, then begin.
 2. **If no parameters**, respond:
 
 ```
@@ -25,10 +31,7 @@ Then wait for input.
 
 ## Process
 
-1. **Read all prior artifacts fully:**
-   - `[plan_dir]/outline.md` — the approved structure (primary input)
-   - `[plan_dir]/design.md` — the approved approach and patterns
-   - All files in `[plan_dir]/research/` — codebase facts and references (may be multiple docs)
+1. **Verify artifacts are loaded** from step 0: `questions.md`, `design.md`, `outline.md`, and all `research/*.md` files.
 
 2. **Read key files from the codebase** that the outline references — you need to see the actual code to write accurate implementation steps.
 
@@ -50,7 +53,12 @@ Write to `[plan_dir]/plan.md`:
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
+last_updated_by: [git_username]
+git_commit: [current commit hash]
+branch: [current branch]
+repository: [repository name]
 stage: plan
+ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ---
 
@@ -91,17 +99,19 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When plan.md is written, respond to the user with:
+When plan.md is written, respond to the user with the **full file path** (not just the directory):
 
 ```
-Plan written to [exact path to plan.md].
+Plan written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/plan.md
 
 [number] slices ready for implementation.
 
 Start implementation with:
 
-/q-implement [exact path to plan_dir]
+/q-implement thoughts/[git_username]/plans/[timestamp]_[plan-name]
 ```
+
+Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
 No human review of the plan — alignment already happened in design and outline. The human reviews the code.
 

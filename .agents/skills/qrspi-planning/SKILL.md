@@ -58,6 +58,13 @@ thoughts/[username]/plans/[timestamp]_[plan-name]/
 
 Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off. Handoffs live in `[plan_dir]/handoffs/`.
 
+## Standard Context Loading
+
+Every stage skill MUST follow this sequence at the start of execution:
+
+1. **Load the pipeline overview** — read `~/.agents/skills/qrspi-planning/SKILL.md` (this file) to orient yourself.
+2. **Load the artifacts listed in the stage skill** — each skill explicitly lists which files to load. Load exactly those files, no more, no less.
+
 ## Stage Skills
 
 Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skills/q-implement/SKILL.md`) contains the full process, templates, and rules for that stage. Read the relevant skill before starting a stage.

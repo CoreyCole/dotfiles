@@ -11,7 +11,14 @@ You are the first stage of the QRSPI pipeline. Your job is to turn a vague ticke
 
 ## When Invoked
 
-1. **If a ticket path or description was provided**, read it fully and begin.
+0. **Load context:**
+   - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - If a plan directory was provided (2nd pass), load any existing artifacts:
+     - `[plan_dir]/questions.md`
+     - `[plan_dir]/design.md`
+     - `[plan_dir]/outline.md`
+     - All files in `[plan_dir]/research/`
+1. **If a ticket path, plan directory, or description was provided**, read it fully and begin.
 2. **If no parameters**, respond:
 
 ```
@@ -22,6 +29,7 @@ Please provide:
 2. Any additional context
 
 Tip: `/q-question thoughts/shared/tickets/ENG-1234.md`
+2nd pass: `/q-question thoughts/[git_username]/plans/[timestamp]_[plan-name]`
 ```
 
 Then wait for input.
@@ -30,15 +38,15 @@ Then wait for input.
 
 1. **Gather metadata** by running `~/dotfiles/spec_metadata.sh`.
 
-2. **Create the plan directory**:
+2. **Create a new plan directory**:
    ```
    thoughts/[git_username]/plans/[timestamp]_[plan-name]/
    ```
-   This directory is used by all subsequent QRSPI stages. You create it; they expect it.
+   Always create a new directory, even on a 2nd pass. If revisiting an existing plan, use the same `[plan-name]` with a fresh timestamp. The old plan directory stays intact as history.
 
 3. **Copy `AGENTS.md` into the plan directory** from `~/.agents/skills/qrspi-planning/AGENTS.md`. This orients any agent that lands in the directory later.
 
-4. **Read the ticket** and any linked documents fully.
+4. **Read the ticket** and any linked documents fully. If this is a 2nd pass from an existing plan directory, the prior artifacts loaded in step 0 are your context instead of a ticket.
 
 5. **Explore the relevant codebase** — grep for related files, read existing tests, check git log for recent changes in the area. Understand enough to ask good questions, but do NOT form a solution.
 
@@ -57,9 +65,14 @@ Write to `thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions.md`:
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
+last_updated_by: [git_username]
+git_commit: [current commit hash]
+branch: [current branch]
+repository: [repository name]
 stage: question
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+prev_plan_dir: "[path to previous plan directory, if 2nd pass]"
 ---
 
 # Research Questions: [Ticket Title]
@@ -81,17 +94,19 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When questions.md is written, respond to the user with the exact artifact path and the next command:
+When questions.md is written, respond to the user with the **full file path** (not just the directory) and the next command:
 
 ```
-Questions written to [exact path to questions.md].
+Questions written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions.md
 
 [brief summary of the questions]
 
 Ready to proceed? Start research with:
 
-/q-research [exact path to plan_dir]
+/q-research thoughts/[git_username]/plans/[timestamp]_[plan-name]
 ```
+
+Always include the complete `thoughts/.../questions.md` path. Never abbreviate to just the directory.
 
 **If the user responds with feedback** (additions, corrections, missing areas), ask followup questions if more context would be helpful, update questions.md accordingly, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
 
