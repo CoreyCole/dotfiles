@@ -159,6 +159,24 @@ func TestToolUseCycle(t *testing.T) {
 	comparePiOutput(t, got, expectedPi)
 }
 
+func TestAgentSubagent(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "08_agent_subagent")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
+func TestTaskTools(t *testing.T) {
+	claude, expectedPi := loadTestData(t, "09_task_tools")
+	got, err := ConvertSession(claude)
+	if err != nil {
+		t.Fatalf("ConvertSession: %v", err)
+	}
+	comparePiOutput(t, got, expectedPi)
+}
+
 func TestSimpleChat(t *testing.T) {
 	claude, expectedPi := loadTestData(t, "01_simple_chat")
 	got, err := ConvertSession(claude)
