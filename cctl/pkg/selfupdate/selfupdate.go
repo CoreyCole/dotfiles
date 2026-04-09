@@ -36,7 +36,7 @@ func CheckAndRebuild(compiledVersion string) error {
 	fmt.Fprintf(os.Stderr, "cctl: auto-rebuilding (v%d → v%d)...\n", compiledVer, sourceVer)
 
 	ldflags := fmt.Sprintf("-X main.version=%d", sourceVer)
-	outputPath := filepath.Join(srcDir, "bin", "cctl")
+	outputPath := filepath.Join(srcDir, "bin", "c")
 
 	// Ensure bin/ directory exists
 	os.MkdirAll(filepath.Join(srcDir, "bin"), 0755)
@@ -55,7 +55,7 @@ func CheckAndRebuild(compiledVersion string) error {
 }
 
 // sourceDir resolves the source directory from the binary location.
-// Binary is at <srcDir>/bin/cctl, so we go up one level from the binary's dir.
+// Binary is at <srcDir>/bin/c, so we go up one level from the binary's dir.
 func sourceDir() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -68,7 +68,7 @@ func sourceDir() (string, error) {
 		return "", err
 	}
 
-	// Binary is at <srcDir>/bin/cctl → go up two levels
+	// Binary is at <srcDir>/bin/c → go up two levels
 	binDir := filepath.Dir(exe)
 	srcDir := filepath.Dir(binDir)
 

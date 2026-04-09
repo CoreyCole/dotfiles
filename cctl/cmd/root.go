@@ -11,7 +11,7 @@ import (
 var Version string
 
 var rootCmd = &cobra.Command{
-	Use:   "cctl",
+	Use:   "c",
 	Short: "Dotfiles workflow Swiss army knife",
 }
 
@@ -19,7 +19,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cctl version", Version)
+		fmt.Println("c version", Version)
 	},
 }
 
