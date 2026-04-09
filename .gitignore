@@ -30,3 +30,4 @@ context/
 .pi-config/sessions/
 *.local*
 .claude/.ranger_cache.json
+cctl/bin/
