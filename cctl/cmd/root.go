@@ -12,7 +12,7 @@ var Version string
 
 var rootCmd = &cobra.Command{
 	Use:   "c",
-	Short: "Dotfiles workflow Swiss army knife",
+	Short: "Corey Cole's dotfiles CLI",
 }
 
 var versionCmd = &cobra.Command{
