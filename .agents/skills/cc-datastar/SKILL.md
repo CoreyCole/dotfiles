@@ -1,5 +1,5 @@
 ---
-name: datastar
+name: cc-datastar
 description: Use when building or modifying Datastar-powered UI — SSE streams, templ components, form handlers, signals, morph patterns, loading indicators. Enforces the Tao of Datastar (backend is source of truth, CQRS, fat morph, signals sparingly). Use for any work touching .templ files, SSE handlers, or Datastar attributes.
 references:
   - docs/guide-getting-started.md
@@ -27,12 +27,14 @@ Source: https://data-star.dev/guide/the_tao_of_datastar
 All application state lives in the backend. The frontend renders what the backend sends. Period.
 
 **Never do this:**
+
 - Cache application state in signals
 - Derive computed values on the frontend that the backend should own
 - Assume frontend state is current without fetching from the backend
 - Store anything in signals that needs to survive a page refresh
 
 **Always do this:**
+
 - Store state in your DB/session
 - Push state to the frontend via SSE `PatchElementTempl` or `PatchSignals`
 - Re-query the backend on every state change notification
@@ -40,8 +42,9 @@ All application state lives in the backend. The frontend renders what the backen
 ### Use Signals Sparingly
 
 Signals are **only** for two things:
+
 1. UI interactions — toggling element visibility (`$showMenu`, `$showDetails`)
-2. Binding form inputs to send new state to the backend
+1. Binding form inputs to send new state to the backend
 
 **If you need more than a handful of boolean toggles, you are fighting the framework.** Move the logic to the backend.
 
@@ -52,11 +55,13 @@ Signals beginning with underscores (`_`) are excluded from backend requests by d
 Send the **full component** from the backend. Datastar morphs the DOM, updating only what changed while preserving signal state, focus, and scroll position. This is called "fat morph."
 
 **Never do this:**
+
 - Try to patch individual elements or manage fine-grained DOM updates
 - Use `ExecuteScript` to update content (use it only for redirects, scroll-to-bottom, or similar one-shot browser actions)
 - Build custom frontend JavaScript to handle streaming content
 
 **Always do this:**
+
 - Re-render the full component server-side and send via `PatchElementTempl`
 - Put a stable `id` on every element you morph
 - Use `data-ignore-morph` on elements that should not be touched (textareas with in-progress edits)
@@ -97,17 +102,17 @@ Never trust user input in Datastar expressions — they execute JavaScript. Alwa
 ## Common Mistakes (Do Not Do These)
 
 1. **Using signals for application state** — Signals are UI toggles only. Track data in the backend, morph it down.
-2. **Fine-grained element patching** — Don't update individual elements. Send the full component. Trust the morph.
-3. **Missing `id` on patched elements** — Every `PatchElementTempl` target must have a stable `id`.
-4. **Missing parent `<form>` for `contentType: 'form'`** — Silent failure. `@post` with `contentType: 'form'` **requires** a parent `<form>` element or Datastar throws `FetchClosestFormNotFound`.
-5. **Using signals for form inputs** — Use `name` attributes on `<input>`, `<select>`, `<textarea>`. Not signals.
-6. **Optimistic updates** — Never update UI before backend confirms. Loading indicators only.
-7. **`ExecuteScript` for streaming or data updates** — Use periodic morph instead. `ExecuteScript` is for redirects and scroll-to-bottom only.
-8. **Forgetting `data-ignore-morph` on active textareas** — SSE morphs clobber in-progress text.
-9. **Managing browser history** — Use `<a>` tags. Let the browser handle it.
-10. **Overcomplicating with signals** — More than a few boolean toggles means you're doing it wrong.
+1. **Fine-grained element patching** — Don't update individual elements. Send the full component. Trust the morph.
+1. **Missing `id` on patched elements** — Every `PatchElementTempl` target must have a stable `id`.
+1. **Missing parent `<form>` for `contentType: 'form'`** — Silent failure. `@post` with `contentType: 'form'` **requires** a parent `<form>` element or Datastar throws `FetchClosestFormNotFound`.
+1. **Using signals for form inputs** — Use `name` attributes on `<input>`, `<select>`, `<textarea>`. Not signals.
+1. **Optimistic updates** — Never update UI before backend confirms. Loading indicators only.
+1. **`ExecuteScript` for streaming or data updates** — Use periodic morph instead. `ExecuteScript` is for redirects and scroll-to-bottom only.
+1. **Forgetting `data-ignore-morph` on active textareas** — SSE morphs clobber in-progress text.
+1. **Managing browser history** — Use `<a>` tags. Let the browser handle it.
+1. **Overcomplicating with signals** — More than a few boolean toggles means you're doing it wrong.
 
----
+______________________________________________________________________
 
 ## Patterns (How to Do It Right)
 
@@ -212,7 +217,7 @@ Manually add loading class on click. The SSE morph removes it (server-rendered s
 </div>
 ```
 
----
+______________________________________________________________________
 
 ## Quick Reference
 
