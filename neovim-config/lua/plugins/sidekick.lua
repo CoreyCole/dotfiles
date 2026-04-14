@@ -17,6 +17,12 @@ return {
                 claude = {
                     cmd = { "claude", "--dangerously-skip-permissions" },
                 },
+                pi = {
+                    cmd = { "pi" },
+                    is_proc = "\\<pi\\>",
+                    resume = { "--resume" },
+                    continue = { "--continue" },
+                },
             },
         },
     },
@@ -108,6 +114,13 @@ return {
                 require("sidekick.cli").toggle { name = "claude", focus = true }
             end,
             desc = "Sidekick Toggle Claude",
+        },
+        {
+            "<leader>ax",
+            function()
+                require("sidekick.cli").toggle { name = "pi", focus = true }
+            end,
+            desc = "Sidekick Toggle Pi",
         },
         {
             "<leader>ar",

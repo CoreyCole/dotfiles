@@ -38,6 +38,7 @@
         pkgs.gh
         pkgs.mergiraf
         pkgs.tailscale
+        pkgs.lazygit
 
         # Language Servers and Formatters
         # Lua

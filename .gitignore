@@ -31,3 +31,4 @@ context/
 *.local*
 .claude/.ranger_cache.json
 cctl/bin/
+auth.json
