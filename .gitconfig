@@ -1,15 +1,19 @@
-[core]
-	autocrlf = false
-  editor = nvim
-
 [user]
-	email = coreyleoc@gmail.com
   name = Corey Cole
+  email = coreyleoc@gmail.com
+  signingkey = 9508939C427DA750
 
-[push]
-  autoSetupRemote = true
+[url "git@github.com:"]
+  insteadOf = https://github.com/
+
+[commit]
+  gpgsign = true
 
 [core]
+  autocrlf = false
+  attributesfile = ~/.gitattributes
+  sshCommand = ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes
+  editor = nvim
   pager = delta
 
 [interactive]
@@ -22,5 +26,19 @@
   dark = true      # or light = true, or omit for auto-detection
   syntax-theme = "base16"
 
+[tag]
+  gpgSign = true
+
+[push]
+  autoSetupRemote = true
+
+[merge "mergiraf"]
+  conflictStyle = zdiff3
+  name = mergiraf
+  driver = mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L
+
 [merge]
   conflictStyle = zdiff3
+
+[pull]
+  rebase = true
