@@ -33,3 +33,5 @@ context/
 cctl/bin/
 auth.json
 sessions/
+.zshrc.local
+secrets.sh

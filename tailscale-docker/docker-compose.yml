@@ -1,0 +1,18 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: mac-docker-personal
+    env_file: .env
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_EXTRA_ARGS=--ssh
+      - TS_USERSPACE=true
+      - TS_SOCKS5_SERVER=0.0.0.0:1055
+    ports:
+      - "1055:1055"
+    volumes:
+      - ts-state:/var/lib/tailscale
+    restart: unless-stopped
+
+volumes:
+  ts-state:
