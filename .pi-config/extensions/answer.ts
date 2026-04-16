@@ -11,7 +11,7 @@
  */
 
 import { complete, type Model, type Api, type UserMessage } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import { BorderedLoader } from "@mariozechner/pi-coding-agent";
 import {
 	type Component,
@@ -53,46 +53,49 @@ Rules:
 - Be concise with question text
 - Include context only when it provides essential information for answering
 - If no questions are found, return {"questions": []}
-- IMPORTANT: When a question has multiple choice options (a, b, c or 1, 2, 3), preserve them EXACTLY in the context field using the format "(a) Option one, (b) Option two, (c) Option three"
 
 Example output:
 {
   "questions": [
     {
       "question": "What is your preferred database?",
-      "context": "(a) MySQL, (b) PostgreSQL, (c) SQLite"
+      "context": "We can only configure MySQL and PostgreSQL because of what is implemented."
     },
     {
-      "question": "Should we use TypeScript or JavaScript?",
-      "context": "(a) TypeScript, (b) JavaScript"
-    },
-    {
-      "question": "What port should the server run on?"
+      "question": "Should we use TypeScript or JavaScript?"
     }
   ]
 }`;
 
+const CODEX_MODEL_ID = "gpt-5.1-codex-mini";
 const HAIKU_MODEL_ID = "claude-haiku-4-5";
 
 /**
- * Prefer Haiku for extraction (fast, cheap), otherwise fallback to the current model.
+ * Prefer Codex mini for extraction when available, otherwise fallback to haiku or the current model.
  */
 async function selectExtractionModel(
 	currentModel: Model<Api>,
-	modelRegistry: {
-		find: (provider: string, modelId: string) => Model<Api> | undefined;
-		getApiKey: (model: Model<Api>) => Promise<string | undefined>;
-	},
+	modelRegistry: ModelRegistry,
 ): Promise<Model<Api>> {
-	const haikuModel = modelRegistry.find("anthropic", HAIKU_MODEL_ID);
-	if (haikuModel) {
-		const apiKey = await modelRegistry.getApiKey(haikuModel);
-		if (apiKey) {
-			return haikuModel;
+	const codexModel = modelRegistry.find("openai-codex", CODEX_MODEL_ID);
+	if (codexModel) {
+		const auth = await modelRegistry.getApiKeyAndHeaders(codexModel);
+		if (auth.ok) {
+			return codexModel;
 		}
 	}
 
-	return currentModel;
+	const haikuModel = modelRegistry.find("anthropic", HAIKU_MODEL_ID);
+	if (!haikuModel) {
+		return currentModel;
+	}
+
+	const auth = await modelRegistry.getApiKeyAndHeaders(haikuModel);
+	if (!auth.ok) {
+		return currentModel;
+	}
+
+	return haikuModel;
 }
 
 /**
@@ -190,82 +193,6 @@ class QnAComponent implements Component {
 		this.invalidate();
 	}
 
-	/**
-	 * Format context for TUI display, splitting choices onto separate lines and wrapping
-	 */
-	private formatContextForDisplay(context: string, maxWidth: number): string[] {
-		const lines: string[] = [];
-
-		// Check if context contains multiple choice options
-		const choicePattern = /(?:^|,\s*|\s+)\(([a-z]|[0-9]+)\)\s+/gi;
-		const matches = [...context.matchAll(choicePattern)];
-
-		if (matches.length >= 2) {
-			// Check if there's text before the first choice
-			const firstMatchIndex = matches[0].index || 0;
-			const prefix = context.slice(0, firstMatchIndex).trim();
-			if (prefix) {
-				const wrappedPrefix = wrapTextWithAnsi(prefix, maxWidth);
-				lines.push(...wrappedPrefix);
-				lines.push(""); // Empty line before choices
-			}
-
-			// Format each choice on its own line
-			for (let i = 0; i < matches.length; i++) {
-				const match = matches[i];
-				const startIndex = match.index || 0;
-				const endIndex = i < matches.length - 1 ? matches[i + 1].index : context.length;
-				const choiceText = context.slice(startIndex, endIndex).replace(/^,?\s*/, "").trim();
-
-				// Wrap long choice text with proper indentation
-				const wrappedChoice = wrapTextWithAnsi(`  ${choiceText}`, maxWidth);
-				lines.push(...wrappedChoice);
-			}
-
-			return lines;
-		}
-
-		// No choices detected, just wrap the text
-		return wrapTextWithAnsi(context, maxWidth);
-	}
-
-	/**
-	 * Format context text, splitting multiple choice options onto separate lines
-	 * Detects patterns like (a), (b), (1), (2), etc.
-	 */
-	private formatContext(context: string): string[] {
-		// Check if context contains multiple choice options
-		// Pattern: (a), (b), (c) or (1), (2), (3) or a), b), c)
-		const choicePattern = /(?:^|,\s*|\s+)\(([a-z]|[0-9]+)\)\s+/gi;
-		const matches = [...context.matchAll(choicePattern)];
-
-		if (matches.length >= 2) {
-			// Split by the choice markers and format each on its own line
-			const lines: string[] = [];
-
-			// Check if there's text before the first choice (like "Options:" or "Pick any:")
-			const firstMatchIndex = matches[0].index || 0;
-			const prefix = context.slice(0, firstMatchIndex).trim();
-			if (prefix) {
-				lines.push(`> ${prefix}`);
-			}
-
-			// Split the choices
-			for (let i = 0; i < matches.length; i++) {
-				const match = matches[i];
-				const startIndex = match.index || 0;
-				const endIndex = i < matches.length - 1 ? matches[i + 1].index : context.length;
-				const choiceText = context.slice(startIndex, endIndex).replace(/^,?\s*/, "").trim();
-				lines.push(`>   ${choiceText}`);
-			}
-
-			return lines;
-		}
-
-		// No choices detected, return as single line
-		return [`> ${context}`];
-	}
-
 	private submit(): void {
 		this.saveCurrentAnswer();
 
@@ -276,8 +203,7 @@ class QnAComponent implements Component {
 			const a = this.answers[i]?.trim() || "(no answer)";
 			parts.push(`Q: ${q.question}`);
 			if (q.context) {
-				const contextLines = this.formatContext(q.context);
-				parts.push(...contextLines);
+				parts.push(`> ${q.context}`);
 			}
 			parts.push(`A: ${a}`);
 			parts.push("");
@@ -431,12 +357,13 @@ class QnAComponent implements Component {
 			lines.push(padToWidth(boxLine(line)));
 		}
 
-		// Context if present - format choices on separate lines
+		// Context if present
 		if (q.context) {
 			lines.push(padToWidth(emptyBoxLine()));
-			const contextLines = this.formatContextForDisplay(q.context, contentWidth - 4);
-			for (const contextLine of contextLines) {
-				lines.push(padToWidth(boxLine(this.gray(contextLine))));
+			const contextText = this.gray(`> ${q.context}`);
+			const wrappedContext = wrapTextWithAnsi(contextText, contentWidth - 2);
+			for (const line of wrappedContext) {
+				lines.push(padToWidth(boxLine(line)));
 			}
 		}
 
@@ -498,8 +425,7 @@ export default function (pi: ExtensionAPI) {
 				if (entry.type === "message") {
 					const msg = entry.message;
 					if ("role" in msg && msg.role === "assistant") {
-						// Accept "stop" and "toolUse" (for self-invoked /answer via execute_command)
-						if (msg.stopReason !== "stop" && msg.stopReason !== "toolUse") {
+						if (msg.stopReason !== "stop") {
 							ctx.ui.notify(`Last assistant message incomplete (${msg.stopReason})`, "error");
 							return;
 						}
@@ -528,7 +454,10 @@ export default function (pi: ExtensionAPI) {
 				loader.onAbort = () => done(null);
 
 				const doExtract = async () => {
-					const apiKey = await ctx.modelRegistry.getApiKey(extractionModel);
+					const auth = await ctx.modelRegistry.getApiKeyAndHeaders(extractionModel);
+					if (!auth.ok) {
+						throw new Error(auth.error);
+					}
 					const userMessage: UserMessage = {
 						role: "user",
 						content: [{ type: "text", text: lastAssistantText! }],
@@ -538,7 +467,7 @@ export default function (pi: ExtensionAPI) {
 					const response = await complete(
 						extractionModel,
 						{ systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
-						{ apiKey, signal: loader.signal },
+						{ apiKey: auth.apiKey, headers: auth.headers, signal: loader.signal },
 					);
 
 					if (response.stopReason === "aborted") {
@@ -599,10 +528,5 @@ export default function (pi: ExtensionAPI) {
 	pi.registerShortcut("ctrl+.", {
 		description: "Extract and answer questions",
 		handler: answerHandler,
-	});
-
-	// Listen for trigger from other extensions (e.g., execute_command tool)
-	pi.events.on("trigger:answer", (ctx: ExtensionContext) => {
-		answerHandler(ctx);
 	});
 }
