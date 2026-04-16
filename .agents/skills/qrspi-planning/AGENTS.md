@@ -18,7 +18,7 @@ This directory follows the QRSPI planning pipeline. It grows over time as stages
 
 | Artifact | Stage | Skill | Human gate? |
 |----------|-------|-------|-------------|
-| `questions.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Yes |
+| `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Yes |
 | `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Yes |
 | `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Yes |
 | `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | Yes |
@@ -29,7 +29,7 @@ Every stage through outline requires human review before proceeding. Do not outs
 
 ## This process is not linear
 
-You may loop back to earlier stages at any time. If research reveals missed questions, write new ones. If design surfaces unknowns, do more research. The directory accumulates artifacts from these loops — multiple research docs are expected.
+You may loop back to earlier stages at any time. If research reveals missed questions, write new question docs. If design surfaces unknowns, do more research. The directory accumulates artifacts from these loops — multiple question docs and research docs are expected.
 
 ## Path convention
 
@@ -40,6 +40,11 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
 ```
 
 All `/q-*` commands take this path as their argument. Use the full relative path starting from `thoughts/`.
+
+Recommended subdirectories inside a plan directory:
+- `prds/` for PRDs, ticket exports, screenshots, and related product context
+- `questions/` for timestamped question docs
+- `research/` for timestamped research docs
 
 ## Key constraints
 

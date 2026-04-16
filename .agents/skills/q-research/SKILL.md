@@ -13,23 +13,24 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read `[plan_dir]/questions.md`
-   - Do NOT load design.md, outline.md, or the ticket. Research answers questions with pure codebase facts.
-1. **If a plan directory path was provided**, read `[plan_dir]/questions.md` fully and begin.
+   - Read all files in `[plan_dir]/questions/`
+   - Do NOT load design.md, outline.md, `prds/`, or the ticket. Research answers questions with pure codebase facts.
+1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read the relevant question doc(s) in `[plan_dir]/questions/` fully, and begin.
 2. **If no parameters**, respond:
 
 ```
 I'll research the codebase to answer your questions.
 
-Please provide the plan directory path containing questions.md:
+Please provide the plan directory path or question doc path:
 e.g. `/q-research thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+or `/q-research thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md`
 ```
 
 Then wait for input.
 
 ## Process
 
-1. **Read `[plan_dir]/questions.md` fully.** This is your ONLY input. Do not read the ticket. Do not ask what is being built.
+1. **Read the relevant question doc(s) in `[plan_dir]/questions/` fully.** These are your ONLY inputs. If the user passed a specific question doc path, treat that file as the primary input. Otherwise prefer the newest timestamped question doc unless the user specifies otherwise. Do not read the ticket. Do not ask what is being built.
 
 2. **For each question**, spawn parallel sub-agents to research:
    - Use **codebase-locator** to find relevant files
@@ -100,19 +101,19 @@ Research written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/resear
 
 Ready to proceed? Start design with:
 
-/q-design thoughts/[git_username]/plans/[timestamp]_[plan-name]
+/q-design thoughts/[git_username]/plans/[timestamp]_[plan-name]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md
 
-Need more research? Run /q-research again with additional questions.
+Need more research? Run /q-research again with an additional question doc path or the plan directory.
 ```
 
-Always include the complete `thoughts/.../research/filename.md` path. Never abbreviate to just the directory.
+Always include the complete `thoughts/.../research/filename.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
 
 **If the user responds with feedback** (follow-up questions, areas to dig deeper, corrections), ask followup questions if more context would be helpful, do the additional research, update or write a new research doc, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
 
 ## Rules
 
 - This is research, not design. Do NOT propose solutions. Do NOT write pseudocode. Just answer the questions.
-- Do NOT read the ticket or any document that reveals what is being built. Only read `questions.md`.
+- Do NOT read the ticket or any document that reveals what is being built. Only read the relevant files in `questions/`.
 - Every claim must have a file:line reference. No hand-waving.
 - If a question can't be answered from the codebase, say so clearly — don't speculate.
 - Keep answers factual and concise. Code references over prose.

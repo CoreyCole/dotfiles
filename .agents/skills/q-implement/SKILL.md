@@ -13,19 +13,21 @@ You are the sixth stage of the QRSPI pipeline. You execute the plan slice by sli
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read `[plan_dir]/questions.md`
+   - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read `[plan_dir]/outline.md`
    - Read `[plan_dir]/plan.md`
    - Read all files in `[plan_dir]/research/`
-1. **If a plan directory path was provided**, load the artifacts above, then begin from the first unchecked slice.
+   - Read all files in `[plan_dir]/prds/`
+1. **If a plan directory path or plan doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin from the first unchecked slice.
 2. **If no parameters**, respond:
 
 ```
 I'll implement the plan slice by slice.
 
-Please provide the plan directory path:
+Please provide the plan directory path or plan doc path:
 e.g. `/q-implement thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+or `/q-implement thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/plan.md`
 ```
 
 Then wait for input.

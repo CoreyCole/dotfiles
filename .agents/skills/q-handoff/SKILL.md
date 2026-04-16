@@ -26,7 +26,7 @@ The QRSPI pipeline stages in order:
 
 | # | Stage | Skill | Produces |
 |---|-------|-------|----------|
-| 1 | question | `/q-question` | `questions.md` |
+| 1 | question | `/q-question` | `questions/*.md` |
 | 2 | research | `/q-research` | `research/*.md` |
 | 3 | design | `/q-design` | `design.md` |
 | 4 | outline | `/q-outline` | `outline.md` |
@@ -108,7 +108,7 @@ If `continue` mode: state that the current stage is complete and direct the next
 If checkpoint mode: describe where you left off within the current stage. Example: "continue answering question 5" or "implement slice 3, slices 1-2 are done".}
 ```
 
-Keep it concise. The artifacts (questions.md, research/*.md, design.md, etc.) carry the substance — the handoff carries the meta-context that isn't in them.
+Keep it concise. The artifacts (`questions/*.md`, `research/*.md`, `design.md`, etc.) carry the substance — the handoff carries the meta-context that isn't in them.
 
 ### 5. Sync
 

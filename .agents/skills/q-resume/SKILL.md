@@ -26,12 +26,12 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 | Stage | Load these artifacts |
 |-------|---------------------|
-| question | (none — you're producing questions.md) |
-| research | `questions.md` only |
-| design | `questions.md`, `research/*.md` |
-| outline | `questions.md`, `design.md`, `research/*.md` |
-| plan | `questions.md`, `design.md`, `outline.md`, `research/*.md` |
-| implement | `questions.md`, `design.md`, `outline.md`, `plan.md`, `research/*.md` |
+| question | existing `questions/*.md`, `research/*.md`, `design.md`, `outline.md`, `prds/*` as relevant |
+| research | relevant `questions/*.md` only |
+| design | `questions/*.md`, `research/*.md`, `prds/*` |
+| outline | `questions/*.md`, `design.md`, `research/*.md`, `prds/*` |
+| plan | `questions/*.md`, `design.md`, `outline.md`, `research/*.md`, `prds/*` |
+| implement | `questions/*.md`, `design.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*` |
 
 ### 3. Continue working
 

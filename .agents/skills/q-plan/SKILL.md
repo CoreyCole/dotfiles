@@ -13,25 +13,27 @@ You are the fifth stage of the QRSPI pipeline. You expand the structured outline
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read `[plan_dir]/questions.md`
+   - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read `[plan_dir]/outline.md`
    - Read all files in `[plan_dir]/research/`
-1. **If a plan directory path was provided**, load the artifacts above, then begin.
+   - Read all files in `[plan_dir]/prds/`
+1. **If a plan directory path or outline doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
 2. **If no parameters**, respond:
 
 ```
 I'll expand your outline into a detailed implementation plan.
 
-Please provide the plan directory path:
+Please provide the plan directory path or outline doc path:
 e.g. `/q-plan thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+or `/q-plan thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/outline.md`
 ```
 
 Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: `questions.md`, `design.md`, `outline.md`, and all `research/*.md` files.
+1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, `design.md`, `outline.md`, all `research/*.md`, and any relevant files in `prds/`.
 
 2. **Read key files from the codebase** that the outline references — you need to see the actual code to write accurate implementation steps.
 
@@ -108,10 +110,10 @@ Plan written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/plan.md
 
 Start implementation with:
 
-/q-implement thoughts/[git_username]/plans/[timestamp]_[plan-name]
+/q-implement thoughts/[git_username]/plans/[timestamp]_[plan-name]/plan.md
 ```
 
-Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
+Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
 
 No human review of the plan — alignment already happened in design and outline. The human reviews the code.
 

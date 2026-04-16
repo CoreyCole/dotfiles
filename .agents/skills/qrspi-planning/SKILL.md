@@ -11,7 +11,7 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 
 | # | Stage | Skill | Produces | Human gate? |
 |---|-------|-------|----------|-------------|
-| 1 | Question | `/q-question` | `questions.md` | **Yes** — human reviews questions before research |
+| 1 | Question | `/q-question` | `questions/*.md` | **Yes** — human reviews questions before research |
 | 2 | Research | `/q-research` | `research/*.md` | **Yes** — human reviews findings before design |
 | 3 | Design | `/q-design` | `design.md` | **Yes** — human approves approach |
 | 4 | Outline | `/q-outline` | `outline.md` | **Yes** — last gate before code |
@@ -39,14 +39,15 @@ Common loops:
 - **Outline -> Design**: Structural planning reveals a design flaw. Revise the design before continuing.
 - **Plan -> Outline**: Implementation details show a slice won't work as outlined. Adjust the outline.
 
-The plan directory accumulates artifacts from these loops. Multiple research docs are expected. Design and outline may be revised. The directory is the living record of the work.
+The plan directory accumulates artifacts from these loops. Multiple question docs and research docs are expected. Design and outline may be revised. The directory is the living record of the work.
 
 ## The Plan Directory
 
 ```
 thoughts/[username]/plans/[timestamp]_[plan-name]/
   AGENTS.md          # How to work in this directory (copy from ~/.agents/skills/qrspi-planning/AGENTS.md)
-  questions.md       # Stage 1: Research questions
+  prds/              # Source PRDs, ticket exports, screenshots, and related product docs
+  questions/         # Stage 1: Research questions (multiple files expected)
   research/          # Stage 2: Research findings (multiple files expected)
   design.md          # Stage 3: Design document
   outline.md         # Stage 4: Structured outline
@@ -76,3 +77,4 @@ Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skil
 - The plan is a machine document. The human aligned on direction via design and outline. Save the deep review for the actual code.
 - The plan's status checkboxes are the context recovery mechanism. Keep them updated during implementation.
 - When looping back, add new artifacts rather than overwriting. The history matters.
+- Stage handoffs should prefer the **full path to the newly created artifact** (for example a specific `questions/*.md`, `research/*.md`, `design.md`, `outline.md`, or `plan.md`) in both the success response and the suggested next `/q-*` command. Do not abbreviate to only the parent plan directory when an artifact path exists.

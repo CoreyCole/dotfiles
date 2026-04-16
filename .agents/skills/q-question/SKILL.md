@@ -13,12 +13,13 @@ You are the first stage of the QRSPI pipeline. Your job is to turn a vague ticke
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - If a plan directory was provided (2nd pass), load any existing artifacts:
-     - `[plan_dir]/questions.md`
+   - If a plan directory was provided (follow-up pass), load any existing artifacts:
+     - All files in `[plan_dir]/questions/`
      - `[plan_dir]/design.md`
      - `[plan_dir]/outline.md`
      - All files in `[plan_dir]/research/`
-1. **If a ticket path, plan directory, or description was provided**, read it fully and begin.
+     - All files in `[plan_dir]/prds/`
+1. **If a ticket path, plan directory, artifact path, or description was provided**, read it fully and begin.
 2. **If no parameters**, respond:
 
 ```
@@ -38,28 +39,35 @@ Then wait for input.
 
 1. **Gather metadata** by running `~/dotfiles/spec_metadata.sh`.
 
-2. **Create a new plan directory**:
-   ```
-   thoughts/[git_username]/plans/[timestamp]_[plan-name]/
-   ```
-   Always create a new directory, even on a 2nd pass. If revisiting an existing plan, use the same `[plan-name]` with a fresh timestamp. The old plan directory stays intact as history.
+2. **Determine the plan directory**:
+   - **New work**: create a new directory at
+     ```
+     thoughts/[git_username]/plans/[timestamp]_[plan-name]/
+     ```
+   - **Follow-up pass with an existing plan directory**: reuse that exact directory. Do NOT create a sibling timestamped plan directory just to add more questions.
 
-3. **Copy `AGENTS.md` into the plan directory** from `~/.agents/skills/qrspi-planning/AGENTS.md`. This orients any agent that lands in the directory later.
+3. **Ensure plan scaffolding exists**:
+   - Copy `AGENTS.md` into the plan directory from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
+   - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, and `[plan_dir]/research/` exist.
 
-4. **Read the ticket** and any linked documents fully. If this is a 2nd pass from an existing plan directory, the prior artifacts loaded in step 0 are your context instead of a ticket.
+4. **Read the ticket / PRD(s)** and any linked documents fully. If this is a follow-up pass from an existing plan directory, use the prior artifacts plus any PRDs in `prds/` as your context.
 
-5. **Explore the relevant codebase** — grep for related files, read existing tests, check git log for recent changes in the area. Understand enough to ask good questions, but do NOT form a solution.
+5. **Populate `prds/` when relevant**:
+   - Store relevant PRDs, ticket exports, and screenshots under `[plan_dir]/prds/`.
+   - Prefer descriptive filenames. Preserve history rather than overwriting unrelated docs.
 
-6. **Write 3-7 research questions** to `[plan_dir]/questions.md`. Each question must be:
+6. **Explore the relevant codebase** — grep for related files, read existing tests, check git log for recent changes in the area. Understand enough to ask good questions, but do NOT form a solution.
+
+7. **Write 3-7 research questions** to a new timestamped file under `[plan_dir]/questions/`. Each question doc must be:
    - Specific and independently answerable
    - Neutral — no preferred solution embedded
    - Focused on facts about the codebase, not opinions
 
-7. **Include a Codebase References section** listing files and areas the researcher should start from.
+8. **Include a Codebase References section** listing files and areas the researcher should start from.
 
 ## Output Template
 
-Write to `thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions.md`:
+Write to `thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md`:
 
 ```markdown
 ---
@@ -72,7 +80,9 @@ repository: [repository name]
 stage: question
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
-prev_plan_dir: "[path to previous plan directory, if 2nd pass]"
+question_doc: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md"
+prev_question_docs:
+  - "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/..."
 ---
 
 # Research Questions: [Ticket Title]
@@ -94,21 +104,21 @@ prev_plan_dir: "[path to previous plan directory, if 2nd pass]"
 
 ## Response
 
-When questions.md is written, respond to the user with the **full file path** (not just the directory) and the next command:
+When the question doc is written, respond to the user with the **full file path** (not just the directory) and the next command:
 
 ```
-Questions written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions.md
+Questions written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md
 
 [brief summary of the questions]
 
 Ready to proceed? Start research with:
 
-/q-research thoughts/[git_username]/plans/[timestamp]_[plan-name]
+/q-research thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md
 ```
 
-Always include the complete `thoughts/.../questions.md` path. Never abbreviate to just the directory.
+Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-name.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
 
-**If the user responds with feedback** (additions, corrections, missing areas), ask followup questions if more context would be helpful, update questions.md accordingly, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
+**If the user responds with feedback** (additions, corrections, missing areas), ask followup questions if more context would be helpful, then either update the current question doc or write a new timestamped question doc in the same `questions/` directory, depending on whether the feedback is a revision or a new question set. Respond again with the same format. Repeat until the user is satisfied and moves to the next stage.
 
 ## Rules
 

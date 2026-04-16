@@ -15,24 +15,26 @@ You are the fourth stage of the QRSPI pipeline. You answer the question **"how d
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read `[plan_dir]/questions.md`
+   - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read all files in `[plan_dir]/research/`
-1. **If a plan directory path was provided**, load the artifacts above, then begin.
+   - Read all files in `[plan_dir]/prds/`
+1. **If a plan directory path or design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
 2. **If no parameters**, respond:
 
 ```
 I'll create a structured outline from your approved design.
 
-Please provide the plan directory path:
+Please provide the plan directory path or design doc path:
 e.g. `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+or `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/design.md`
 ```
 
 Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: `questions.md`, `design.md`, and all `research/*.md` files.
+1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, `design.md`, all `research/*.md`, and any relevant files in `prds/`.
 
 2. **Define the structural foundation** — the types, interfaces, schemas, and package structures that the plan will implement. This is the "C header" view of the entire system.
 
@@ -118,10 +120,10 @@ Outline written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/outline
 
 This is the last review gate before code. Ready to proceed? Generate the plan with:
 
-/q-plan thoughts/[git_username]/plans/[timestamp]_[plan-name]
+/q-plan thoughts/[git_username]/plans/[timestamp]_[plan-name]/outline.md
 ```
 
-Always include the complete `thoughts/.../outline.md` path. Never abbreviate to just the directory.
+Always include the complete `thoughts/.../outline.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
 
 **If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if more context would be helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above. This is the last gate — get it right. Repeat until the user approves and moves to the next stage.
 

@@ -15,25 +15,27 @@ You are the third stage of the QRSPI pipeline. You answer the question **"where 
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read `[plan_dir]/questions.md`
+   - Read all files in `[plan_dir]/questions/`
    - Read all files in `[plan_dir]/research/`
-1. **If a plan directory path was provided**, load the artifacts above, then begin.
+   - Read all files in `[plan_dir]/prds/`
+1. **If a plan directory path or research doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
 2. **If no parameters**, respond:
 
 ```
 I'll create a design document from your research findings.
 
-Please provide the plan directory path:
+Please provide the plan directory path or research doc path:
 e.g. `/q-design thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+or `/q-design thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`
 ```
 
 Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: `questions.md` and all `research/*.md` files.
+1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, all `research/*.md`, and any relevant files in `prds/`.
 
-2. **Read the original ticket** if referenced in `questions.md`. Now you know what's being built.
+2. **Read the original ticket / PRD context** if referenced in the question docs or stored in `prds/`. Now you know what's being built.
 
 1. **Read key files** identified in the research findings — especially patterns the implementation should follow.
 
@@ -119,10 +121,10 @@ Open questions for you:
 
 Ready to proceed? Start the structured outline with:
 
-/q-outline thoughts/[git_username]/plans/[timestamp]_[plan-name]
+/q-outline thoughts/[git_username]/plans/[timestamp]_[plan-name]/design.md
 ```
 
-Always include the complete `thoughts/.../design.md` path. Never abbreviate to just the directory.
+Always include the complete `thoughts/.../design.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
 
 **If the user responds with feedback** (corrections, different approach, answered questions, new concerns), ask any followup questions if more context would be helpful, do any additional research needed, update design.md accordingly, then respond again with the same format above. This is brain surgery — expect multiple rounds. Repeat until the user approves and moves to the next stage.
 
