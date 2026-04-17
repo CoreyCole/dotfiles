@@ -44,3 +44,15 @@ Based on the handoff's **Status** and **Next** sections, continue where the prev
 Apply any **Learnings** and **User Decisions** from the handoff as you work.
 
 Do not present an analysis or ask for confirmation. Just continue working.
+
+## Response Format
+
+When resuming work produces a user-facing completion response, use the same three-line shape:
+
+```text
+Artifact: [exact path to the primary artifact file that was created or updated]
+Summary: [brief result]
+Next: [next command, or `pipeline complete`]
+```
+
+If the handoff indicates the next stage should begin immediately, continue directly rather than stopping to explain the handoff.

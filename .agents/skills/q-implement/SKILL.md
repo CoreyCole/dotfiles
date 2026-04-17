@@ -67,14 +67,18 @@ This is why the checkboxes exist. Keep them updated.
 
 ## Response
 
-When all slices are complete and the PR is open, respond to the user with:
+When all slices are complete and the PR is open, use this exact response shape:
 
 ```
-Implementation complete. All [number] slices verified and committed.
+Artifact: [exact path to plan.md]
+Summary: implementation complete; all [number] slices verified and committed.
+Next: pipeline complete
+```
 
+Then include:
+
+```
 PR: [PR URL]
-
-Pipeline complete for [plan_dir].
 ```
 
 ## Rules
@@ -86,3 +90,4 @@ Pipeline complete for [plan_dir].
 - Commit after each successful slice. Small, working commits.
 - If you hit a problem not covered by the plan, update the plan before continuing. The plan stays alive.
 - Read the code you're about to modify before changing it — the codebase may have evolved since the plan was written.
+- In every user-facing completion response, use the same three-line shape: `Artifact: ...`, `Summary: ...`, `Next: ...`. For implementation completion, the artifact is `plan.md` and `Next` is `pipeline complete`.

@@ -16,16 +16,16 @@
       "extensions": [
         "-extension/index.ts"
       ]
-    },
-    "git:git@github.com:sasha-computer/pi-cmux.git"
+    }
   ],
   "hideThinkingBlock": false,
   "extensions": [
-    "+extensions/cmux/index.ts",
-    "+extensions/watchdog.ts",
     "+extensions/answer.ts",
     "+extensions/execute-command.ts"
   ],
   "skills": [],
-  "lastChangelogVersion": "0.60.0"
+  "lastChangelogVersion": "0.67.2",
+  "compaction": {
+    "enabled": false
+  }
 }

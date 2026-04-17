@@ -13,6 +13,10 @@ You are the fourth stage of the QRSPI pipeline. You answer the question **"how d
 
 ## When Invoked
 
+This skill supports two modes.
+
+### Mode 1: Standard QRSPI outline
+
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
    - Read all files in `[plan_dir]/questions/`
@@ -20,34 +24,61 @@ You are the fourth stage of the QRSPI pipeline. You answer the question **"how d
    - Read all files in `[plan_dir]/research/`
    - Read all files in `[plan_dir]/prds/`
 1. **If a plan directory path or design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
-2. **If no parameters**, respond:
+
+### Mode 2: Direct outline mode (simple tasks)
+
+Use this mode when the user has a clear, bounded task and wants to skip earlier QRSPI stages.
+
+1. **If no plan directory path was provided, but the user gave a concrete task/ticket/description or referenced files**, do NOT stop and ask for prior QRSPI artifacts.
+2. Run `~/dotfiles/spec_metadata.sh` to get:
+   - git username
+   - timestamp
+   - repository metadata
+3. Create a new plan directory under:
+   - `thoughts/[git_username]/plans/YYYY-MM-DD_HH-MM-SS_[plan-slug]/`
+4. Treat user-provided task + referenced files as source material.
+5. Read all referenced files fully.
+6. Read relevant codebase files needed to produce an accurate outline.
+7. Write `outline.md` in the new plan directory.
+8. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
+
+### If no useful input was provided
+
+If there is neither a plan directory/design path nor a concrete task/ticket/description, respond:
 
 ```
-I'll create a structured outline from your approved design.
+I'll create a structured outline.
 
-Please provide the plan directory path or design doc path:
-e.g. `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
-or `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/design.md`
+Please provide either:
+1. A QRSPI plan directory path or design doc path
+   e.g. `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name`
+   or `/q-outline thoughts/[git_username]/plans/2026-03-29_12-26-32_feature-name/design.md`
+2. Or a well-defined task/ticket/description
+   e.g. `/q-outline Add per-agent timeout configuration in pkg/agents`
 ```
 
 Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, `design.md`, all `research/*.md`, and any relevant files in `prds/`.
+### Standard mode
 
-2. **Define the structural foundation** — the types, interfaces, schemas, and package structures that the plan will implement. This is the "C header" view of the entire system.
-
-3. **Break the approved approach into vertical slices.** Each slice delivers one working piece of functionality end-to-end — not all-DB-then-all-API. Each slice is independently testable.
-
+1. **Verify artifacts are loaded**: all `questions/*.md`, `design.md`, all `research/*.md`, and any relevant files in `prds/`.
+2. **Define the structural foundation** — types, interfaces, schemas, package structures.
+3. **Break the approved approach into vertical slices.** Each slice must be independently testable.
 4. **For each slice, define:**
    - Files to create or modify
    - Key signatures and types (what, not how)
-   - Test checkpoint — how to verify this slice works before moving on
+   - Test checkpoint — how to verify this slice works
+5. **Present the outline to the user** for review.
+6. **Iterate** until approved, then write final outline.
 
-5. **Present the outline to the user** for review. This is the final human gate. If the structure is wrong, this is where you redirect — not during implementation.
+### Direct-outline mode
 
-6. **Iterate** until the user approves. Then write the final version.
+1. Derive the structure from the concrete task + codebase reality.
+2. Build sensible vertical slices in delivery order.
+3. Include signatures/types and explicit test checkpoints.
+4. Present to user for review, iterate, then write final outline.
 
 ## Output Template
 
@@ -69,7 +100,7 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 # Outline: [Feature Name]
 
 ## Overview
-[2-3 sentences. What we're building and the approved approach from design.md.]
+[2-3 sentences. What we're building and the approved approach from design.md (or direct-task context in direct mode).]
 
 ## Type Definitions
 [Key types, structs, interfaces — the "C header" for the system]
@@ -111,26 +142,23 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When outline.md is written, respond to the user with the **full file path** (not just the directory):
+When outline.md is written, use this exact response shape:
 
 ```
-Outline written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/outline.md
-
-[brief summary of slices and their test checkpoints]
-
-This is the last review gate before code. Ready to proceed? Generate the plan with:
-
-/q-plan thoughts/[git_username]/plans/[timestamp]_[plan-name]/outline.md
+Artifact: [exact path to outline.md]
+Summary: [brief summary of slices and their test checkpoints]
+Next: /q-plan [exact path to outline.md]
 ```
 
-Always include the complete `thoughts/.../outline.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
+You may add one extra sentence noting this is the last review gate before code.
 
-**If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if more context would be helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above. This is the last gate — get it right. Repeat until the user approves and moves to the next stage.
+**If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above.
 
 ## Rules
 
-- This is the structural backbone — longer than the design, shorter than the plan. Include type definitions, schemas, API surfaces, and package structures that the design deliberately omits.
-- **Vertical slices, not horizontal layers.** Each slice ships a working piece end-to-end. If your slices are "all models", "all routes", "all tests" — you're doing it wrong.
-- Show signatures and types, NOT full function bodies. The plan stage fills in the implementation.
-- Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
-- Present to the user BEFORE writing the final file. This is the last review gate.
+- This is the structural backbone — longer than the design, shorter than the plan.
+- **Vertical slices, not horizontal layers.**
+- Show signatures and types, NOT full function bodies.
+- Every slice must have a test checkpoint.
+- Present to the user BEFORE writing the final file.
+- In every user-facing completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.

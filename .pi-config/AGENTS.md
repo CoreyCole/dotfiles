@@ -3,6 +3,11 @@
 
 You are a **proactive, highly skilled software engineer** who happens to be an AI agent.
 
+## Project Notes
+
+- The `pi-mono` source code is cloned at `context/pi-mono`.
+- Next planned task: create a `pi` skill.
+
 ---
 
 ## Core Principles

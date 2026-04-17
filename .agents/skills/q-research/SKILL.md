@@ -7,15 +7,15 @@ description: Answer research questions by exploring the codebase with pure facts
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the second stage of the QRSPI pipeline. You receive research questions and answer them with facts from the codebase. You have NO knowledge of what is being built — only the questions.
+You are the second stage of the QRSPI pipeline. You receive research questions and answer them with facts from the codebase.
 
 ## When Invoked
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
    - Read all files in `[plan_dir]/questions/`
-   - Do NOT load design.md, outline.md, `prds/`, or the ticket. Research answers questions with pure codebase facts.
-1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read the relevant question doc(s) in `[plan_dir]/questions/` fully, and begin.
+   - Do NOT load design.md, outline.md, `prds/`, or the ticket.
+1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read relevant question doc(s) in `[plan_dir]/questions/` fully, and begin.
 2. **If no parameters**, respond:
 
 ```
@@ -30,27 +30,29 @@ Then wait for input.
 
 ## Process
 
-1. **Read the relevant question doc(s) in `[plan_dir]/questions/` fully.** These are your ONLY inputs. If the user passed a specific question doc path, treat that file as the primary input. Otherwise prefer the newest timestamped question doc unless the user specifies otherwise. Do not read the ticket. Do not ask what is being built.
+1. **Read relevant question doc(s) in `[plan_dir]/questions/` fully.**
+   - If a specific question doc path was provided, treat it as primary.
+   - Otherwise prefer the newest timestamped question doc unless user says otherwise.
 
-2. **For each question**, spawn parallel sub-agents to research:
-   - Use **codebase-locator** to find relevant files
-   - Use **codebase-analyzer** to understand implementations
-   - Use **codebase-pattern-finder** to find similar patterns and examples
+2. **For each question, spawn parallel sub-agents**:
+   - codebase-locator
+   - codebase-analyzer
+   - codebase-pattern-finder
 
-3. **Wait for ALL sub-agents to complete.**
+3. **Wait for all sub-agents**.
 
-4. **Read the files sub-agents identified** — read them yourself in the main context to verify findings.
+4. **Read identified files yourself** in main context to verify findings.
 
 5. **Answer each question** with:
-   - Concrete facts and code references (`file.ext:line`)
-   - Direct quotes from the code where helpful
-   - "I could not determine this" if a question isn't answerable from the codebase
+   - concrete facts and file:line references
+   - direct quotes where helpful
+   - `I could not determine this` when not answerable
 
-6. **Note any surprises** — things that were unexpected or that contradict assumptions in the questions.
+6. **Note surprises** — unexpected findings or assumptions contradicted by code.
 
-7. **Gather metadata** by running `~/dotfiles/spec_metadata.sh` to get the timestamp.
+7. **Gather metadata** with `~/dotfiles/spec_metadata.sh`.
 
-8. **Write findings** to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md` where the topic is a kebab-case summary of what was researched (e.g. `endpoint-routing`, `auth-middleware`, `spline-reticulation`).
+8. **Write findings** to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`.
 
 ## Output Template
 
@@ -83,7 +85,7 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Surprises
 - [Anything unexpected discovered during research]
-- [Constraints or patterns that weren't asked about but are relevant]
+- [Constraints or patterns not asked about but relevant]
 
 ## Code References
 - `path/to/file.ext:123` — [what's there]
@@ -92,29 +94,22 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When the research doc is written, respond to the user with the **full file path** (not just the directory) and the next command:
+When the research doc is written, use this exact response shape:
 
 ```
-Research written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md
-
-[brief summary of findings and any surprises]
-
-Ready to proceed? Start design with:
-
-/q-design thoughts/[git_username]/plans/[timestamp]_[plan-name]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md
-
-Need more research? Run /q-research again with an additional question doc path or the plan directory.
+Artifact: [exact path to research doc]
+Summary: [brief summary of findings and any surprises]
+Next: /q-design [exact path to research doc]
 ```
 
-Always include the complete `thoughts/.../research/filename.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
-
-**If the user responds with feedback** (follow-up questions, areas to dig deeper, corrections), ask followup questions if more context would be helpful, do the additional research, update or write a new research doc, then respond again with the same format above. Repeat until the user is satisfied and moves to the next stage.
+If the user wants more research, tell them to run `/q-research [exact path to plan_dir]` with additional questions.
 
 ## Rules
 
-- This is research, not design. Do NOT propose solutions. Do NOT write pseudocode. Just answer the questions.
-- Do NOT read the ticket or any document that reveals what is being built. Only read the relevant files in `questions/`.
-- Every claim must have a file:line reference. No hand-waving.
-- If a question can't be answered from the codebase, say so clearly — don't speculate.
-- Keep answers factual and concise. Code references over prose.
-- Multiple research docs are expected. Each invocation produces one file. The user may run `/q-research` multiple times for different topics.
+- This is research, not design. No solutions, no pseudocode.
+- Do NOT read the ticket or documents that reveal what is being built. Only read relevant files in `questions/`.
+- Every claim must have a file:line reference.
+- If a question can't be answered from code, say so clearly.
+- Keep answers factual and concise.
+- Multiple research docs are expected; each invocation produces one file.
+- Use `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.

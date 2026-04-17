@@ -34,24 +34,18 @@ Then wait for input.
 ## Process
 
 1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, all `research/*.md`, and any relevant files in `prds/`.
-
-2. **Read the original ticket / PRD context** if referenced in the question docs or stored in `prds/`. Now you know what's being built.
-
-1. **Read key files** identified in the research findings — especially patterns the implementation should follow.
-
-1. **Brain dump everything** the agent knows into the design document:
-
-   - Current state of the relevant code
-   - Desired end state after this work
-   - Patterns to follow (and anti-patterns to avoid)
-   - 2-3 approaches with trade-offs
-   - Your recommendation with clear reasoning
+2. **Read the original ticket / PRD context** if referenced in question docs or stored in `prds/`.
+3. **Read key files** identified in research findings.
+4. **Brain dump into the design doc:**
+   - Current state
+   - Desired end state
+   - Patterns to follow / avoid
+   - 2-3 approaches + trade-offs
+   - Recommendation and rationale
    - Resolved decisions
-   - Open questions for the human
-
-1. **Present the design to the user** for review. This is the human alignment gate. Expect feedback, corrections, and "brain surgery" on your assumptions.
-
-1. **Iterate** until the user approves. Then write the final version.
+   - Open questions
+5. **Present design to user** for review.
+6. **Iterate** until approved, then write final version.
 
 ## Output Template
 
@@ -73,7 +67,7 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 # Design: [Feature Name]
 
 ## Executive Summary
-[3-5 sentences. What we're building, why, key risk, and how we'll mitigate it.]
+[3-5 sentences. What we're building, why, key risk, and mitigation.]
 
 ## Current State
 [What exists today. File references from research.]
@@ -86,52 +80,52 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 - [Convention to match]
 
 ## Patterns to Avoid
-- [Anti-pattern found in codebase with explanation of why it's wrong]
+- [Anti-pattern found in codebase and why]
 
 ## Approach A: [Name] (Recommended)
-[Description. Why this approach. Key trade-offs.]
+[Description, trade-offs, why recommended]
 
 Representative code:
-[Short snippet showing the shape of the solution — types, signatures, key calls. Not full implementation.]
+[Short snippet showing solution shape only]
 
 ## Approach B: [Name]
-[Description. Why not recommended. When it would be better.]
+[Description, trade-offs, when it would be better]
 
 ## Decision
-Going with Approach [X] because [reasons grounded in research findings].
+Going with Approach [X] because [reasons grounded in research].
 
 ## Resolved Decisions
-- [Decision made during this design phase]
+- [Decision made during design phase]
 
 ## Open Questions
-- [Question that needs human input before proceeding]
+- [Question needing human input]
 ```
 
 ## Response
 
-When design.md is written, respond to the user with the **full file path** (not just the directory):
+When design.md is written, use this exact response shape:
 
 ```
-Design written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/design.md
-
-[brief summary of the recommended approach and key decisions]
-
-Open questions for you:
-- [list any open questions from the doc]
-
-Ready to proceed? Start the structured outline with:
-
-/q-outline thoughts/[git_username]/plans/[timestamp]_[plan-name]/design.md
+Artifact: [exact path to design.md]
+Summary: [brief summary of the recommended approach and key decisions]
+Next: /q-outline [exact path to design.md]
 ```
 
-Always include the complete `thoughts/.../design.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
+If there are open questions, include them below as:
 
-**If the user responds with feedback** (corrections, different approach, answered questions, new concerns), ask any followup questions if more context would be helpful, do any additional research needed, update design.md accordingly, then respond again with the same format above. This is brain surgery — expect multiple rounds. Repeat until the user approves and moves to the next stage.
+```
+Open questions:
+- [question]
+- [question]
+```
+
+Always include the complete `thoughts/.../design.md` path.
 
 ## Rules
 
-- Target ~200-300 lines. If you're past 300, you're writing an outline, not a design. Move structural detail to the outline.
-- Include *brief* representative code snippets showing the shape — just enough to communicate the approach. Full type definitions, interface listings, and package structures belong in the outline.
-- Every pattern claim must reference a real file from the research. No invented conventions.
-- Present this to the user BEFORE writing the final file. Get alignment first.
-- This document is meant to be shared with teammates for lightweight pre-alignment. Write for that audience.
+- Target ~200-300 lines.
+- Include brief representative snippets only.
+- Every pattern claim must reference a real file from research.
+- Present to user BEFORE finalizing.
+- Write for teammate alignment.
+- In every completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.

@@ -101,19 +101,15 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Response
 
-When plan.md is written, respond to the user with the **full file path** (not just the directory):
+When plan.md is written, use this exact response shape:
 
 ```
-Plan written to thoughts/[git_username]/plans/[timestamp]_[plan-name]/plan.md
-
-[number] slices ready for implementation.
-
-Start implementation with:
-
-/q-implement thoughts/[git_username]/plans/[timestamp]_[plan-name]/plan.md
+Artifact: [exact path to plan.md]
+Summary: [number] slices ready for implementation.
+Next: /q-implement [exact path to plan.md]
 ```
 
-Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory. The suggested next command must pass the full artifact path, not only the parent plan directory.
+Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
 No human review of the plan — alignment already happened in design and outline. The human reviews the code.
 
@@ -123,4 +119,5 @@ No human review of the plan — alignment already happened in design and outline
 - Status checkboxes at the top are mandatory — they are the context recovery mechanism for `/q-implement`.
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
 - Every slice must end with a verify step — a command the implementing agent can run.
-- Do NOT leave TODOs or open questions. The design and outline resolved those. If something is genuinely unresolved, stop and ask.
+- Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
+- In every user-facing completion response, use the same three-line shape: `Artifact: ...`, `Summary: ...`, `Next: ...`.

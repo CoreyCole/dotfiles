@@ -7,7 +7,6 @@ description: Create a handoff document to carry context forward within a QRSPI p
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
 ## When Invoked
@@ -17,12 +16,10 @@ You are creating a handoff document to preserve your working context within a QR
 
 ## Arguments
 
-- **(no argument)** — checkpoint the current stage as `in_progress`. The next session resumes where you left off in the same stage.
-- **`continue`** — mark the current stage as `complete` and direct the next session to proceed to the next QRSPI stage.
+- **(no argument)** — checkpoint the current stage as `in_progress`.
+- **`continue`** — mark the current stage as `complete` and move to the next stage.
 
 ## Stage order
-
-The QRSPI pipeline stages in order:
 
 | # | Stage | Skill | Produces |
 |---|-------|-------|----------|
@@ -35,38 +32,38 @@ The QRSPI pipeline stages in order:
 
 ## When to use
 
-- Before your context window resets mid-stage (no argument)
-- At the end of a stage, before handing off to the next `/q-*` command (`continue`)
-- Any time you want to checkpoint your progress within the pipeline
+- Before context reset mid-stage (no argument)
+- At end of a stage before handing off (`continue`)
+- Any time you want a checkpoint
 
 ## Process
 
 ### 1. Gather metadata
 
-Run `~/dotfiles/spec_metadata.sh` to get the current timestamp, git username, commit, and branch.
+Run `~/dotfiles/spec_metadata.sh` to get timestamp, git username, commit, and branch.
 
 ### 2. Identify the plan directory
 
-The plan directory should already be known from the current session. It follows the pattern:
+Use the current plan directory:
+
 ```
 thoughts/[git_username]/plans/[timestamp]_[plan-name]/
 ```
 
-If you don't know it, ask the user.
+If unknown, ask the user.
 
 ### 3. Determine mode
 
-- If the argument is `continue`: set `status: complete` and compute the next stage from the stage order table above. If the current stage is `implement`, there is no next stage — note "pipeline complete" in the Next section.
-- Otherwise: set `status: in_progress`.
+- `continue`: set `status: complete`, compute `next_stage`
+- checkpoint: set `status: in_progress`
 
 ### 4. Write the handoff
 
-Create the file at:
+Create:
+
 ```
 [plan_dir]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
 ```
-
-Where `[stage]` is the current pipeline stage: `question`, `research`, `design`, `outline`, `plan`, or `implement`.
 
 Use this template:
 
@@ -88,54 +85,40 @@ next_stage: [next stage name, or null if in_progress or pipeline complete]
 # [Stage] Handoff
 
 ## Status
-
-{What has been done in this stage and what remains. If the stage is complete, say so. If in progress, describe where you left off — e.g. "answered questions 1-4, questions 5-7 remain" or "user approved approach B, writing final design.md now".}
+[What is done and what remains.]
 
 ## Learnings
-
-{Important things discovered during this stage that aren't captured in the artifact. Codebase surprises, patterns found, gotchas, user preferences expressed during review. Include file:line references where relevant.}
+[Important findings not fully captured in artifacts, with file:line references where relevant.]
 
 ## User Decisions
-
-{Decisions the user made during this stage — especially at design and outline review gates. What did they approve, reject, or modify? These are critical context that won't be in the artifact if the user gave verbal feedback you incorporated.}
+[User approvals/rejections/changes that matter downstream.]
 
 ## Next
-
-{What the next session should do. Be specific.
-
-If `continue` mode: state that the current stage is complete and direct the next session to run the next `/q-*` skill. Example: "Research stage complete. Run `/q-design` with `[plan_dir]` to begin the design stage."
-
-If checkpoint mode: describe where you left off within the current stage. Example: "continue answering question 5" or "implement slice 3, slices 1-2 are done".}
+[Specific instructions for the next session.]
 ```
-
-Keep it concise. The artifacts (`questions/*.md`, `research/*.md`, `design.md`, etc.) carry the substance — the handoff carries the meta-context that isn't in them.
 
 ### 5. Sync
 
-Run `just sync-thoughts` to save.
+Run `just sync-thoughts`.
 
 ### 6. Tell the user
 
-Always include the full `thoughts/...` path so the user can copy-paste the resume command directly.
-
-Always include the **full file path** to the handoff document (not just the directory).
+Use this exact response shape.
 
 If `continue` mode:
+
 ```
-Stage [current] complete. Handoff created at thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
-
-Next stage: [next_stage] — resume with:
-
-/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
+Artifact: [exact path to handoff file]
+Summary: stage [current] complete.
+Next: /q-resume [exact path to handoff file]
 ```
 
 If checkpoint mode:
+
 ```
-Handoff created at thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
-
-Resume with:
-
-/q-resume thoughts/[git_username]/plans/[timestamp]_[plan-name]/handoffs/YYYY-MM-DD_HH-MM-SS_[stage]-handoff.md
+Artifact: [exact path to handoff file]
+Summary: checkpoint saved for stage [current].
+Next: /q-resume [exact path to handoff file]
 ```
 
-Never abbreviate paths. Always use the complete `thoughts/.../handoffs/filename.md` path so the user can copy-paste directly.
+Never abbreviate paths.
