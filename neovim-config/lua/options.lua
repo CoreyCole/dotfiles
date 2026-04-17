@@ -29,6 +29,12 @@ vim.opt.autoread = true
 -- Check for file changes more frequently
 vim.opt.updatetime = 100
 
+-- Trigger checktime on various events to watch for file changes
+vim.api.nvim_create_autocmd(
+    { "FocusGained", "BufEnter", "CursorHold", "CursorHoldI", "WinEnter", "TermResponse" },
+    { pattern = "*", command = "checktime" }
+)
+
 vim.opt.swapfile = false
 
 vim.api.nvim_set_hl(0, "NeogitDiffDelete", { fg = "#D14242" })
@@ -66,15 +72,13 @@ vim.cmd "map <S-Up> <Nop>"
 -- local o = vim.o
 -- o.cursorlineopt ='both' -- to enable cursorline!
 vim.opt.listchars = "tab:▸ ,trail:·,nbsp:␣,extends:❯,precedes:❮" -- show symbols for whitespace
-vim.opt.relativenumber = false -- relative line numbers
+vim.opt.number = true -- always show absolute line numbers
+vim.opt.relativenumber = false -- disable relative line numbers
 -- vim.opt.scrolloff = 10 -- keep 20 lines above and below the cursor
 
 vim.g.copilot_no_tab_map = true
 vim.g.copilot_assume_mapped = true
 vim.g.copilot_tab_fallback = ""
-vim.opt.listchars = "tab:▸ ,trail:·,nbsp:␣,extends:❯,precedes:❮" -- show symbols for whitespace
-vim.opt.relativenumber = false -- relative line numbers
--- vim.opt.scrolloff = 10 -- keep 20 lines above and below the cursor
 
 -- clipboard provider must be set before vim.opt.clipboard
 if vim.fn.has "wsl" == 1 then
@@ -91,12 +95,12 @@ elseif vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
     vim.g.clipboard = {
         name = "OSC 52",
         copy = {
-            ["+"] = require("vim.ui.clipboard.osc52").copy("+"),
-            ["*"] = require("vim.ui.clipboard.osc52").copy("*"),
+            ["+"] = require("vim.ui.clipboard.osc52").copy "+",
+            ["*"] = require("vim.ui.clipboard.osc52").copy "*",
         },
         paste = {
-            ["+"] = require("vim.ui.clipboard.osc52").paste("+"),
-            ["*"] = require("vim.ui.clipboard.osc52").paste("*"),
+            ["+"] = require("vim.ui.clipboard.osc52").paste "+",
+            ["*"] = require("vim.ui.clipboard.osc52").paste "*",
         },
     }
 end
