@@ -2,7 +2,7 @@
 
 ## `contrib` command
 
-Contributions exported as CSV files from a GitHub repository's merged PRs.
+Contributions exported as CSV files from a GitHub repository's merged PRs, with optional direct-push commits.
 
 ### `c contrib export`
 
@@ -18,6 +18,8 @@ c contrib export \
 ```
 
 Use `--include-bots` to include bot users.
+
+`--include-direct-push` includes main-branch commits that are not associated with a merged PR. Those rows are kept in the CSV with empty PR fields (`pr_number`, `pr_title`, `pr_url`, etc.).
 
 ### Example without bots and with username filter
 

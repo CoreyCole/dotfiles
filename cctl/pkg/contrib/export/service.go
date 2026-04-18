@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -80,11 +81,31 @@ func (s *Service) ExportCSV(ctx context.Context, cfg config.ExportConfig, w io.W
 			return err
 		}
 		if pr == nil {
-			if cfg.IncludeDirectPush {
-				continue // v1: no direct-push row model; skip
+			if !cfg.IncludeDirectPush {
+				continue
 			}
+
+			details, err := s.gh.GetCommitDetails(ctx, cfg.Owner, cfg.Repo, c.SHA)
+			if err != nil {
+				return err
+			}
+			if details == nil {
+				return fmt.Errorf("missing commit details for %s", c.SHA)
+			}
+
+			if shouldSkipBot(details.Username, cfg.IncludeBots) {
+				continue
+			}
+			if !allowedUser(details.Username, whitelist) {
+				continue
+			}
+
+			ext := AccumulateByExtension(details.Files)
+			row := BuildDirectPushRow(cfg.Owner+"/"+cfg.Repo, c, details, ext)
+			rows = append(rows, row)
 			continue
 		}
+
 		if _, ok := seenPR[pr.GetNumber()]; ok {
 			continue
 		}
@@ -117,6 +138,30 @@ func (s *Service) ExportCSV(ctx context.Context, cfg config.ExportConfig, w io.W
 		return rows[i].MergedAt.Before(rows[j].MergedAt)
 	})
 	return WriteCSV(w, rows)
+}
+
+func BuildDirectPushRow(repo string, commit githubapi.BranchCommit, details *githubapi.CommitDetails, ext map[string]githubapi.ExtensionStat) Row {
+	timestamp := commit.CommittedAt.UTC()
+	if !details.CommittedAt.IsZero() {
+		timestamp = details.CommittedAt.UTC()
+	}
+	row := Row{
+		Repo:           repo,
+		MergedAt:       timestamp,
+		PRCreatedAt:    timestamp,
+		CycleTimeHours: 0,
+		CommitSHA:      commit.SHA,
+		CommitURL:      commit.URL,
+		GitHubUsername: strings.ToLower(details.Username),
+		GitHubName:     details.DisplayName,
+		LinesAdded:     details.Additions,
+		LinesRemoved:   details.Deletions,
+		FilesTouched:   details.ChangedFiles,
+	}
+	ApplyKnownExtensionColumns(&row, ext)
+	other, _ := EncodeOtherExtensionStats(ext, []string{".go", ".proto", ".sql", ".md", ".ts", ".tsx"})
+	row.OtherLinesByExtensionJSON = other
+	return row
 }
 
 func BuildRow(repo string, commit githubapi.BranchCommit, pr *githubapi.PRSummary, ext map[string]githubapi.ExtensionStat) Row {

@@ -37,6 +37,10 @@ func Header() []string {
 }
 
 func Record(row Row) []string {
+	prNumber := ""
+	if row.PRNumber != 0 {
+		prNumber = strconv.Itoa(row.PRNumber)
+	}
 	return []string{
 		row.Repo,
 		row.MergedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
@@ -46,7 +50,7 @@ func Record(row Row) []string {
 		row.CommitURL,
 		row.GitHubUsername,
 		row.GitHubName,
-		strconv.Itoa(row.PRNumber),
+		prNumber,
 		row.PRTitle,
 		row.PRURL,
 		strconv.Itoa(row.LinesAdded),

@@ -38,6 +38,18 @@ type PRSummary struct {
 	ChangedFiles      int
 }
 
+type CommitDetails struct {
+	SHA          string
+	CommittedAt  time.Time
+	URL          string
+	Username     string
+	DisplayName  string
+	Additions    int
+	Deletions    int
+	ChangedFiles int
+	Files        []PRFile
+}
+
 type PRFile struct {
 	Filename  string
 	Status    string
@@ -58,6 +70,7 @@ type Client interface {
 	GetAssociatedMergedPR(ctx context.Context, owner, repo, sha string) (*github.PullRequest, error)
 	GetPRSummary(ctx context.Context, owner, repo string, number int) (*PRSummary, error)
 	ListPRFiles(ctx context.Context, owner, repo string, number int) ([]PRFile, error)
+	GetCommitDetails(ctx context.Context, owner, repo, sha string) (*CommitDetails, error)
 }
 
 type ClientImpl struct {
@@ -183,6 +196,65 @@ func (c *ClientImpl) ListPRFiles(ctx context.Context, owner, repo string, number
 		opt.Page = resp.NextPage
 	}
 	return out, nil
+}
+
+func (c *ClientImpl) GetCommitDetails(ctx context.Context, owner, repo, sha string) (*CommitDetails, error) {
+	commit, _, err := c.gh.Repositories.GetCommit(ctx, owner, repo, sha, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get commit %s: %w", sha, err)
+	}
+
+	files := make([]PRFile, 0, len(commit.Files))
+	for _, f := range commit.Files {
+		files = append(files, PRFile{
+			Filename:  f.GetFilename(),
+			Status:    f.GetStatus(),
+			Additions: f.GetAdditions(),
+			Deletions: f.GetDeletions(),
+			Changes:   f.GetChanges(),
+		})
+	}
+
+	username := ""
+	if commit.Author != nil {
+		username = commit.Author.GetLogin()
+	}
+	displayName := ""
+	if commit.Author != nil {
+		displayName = commit.Author.GetName()
+	}
+	if commit.Commit != nil && commit.Commit.Author != nil && displayName == "" {
+		displayName = commit.Commit.Author.GetName()
+	}
+
+	additions := 0
+	deletions := 0
+	changedFiles := len(files)
+	if commit.Stats != nil {
+		additions = commit.Stats.GetAdditions()
+		deletions = commit.Stats.GetDeletions()
+	}
+
+	committedAt := time.Time{}
+	if commit.Commit != nil && commit.Commit.Author != nil {
+		committedAt = commit.Commit.Author.GetDate().UTC()
+	}
+
+	if committedAt.IsZero() && commit.Committer != nil {
+		committedAt = commit.Committer.GetCreatedAt().UTC()
+	}
+
+	return &CommitDetails{
+		SHA:          commit.GetSHA(),
+		CommittedAt:  committedAt,
+		URL:          commit.GetHTMLURL(),
+		Username:     username,
+		DisplayName:  displayName,
+		Additions:    additions,
+		Deletions:    deletions,
+		ChangedFiles: changedFiles,
+		Files:        files,
+	}, nil
 }
 
 var _ Client = (*ClientImpl)(nil)

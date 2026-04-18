@@ -135,6 +135,55 @@ func TestGetAssociatedMergedPRReturnsNilForDirectPush(t *testing.T) {
 	}
 }
 
+func TestGetCommitDetails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch trimAPIPath(r.URL.Path) {
+		case "/repos/o/r/commits/c1":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, `{
+				"sha":"c1",
+				"html_url":"https://github.com/o/r/commit/c1",
+				"author":{"login":"alice","name":"Alice"},
+				"commit": {"author": {"date":"2026-01-02T00:00:00Z"}},
+				"stats": {"additions": 4, "deletions": 2, "total": 6, "files": 2},
+				"files": [
+					{"filename":"main.go","status":"added","additions":3,"deletions":1,"changes":4},
+					{"filename":"readme.md","status":"modified","additions":1,"deletions":1,"changes":2}
+				]
+			}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	githubClient := httpClientWithURLs(t, server)
+	service := &ClientImpl{gh: githubClient}
+
+	details, err := service.GetCommitDetails(context.Background(), "o", "r", "c1")
+	if err != nil {
+		t.Fatalf("GetCommitDetails: %v", err)
+	}
+	if details.SHA != "c1" {
+		t.Fatalf("got SHA %q", details.SHA)
+	}
+	if details.Username != "alice" {
+		t.Fatalf("got username %q", details.Username)
+	}
+	if details.DisplayName != "Alice" {
+		t.Fatalf("got display name %q", details.DisplayName)
+	}
+	if details.Additions != 4 || details.Deletions != 2 {
+		t.Fatalf("got additions/deletions %d/%d", details.Additions, details.Deletions)
+	}
+	if details.ChangedFiles != 2 {
+		t.Fatalf("got changed files %d", details.ChangedFiles)
+	}
+	if len(details.Files) != 2 {
+		t.Fatalf("got %d files", len(details.Files))
+	}
+}
+
 func httpClientWithURLs(t *testing.T, server *httptest.Server) *github.Client {
 	t.Helper()
 	client, err := githubClientWithEnterpriseURLs(server)
