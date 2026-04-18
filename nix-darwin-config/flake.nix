@@ -34,6 +34,7 @@
         pkgs.gnupg
         pkgs.gnugrep
         pkgs.delta
+        pkgs.tmux
         pkgs.just
         pkgs.gh
         pkgs.mergiraf
@@ -211,7 +212,6 @@
           # Command-line tools installed via Homebrew formulas
           brews = [
             "fnm" # Fast Node Manager
-            "tmux"
             "cmake"
             "ninja"
             "gettext"
