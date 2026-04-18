@@ -1,0 +1,31 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.3-codex",
+  "defaultThinkingLevel": "medium",
+  "packages": [
+    "git:github.com/HazAT/pi-subagents",
+    "git:github.com/nicobailon/pi-mcp-adapter",
+    {
+      "source": "git:github.com/HazAT/pi-smart-sessions",
+      "extensions": [
+        "-extensions/smart-sessions.ts"
+      ]
+    },
+    {
+      "source": "git:github.com/HazAT/pi-parallel",
+      "extensions": [
+        "-extension/index.ts"
+      ]
+    }
+  ],
+  "hideThinkingBlock": false,
+  "extensions": [
+    "+extensions/answer.ts",
+    "+extensions/execute-command.ts"
+  ],
+  "skills": [],
+  "lastChangelogVersion": "0.67.6",
+  "compaction": {
+    "enabled": false
+  }
+}

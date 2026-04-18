@@ -1,4 +1,4 @@
---- npm install @typescript/native-preview
+--- npm install -g @typescript/native-preview
 
 ---@type vim.lsp.Config
 return {
