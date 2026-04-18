@@ -36,11 +36,12 @@ Use this mode when the user has a clear, bounded task and wants to skip earlier 
    - repository metadata
 3. Create a new plan directory under:
    - `thoughts/[git_username]/plans/YYYY-MM-DD_HH-MM-SS_[plan-slug]/`
-4. Treat user-provided task + referenced files as source material.
-5. Read all referenced files fully.
-6. Read relevant codebase files needed to produce an accurate outline.
-7. Write `outline.md` in the new plan directory.
-8. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
+4. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
+5. Treat user-provided task + referenced files as source material.
+6. Read all referenced files fully.
+7. Read relevant codebase files needed to produce an accurate outline.
+8. Write `outline.md` in the new plan directory.
+9. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
 
 ### If no useful input was provided
 
@@ -103,40 +104,70 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 [2-3 sentences. What we're building and the approved approach from design.md (or direct-task context in direct mode).]
 
 ## Type Definitions
-[Key types, structs, interfaces — the "C header" for the system]
+Use fenced code blocks for structural content so it gets syntax highlighting.
+Prefer `go` blocks for types, interfaces, and signatures instead of long bullet lists.
+
+```go
+type ExampleInput struct {
+    TenantID int32
+}
+
+type ExampleResult struct {
+    ID string
+}
+
+func DoThing(ctx context.Context, input ExampleInput) (ExampleResult, error)
+```
 
 ## Database Schema (if applicable)
-[Table definitions]
+Use fenced `sql` blocks for schema, indexes, and query-shape notes.
+
+```sql
+create table example_records (
+    id bigserial primary key,
+    tenant_id integer not null
+);
+```
 
 ## Package / File Structure
-[Where things live, import direction]
+Use normal markdown for file/package layouts. Prefer short path lists or compact bullets.
+
+- `pkg/example/`
+- `api/internal/example/`
+- `db/queries/example.sql`
 
 ## API Surface (if applicable)
-[Endpoints, CLI commands]
+Use fenced `go`, `proto`, or `text` blocks depending on the surface being described.
+
+```go
+func (s Service) CreateExample(...) (*connect.Response[v1.CreateExampleResponse], error)
+```
 
 ## Slices
 
 ### Slice 1: [Name]
-**Files:** `path/to/file.ext` (new), `path/to/other.ext` (modify)
 
-**Signatures:**
-- `FunctionName(param Type) (ReturnType, error)`
-- `type NewStruct struct { ... }`
+**Files:**
+- `path/to/file.ext` (new)
+- `path/to/other.ext` (modify)
+
+```go
+func FunctionName(param Type) (ReturnType, error)
+
+type NewStruct struct { ... }
+```
 
 **Test checkpoint:** [How to verify this slice works — specific command or assertion]
 
 ### Slice 2: [Name]
-**Files:** ...
-
-**Signatures:**
-- ...
-
-**Test checkpoint:** ...
+[Use the same block-based format]
 
 ### Slice N: [Name]
 ...
 
 ## Out of Scope
+Use normal markdown bullets for explicit exclusions.
+
 - [Things explicitly not included in this implementation]
 ```
 
@@ -156,9 +187,16 @@ You may add one extra sentence noting this is the last review gate before code.
 
 ## Rules
 
-- This is the structural backbone — longer than the design, shorter than the plan.
-- **Vertical slices, not horizontal layers.**
-- Show signatures and types, NOT full function bodies.
-- Every slice must have a test checkpoint.
-- Present to the user BEFORE writing the final file.
+- This is the structural backbone — longer than the design, shorter than the plan. Include type definitions, schemas, API surfaces, and package structures that the design deliberately omits.
+- **Vertical slices, not horizontal layers.** Each slice ships a working piece end-to-end. If your slices are "all models", "all routes", "all tests" — you're doing it wrong.
+- Show signatures and types, NOT full function bodies. The plan stage fills in the implementation.
+- Prefer fenced code blocks over bullet lists for structural content where syntax highlighting helps:
+  - `go` for types, interfaces, and function signatures
+  - `sql` for schema/query shapes
+  - `proto` for RPCs/messages when relevant
+- Do not put labels like `Signatures:` inside a `go` fence. The fence itself implies the content type.
+- Use normal markdown, not fenced `text` blocks, for file lists, checkpoints, and out-of-scope notes.
+- Do not cram type definitions into inline bullets unless the content is very short. The outline should read like a header file, not meeting notes.
+- Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
+- Present to the user BEFORE writing the final file. This is the last review gate.
 - In every user-facing completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.

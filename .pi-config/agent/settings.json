@@ -1,8 +1,34 @@
 {
-  "lastChangelogVersion": "0.67.4",
+  "lastChangelogVersion": "0.67.6",
   "compaction": {
     "enabled": false
   },
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4"
+  "defaultModel": "gpt-5.4",
+  "defaultThinkingLevel": "medium",
+  "hideThinkingBlock": false,
+  "packages": [
+    "git:github.com/HazAT/pi-subagents",
+    "git:github.com/nicobailon/pi-mcp-adapter",
+    {
+      "source": "git:github.com/HazAT/pi-smart-sessions",
+      "extensions": [
+        "-extensions/smart-sessions.ts"
+      ]
+    },
+    {
+      "source": "git:github.com/HazAT/pi-parallel",
+      "extensions": [
+        "-extension/index.ts"
+      ]
+    },
+    "git:git@github.com:sasha-computer/pi-cmux.git"
+  ],
+  "extensions": [
+    "+extensions/cmux/index.ts",
+    "+extensions/watchdog.ts",
+    "+extensions/answer.ts",
+    "+extensions/execute-command.ts"
+  ],
+  "skills": []
 }
