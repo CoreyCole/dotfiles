@@ -6,11 +6,18 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/coreycole/cctl/pkg/contrib/githubapi"
+	"github.com/coreycole/cctl/pkg/contrib/localgit"
 )
 
-func AccumulateByExtension(files []githubapi.PRFile) map[string]githubapi.ExtensionStat {
-	stats := map[string]githubapi.ExtensionStat{}
+type ExtensionStat struct {
+	Added        int `json:"added"`
+	Removed      int `json:"removed"`
+	Changed      int `json:"changed"`
+	FilesTouched int `json:"files_touched"`
+}
+
+func AccumulateByExtension(files []localgit.CommitFile) map[string]ExtensionStat {
+	stats := map[string]ExtensionStat{}
 	for _, f := range files {
 		ext := extensionForFile(f.Filename)
 		cur := stats[ext]
@@ -31,7 +38,7 @@ func extensionForFile(path string) string {
 	return ext
 }
 
-func ApplyKnownExtensionColumns(row *Row, stats map[string]githubapi.ExtensionStat) {
+func ApplyKnownExtensionColumns(row *Row, stats map[string]ExtensionStat) {
 	if s, ok := stats[".go"]; ok {
 		row.GoLinesAdded, row.GoLinesRemoved, row.GoFilesTouched = s.Added, s.Removed, s.FilesTouched
 	}
@@ -52,11 +59,12 @@ func ApplyKnownExtensionColumns(row *Row, stats map[string]githubapi.ExtensionSt
 	}
 }
 
-func EncodeOtherExtensionStats(stats map[string]githubapi.ExtensionStat, known []string) (string, error) {
+func EncodeOtherExtensionStats(stats map[string]ExtensionStat, known []string) (string, error) {
 	knownSet := map[string]struct{}{}
 	for _, k := range known {
 		knownSet[strings.ToLower(k)] = struct{}{}
 	}
+
 	keys := make([]string, 0, len(stats))
 	for k := range stats {
 		if _, ok := knownSet[strings.ToLower(k)]; ok {
@@ -65,10 +73,12 @@ func EncodeOtherExtensionStats(stats map[string]githubapi.ExtensionStat, known [
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	ordered := map[string]githubapi.ExtensionStat{}
+
+	ordered := map[string]ExtensionStat{}
 	for _, k := range keys {
 		ordered[k] = stats[k]
 	}
+
 	b, err := json.Marshal(ordered)
 	if err != nil {
 		return "", err
