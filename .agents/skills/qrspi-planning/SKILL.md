@@ -16,7 +16,7 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 | 3 | Design | `/q-design` | `design.md` | **Yes** — human approves approach |
 | 4 | Outline | `/q-outline` | `outline.md` | **Yes** — last gate before code |
 | 5 | Plan | `/q-plan` | `plan.md` | No — machine doc for the coding agent |
-| 6 | Implement | `/q-implement` | code changes + PR | No — human reviews the code, not the plan |
+| 6 | Implement | `/q-implement` | code changes + verified commits | No — human reviews the code, not the plan |
 
 ## Key Principles
 
@@ -44,7 +44,7 @@ The plan directory accumulates artifacts from these loops. Multiple question doc
 ## The Plan Directory
 
 ```
-thoughts/[username]/plans/[timestamp]_[plan-name]/
+thoughts/[git_username]/plans/[timestamp]_[plan-name]/
   AGENTS.md          # How to work in this directory (copy from ~/.agents/skills/qrspi-planning/AGENTS.md)
   prds/              # Source PRDs, ticket exports, screenshots, and related product docs
   questions/         # Stage 1: Research questions (multiple files expected)
@@ -54,6 +54,17 @@ thoughts/[username]/plans/[timestamp]_[plan-name]/
   plan.md            # Stage 5: Implementation plan with status checkboxes
   handoffs/          # Context preservation between sessions
 ```
+
+## Metadata Source
+
+Before creating a new plan directory or writing a new markdown artifact in this pipeline, run `~/dotfiles/spec_metadata.sh`.
+
+Use its output as the single source of truth for:
+- `thoughts/[git_username]/...` path selection
+- `[timestamp]` values in plan directory names and timestamped filenames
+- Frontmatter fields such as `date`, `researcher`, `git_commit`, `branch`, and `repository`
+
+If you are reusing an existing plan directory, keep that exact path and use the script for new artifact metadata.
 
 ## Handoffs
 
@@ -75,6 +86,8 @@ Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skil
 - Each stage reads the artifacts from prior stages. Don't skip stages — the artifacts are the context.
 - Every stage through outline is a human gate. The human reviews questions, research findings, design, and outline before proceeding. Do not outsource the thinking.
 - The plan is a machine document. The human aligned on direction via design and outline. Save the deep review for the actual code.
+- `/q-implement` ends after final verification and commits. It does not push or open pull requests unless the user explicitly asks.
 - The plan's status checkboxes are the context recovery mechanism. Keep them updated during implementation.
 - When looping back, add new artifacts rather than overwriting. The history matters.
+- When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for filename timestamps and frontmatter metadata.
 - Stage handoffs should prefer the **full path to the newly created artifact** (for example a specific `questions/*.md`, `research/*.md`, `design.md`, `outline.md`, or `plan.md`) in both the success response and the suggested next `/q-*` command. Do not abbreviate to only the parent plan directory when an artifact path exists.

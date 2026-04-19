@@ -45,7 +45,9 @@ Then wait for input.
 
 4. **Add status checkboxes** at the top — these are the context recovery mechanism. When the implementing agent's context window resets, it reloads this file and the checkboxes tell it where to pick up.
 
-5. **Write the plan** directly. No human review step — alignment already happened in design and outline.
+5. **Immediately before writing or updating `plan.md`, gather metadata** with `~/dotfiles/spec_metadata.sh` and use it to populate the frontmatter fields.
+
+6. **Write the plan** directly. No human review step — alignment already happened in design and outline.
 
 ## Output Template
 

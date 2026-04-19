@@ -41,6 +41,8 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
 
 All `/q-*` commands take this path as their argument. Use the full relative path starting from `thoughts/`.
 
+When creating a new plan directory or markdown artifact inside it, run `~/dotfiles/spec_metadata.sh` first. Use it as the source of truth for `git_username`, `Timestamp For Filename`, and frontmatter fields such as `date`, `researcher`, `git_commit`, `branch`, and `repository`.
+
 Recommended subdirectories inside a plan directory:
 - `prds/` for PRDs, ticket exports, screenshots, and related product context
 - `questions/` for timestamped question docs

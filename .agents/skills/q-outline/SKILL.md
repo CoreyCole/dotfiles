@@ -30,12 +30,12 @@ This skill supports two modes.
 Use this mode when the user has a clear, bounded task and wants to skip earlier QRSPI stages.
 
 1. **If no plan directory path was provided, but the user gave a concrete task/ticket/description or referenced files**, do NOT stop and ask for prior QRSPI artifacts.
-2. Run `~/dotfiles/spec_metadata.sh` to get:
+2. Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for:
    - git username
-   - timestamp
-   - repository metadata
+   - `Timestamp For Filename` for the plan directory and any timestamped filenames
+   - frontmatter fields (`date`, `researcher`, `git_commit`, `branch`, `repository`)
 3. Create a new plan directory under:
-   - `thoughts/[git_username]/plans/YYYY-MM-DD_HH-MM-SS_[plan-slug]/`
+   - `thoughts/[git_username]/plans/[timestamp]_[plan-slug]/`
 4. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
 5. Treat user-provided task + referenced files as source material.
 6. Read all referenced files fully.
@@ -72,14 +72,16 @@ Then wait for input.
    - Key signatures and types (what, not how)
    - Test checkpoint — how to verify this slice works
 5. **Present the outline to the user** for review.
-6. **Iterate** until approved, then write final outline.
+6. **Iterate** until approved.
+7. **Immediately before writing or updating `outline.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
 
 ### Direct-outline mode
 
 1. Derive the structure from the concrete task + codebase reality.
 2. Build sensible vertical slices in delivery order.
 3. Include signatures/types and explicit test checkpoints.
-4. Present to user for review, iterate, then write final outline.
+4. Present to user for review and iterate until approved.
+5. Immediately before writing or updating `outline.md`, run `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
 
 ## Output Template
 

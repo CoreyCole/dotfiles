@@ -45,7 +45,8 @@ Then wait for input.
    - Resolved decisions
    - Open questions
 5. **Present design to user** for review.
-6. **Iterate** until approved, then write final version.
+6. **Iterate** until approved.
+7. **Immediately before writing or updating `design.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final version.
 
 ## Output Template
 

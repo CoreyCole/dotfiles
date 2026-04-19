@@ -40,7 +40,7 @@ You are creating a handoff document to preserve your working context within a QR
 
 ### 1. Gather metadata
 
-Run `~/dotfiles/spec_metadata.sh` to get timestamp, git username, commit, and branch.
+Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for the handoff filename timestamp and frontmatter fields (`date`, `researcher`, `git_commit`, `branch`, `repository`).
 
 ### 2. Identify the plan directory
 
