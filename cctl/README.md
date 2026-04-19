@@ -2,41 +2,29 @@
 
 ## `contrib` command
 
-Contributions exported as CSV files from a GitHub repository's merged PRs, with optional direct-push commits.
+Contributions are exported as CSV rows from a local repository checkout and branch history.
 
 ### `c contrib export`
 
 ```bash
-c contrib export \
-  --owner <owner> \
-  --repo <repo> \
-  --start-date 2026-01-01 \
-  --end-date 2026-01-31 \
-  --github-username alice,bob \
-  --github-token <token> \
-  --output ./contributions.csv
+c contrib export --start-date 2026-01-01 --end-date 2026-01-31
 ```
 
-Use `--include-bots` to include bot users.
+Optional flags:
+- `--repo-dir` (default `.`)
+- `--branch` (default `main`)
+- `--output` (default `contributions.csv`)
 
-`--include-direct-push` includes main-branch commits that are not associated with a merged PR. Those rows are kept in the CSV with empty PR fields (`pr_number`, `pr_title`, `pr_url`, etc.).
-
-### Example without bots and with username filter
+Example with explicit repo and branch:
 
 ```bash
 c contrib export \
-  --owner coreycole \
-  --repo cctl \
   --start-date 2026-01-01 \
   --end-date 2026-01-31 \
-  --github-username alice \
-  --github-username bob \
-  --output /tmp/cctl-contrib.csv
+  --repo-dir /path/to/repo \
+  --branch main \
+  --output /tmp/contrib.csv
 ```
 
-### Token requirements
-
-For private repositories, the token must include `repo` scope (or broader).
-For public repositories, `public_repo` is sufficient.
-
-The token can be provided via `--github-token` or through the `GITHUB_TOKEN` environment variable.
+`pr_number` is derived from the commit message when it matches supported PR patterns.
+`commit_url` and `pr_url` are populated only when `origin` normalizes to a GitHub HTTPS URL. For non-GitHub remotes, those columns are left blank.
