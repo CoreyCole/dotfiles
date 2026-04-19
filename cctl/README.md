@@ -62,4 +62,15 @@ c youtube write-registry --root ~/.hermes/notes/videos
 Optional flags:
 - `--root` (default `~/.hermes/notes/videos`)
 
-Current scope: dry-run planning plus registry writing. It does not move files yet.
+### `c youtube apply-layout`
+
+Apply the planned migration: create the `channels/<channel-dir>/<year>/...` parents, move each resolvable video directory into place, write the registries, and leave manual-review items untouched.
+
+```bash
+c youtube apply-layout --root ~/.hermes/notes/videos
+```
+
+Optional flags:
+- `--root` (default `~/.hermes/notes/videos`)
+
+Current scope: dry-run planning, registry writing, and one-shot layout apply for resolvable notes. Manual-review cases still stay at the root until their metadata is fixed.

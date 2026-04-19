@@ -299,6 +299,137 @@ published_at: 2026-04-02
 	}
 }
 
+func TestApplyLayoutMovesResolvedDirectoriesAndPreservesRegistryOnRerun(t *testing.T) {
+	root := t.TempDir()
+
+	mustWriteFile(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "notes.md"), `---
+title: "Building pi in a World of Slop — Mario Zechner"
+url: https://youtu.be/RjfbvDXpFls?si=7WJ6U9JXlXepekZ7
+video_id: RjfbvDXpFls
+channel: AI Engineer
+published_at: 2026-04-16
+captured_at: 2026-04-17T18:55:49-07:00
+source_type: youtube
+status: captured
+---
+`)
+	mustWriteJSON(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "video-metadata.json"), map[string]any{
+		"uploader_id": "@AIEngineer",
+	})
+	mustWriteFile(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "transcript.vtt"), "WEBVTT\n")
+	mustWriteFile(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "frames", "0001.txt"), "frame")
+
+	mustWriteFile(t, filepath.Join(root, "2026-04-18_state-of-agentic-coding", "notes.md"), `---
+title: "State of Agentic Coding #5"
+url: https://www.youtube.com/watch?v=state1234567
+video_id: state1234567
+channel: AI Engineer
+published_at: 2026-04-18
+captured_at: 2026-04-18T12:00:00-07:00
+source_type: youtube
+status: captured
+---
+`)
+	mustWriteJSON(t, filepath.Join(root, "2026-04-18_state-of-agentic-coding", "video-metadata.json"), map[string]any{
+		"uploader_id": "@AIEngineer",
+	})
+
+	mustWriteFile(t, filepath.Join(root, "2026-03-28_crispy-coding-agents-dex-horthy", "notes.md"), `---
+title: "From RPI to QRSPI — Dex Horthy"
+url: https://youtu.be/YwZR6tc7qYg
+channel: The AI-Driven Dev Conference
+---
+`)
+
+	plan, err := ApplyLayout(root)
+	if err != nil {
+		t.Fatalf("ApplyLayout() error = %v", err)
+	}
+	if len(plan.Moves) != 2 {
+		t.Fatalf("len(plan.Moves) = %d, want 2", len(plan.Moves))
+	}
+	if len(plan.Review) != 1 {
+		t.Fatalf("len(plan.Review) = %d, want 1", len(plan.Review))
+	}
+
+	for _, oldPath := range []string{
+		filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner"),
+		filepath.Join(root, "2026-04-18_state-of-agentic-coding"),
+	} {
+		if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+			t.Fatalf("old path %q still exists or stat failed: %v", oldPath, err)
+		}
+	}
+
+	target := filepath.Join(root, "channels", "ai-engineer", "2026", "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner--RjfbvDXpFls")
+	for _, path := range []string{
+		filepath.Join(target, "notes.md"),
+		filepath.Join(target, "transcript.vtt"),
+		filepath.Join(target, "frames", "0001.txt"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("Stat(%q): %v", path, err)
+		}
+	}
+
+	reviewPath := filepath.Join(root, "2026-03-28_crispy-coding-agents-dex-horthy")
+	if _, err := os.Stat(reviewPath); err != nil {
+		t.Fatalf("manual review path missing after apply: %v", err)
+	}
+
+	channelsPath := filepath.Join(root, ".index", "channels.json")
+	videosPath := filepath.Join(root, ".index", "videos.json")
+	channelsData, err := os.ReadFile(channelsPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", channelsPath, err)
+	}
+	videosData, err := os.ReadFile(videosPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", videosPath, err)
+	}
+
+	var gotChannels map[string]ChannelRecord
+	if err := json.Unmarshal(channelsData, &gotChannels); err != nil {
+		t.Fatalf("Unmarshal channels.json: %v", err)
+	}
+	var gotVideos map[string]VideoRecord
+	if err := json.Unmarshal(videosData, &gotVideos); err != nil {
+		t.Fatalf("Unmarshal videos.json: %v", err)
+	}
+	if !reflect.DeepEqual(gotChannels, plan.Channels) {
+		t.Fatalf("channels.json = %#v, want %#v", gotChannels, plan.Channels)
+	}
+	if !reflect.DeepEqual(gotVideos, plan.Videos) {
+		t.Fatalf("videos.json = %#v, want %#v", gotVideos, plan.Videos)
+	}
+
+	secondPlan, err := ApplyLayout(root)
+	if err != nil {
+		t.Fatalf("second ApplyLayout() error = %v", err)
+	}
+	if len(secondPlan.Moves) != 0 {
+		t.Fatalf("len(secondPlan.Moves) = %d, want 0", len(secondPlan.Moves))
+	}
+	if len(secondPlan.Review) != 1 {
+		t.Fatalf("len(secondPlan.Review) = %d, want 1", len(secondPlan.Review))
+	}
+
+	channelsData2, err := os.ReadFile(channelsPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) after second apply: %v", channelsPath, err)
+	}
+	videosData2, err := os.ReadFile(videosPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) after second apply: %v", videosPath, err)
+	}
+	if string(channelsData2) != string(channelsData) {
+		t.Fatalf("channels.json changed on second apply")
+	}
+	if string(videosData2) != string(videosData) {
+		t.Fatalf("videos.json changed on second apply")
+	}
+}
+
 func mustWriteFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

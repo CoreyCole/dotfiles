@@ -175,19 +175,74 @@ func WriteRegistries(root string) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := writeRegistries(root, plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
 
+func ApplyLayout(root string) (*Plan, error) {
+	plan, err := PlanLibrary(root)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateMoves(root, plan.Moves); err != nil {
+		return nil, err
+	}
+	for _, move := range plan.Moves {
+		targetPath := filepath.Join(root, filepath.FromSlash(move.NewPath))
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return nil, fmt.Errorf("create target dir for %s: %w", move.NewPath, err)
+		}
+	}
+	for _, move := range plan.Moves {
+		sourcePath := filepath.Join(root, move.OldPath)
+		targetPath := filepath.Join(root, filepath.FromSlash(move.NewPath))
+		if err := os.Rename(sourcePath, targetPath); err != nil {
+			return nil, fmt.Errorf("move %s -> %s: %w", sourcePath, targetPath, err)
+		}
+	}
+	if len(plan.Moves) > 0 {
+		if err := writeRegistries(root, plan); err != nil {
+			return nil, err
+		}
+	}
+	return plan, nil
+}
+
+func writeRegistries(root string, plan *Plan) error {
 	indexDir := filepath.Join(root, ".index")
 	if err := os.MkdirAll(indexDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create index dir: %w", err)
+		return fmt.Errorf("create index dir: %w", err)
 	}
 	if err := writeJSONFile(filepath.Join(indexDir, "channels.json"), plan.Channels); err != nil {
-		return nil, fmt.Errorf("write channels registry: %w", err)
+		return fmt.Errorf("write channels registry: %w", err)
 	}
 	if err := writeJSONFile(filepath.Join(indexDir, "videos.json"), plan.Videos); err != nil {
-		return nil, fmt.Errorf("write videos registry: %w", err)
+		return fmt.Errorf("write videos registry: %w", err)
 	}
+	return nil
+}
 
-	return plan, nil
+func validateMoves(root string, moves []Move) error {
+	for _, move := range moves {
+		sourcePath := filepath.Join(root, move.OldPath)
+		sourceInfo, err := os.Stat(sourcePath)
+		if err != nil {
+			return fmt.Errorf("stat source %s: %w", sourcePath, err)
+		}
+		if !sourceInfo.IsDir() {
+			return fmt.Errorf("source %s is not a directory", sourcePath)
+		}
+
+		targetPath := filepath.Join(root, filepath.FromSlash(move.NewPath))
+		if _, err := os.Stat(targetPath); err == nil {
+			return fmt.Errorf("target already exists: %s", targetPath)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("stat target %s: %w", targetPath, err)
+		}
+	}
+	return nil
 }
 
 func loadMetadata(videoPath string) (VideoMetadata, error) {
