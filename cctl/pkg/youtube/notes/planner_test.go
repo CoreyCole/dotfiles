@@ -138,6 +138,129 @@ channel: The AI-Driven Dev Conference
 	}
 }
 
+func TestWriteRegistriesPersistsIndexFiles(t *testing.T) {
+	root := t.TempDir()
+
+	mustWriteFile(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "notes.md"), `---
+title: "Building pi in a World of Slop — Mario Zechner"
+url: https://youtu.be/RjfbvDXpFls?si=7WJ6U9JXlXepekZ7
+video_id: RjfbvDXpFls
+channel: AI Engineer
+published_at: 2026-04-16
+captured_at: 2026-04-17T18:55:49-07:00
+source_type: youtube
+status: captured
+---
+`)
+	mustWriteJSON(t, filepath.Join(root, "2026-04-17_building-pi-in-a-world-of-slop-mario-zechner", "video-metadata.json"), map[string]any{
+		"channel_id":   "UCabc123",
+		"channel_url":  "https://www.youtube.com/channel/UCabc123",
+		"uploader_id":  "@AIEngineer",
+		"uploader_url": "https://www.youtube.com/@AIEngineer",
+	})
+
+	mustWriteFile(t, filepath.Join(root, "2026-04-18_state-of-agentic-coding", "notes.md"), `---
+title: "State of Agentic Coding #5"
+url: https://www.youtube.com/watch?v=state1234567
+video_id: state1234567
+channel: AI Engineer
+published_at: 2026-04-18
+captured_at: 2026-04-18T12:00:00-07:00
+source_type: youtube
+status: captured
+---
+`)
+	mustWriteJSON(t, filepath.Join(root, "2026-04-18_state-of-agentic-coding", "video-metadata.json"), map[string]any{
+		"channel_id":  "UCabc123",
+		"uploader_id": "@AIEngineer",
+	})
+
+	mustWriteFile(t, filepath.Join(root, "2026-03-28_crispy-coding-agents-dex-horthy", "notes.md"), `---
+title: "From RPI to QRSPI — Dex Horthy"
+url: https://youtu.be/YwZR6tc7qYg
+channel: The AI-Driven Dev Conference
+---
+`)
+
+	plan, err := WriteRegistries(root)
+	if err != nil {
+		t.Fatalf("WriteRegistries() error = %v", err)
+	}
+	if len(plan.Review) != 1 {
+		t.Fatalf("len(plan.Review) = %d, want 1", len(plan.Review))
+	}
+
+	channelsPath := filepath.Join(root, ".index", "channels.json")
+	videosPath := filepath.Join(root, ".index", "videos.json")
+
+	channelsData, err := os.ReadFile(channelsPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", channelsPath, err)
+	}
+	videosData, err := os.ReadFile(videosPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", videosPath, err)
+	}
+
+	var gotChannels map[string]ChannelRecord
+	if err := json.Unmarshal(channelsData, &gotChannels); err != nil {
+		t.Fatalf("Unmarshal channels.json: %v", err)
+	}
+	var gotVideos map[string]VideoRecord
+	if err := json.Unmarshal(videosData, &gotVideos); err != nil {
+		t.Fatalf("Unmarshal videos.json: %v", err)
+	}
+
+	wantChannels := map[string]ChannelRecord{
+		"yt:channel:UCabc123": {
+			DirName:     "ai-engineer",
+			DisplayName: "AI Engineer",
+			ChannelID:   "UCabc123",
+			ChannelURL:  "https://www.youtube.com/channel/ucabc123",
+			UploaderID:  "@AIEngineer",
+			UploaderURL: "https://www.youtube.com/@aiengineer",
+			Aliases:     []string{"@aiengineer", "ai-engineer"},
+		},
+	}
+	if !reflect.DeepEqual(gotChannels, wantChannels) {
+		t.Fatalf("channels.json = %#v, want %#v", gotChannels, wantChannels)
+	}
+
+	wantVideos := map[string]VideoRecord{
+		"RjfbvDXpFls": {
+			ChannelKey: "yt:channel:UCabc123",
+			Path:       "channels/ai-engineer/2026/2026-04-17_building-pi-in-a-world-of-slop-mario-zechner--RjfbvDXpFls",
+			Title:      "Building pi in a World of Slop — Mario Zechner",
+		},
+		"state1234567": {
+			ChannelKey: "yt:channel:UCabc123",
+			Path:       "channels/ai-engineer/2026/2026-04-18_state-of-agentic-coding--state1234567",
+			Title:      "State of Agentic Coding #5",
+		},
+	}
+	if !reflect.DeepEqual(gotVideos, wantVideos) {
+		t.Fatalf("videos.json = %#v, want %#v", gotVideos, wantVideos)
+	}
+
+	if _, err := WriteRegistries(root); err != nil {
+		t.Fatalf("second WriteRegistries() error = %v", err)
+	}
+	channelsData2, err := os.ReadFile(channelsPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) after second write: %v", channelsPath, err)
+	}
+	videosData2, err := os.ReadFile(videosPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) after second write: %v", videosPath, err)
+	}
+	if string(channelsData2) != string(channelsData) {
+		t.Fatalf("channels.json changed between writes")
+	}
+	if string(videosData2) != string(videosData) {
+		t.Fatalf("videos.json changed between writes")
+	}
+}
+
 func TestDirNameCollisionProducesDeterministicSuffix(t *testing.T) {
 	root := t.TempDir()
 

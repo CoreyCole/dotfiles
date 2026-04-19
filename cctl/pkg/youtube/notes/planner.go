@@ -170,6 +170,26 @@ func PlanLibrary(root string) (*Plan, error) {
 	return plan, nil
 }
 
+func WriteRegistries(root string) (*Plan, error) {
+	plan, err := PlanLibrary(root)
+	if err != nil {
+		return nil, err
+	}
+
+	indexDir := filepath.Join(root, ".index")
+	if err := os.MkdirAll(indexDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create index dir: %w", err)
+	}
+	if err := writeJSONFile(filepath.Join(indexDir, "channels.json"), plan.Channels); err != nil {
+		return nil, fmt.Errorf("write channels registry: %w", err)
+	}
+	if err := writeJSONFile(filepath.Join(indexDir, "videos.json"), plan.Videos); err != nil {
+		return nil, fmt.Errorf("write videos registry: %w", err)
+	}
+
+	return plan, nil
+}
+
 func loadMetadata(videoPath string) (VideoMetadata, error) {
 	meta, err := parseFrontmatter(filepath.Join(videoPath, "notes.md"))
 	if err != nil {
@@ -499,6 +519,15 @@ func titleOrDir(title, dirName string) string {
 		return title
 	}
 	return dirName
+}
+
+func writeJSONFile(path string, value any) error {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(path, data, 0o644)
 }
 
 func firstNonEmpty(values ...string) string {

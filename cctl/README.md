@@ -51,4 +51,15 @@ What it does right now:
 - builds in-memory channel and video registries
 - emits a manual-review bucket instead of guessing when required metadata is missing
 
-Current scope: dry-run planning only. It does not move files or write registries yet.
+### `c youtube write-registry`
+
+Persist the planned registries to `.index/channels.json` and `.index/videos.json` without moving any note directories yet.
+
+```bash
+c youtube write-registry --root ~/.hermes/notes/videos
+```
+
+Optional flags:
+- `--root` (default `~/.hermes/notes/videos`)
+
+Current scope: dry-run planning plus registry writing. It does not move files yet.
