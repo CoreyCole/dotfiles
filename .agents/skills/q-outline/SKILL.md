@@ -19,9 +19,13 @@ This skill supports two modes.
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read all files in `[plan_dir]/research/`
+   - Read all files in `[plan_dir]/context/research/`
+   - Read all files in `[plan_dir]/context/design/`
+   - Read all files in `[plan_dir]/context/outline/` if any
    - Read all files in `[plan_dir]/prds/`
 1. **If a plan directory path or design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
 
@@ -37,11 +41,12 @@ Use this mode when the user has a clear, bounded task and wants to skip earlier 
 3. Create a new plan directory under:
    - `thoughts/[git_username]/plans/[timestamp]_[plan-slug]/`
 4. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
-5. Treat user-provided task + referenced files as source material.
-6. Read all referenced files fully.
-7. Read relevant codebase files needed to produce an accurate outline.
-8. Write `outline.md` in the new plan directory.
-9. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
+5. Ensure `context/{question,research,design,outline,plan,implement}/` exists in the new plan directory.
+6. Treat user-provided task + referenced files as source material.
+7. Read all referenced files fully.
+8. Read relevant codebase files needed to produce an accurate outline. If current-state discovery is still needed, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/outline/`.
+9. Write `outline.md` in the new plan directory.
+10. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
 
 ### If no useful input was provided
 
@@ -64,16 +69,20 @@ Then wait for input.
 
 ### Standard mode
 
-1. **Verify artifacts are loaded**: all `questions/*.md`, `design.md`, all `research/*.md`, and any relevant files in `prds/`.
-2. **Define the structural foundation** — types, interfaces, schemas, package structures.
-3. **Break the approved approach into vertical slices.** Each slice must be independently testable.
-4. **For each slice, define:**
+1. **Verify artifacts are loaded**: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, and `context/outline/`, and any relevant files in `prds/`.
+2. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
+3. **Define the structural foundation** — types, interfaces, schemas, package structures.
+4. **Break the approved approach into vertical slices.** Each slice must be independently testable.
+5. **For each slice, define:**
    - Files to create or modify
    - Key signatures and types (what, not how)
    - Test checkpoint — how to verify this slice works
-5. **Present the outline to the user** for review.
-6. **Iterate** until approved.
-7. **Immediately before writing or updating `outline.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
+6. **Present the outline to the user** for review.
+7. **Iterate** until approved.
+8. **If the approved outline locked in durable slice boundaries, sequencing changes, or non-obvious implementation constraints, update `[plan_dir]/AGENTS.md`.**
+   - Keep it short and curated.
+   - Point back to `outline.md` or other canonical artifacts instead of duplicating them.
+9. **Immediately before writing or updating `outline.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
 
 ### Direct-outline mode
 

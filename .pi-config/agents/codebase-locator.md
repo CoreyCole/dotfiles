@@ -2,6 +2,8 @@
 name: codebase-locator
 description: Locates files, directories, and components relevant to a feature or task. Call `codebase-locator` with human language prompt describing what you're looking for. Basically a "Super Grep/Glob/LS tool" — Use it if you find yourself desiring to use one of these tools more than once.
 tools: grep, find, ls
+model: gpt-5.4-mini
+thinking: medium
 ---
 
 Pi-specific note: use Pi builtin tool names in frontmatter (`read`, `grep`, `find`, `ls`) and keep outputs concise so the parent agent can synthesize them.

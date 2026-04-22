@@ -18,6 +18,7 @@ Establish with ~95% confidence what the user actually wants. Start with a brief 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
    - If a plan directory was provided (follow-up pass), load existing artifacts:
+     - `[plan_dir]/AGENTS.md`
      - All files in `[plan_dir]/questions/`
      - `[plan_dir]/design.md`
      - `[plan_dir]/outline.md`
@@ -49,7 +50,7 @@ Then wait for input.
 
 3. **Ensure scaffolding exists**:
    - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
-   - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/` exist
+   - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, and `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exist
 
 4. **Read ticket/PRDs and linked docs fully**.
 
@@ -71,20 +72,29 @@ Then wait for input.
 
    If confidence is below ~95%, continue the interview. Do not guess.
 
-8. **Explore the relevant codebase** — grep related files, read tests, check recent git history. Understand enough to ask strong questions, but do NOT form a solution.
+8. **Do a lightweight codebase sanity check yourself**.
+   - Run a small number of basic `rg`, `find`, or `ls` searches using terms from the ticket/PRD.
+   - Use the results to validate terminology, identify a few obvious entry points, and spot likely implementation files, tests, docs, or configs.
+   - Do NOT try to map the whole area or deeply analyze the implementation at this stage.
 
-9. **Write a concise `Brainstorm Summary`** that will become the first section of the question doc. Capture the important design context surfaced during the brainstorm and interview:
+9. **Optionally read a few surfaced files yourself** — only enough to sharpen the research questions, not to answer them or form a solution.
+
+10. **Write a concise `Brainstorm Summary`** that will become the first section of the question doc. Capture the important design context surfaced during the brainstorm and interview:
    - desired outcome
    - explicit design details or constraints already established
    - decisions already made
    - tradeoffs, risks, non-goals, or tensions that research should keep in view
 
-10. **Write 3-7 research questions** to a new timestamped file under `[plan_dir]/questions/`. Questions must be:
+11. **If the interview surfaced durable constraints, decisions, or non-goals that future stages should not forget, update `[plan_dir]/AGENTS.md`** with concise bullets.
+   - Keep it curated and stable.
+   - Do not copy the whole brainstorm summary into AGENTS.
+
+12. **Write 3-7 research questions** to a new timestamped file under `[plan_dir]/questions/`. Questions must be:
    - Specific and independently answerable
    - Neutral
    - Fact-focused
 
-11. **Include Codebase References** section with suggested starting points.
+13. **Include Codebase References** section with suggested starting points.
 
 ## Output Template
 
@@ -154,6 +164,7 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Some questions may be intentionally deferred to the research phase.
 - Do NOT write the question doc until the lead-engineer interview is complete.
 - Treat the user's first request as a hypothesis, not a spec.
-- Do NOT skip codebase exploration.
+- Do a lightweight codebase sanity check with basic `rg`/`find` results.
+- Do NOT turn `q-question` into a mapping pass or deep analysis stage.
 - Keep it short: questions, not essays.
 - Use: `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.

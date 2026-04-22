@@ -1,16 +1,11 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.3-codex",
-  "defaultThinkingLevel": "medium",
+  "defaultModel": "gpt-5.4",
+  "defaultThinkingLevel": "xhigh",
   "packages": [
-    "git:github.com/HazAT/pi-subagents",
+    "/home/ruby/dotfiles/.pi-config/pi-subagents",
     "git:github.com/nicobailon/pi-mcp-adapter",
-    {
-      "source": "git:github.com/HazAT/pi-smart-sessions",
-      "extensions": [
-        "-extensions/smart-sessions.ts"
-      ]
-    },
+    "git:github.com/HazAT/pi-smart-sessions",
     {
       "source": "git:github.com/HazAT/pi-parallel",
       "extensions": [
@@ -19,12 +14,8 @@
     }
   ],
   "hideThinkingBlock": false,
-  "extensions": [
-    "+extensions/answer.ts",
-    "+extensions/execute-command.ts"
-  ],
   "skills": [],
-  "lastChangelogVersion": "0.67.6",
+  "lastChangelogVersion": "0.68.1",
   "compaction": {
     "enabled": false
   }

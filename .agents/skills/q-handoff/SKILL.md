@@ -1,6 +1,6 @@
 ---
 name: q-handoff
-description: Create a handoff document to carry context forward within a QRSPI planning pipeline. Use "continue" arg to advance to the next stage.
+description: Create a handoff document to carry context forward within a QRSPI planning pipeline. Use "continue" arg to advance to the next stage; implement completion hands off to `/q-review`.
 ---
 
 # Create Pipeline Handoff
@@ -30,6 +30,8 @@ You are creating a handoff document to preserve your working context within a QR
 | 5 | plan | `/q-plan` | `plan.md` |
 | 6 | implement | `/q-implement` | code changes |
 
+`review` is the post-implementation handoff target, not a core planning stage. When `implement` completes, `continue` should create a review-ready handoff and point to `/q-review`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
+
 ## When to use
 
 - Before context reset mid-stage (no argument)
@@ -55,9 +57,20 @@ If unknown, ask the user.
 ### 3. Determine mode
 
 - `continue`: set `status: complete`, compute `next_stage`
+  - For `question` through `plan`, point the user to `/q-resume` so the next QRSPI stage can begin.
+  - For `implement`, set `next_stage: review` and point the user directly to `/q-review`.
 - checkpoint: set `status: in_progress`
 
-### 4. Write the handoff
+### 4. Refresh long-term memory if needed
+
+Before writing the handoff, update `[plan_dir]/AGENTS.md` if this stage uncovered durable context that future agents should remember first:
+- approved decisions or scope boundaries
+- important tradeoffs or rejected paths
+- non-obvious invariants, gotchas, or review learnings
+
+Keep it curated. Do **not** dump transient notes or duplicate the full artifact.
+
+### 5. Write the handoff
 
 Create:
 
@@ -79,7 +92,7 @@ stage: [question|research|design|outline|plan|implement]
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 status: [in_progress|complete]
-next_stage: [next stage name, or null if in_progress or pipeline complete]
+next_stage: [next stage name, `review`, or null if in_progress or pipeline complete]
 ---
 
 # [Stage] Handoff
@@ -93,24 +106,35 @@ next_stage: [next stage name, or null if in_progress or pipeline complete]
 ## User Decisions
 [User approvals/rejections/changes that matter downstream.]
 
+## Context Artifacts
+[Exact paths to relevant context files under `[plan_dir]/context/` that the next session should load first.]
+
 ## Next
-[Specific instructions for the next session.]
+[Specific instructions for the next session. For implement-complete handoffs, tell the reviewer what to review first and which verification evidence already passed.]
 ```
 
-### 5. Sync
+### 6. Sync
 
 Run `just sync-thoughts`.
 
-### 6. Tell the user
+### 7. Tell the user
 
 Use this exact response shape.
 
-If `continue` mode:
+If `continue` mode for `question` through `plan`:
 
 ```
 Artifact: [exact path to handoff file]
 Summary: stage [current] complete.
 Next: /q-resume [exact path to handoff file]
+```
+
+If `continue` mode for `implement`:
+
+```
+Artifact: [exact path to handoff file]
+Summary: implementation complete. ready for review.
+Next: /q-review [exact path to handoff file]
 ```
 
 If checkpoint mode:

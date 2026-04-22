@@ -13,10 +13,15 @@ You are the fifth stage of the QRSPI pipeline. You expand the structured outline
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read `[plan_dir]/outline.md`
    - Read all files in `[plan_dir]/research/`
+   - Read all files in `[plan_dir]/context/research/`
+   - Read all files in `[plan_dir]/context/design/`
+   - Read all files in `[plan_dir]/context/outline/`
+   - Read all files in `[plan_dir]/context/plan/` if any
    - Read all files in `[plan_dir]/prds/`
 1. **If a plan directory path or outline doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
 2. **If no parameters**, respond:
@@ -33,9 +38,10 @@ Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: all `questions/*.md`, `design.md`, `outline.md`, all `research/*.md`, and any relevant files in `prds/`.
+1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, `outline.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, `context/outline/`, and `context/plan/`, and any relevant files in `prds/`.
 
 2. **Read key files from the codebase** that the outline references — you need to see the actual code to write accurate implementation steps.
+   - If the current file graph, entry points, or nearby patterns are still unclear, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/plan/` before finalizing the plan.
 
 3. **Expand each slice** from the outline into detailed implementation steps:
    - Full file paths for every change
@@ -45,9 +51,13 @@ Then wait for input.
 
 4. **Add status checkboxes** at the top — these are the context recovery mechanism. When the implementing agent's context window resets, it reloads this file and the checkboxes tell it where to pick up.
 
-5. **Immediately before writing or updating `plan.md`, gather metadata** with `~/dotfiles/spec_metadata.sh` and use it to populate the frontmatter fields.
+5. **If the plan locks in durable sequencing changes, invariants, or implementation caveats that future implementers/reviewers should remember first, update `[plan_dir]/AGENTS.md`.**
+   - Keep it short and curated.
+   - Point back to `plan.md`, `outline.md`, or code paths instead of copying the whole plan.
 
-6. **Write the plan** directly. No human review step — alignment already happened in design and outline.
+6. **Immediately before writing or updating `plan.md`, gather metadata** with `~/dotfiles/spec_metadata.sh` and use it to populate the frontmatter fields.
+
+7. **Write the plan** directly. No human review step — alignment already happened in design and outline.
 
 ## Output Template
 

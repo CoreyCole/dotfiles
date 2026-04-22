@@ -9,11 +9,14 @@ RESOLVED_SCRIPT_DIR="$(cd "$SCRIPT_DIR" && pwd -P)"
 RESOLVED_EXPECTED_DIR="$(cd "$EXPECTED_DIR" 2>/dev/null && pwd -P || echo "")"
 
 if [ "$RESOLVED_SCRIPT_DIR" != "$RESOLVED_EXPECTED_DIR" ]; then
-  echo "This config should be accessible at ~/.pi/agent/"
+  echo "This config should be symlinked directly to ~/.pi/agent/"
   echo "  Current location: $SCRIPT_DIR"
-  echo "  Expected: $EXPECTED_DIR"
+  echo "  Expected symlink target: $EXPECTED_DIR"
   echo ""
-  echo "  Run: ln -s $SCRIPT_DIR $EXPECTED_DIR"
+  echo "  Pi resolves global settings, extensions, skills, and themes relative to ~/.pi/agent/."
+  echo "  Do not symlink ~/.pi itself or add another nested agent/ directory inside the tracked config."
+  echo ""
+  echo "  Run: mkdir -p \"$HOME/.pi\" && ln -sfn \"$SCRIPT_DIR\" \"$EXPECTED_DIR\""
   exit 1
 fi
 

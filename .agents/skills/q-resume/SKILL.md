@@ -26,22 +26,22 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 | Stage | Load these artifacts |
 |-------|---------------------|
-| question | existing `questions/*.md`, `research/*.md`, `design.md`, `outline.md`, `prds/*` as relevant |
-| research | relevant `questions/*.md` only |
-| design | `questions/*.md`, `research/*.md`, `prds/*` |
-| outline | `questions/*.md`, `design.md`, `research/*.md`, `prds/*` |
-| plan | `questions/*.md`, `design.md`, `outline.md`, `research/*.md`, `prds/*` |
-| implement | `questions/*.md`, `design.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*` |
+| question | `[plan_dir]/AGENTS.md`, existing `questions/*.md`, relevant `context/question/*.md`, `research/*.md`, `design.md`, `outline.md`, `prds/*` as relevant |
+| research | relevant `questions/*.md`, relevant `context/research/*.md` |
+| design | `[plan_dir]/AGENTS.md`, `questions/*.md`, `research/*.md`, `adrs/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md` |
+| outline | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/outline/*.md` |
+| plan | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `outline.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/outline/*.md`, `context/plan/*.md` |
+| implement | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*`, relevant `context/plan/*.md`, latest relevant `context/implement/*.md` |
 
 ### 3. Continue working
 
 Based on the handoff's **Status** and **Next** sections, continue where the previous session left off.
 
 - If `status: in_progress` - continue the current stage from where it left off. You are working on the `[stage]` stage.
-- If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`). Pass the `plan_dir` from the handoff frontmatter.
+- If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`; if `next_stage: review`, run `/q-review`). For `review`, prefer passing the exact implement handoff path you just read. For other stages, pass the `plan_dir` from the handoff frontmatter.
 - If `status: complete` and `next_stage` is null - the pipeline is complete. Tell the user.
 
-Apply any **Learnings** and **User Decisions** from the handoff as you work.
+Apply any **Learnings**, **User Decisions**, and referenced **Context Artifacts** from the handoff as you work.
 
 Do not present an analysis or ask for confirmation. Just continue working.
 

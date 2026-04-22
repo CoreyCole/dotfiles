@@ -2,6 +2,8 @@
 name: codebase-analyzer
 description: Analyzes codebase implementation details. Call the codebase-analyzer agent when you need to find detailed information about specific components. As always, the more detailed your request prompt, the better! :)
 tools: read, grep, find, ls
+model: gpt-5.4-mini
+thinking: medium
 ---
 
 Pi-specific note: use Pi builtin tool names in frontmatter (`read`, `grep`, `find`, `ls`) and keep outputs concise so the parent agent can synthesize them.

@@ -13,8 +13,10 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - Read all files in `[plan_dir]/questions/`
-   - Do NOT load design.md, outline.md, `prds/`, or the ticket.
+   - Read the relevant question doc(s) in `[plan_dir]/questions/`
+   - Read relevant files in `[plan_dir]/context/research/` only when continuing or deepening an existing research pass
+   - Pi may have already auto-loaded `[plan_dir]/AGENTS.md` from the cwd. Do **not** explicitly open more plan-dir artifacts beyond the relevant question doc(s) and same-stage `context/research/` files when continuing a pass.
+   - Do **NOT** read `design.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, the ticket, or any other forward-looking plan artifacts. The question doc(s) are the only planning artifacts you should intentionally load at the start of research.
 1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read relevant question doc(s) in `[plan_dir]/questions/` fully, and begin.
 2. **If no parameters**, respond:
 
@@ -33,42 +35,54 @@ Then wait for input.
 1. **Read relevant question doc(s) in `[plan_dir]/questions/` fully.**
    - If a specific question doc path was provided, treat it as primary.
    - Otherwise prefer the newest timestamped question doc unless user says otherwise.
+   - Stay blind to the rest of the plan directory except same-stage `context/research/` artifacts when continuing an existing research pass.
 
-2. **Extract the important brainstorm/design context from the relevant question doc(s)** and carry it forward into the top of the research doc.
-   - Summarize the key desired outcome, design details, explicit decisions, constraints, and tradeoffs surfaced during `q-question`
-   - Preserve human-confirmed context; do not invent new decisions here
+2. **Extract the important brainstorm/design context from the relevant question doc(s)** and carry it forward into the research doc.
+   - Summarize the key desired outcome, design details, explicit decisions, constraints, and tradeoffs surfaced during `q-question`.
+   - Preserve human-confirmed context; do not invent new decisions here.
+   - Decompose the work into a small set of research areas or sub-questions before you delegate.
 
-3. **Phase 1 — locator wave. For each question, spawn parallel locator sub-agents first**:
-   - Always use:
-     - codebase-locator
-   - When the question explicitly asks about prior decisions, existing research, historical context, or documents in `thoughts/`, also use:
-     - thoughts-locator
-   - Ask locators for concrete paths, likely entry points, and the smallest useful set of files/documents to inspect next.
+3. **Read any directly mentioned files fully before spawning sub-agents.**
+   - If the user prompt or question doc explicitly names files, docs, JSON, tickets, prior research docs, or `thoughts/` artifacts, read them in full yourself first.
+   - Do not rely on partial excerpts for directly referenced artifacts.
 
-4. **Wait for all locator results before continuing**.
+4. **Phase 1 — location pass. Spawn one or more parallel `codebase-locator` sub-agents across the research areas**:
+   - Ask `codebase-locator` for concrete paths, likely entry points, the smallest useful next-read set, related tests/config/docs, and any directory clusters relevant to the question.
+   - When a question explicitly asks about prior decisions, existing research, historical context, or documents in `thoughts/`, ask `codebase-locator` to search `thoughts/` too and correct any `thoughts/searchable/` paths back to editable paths.
+   - Write each locator result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
 
-5. **Phase 2 — analysis/pattern wave. Use the locator results to drive the next parallel sub-agents**:
-   - Use `codebase-analyzer` on the most relevant code files or entry points surfaced by `codebase-locator`.
-   - Use `codebase-pattern-finder` to find similar implementations and examples based on what `codebase-locator` surfaced.
-   - If `thoughts-locator` found directly relevant documents worth deeper inspection, use `thoughts-analyzer` on those specific documents.
-   - Do not send the second-wave agents only the original broad question; give them the concrete files/documents found in phase 1.
+5. **Phase 2 — analysis pass. Run `codebase-analyzer` on the most promising files or flows surfaced by the locator results**:
+   - Ask `codebase-analyzer` to trace entry points, data flow, important types, transformations, configuration, patterns, and error handling with exact file:line references.
+   - Keep analyzer tasks narrow and factual.
+   - Write each analyzer result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
 
-6. **Wait for all analysis/pattern results**.
+6. **Wait for all sub-agent results before continuing**.
+   - Do not synthesize early.
+   - Prioritize live codebase findings as the primary source of truth.
+   - Treat `thoughts/` findings as supplementary historical context.
 
-7. **Read identified files yourself** in main context to verify findings.
-   - Verify code claims against source files directly.
-   - Only read thoughts documents when the question explicitly calls for that context.
+7. **Synthesize and verify in main context**.
+   - Read the key source files surfaced by `codebase-locator` and explained by `codebase-analyzer` yourself.
+   - Verify important claims against source files directly before writing them down.
+   - Connect findings across components, not just within single files.
 
-8. **Answer each question** with:
+8. **If a question still lacks enough evidence, run a second focused locator or analyzer pass** with a narrower task.
+   - Write any follow-up context artifacts to `[plan_dir]/context/research/`.
+   - Wait for the follow-up results, then re-read the surfaced files/documents yourself.
+
+9. **Answer each question** with:
    - concrete facts and file:line references
    - direct quotes where helpful
+   - cross-component connections where relevant
    - `I could not determine this` when not answerable
 
-9. **Note surprises** — unexpected findings or assumptions contradicted by code.
+10. **Note surprises and open questions**.
+   - Capture assumptions contradicted by the code.
+   - Call out anything that still needs follow-up research.
 
-10. **Gather metadata** with `~/dotfiles/spec_metadata.sh`. Use its `Timestamp For Filename` output for the research filename and its other fields for the frontmatter.
+11. **Gather metadata** with `~/dotfiles/spec_metadata.sh`. Use its `Timestamp For Filename` output for the research filename and its other fields for the frontmatter.
 
-11. **Write findings** to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`.
+12. **Write findings** to `[plan_dir]/research/YYYY-MM-DD_HH-MM-SS_topic-name.md`.
 
 ## Output Template
 
@@ -95,23 +109,36 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 - [Decisions already made and tradeoffs to preserve during research]
 - [Open tensions intentionally deferred to research]
 
-## Answers
+## Research Question
+[The research scope for this pass and which question doc(s) it answers]
 
-### 1. [Restate question]
+## Summary
+[High-level findings answering the research questions]
+
+## Detailed Findings
+
+### 1. [Restate question or research area]
 [Facts with file:line references. No opinions. No proposals.]
 
-### 2. [Restate question]
+### 2. [Restate question or research area]
 [Facts with file:line references.]
 
 ...
+
+## Code References
+- `path/to/file.ext:123` — [what's there]
+- `path/to/file.ext:45-67` — [what this block does]
+
+## Historical Context
+- [Relevant findings from `thoughts/`, only when applicable]
+- If a path was found under `thoughts/searchable/...`, report the corrected editable path
 
 ## Surprises
 - [Anything unexpected discovered during research]
 - [Constraints or patterns not asked about but relevant]
 
-## Code References
-- `path/to/file.ext:123` — [what's there]
-- `path/to/file.ext:45-67` — [what this block does]
+## Open Questions
+- [Any unresolved follow-up questions]
 ```
 
 ## Response
@@ -131,9 +158,15 @@ If the user wants more research, tell them to run `/q-research [exact path to pl
 - This is research, not design. No solutions, no pseudocode.
 - The first section of the research doc must be a concise `Brainstorm Summary` carried forward from `q-question` so downstream stages retain the key design context.
 - The `Brainstorm Summary` must preserve validated human decisions and tradeoffs from the question docs; do not invent new decisions in research.
-- Do NOT read the ticket, `design.md`, `outline.md`, `prds/`, or other forward-looking documents that reveal what is being built. Only read relevant files in `questions/`, code surfaced during research, and `thoughts/` documents when the question explicitly asks for historical context, prior decisions, or existing documentation.
+- Research should stay intentionally blind so the session is not biased by later-stage decisions or curated memory.
+- Pi may auto-load `[plan_dir]/AGENTS.md` based on the cwd. Do not explicitly rely on it or expand your reading because of it.
+- Do **NOT** read the ticket, `design.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, or other forward-looking documents that reveal what is being built. The only plan artifacts you should intentionally read are the relevant `questions/*.md` files, plus relevant prior `context/research/` artifacts when continuing a pass. Everything else must come from code surfaced during research and `thoughts/` documents only when the question explicitly asks for historical context, prior decisions, or existing documentation.
+- Always read directly mentioned files fully before spawning sub-tasks.
+- Always wait for all sub-agents to complete before synthesizing findings.
+- Prioritize live codebase findings as the source of truth; use `thoughts/` as supplementary historical context.
 - Every claim must have a file:line reference.
 - If a question can't be answered from code, say so clearly.
 - Keep answers factual and concise.
+- Within QRSPI, prefer `codebase-locator` for discovery and `codebase-analyzer` for detailed implementation tracing. Keep both narrowly scoped and factual.
 - Multiple research docs are expected; each invocation produces one file.
 - Use `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.
