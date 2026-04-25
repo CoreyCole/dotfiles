@@ -69,5 +69,9 @@
   "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754315059269
-  }
+  },
+  "verbose": true,
+  "preferredNotifChannel": "terminal_bell",
+  "autoCompactEnabled": false,
+  "remoteControlAtStartup": false
 }

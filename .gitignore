@@ -14,6 +14,7 @@
 .claude/history.jsonl
 .claude/plans
 .claude/stats-cache.json
+.claude/mcp-needs-auth-cache.json
 .claude/cache
 .claude/paste-cache
 .claude/tasks
@@ -29,6 +30,9 @@ context/
 .pi-config/pi-subagents/node_modules/
 .pi-config/auth.json
 .pi-config/sessions/
+.pi-config/agent/auth.json
+.pi-config/agent/sessions/
+.pi-config/agent/run-history.jsonl
 context/
 *.local*
 .claude/.ranger_cache.json

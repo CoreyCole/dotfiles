@@ -5,9 +5,20 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
 ## Project Notes
 
 - The `pi-mono` source code is cloned at `context/pi-mono`.
-- This tracked Pi config is meant to be the direct target of `~/.pi/agent`.
-  - Correct: `~/.pi/agent -> ~/dotfiles/.pi-config`
-- Pi only auto-discovers global resources relative to `~/.pi/agent`, so `settings.json`, `extensions/`, `skills/`, and similar directories must live directly under that symlink target.
+- This dotfiles repo currently uses:
+  - `~/.pi -> ~/dotfiles/.pi-config`
+- Pi auto-discovers global resources from paths under `~/.pi/agent/`.
+- To keep tracked resources at the top level of `.pi-config/` while still satisfying Pi's expected runtime layout, this repo mirrors shared resources into `agent/` with symlinks:
+  - `agent/extensions -> ../extensions`
+  - `agent/skills -> ../skills`
+  - `agent/agents -> ../agents`
+  - `agent/mcp.json -> ../mcp.json`
+- Runtime state lives directly in `agent/`:
+  - `agent/settings.json`
+  - `agent/auth.json`
+  - `agent/sessions/`
+  - `agent/run-history.jsonl`
+- Do **not** rely on `~/.pi/extensions/` for auto-discovery. The tracked source files live there only because `~/.pi` points at `.pi-config`; Pi actually loads global extensions from `~/.pi/agent/extensions/`.
 
 ______________________________________________________________________
 
