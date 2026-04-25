@@ -7,6 +7,12 @@ Run two isolated Tailscale clients in Docker so this machine can SSH into both:
 
 Each container exposes a local SOCKS5 proxy, and the helper scripts SSH through that proxy.
 
+## Files
+
+- `docker-compose.yml` — starts both Tailscale containers
+- `ssh-home.sh` — SSH through the personal tailnet
+- `ssh-work.sh` — SSH through the work tailnet
+
 ## Services
 
 ### personal
@@ -75,21 +81,25 @@ work user@host
 
 ## Troubleshooting
 
-Show available nodes:
+### Show available nodes
 
 ```bash
 docker compose exec -T personal tailscale status
 docker compose exec -T work tailscale status
 ```
 
-Restart one side:
+### Host not found
+
+If a helper script says it cannot find the host, verify the exact device name in `tailscale status`.
+
+### Restart one side
 
 ```bash
 docker compose restart personal
 docker compose restart work
 ```
 
-Reset Tailscale state and log in again:
+### Reset Tailscale state
 
 ```bash
 docker compose down
@@ -102,3 +112,5 @@ docker compose up -d
 - No auth key is required; this setup uses browser login via `login.tailscale.com`.
 - The host machine itself does not need to join both tailnets directly for this workflow.
 - SSH is tunneled through a local SOCKS5 proxy exposed by each Tailscale container.
+- `ssh-home.sh` targets the `personal` service.
+- `ssh-work.sh` targets the `work` service.
