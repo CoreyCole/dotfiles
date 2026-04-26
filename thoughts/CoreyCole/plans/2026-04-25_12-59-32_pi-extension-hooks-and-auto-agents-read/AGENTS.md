@@ -158,3 +158,7 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 - Outline review (2026-04-25): Slice 5 must explicitly surface which `AGENTS.md` files were auto-loaded through the wrapped `read` result/renderer; delegated `originalRead.execute()` calls alone will not create separate visible tool rows under Pi’s current tool execution flow.
 - Outline review (2026-04-25): the hook plan still needs an explicit compatibility adapter for the current Chestnut Flake contract — existing grouped hook config, Claude-style block response (`{"decision":"block"}`), required env/runtime affordances like `CLAUDE_ENV_FILE`, and Claude-compatible top-level stdin keys (`cwd`, `tool_name`, `tool_input`) — rather than only a new flat Pi-local schema. In practice that means a per-session env file plus a bash wrapper/spawn-hook bridge so `SessionStart` exports affect later bash tool executions.
+
+## Implementation gotchas
+
+- Slice 4 inlined Pi's current `resolveReadPath()` behavior in `.pi-config/extensions/auto-agents/paths.ts` instead of deep-importing it, because `resolveReadPath` is not exported from the public `@mariozechner/pi-coding-agent` package entrypoint.
