@@ -1,9 +1,10 @@
-import type { ExtensionAPI, SessionStartEvent } from "@mariozechner/pi-coding-agent";
+import { createBashTool, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
+import { Text } from "@mariozechner/pi-tui";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadToolHooksConfig } from "./config";
 import { buildHookPayload } from "./payload";
-import { runHookRules } from "./runner";
+import { createClaudeEnvFile, runHookRules, shellQuote } from "./runner";
 
 const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.resolve(EXTENSION_DIR, "../../config/tool-hooks.json");
@@ -18,7 +19,29 @@ export default function toolHooks(pi: ExtensionAPI) {
   const rules = loadToolHooksConfig(CONFIG_PATH);
   let claudeEnvFile: string | undefined;
 
+  const bashTool = createBashTool(process.cwd(), {
+    spawnHook: ({ command, cwd, env }) => ({
+      command: claudeEnvFile ? `source ${shellQuote(claudeEnvFile)}\n${command}` : command,
+      cwd,
+      env,
+    }),
+  });
+
+  pi.registerTool({
+    ...bashTool,
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      return bashTool.execute(toolCallId, params, signal, onUpdate, ctx);
+    },
+  });
+
+  pi.registerMessageRenderer("tool-hooks-session-start", (message, _options, theme) => {
+    const text = typeof message.content === "string" ? message.content : "";
+    return new Text(theme.fg("muted", `[tool-hooks session context]\n${text}`), 0, 0);
+  });
+
   pi.on("session_start", async (event, ctx) => {
+    claudeEnvFile = createClaudeEnvFile();
+
     const payload = buildHookPayload({
       event: "SessionStart",
       piEvent: "session_start",

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { HookCommandPayload, HookExecutionResult, HookCommandJsonResult, NormalizedHookRule } from "./types";
+import type { HookCommandPayload, HookExecutionResult, NormalizedHookRule } from "./types";
 
 export interface CommandRunResult {
   exitCode: number;
@@ -43,24 +43,48 @@ export async function runCommand(
   });
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseResultPatch(value: unknown): HookExecutionResult["resultPatch"] | undefined {
+  if (!isPlainObject(value)) return undefined;
+
+  const resultPatch: HookExecutionResult["resultPatch"] = {};
+  if ("content" in value) resultPatch.content = value.content;
+  if (isPlainObject(value.details)) resultPatch.details = value.details;
+  if (typeof value.isError === "boolean") resultPatch.isError = value.isError;
+
+  return Object.keys(resultPatch).length > 0 ? resultPatch : undefined;
+}
+
 export function parseHookOutput(result: CommandRunResult): HookExecutionResult {
   if (result.exitCode === 2) {
     return { block: true, reason: result.stderr || "blocked by hook" };
   }
 
-  if (result.exitCode !== 0) {
+  if (result.exitCode !== 0 || !result.stdout) {
     return {};
   }
 
-  if (!result.stdout) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    return {};
+  }
 
-  const parsed = JSON.parse(result.stdout) as HookCommandJsonResult;
+  if (!isPlainObject(parsed)) return {};
+
+  const inputPatch = isPlainObject(parsed.inputPatch) ? parsed.inputPatch : undefined;
+  const hookSpecificOutput = isPlainObject(parsed.hookSpecificOutput) ? parsed.hookSpecificOutput : undefined;
 
   return {
     block: parsed.decision === "block",
-    reason: parsed.reason,
-    inputPatch: parsed.inputPatch,
-    resultPatch: parsed.resultPatch,
-    additionalContext: parsed.hookSpecificOutput?.additionalContext,
+    reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    inputPatch,
+    resultPatch: parseResultPatch(parsed.resultPatch),
+    additionalContext:
+      typeof hookSpecificOutput?.additionalContext === "string" ? hookSpecificOutput.additionalContext : undefined,
   };
 }

@@ -1,7 +1,21 @@
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext, ToolResultEventResult } from "@mariozechner/pi-coding-agent";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { matchesHookRule } from "./matchers";
 import { parseHookOutput, runCommand } from "./process";
 import type { ClaudeHookEventName, HookCommandPayload, HookExecutionResult, NormalizedHookRule } from "./types";
+
+export function createClaudeEnvFile(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "pi-tool-hooks-"));
+  const file = path.join(dir, "session.env");
+  writeFileSync(file, "", "utf8");
+  return file;
+}
+
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
 
 function buildHookEnv(payload: HookCommandPayload, claudeEnvFile: string | undefined): NodeJS.ProcessEnv {
   return {
@@ -15,6 +29,31 @@ function buildHookEnv(payload: HookCommandPayload, claudeEnvFile: string | undef
   };
 }
 
+function filterInputPatch(
+  inputPatch: Record<string, unknown> | undefined,
+  originalInput: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!inputPatch || !originalInput) return undefined;
+
+  const filtered = Object.fromEntries(
+    Object.entries(inputPatch).filter(([key, value]) => key in originalInput && value !== undefined),
+  );
+  return Object.keys(filtered).length > 0 ? filtered : undefined;
+}
+
+function filterResultPatch(resultPatch: HookExecutionResult["resultPatch"]): ToolResultEventResult | undefined {
+  if (!resultPatch) return undefined;
+
+  const next: ToolResultEventResult = {};
+  if (Array.isArray(resultPatch.content)) next.content = resultPatch.content as ToolResultEventResult["content"];
+  if (resultPatch.details && typeof resultPatch.details === "object" && !Array.isArray(resultPatch.details)) {
+    next.details = resultPatch.details;
+  }
+  if (typeof resultPatch.isError === "boolean") next.isError = resultPatch.isError;
+
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 export async function runHookRules(args: {
   rules: NormalizedHookRule[];
   event: ClaudeHookEventName;
@@ -25,13 +64,13 @@ export async function runHookRules(args: {
   block?: boolean;
   reason?: string;
   inputPatch?: Record<string, unknown>;
-  resultPatch?: HookExecutionResult["resultPatch"];
+  resultPatch?: ToolResultEventResult;
   additionalContext: string[];
 }> {
   const matching = args.rules.filter((rule) => rule.event === args.event && matchesHookRule(rule, args.payload));
   const additionalContext: string[] = [];
   let inputPatch: Record<string, unknown> | undefined;
-  let resultPatch: HookExecutionResult["resultPatch"];
+  let resultPatch: ToolResultEventResult | undefined;
 
   for (const rule of matching) {
     const env = buildHookEnv(args.payload, args.claudeEnvFile);
@@ -43,9 +82,12 @@ export async function runHookRules(args: {
 
     const outcome = parseHookOutput(await runCommand(rule, args.payload, env));
 
+    const nextInputPatch = filterInputPatch(outcome.inputPatch, args.payload.tool_input);
+    const nextResultPatch = filterResultPatch(outcome.resultPatch);
+
     if (outcome.additionalContext) additionalContext.push(outcome.additionalContext);
-    if (outcome.inputPatch) inputPatch = { ...(inputPatch ?? {}), ...outcome.inputPatch };
-    if (outcome.resultPatch) resultPatch = { ...(resultPatch ?? {}), ...outcome.resultPatch };
+    if (nextInputPatch) inputPatch = { ...(inputPatch ?? {}), ...nextInputPatch };
+    if (nextResultPatch) resultPatch = { ...(resultPatch ?? {}), ...nextResultPatch };
     if (outcome.block) return { block: true, reason: outcome.reason, inputPatch, resultPatch, additionalContext };
   }
 
