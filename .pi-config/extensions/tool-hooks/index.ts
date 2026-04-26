@@ -1,13 +1,11 @@
-import { createBashToolDefinition, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
+import { createBashToolDefinition, getAgentDir, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { loadToolHooksConfig } from "./config";
 import { buildHookPayload } from "./payload";
 import { createClaudeEnvFile, runHookRules, shellQuote } from "./runner";
 
-const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.resolve(EXTENSION_DIR, "../../config/tool-hooks.json");
+const CONFIG_PATH = path.join(path.dirname(getAgentDir()), "config", "tool-hooks.json");
 
 function sessionStartSource(reason: SessionStartEvent["reason"]): "startup" | "resume" | undefined {
   if (reason === "resume") return "resume";
