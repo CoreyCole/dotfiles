@@ -162,3 +162,4 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 ## Implementation gotchas
 
 - Slice 4 inlined Pi's current `resolveReadPath()` behavior in `.pi-config/extensions/auto-agents/paths.ts` instead of deep-importing it, because `resolveReadPath` is not exported from the public `@mariozechner/pi-coding-agent` package entrypoint.
+- Slice 6 changed the bash wrapper to use public `createBashToolDefinition()` rather than `createBashTool()`, because registered tool definitions receive the extension `ctx` argument and typecheck cleanly against Pi's public extension API.

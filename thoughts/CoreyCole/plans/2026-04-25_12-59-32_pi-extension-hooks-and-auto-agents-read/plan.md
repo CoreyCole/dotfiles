@@ -18,7 +18,7 @@ plan_dir: "thoughts/CoreyCole/plans/2026-04-25_12-59-32_pi-extension-hooks-and-a
 - [x] Slice 3: Add safe pre/post hook mutation behavior and Claude-compatible env support
 - [x] Slice 4: Build auto-agents path discovery, hashing, and persisted session state
 - [x] Slice 5: Replace `read` with the delegating auto-agents wrapper
-- [ ] Slice 6: Wire tracked config, reload Pi, and run end-to-end smoke verification
+- [x] Slice 6: Wire tracked config, reload Pi, and run end-to-end smoke verification
 
 ## Slice 1: Normalize Claude-style hook config and matcher evaluation
 

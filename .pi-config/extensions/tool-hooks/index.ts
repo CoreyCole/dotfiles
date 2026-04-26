@@ -1,4 +1,4 @@
-import { createBashTool, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
+import { createBashToolDefinition, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ export default function toolHooks(pi: ExtensionAPI) {
   const rules = loadToolHooksConfig(CONFIG_PATH);
   let claudeEnvFile: string | undefined;
 
-  const bashTool = createBashTool(process.cwd(), {
+  const bashTool = createBashToolDefinition(process.cwd(), {
     spawnHook: ({ command, cwd, env }) => ({
       command: claudeEnvFile ? `source ${shellQuote(claudeEnvFile)}\n${command}` : command,
       cwd,

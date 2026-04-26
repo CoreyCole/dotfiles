@@ -1,10 +1,12 @@
-import type { ExtensionContext, ToolResultEventResult } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext, ToolResultEvent } from "@mariozechner/pi-coding-agent";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { matchesHookRule } from "./matchers";
 import { parseHookOutput, runCommand } from "./process";
 import type { ClaudeHookEventName, HookCommandPayload, HookExecutionResult, NormalizedHookRule } from "./types";
+
+type ToolResultPatch = Partial<Pick<ToolResultEvent, "content" | "details" | "isError">>;
 
 export function createClaudeEnvFile(): string {
   const dir = mkdtempSync(path.join(tmpdir(), "pi-tool-hooks-"));
@@ -41,11 +43,11 @@ function filterInputPatch(
   return Object.keys(filtered).length > 0 ? filtered : undefined;
 }
 
-function filterResultPatch(resultPatch: HookExecutionResult["resultPatch"]): ToolResultEventResult | undefined {
+function filterResultPatch(resultPatch: HookExecutionResult["resultPatch"]): ToolResultPatch | undefined {
   if (!resultPatch) return undefined;
 
-  const next: ToolResultEventResult = {};
-  if (Array.isArray(resultPatch.content)) next.content = resultPatch.content as ToolResultEventResult["content"];
+  const next: ToolResultPatch = {};
+  if (Array.isArray(resultPatch.content)) next.content = resultPatch.content;
   if (resultPatch.details && typeof resultPatch.details === "object" && !Array.isArray(resultPatch.details)) {
     next.details = resultPatch.details;
   }
@@ -64,13 +66,13 @@ export async function runHookRules(args: {
   block?: boolean;
   reason?: string;
   inputPatch?: Record<string, unknown>;
-  resultPatch?: ToolResultEventResult;
+  resultPatch?: ToolResultPatch;
   additionalContext: string[];
 }> {
   const matching = args.rules.filter((rule) => rule.event === args.event && matchesHookRule(rule, args.payload));
   const additionalContext: string[] = [];
   let inputPatch: Record<string, unknown> | undefined;
-  let resultPatch: ToolResultEventResult | undefined;
+  let resultPatch: ToolResultPatch | undefined;
 
   for (const rule of matching) {
     const env = buildHookEnv(args.payload, args.claudeEnvFile);
