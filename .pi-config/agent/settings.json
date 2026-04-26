@@ -14,6 +14,8 @@
   ],
   "extensions": [
     "+extensions/answer.ts",
-    "+extensions/execute-command.ts"
+    "+extensions/execute-command.ts",
+    "+extensions/tool-hooks/index.ts",
+    "+extensions/auto-agents/index.ts"
   ]
 }
