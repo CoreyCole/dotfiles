@@ -7,7 +7,7 @@ branch: main
 repository: cctl
 stage: outline
 ticket: "Contrib export v2 local-only mode"
-plan_dir: "thoughts/corey/plans/2026-04-17_12-10-00_contrib-analyzer-outline"
+plan_dir: "thoughts/CoreyCole/plans/2026-04-17_12-10-00_contrib-analyzer-outline"
 ---
 
 # Outline: `c contrib export` local-only v2

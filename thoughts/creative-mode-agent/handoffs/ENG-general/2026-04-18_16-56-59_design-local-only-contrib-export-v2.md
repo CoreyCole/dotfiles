@@ -44,7 +44,7 @@ type: implementation_strategy
 - This enables dropping GitHub auth entirely for core output fields.
 
 ## Artifacts
-- `/home/ruby/dotfiles/thoughts/corey/plans/2026-04-17_12-10-00_contrib-analyzer-outline/plan.md` (current milestone context)
+- `/home/ruby/dotfiles/thoughts/CoreyCole/plans/2026-04-17_12-10-00_contrib-analyzer-outline/plan.md` (current milestone context)
 - `/home/ruby/dotfiles/cctl/pkg/contrib/export/service.go`
 - `/home/ruby/dotfiles/cctl/pkg/contrib/export/csv.go`
 - `/home/ruby/dotfiles/cctl/pkg/contrib/export/service_test.go`

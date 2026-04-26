@@ -7,7 +7,7 @@ branch: main
 repository: cctl
 stage: plan
 ticket: "GitHub repository contributor CSV CLI"
-plan_dir: "thoughts/corey/plans/2026-04-17_12-10-00_contrib-analyzer-outline"
+plan_dir: "thoughts/CoreyCole/plans/2026-04-17_12-10-00_contrib-analyzer-outline"
 ---
 
 # Implementation Plan: GitHub Contributor Analyzer CSV CLI

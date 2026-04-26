@@ -42,8 +42,8 @@ type: implementation_strategy
 - Current row sort uses `PRNumber` as tiebreaker; for mixed local/direct-push rows with blank PR number this may keep zeros grouped before numeric values.
 
 ## Artifacts
-- `/home/ruby/dotfiles/thoughts/corey/plans/2026-04-17_12-10-00_contrib-analyzer-outline/plan.md`
-- `/home/ruby/dotfiles/thoughts/corey/plans/2026-04-17_12-10-00_contrib-analyzer-outline/handoffs/2026-04-18_16-56-59_local-contrib-export-v2.md` (this handoff)
+- `/home/ruby/dotfiles/thoughts/CoreyCole/plans/2026-04-17_12-10-00_contrib-analyzer-outline/plan.md`
+- `/home/ruby/dotfiles/thoughts/CoreyCole/plans/2026-04-17_12-10-00_contrib-analyzer-outline/handoffs/2026-04-18_16-56-59_local-contrib-export-v2.md` (this handoff)
 - `/home/ruby/dotfiles/cctl/pkg/contrib/export/service.go`
 - `/home/ruby/dotfiles/cctl/pkg/contrib/export/service_test.go`
 - `/home/ruby/dotfiles/cctl/README.md`

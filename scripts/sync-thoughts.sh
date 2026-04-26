@@ -64,6 +64,57 @@ fi
 
 echo -e "${GREEN}User directory: ${USER_DIR}${NC}"
 
+move_tree_contents() {
+    local src_dir="$1"
+    local dest_dir="$2"
+
+    if [ ! -d "$src_dir" ]; then
+        return 0
+    fi
+
+    find "$src_dir" -type f -print0 | while IFS= read -r -d '' src_file; do
+        local rel_path="${src_file#${src_dir}/}"
+        local dest_file="${dest_dir}/${rel_path}"
+        local dest_parent
+        dest_parent=$(dirname "$dest_file")
+        mkdir -p "$dest_parent"
+
+        if [ -e "$dest_file" ]; then
+            if cmp -s "$src_file" "$dest_file"; then
+                echo "  Removing duplicate: $src_file"
+                rm "$src_file"
+            else
+                echo -e "${RED}Error: refusing to overwrite existing file ${dest_file}${NC}"
+                echo "Source: $src_file"
+                exit 1
+            fi
+        else
+            echo "  Moving: $src_file -> $dest_file"
+            mv "$src_file" "$dest_file"
+        fi
+    done
+
+    find "$src_dir" -depth -type d -empty -delete 2>/dev/null || true
+}
+
+# Normalize legacy thoughts locations before formatting/committing.
+echo ""
+echo "🔍 Normalizing thoughts directories..."
+for dir in thoughts/*/; do
+    [ -d "$dir" ] || continue
+    dir_name=$(basename "$dir")
+    dir_name_normalized=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]-_.')
+    if [ "$dir_name_normalized" = "$GIT_USERNAME_NORMALIZED" ] && [ "thoughts/$dir_name" != "$USER_DIR" ]; then
+        echo -e "${YELLOW}Found legacy user directory thoughts/${dir_name}/ - moving into ${USER_DIR}/${NC}"
+        move_tree_contents "thoughts/$dir_name" "$USER_DIR"
+    fi
+done
+
+if [ -d thoughts/plans ]; then
+    echo -e "${YELLOW}Found legacy top-level thoughts/plans/ - moving into ${USER_DIR}/plans/${NC}"
+    move_tree_contents "thoughts/plans" "${USER_DIR}/plans"
+fi
+
 # 1. Check git status for changes in thoughts/
 echo ""
 echo "📋 Checking git status..."
