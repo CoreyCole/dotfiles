@@ -13,12 +13,12 @@
     "git:github.com/nicobailon/pi-mcp-adapter",
     "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
-    "git:git@github.com:sasha-computer/pi-cmux.git"
+    "git:git@github.com:sasha-computer/pi-cmux.git",
+    "git:git@github.com:CoreyCole/pi-deterministic-docs.git"
   ],
   "extensions": [
     "+extensions/answer.ts",
     "+extensions/execute-command.ts",
-    "+extensions/tool-hooks/index.ts",
-    "+extensions/auto-agents/index.ts"
+    "+extensions/tool-hooks/index.ts"
   ]
 }
