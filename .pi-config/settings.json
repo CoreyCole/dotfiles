@@ -1,7 +1,7 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4",
-  "defaultThinkingLevel": "xhigh",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "high",
   "packages": [
     "/home/ruby/dotfiles/.pi-config/pi-subagents",
     "git:github.com/nicobailon/pi-mcp-adapter",
@@ -15,7 +15,7 @@
   ],
   "hideThinkingBlock": false,
   "skills": [],
-  "lastChangelogVersion": "0.68.1",
+  "lastChangelogVersion": "0.70.2",
   "compaction": {
     "enabled": false
   }
