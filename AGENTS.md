@@ -1,5 +1,9 @@
 # Dotfiles Notes
 
+## Party on main
+
+We don't make branches for this repo. Pull with rebase and commit to main.
+
 ## Pi config layout
 
 This repo currently uses `~/.pi -> ~/dotfiles/.pi-config`.
