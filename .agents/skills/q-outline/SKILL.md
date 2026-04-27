@@ -1,13 +1,13 @@
 ---
 name: q-outline
-description: Create a structured outline (~2 pages) — signatures, types, vertical slices, test checkpoints. Fourth stage of QRSPI pipeline. Last human review gate before code.
+description: Create a structured outline (~2 pages) — signatures, types, vertical slices, test checkpoints. Fourth stage of QRSPI pipeline. `/q-review` is the formal human review gate before code.
 ---
 
 # Structured Outline — How Do We Get There?
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the fourth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. This is the last human review gate before code is written.
+You are the fourth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. After the outline is written, `/q-review` is the formal human review gate before `/q-plan`.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
 
@@ -189,10 +189,10 @@ When outline.md is written, use this exact response shape:
 ```
 Artifact: [exact path to outline.md]
 Summary: [brief summary of slices and their test checkpoints]
-Next: /q-plan [exact path to outline.md]
+Next: /q-review [exact path to outline.md]
 ```
 
-You may add one extra sentence noting this is the last review gate before code.
+You may add one extra sentence noting that `/q-review` will review this outline together with `design.md` before `/q-plan`.
 
 **If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above.
 

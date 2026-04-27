@@ -14,11 +14,15 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 | 1 | Question | `/q-question` | `questions/*.md` | **Yes** — human reviews questions before research |
 | 2 | Research | `/q-research` | `research/*.md` | **Yes** — human reviews findings before design |
 | 3 | Design | `/q-design` | `design.md` + `adrs/*.md` | **Yes** — human approves approach |
-| 4 | Outline | `/q-outline` | `outline.md` | **Yes** — last gate before code |
+| 4 | Outline | `/q-outline` | `outline.md` | **Yes** — reviewed via `/q-review [outline.md]` before `/q-plan` |
 | 5 | Plan | `/q-plan` | `plan.md` | No — machine doc for the coding agent |
-| 6 | Implement | `/q-implement` | code changes + verified commits + review handoff | No — human reviews the code, not the plan |
+| 6 | Implement | `/q-implement` | code changes + verified commits + review handoff | No — human reviews the code via `/q-review` |
 
-Post-implementation review is handled by `/q-review`. Its canonical output lives in `[plan_dir]/reviews/`.
+`/q-review` has two review modes:
+- **Outline review** after `outline.md` is written and before `/q-plan`; it should improve `design.md`/`outline.md`, not just report on them
+- **Implementation review** after `/q-implement` completes; if follow-up work is needed, it seeds a new QRSPI plan dir, copies the review into `context/question/`, and hands off to `/skill:q-question [exact context/question review path]`
+
+Its canonical review artifact lives in `[plan_dir]/reviews/`.
 
 ## Key Principles
 
@@ -64,7 +68,7 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
   outline.md         # Stage 4: Structured outline
   plan.md            # Stage 5: Implementation plan with status checkboxes
   handoffs/          # Context preservation between sessions
-  reviews/           # Post-implementation review artifacts from /q-review
+  reviews/           # Outline and implementation review artifacts from /q-review
 ```
 
 `context/` artifacts are durable supporting artifacts that aid later stages. They do **not** replace the primary stage artifacts (`questions/*.md`, `research/*.md`, `design.md`, `outline.md`, `plan.md`). `adrs/*.md` are supporting decision records, not default stage artifacts for later steps. Load only the stage-relevant `context/` subdirectories and explicit supporting files listed by each skill; do not bulk-load unrelated context artifacts.
@@ -84,7 +88,7 @@ If you are reusing an existing plan directory, keep that exact path and use the 
 
 ## Handoffs
 
-Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off. When `/q-implement` completes, its completion handoff should advance to `/q-review`. Handoffs live in `[plan_dir]/handoffs/`. `/q-review` writes its canonical artifact to `[plan_dir]/reviews/`.
+Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off. After `outline.md` is written, the usual next step is `/q-review [outline.md]`. When `/q-implement` completes, its completion handoff should advance to `/q-review` in implementation mode. Handoffs live in `[plan_dir]/handoffs/`. `/q-review` writes its canonical artifact to `[plan_dir]/reviews/`.
 
 ## Standard Context Loading
 
@@ -95,15 +99,15 @@ Every stage skill MUST follow this sequence at the start of execution:
 
 ## Stage Skills
 
-Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skills/q-implement/SKILL.md`) plus the post-implementation review skill (`~/.agents/skills/q-review/SKILL.md`) contains the full process, templates, and rules for that step. Read the relevant skill before starting.
+Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skills/q-implement/SKILL.md`) plus the shared review skill (`~/.agents/skills/q-review/SKILL.md`) contains the full process, templates, and rules for that step. Read the relevant skill before starting.
 
 ## Rules
 
 - When a stage needs fresh discovery, use that stage's preferred read-only discovery/analyzer flow and write the resulting artifacts under `context/[stage]/`.
 - Each stage reads the artifacts from prior stages. Don't skip stages — the artifacts are the context.
-- Every stage through outline is a human gate. The human reviews questions, research findings, design, and outline before proceeding. Do not outsource the thinking.
-- The plan is a machine document. The human aligned on direction via design and outline. Save the deep review for the actual code.
-- `/q-implement` ends after final verification, commits, and a review handoff for `/q-review`. It does not push or open pull requests unless the user explicitly asks.
+- Every stage through outline is a human gate. The human reviews questions, research findings, design, and the design+outline pair before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint; that review should revise the docs toward a ready-for-`/q-plan` state, not just write a report. Do not outsource the thinking.
+- The plan is a machine document. The human aligned on direction via design, outline, and outline review. Save the deep implementation review for the actual code; if it finds follow-up work, start a fresh QRSPI loop from `/skill:q-question [context/question review doc]` with the copied review as context.
+- `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete, final verification passes, and the implementation is finished. It does not push or open pull requests unless the user explicitly asks.
 - The plan's status checkboxes are the context recovery mechanism. Keep them updated during implementation.
 - When looping back, add new artifacts rather than overwriting. The history matters.
 - When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for filename timestamps and frontmatter metadata.

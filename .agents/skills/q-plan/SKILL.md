@@ -7,7 +7,7 @@ description: Expand the structured outline into a detailed implementation plan �
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the fifth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. The human does NOT review this. The human reviews the code.
+You are the fifth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. The human does NOT review this. Human alignment happened in design, outline, and the outline `/q-review`; the human reviews the code again after implementation.
 
 ## When Invoked
 
@@ -123,7 +123,7 @@ Next: /q-implement [exact path to plan.md]
 
 Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
-No human review of the plan — alignment already happened in design and outline. The human reviews the code.
+No human review of the plan — alignment already happened in design, outline, and outline review. The human reviews the code.
 
 ## Rules
 

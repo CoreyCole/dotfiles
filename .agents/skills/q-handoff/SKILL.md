@@ -1,6 +1,6 @@
 ---
 name: q-handoff
-description: Create a handoff document to carry context forward within a QRSPI planning pipeline. Use "continue" arg to advance to the next stage; implement completion hands off to `/q-review`.
+description: Create a handoff document to carry context forward within a QRSPI planning pipeline. Use "continue" arg to advance to the next stage; implement completion hands off to `/q-review` only after all slices are complete.
 ---
 
 # Create Pipeline Handoff
@@ -30,7 +30,7 @@ You are creating a handoff document to preserve your working context within a QR
 | 5 | plan | `/q-plan` | `plan.md` |
 | 6 | implement | `/q-implement` | code changes |
 
-`review` is the post-implementation handoff target, not a core planning stage. When `implement` completes, `continue` should create a review-ready handoff and point to `/q-review`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
+`review` is the post-implementation handoff target, not a core planning stage. Only when `implement` is fully complete should `continue` create a review-ready handoff and point to `/q-review`. Intermediate implementation checkpoints must stay on `/q-resume`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
 
 ## When to use
 
@@ -58,8 +58,9 @@ If unknown, ask the user.
 
 - `continue`: set `status: complete`, compute `next_stage`
   - For `question` through `plan`, point the user to `/q-resume` so the next QRSPI stage can begin.
-  - For `implement`, set `next_stage: review` and point the user directly to `/q-review`.
+  - For `implement`, use this only when all implementation slices are complete; then set `next_stage: review` and point the user directly to `/q-review`.
 - checkpoint: set `status: in_progress`
+  - Use this for any non-final implementation slice so the next step remains `/q-resume`.
 
 ### 4. Refresh long-term memory if needed
 
@@ -119,30 +120,26 @@ Run `just sync-thoughts`.
 
 ### 7. Tell the user
 
-Use this exact response shape.
-
-If `continue` mode for `question` through `plan`:
+Use this exact response shape:
 
 ```
+Implemented: [one concise line describing what was completed or checkpointed]
+Verification: [relevant verification evidence if known, or `not run` with a short reason]
 Artifact: [exact path to handoff file]
-Summary: stage [current] complete.
-Next: /q-resume [exact path to handoff file]
+Next: [/q-resume or /q-review] [exact path to handoff file] — [what happens next]
 ```
 
-If `continue` mode for `implement`:
+Line requirements:
+- `Implemented:` must be specific to the work captured in the handoff.
+- `Verification:` must include relevant verification evidence when known. If no verification applies for the stage, say `not run` and why.
+- `Next:` must include both the exact resume/review command and a short description of what happens next.
+- For checkpoint mode, mention the current stage checkpoint and the concrete work that remains next.
+- For `continue` mode from `question` through `plan`, mention the completed stage and the next stage that `/q-resume` should start.
+- For `continue` mode from `implement`, mention what was implemented, the verification evidence if known, and that review is next.
+- Do **not** use generic lines like `Implemented: stage complete`, `Implemented: checkpoint saved`, or `Implemented: implementation complete` without describing the actual work.
 
-```
-Artifact: [exact path to handoff file]
-Summary: implementation complete. ready for review.
-Next: /q-review [exact path to handoff file]
-```
-
-If checkpoint mode:
-
-```
-Artifact: [exact path to handoff file]
-Summary: checkpoint saved for stage [current].
-Next: /q-resume [exact path to handoff file]
-```
+Next routing:
+- For `continue` mode from `implement`, use `/q-review`.
+- For all other handoffs, use `/q-resume`.
 
 Never abbreviate paths.

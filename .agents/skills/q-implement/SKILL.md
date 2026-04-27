@@ -7,7 +7,7 @@ description: Execute one implementation slice per invocation. Sixth stage of QRS
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the sixth stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. When the plan is complete, that final handoff must hand implementation off to `/q-review`, which writes the canonical review artifact to `[plan_dir]/reviews/`. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
+You are the sixth stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
 
 ## When Invoked
 
@@ -50,11 +50,11 @@ Then wait for input.
       - Keep it short and curated.
       - Remove or rewrite stale bullets instead of appending contradictions.
    h. Commit the slice.
-   i. If additional slices remain unchecked after this slice, create a checkpoint handoff via `/q-handoff` (no argument).
-   j. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and then create a review handoff via `/q-handoff continue`.
+   i. If additional slices remain unchecked after this slice, create a checkpoint handoff via `/q-handoff` (no argument). Do **not** mention `/q-review` yet.
+   j. If this was the last unchecked slice, do the final verification pass, then create a review handoff via `/q-handoff continue`.
    k. Stop. Do **not** start the next slice in the same invocation.
 
-3. **If all slices are already checked when you start**, do the final verification pass, write a concise finished-implementation summary, create a review handoff via `/q-handoff continue`, and stop.
+3. **If all slices are already checked when you start**, do the final verification pass, create a review handoff via `/q-handoff continue`, and stop.
 
 4. **If reality diverges from the plan** (file moved, API changed, pattern different):
    - Stop and present the mismatch clearly:
@@ -80,28 +80,29 @@ This is why the checkboxes and handoffs exist. Keep them updated.
 
 ## Response
 
-After completing a slice, respond in two parts:
+After completing a slice, create the required `/q-handoff` artifact first, then respond with one concise handoff block:
 
-1. A concise human summary.
-   - For a non-final slice, summarize the slice you just finished and the verification that passed.
-   - For the final slice or an already-complete plan, summarize the finished implementation as a whole and the final verification pass that passed.
-   - Keep it short and concrete.
-   - Include the slice number or name when a single slice just finished.
-   - Include the verify command(s) and the result in concise form.
+- Use separate `Implemented:`, `Verification:`, and `Next:` lines instead of compressing everything into a single summary.
+- `Implemented:` says what changed or, for an already-complete plan, what implementation is now complete.
+- `Verification:` includes the verify command(s) and concise pass result.
+- `Artifact:` gives the exact handoff file path.
+- `Next:` says what should happen next and includes the `/q-resume` or `/q-review` command with the exact handoff file path.
+- For a non-final slice, mention the slice number or name and make `Next:` resume implementation from the handoff.
+- For the final slice or an already-complete plan, summarize the finished implementation as a whole and make `Next:` start review.
+- Keep each line short and concrete.
+- Do **not** use generic lines like `Implemented: checkpoint saved for stage implement` or `Implemented: implementation complete` without the actual work.
+- Do **not** add any text after the `Next:` line.
 
-2. Then **end your response with the exact output shape from `/q-handoff`**.
-   - For a non-final slice, this must be the checkpoint output from `/q-handoff`.
-   - For the final slice or an already-complete plan, this must be the completion output from `/q-handoff continue`.
-   - The final completion output must point to `/q-review`, not `/q-resume`.
-   - Do **not** add any text after the `/q-handoff` output.
-
-Expected ending shape:
+Expected response shape:
 
 ```text
+Implemented: [what was implemented or what implementation is complete]
+Verification: [verify command(s) and concise pass result]
 Artifact: [exact path to handoff file]
-Summary: [the exact summary returned by /q-handoff]
-Next: [/q-resume or /q-review] [exact path to handoff file]
+Next: [/q-resume or /q-review] [exact path to handoff file] — [what happens next]
 ```
+
+For a non-final slice, `Next:` must point to `/q-resume`, not `/q-review`. For the final slice or an already-complete plan, `Next:` must point to `/q-review`, not `/q-resume`.
 
 Do not include a `PR:` line unless the user explicitly asked you to open one.
 
@@ -113,8 +114,9 @@ Do not include a `PR:` line unless the user explicitly asked you to open one.
 - If a slice fails verification, fix it before moving on. Vertical slices exist so you catch problems early.
 - Commit after each successful slice. Small, working commits.
 - After each successful slice, create the appropriate handoff via `/q-handoff` before stopping. This is mandatory.
-- When implementation is complete, the completion handoff must target `/q-review` and the human summary must summarize the finished implementation, not just the last slice.
-- End every successful slice response with the exact `/q-handoff` output and nothing after it.
+- Do not prompt for review until all slices are complete.
+- When implementation is complete, the completion handoff must target `/q-review` and the `Implemented:` line must summarize the finished implementation, not just the last slice.
+- End every successful slice response with the `Implemented:`/`Verification:`/`Artifact:`/`Next:` handoff block and nothing after it.
 - Never push or open a pull request as part of this skill unless the user explicitly asks for it.
 - If you hit a problem not covered by the plan, update the plan before continuing. The plan stays alive.
 - Read the code you're about to modify before changing it — the codebase may have evolved since the plan was written.

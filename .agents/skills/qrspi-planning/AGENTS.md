@@ -77,12 +77,12 @@ Keep only the sections that earn their place.
 | `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Yes |
 | `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Yes |
 | `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Yes |
-| `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | Yes |
+| `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | Yes — follow with `/q-review [outline.md]` before `/q-plan` |
 | `plan.md` | Plan | `~/.agents/skills/q-plan/SKILL.md` | No |
 | code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | No |
-| `reviews/*.md` | Review | `~/.agents/skills/q-review/SKILL.md` | Yes — human reads the review and decides next action |
+| `reviews/*.md` | Review | `~/.agents/skills/q-review/SKILL.md` | Yes — used for both outline review and implementation review |
 
-Every stage through outline requires human review before proceeding. Do not outsource the thinking.
+Every stage through outline requires human review before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint, and expect that review to improve `design.md`/`outline.md` toward a ready-for-`/q-plan` state. Implementation review follow-up work should start a fresh loop via `/skill:q-question [context/question review doc]`. Do not outsource the thinking.
 
 ## This process is not linear
 

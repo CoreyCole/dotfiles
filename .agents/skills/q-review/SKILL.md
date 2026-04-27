@@ -1,6 +1,6 @@
 ---
 name: q-review
-description: Review a QRSPI outline/design pair or a completed implementation. In outline mode, edit `design.md`/`outline.md` toward a reviewed-ready state. In implementation mode, write the canonical review artifact and, when follow-up work is needed, seed a new QRSPI plan dir with the review doc under `context/question/` and hand off to `/skill:q-question` on that exact file.
+description: Review a QRSPI outline/design pair or a completed implementation. In outline mode, edit `design.md`/`outline.md` toward a reviewed-ready state. In implementation mode, write the canonical review artifact, put non-straightforward findings into a follow-up questions doc, then use `/answer` to confirm each straightforward fix before applying it.
 ---
 
 # Review — Outline or Implementation
@@ -28,12 +28,15 @@ The goal is **not** to leave behind a passive report. The goal is to get the des
 
 ### Implementation review
 
-The goal is **not** to patch the code in-place during review. The goal is to convert verified review findings into the next unit of planned work.
+The goal is to produce a verified implementation review, then choose the right follow-up path with the engineer.
 
 - Review the code and verification evidence
 - Write the canonical implementation review artifact
 - If the implementation is correct, the pipeline is complete
-- If follow-up work is needed, create a **new QRSPI plan dir**, seed it with the review doc as context, and hand off to `/q-question [new plan dir]`
+- If findings are clear and straightforward, use `/answer` to confirm the intended action for each straightforward item before fixing it in the review context window
+- If findings require design tradeoffs, additional research, unclear scope, or multi-slice work, write them into a follow-up questions document instead of trying to solve them in review
+- After `/answer` returns, apply only the confirmed straightforward fixes, rerun relevant verification, and update the same review artifact
+- If non-straightforward findings exist, keep the same `plan_dir`, write a new questions document under `[plan_dir]/questions/`, then fix the confirmed straightforward items in the current review context
 
 ## When Invoked
 
@@ -79,26 +82,20 @@ This is the canonical `/q-review` output location.
 - The review artifact belongs in the specific plan directory under `reviews/`
 - Always return the exact path to that file in the final response
 
-## Implementation Follow-up Plan Directory
+## Implementation Follow-up Questions Doc
 
-If implementation review finds follow-up work, create a new plan directory:
+If implementation review findings require question/research/planning, **reuse the same `plan_dir`**. Do not create a new QRSPI plan directory for review follow-ups.
+
+Write one questions document for the non-straightforward review findings under:
 
 ```text
-thoughts/[git_username]/plans/[timestamp]_[original-plan-name]-review-followups/
+[plan_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_review-followup-questions.md
 ```
 
-Seed it with:
-- a copied `AGENTS.md` from `~/.agents/skills/qrspi-planning/AGENTS.md`
-- `prds/`, `questions/`, `research/`, and `context/{question,research,design,outline,plan,implement}/`
-- a copy of the implementation review artifact under:
-  ```text
-  [new_plan_dir]/context/question/YYYY-MM-DD_HH-MM-SS_[original-plan-name]_implementation-review.md
-  ```
-
-That copied review file is the source material for:
+The questions document must link to the canonical implementation review artifact in `[plan_dir]/reviews/` and turn each `needs_question_research` finding into neutral research/design questions with file references and context from the review. If the questions are clear and complete, the next step is:
 
 ```text
-/skill:q-question [exact path to copied context/question review file]
+/skill:q-research [exact path to questions doc]
 ```
 
 ## Load Context
@@ -286,11 +283,18 @@ Apply the normal code review rubric:
    - If real human decisions are still needed, ask them in a dedicated `Questions for /answer` section, invoke `/answer` in interactive mode, and use the answers to finish updating the docs.
    - The desired end state is: updated `design.md`/`outline.md` ready for `/q-plan`, or a short list of explicitly unresolved human decisions.
 
-11. **If this is implementation review, do not patch code here:**
+11. **If this is implementation review, classify findings and use `/answer` item-by-item for straightforward fixes:**
    - If the verdict is `correct`, the pipeline is complete.
-   - If the verdict is `needs_attention`, create a new QRSPI plan dir, copy the review doc into `[new_plan_dir]/context/question/`, and hand off to `/skill:q-question [exact path to copied review file]`.
-   - Do not rewrite the implementation during this review step.
-   - Do not use `/answer` for implementation-review follow-up planning; let `/skill:q-question` handle the new QRSPI loop.
+   - If the verdict is `needs_attention`, classify each finding before asking the engineer:
+     - `straightforward_fix` — the issue, fix, and verification are clear; it is safe to patch in the current review context window after engineer confirmation.
+     - `needs_question_research` — the issue requires product/design judgment, more codebase research, tradeoff analysis, broad refactoring, multiple slices, or unclear ownership.
+   - Write the review artifact before creating follow-up docs or asking the engineer so decisions are grounded in a durable artifact.
+   - If any `needs_question_research` findings exist, write the follow-up questions document under `[plan_dir]/questions/`. Do **not** create a new QRSPI plan directory.
+   - Do **not** ask the engineer whether to send non-straightforward findings to QRSPI; add all `needs_question_research` findings to the follow-up questions document automatically.
+   - For every `straightforward_fix` finding, ask a separate `/answer` question confirming what to do with that item. Each question must include the finding summary, exact file refs, suggested fix, and verification command, and allow the engineer to answer `apply`, `skip`, or provide a different instruction. The question text itself must start with the finding title/summary before asking whether to apply the fix, so the engineer can see the problem without opening the review artifact.
+   - After `/answer` returns, patch only the straightforward items the engineer confirmed, rerun relevant verification, and update the same review artifact with the fixes, skipped items, follow-up questions doc path, and final status.
+   - The follow-up next step for `needs_question_research` findings is `/skill:q-research [exact path to questions doc]`.
+   - Do not use in-session fixing for ambiguous, broad, or design-sensitive findings just because the code edit looks small.
 
 12. If the review surfaces durable learnings that future agents should remember first, update `[plan_dir]/AGENTS.md`.
 13. Always summarize the review doc findings in the user-facing response.
@@ -324,7 +328,7 @@ verdict: [correct|needs_attention]
 - [Short bullet for each finding. If none, say the work looks good.]
 
 ### Findings
-[Numbered findings with priority tags and file references. If none, say the work looks good.]
+[Numbered findings with priority tags and file references. If none, say the work looks good. Each finding must include either `Suggested fix:` for `straightforward_fix` findings or `Questions before fix:` for `needs_question_research` findings. Do not include a finding that has neither a suggested fix nor concrete questions needed before proposing a fix.]
 
 ### Focused Review Lanes
 - `[agent-name]` — verdict: [pass|concerns|fail]; included findings: [count]; notes: [short synthesis]
@@ -332,14 +336,23 @@ verdict: [correct|needs_attention]
 If no subagents were used, say `Not used; review was small/localized.`
 
 ### Questions / Decisions Needed
-Use answer-tool-compatible formatting when user input is needed:
+This section must come after `Findings Summary` and `Findings`. Use answer-tool-compatible formatting when user input is needed. For implementation `straightforward_fix` decisions, prefix each question with the finding title/summary before the suggested action:
 
-1. [Direct question?]
-   Context: [brief context tied to the finding]
-2. [Direct question?]
-   Context: [brief context tied to the finding]
+1. Finding 1 — [finding title/summary]. Should I apply the recommended straightforward fix?
+   Context: Finding: [what is broken and exact file refs]. Suggested fix: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+2. Finding 2 — [finding title/summary]. Should I apply the recommended straightforward fix?
+   Context: Finding: [what is broken and exact file refs]. Suggested fix: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
 
 If none, say `None.`
+
+### Implementation Follow-up Decision
+[For implementation reviews with findings: summarize each straightforward item decision from `/answer` (`apply`, `skip`, or custom instruction) and whether a non-straightforward questions doc was created. For outline reviews or no findings, say `not_applicable.`]
+
+### Finding Classification
+- `straightforward_fix` — [finding numbers]
+- `needs_question_research` — [finding numbers]
+
+If no findings, say `None.`
 
 ### Applied Edits
 - `path/to/design.md` — [what changed]
@@ -347,11 +360,16 @@ If none, say `None.`
 
 If no docs were edited, say `None.`
 
-### Follow-up Plan Dir
-[Exact path to the seeded follow-up plan dir for implementation-review findings, or `None.`]
+### Applied Implementation Fixes
+- `path/to/file` — [what was fixed after `/answer`, plus verification]
 
-### Follow-up Context Review
-[Exact path to the copied `context/question/*.md` review file for `/skill:q-question`, or `None.`]
+If no implementation code was fixed in-session, say `None.`
+
+### Follow-up Plan Dir
+[Exact `plan_dir` reused for implementation-review follow-up questions, or `None.`. Never create a separate review-followup plan dir.]
+
+### Follow-up Questions Doc
+[Exact path to the `[plan_dir]/questions/*.md` doc for non-straightforward implementation findings, or `None.`]
 
 ### What's Good
 [Short list of strengths worth preserving.]
@@ -365,13 +383,14 @@ If no docs were edited, say `None.`
 
 ## Response Format
 
-End with this exact four-line shape.
+End with this exact five-line shape. Always include a `Changes:` line summarizing the edits made during the review. If no files were edited and no in-session fixes were applied, say `Changes: none.` Always summarize findings before any `Questions for /answer` section; the `Findings:` line is the required pre-question summary.
 
 If the verdict is `correct` for an **outline review**:
 
 ```text
 Artifact: [exact path to review file]
 Summary: outline review complete. design/outline updated as needed. verdict: correct.
+Changes: [short summary of the design.md / outline.md / AGENTS.md / ADR edits made during review]
 Findings: none.
 Next: /q-plan [exact path to outline.md]
 ```
@@ -381,11 +400,12 @@ If the verdict is `needs_attention` for an **outline review**:
 ```text
 Artifact: [exact path to review file]
 Summary: outline review needs decisions before design/outline can be finalized.
+Changes: [short summary of edits already made during review, or none.]
 Findings: [short summary of the remaining review doc findings]
 Next: /q-review [exact path to outline.md]
 ```
 
-If user decisions are needed for outline review, add a **Questions for /answer** section after those four lines using this exact shape, then immediately invoke `/answer` with `execute_command` in interactive mode:
+If user decisions are needed for outline review, add a **Questions for /answer** section after the five-line response shape using this exact shape, then immediately invoke `/answer` with `execute_command` in interactive mode:
 
 ```text
 Questions for /answer
@@ -402,18 +422,75 @@ If the verdict is `correct` for an **implementation review**:
 ```text
 Artifact: [exact path to review file]
 Summary: implementation review complete. verdict: correct.
+Changes: [short summary of any applied implementation fixes or review-time doc updates, or none.]
 Findings: none.
 Next: pipeline complete
 ```
 
-If the verdict is `needs_attention` for an **implementation review**:
+If the verdict is `needs_attention` for an **implementation review**, first write the review artifact. If there are any `needs_question_research` findings, create the follow-up questions doc in the same `plan_dir` before asking about straightforward fixes.
+
+If there are `straightforward_fix` findings, then ask the engineer to confirm each straightforward fix:
 
 ```text
 Artifact: [exact path to review file]
-Summary: implementation review complete. follow-up plan seeded from review findings.
-Findings: [short summary of the review doc findings]
-Next: /skill:q-question [exact path to copied context/question review file]
+Summary: implementation review complete. verdict: needs_attention. non-straightforward findings copied to questions doc as needed; awaiting engineer confirmation for straightforward fixes.
+Changes: [short summary of review-time edits already made, or none yet.]
+Findings: [short summary of the review doc findings, including straightforward vs needs-question/research classification]
+Next: awaiting /answer decisions for straightforward fixes
 ```
+
+Add a **Questions for /answer** section after the five-line response shape using this exact shape, then immediately invoke `/answer` with `execute_command` in interactive mode:
+
+```text
+Questions for /answer
+1. Finding 1 — [finding title/summary]. Should I apply the recommended straightforward fix?
+   Context: Finding: [what is broken and exact file refs]. Suggested fix: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+2. Finding 2 — [finding title/summary]. Should I apply the recommended straightforward fix?
+   Context: Finding: [what is broken and exact file refs]. Suggested fix: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+```
+
+Do not ask `/answer` whether to create a questions doc for `needs_question_research` findings. Add those findings to the same-plan follow-up questions doc automatically before fixing straightforward items.
+
+If there are no `straightforward_fix` findings and there are `needs_question_research` findings, do not invoke `/answer`; create the follow-up questions doc and end with:
+
+```text
+Artifact: [exact path to review file]
+Summary: implementation review complete. follow-up questions doc created for non-straightforward findings.
+Changes: [short summary of review-time edits already made, or none.]
+Findings: [short summary of the non-straightforward findings]
+Next: /skill:q-research [exact path to questions doc]
+```
+
+After `/answer` returns:
+
+- Apply only straightforward fixes that the engineer confirmed with `apply` or concrete alternate instructions.
+- Do not apply skipped or ambiguous items.
+- Rerun relevant verification.
+- Update the same review artifact with `/answer` decisions, applied fixes, skipped fixes, verification, and remaining findings.
+- If `needs_question_research` findings exist, write the questions doc under `[plan_dir]/questions/` and end with:
+  ```text
+  Artifact: [exact path to review file]
+  Summary: implementation review straightforward findings handled; follow-up questions doc created for non-straightforward findings.
+  Changes: [short summary of applied straightforward fixes plus any review-time doc updates.]
+  Findings: [short summary of remaining non-straightforward findings]
+  Next: /skill:q-research [exact path to questions doc]
+  ```
+- If no `needs_question_research` findings remain and all confirmed straightforward fixes pass verification, end with:
+  ```text
+  Artifact: [exact path to review file]
+  Summary: implementation review straightforward findings handled in-session. verdict: correct.
+  Changes: [short summary of the applied straightforward fixes.]
+  Findings: none.
+  Next: pipeline complete
+  ```
+- If straightforward findings were skipped or still fail verification, end with:
+  ```text
+  Artifact: [exact path to review file]
+  Summary: implementation review complete. some straightforward findings remain after /answer decisions or verification.
+  Changes: [short summary of applied and skipped straightforward fixes.]
+  Findings: [short summary of remaining findings]
+  Next: /q-review [exact implementation review artifact path]
+  ```
 
 ## Rules
 
@@ -422,13 +499,17 @@ Next: /skill:q-question [exact path to copied context/question review file]
 - In outline review mode, the primary goal is to improve `design.md` and `outline.md`, not to leave only a report.
 - In outline review mode, verify named references and major assumptions directly in the codebase or supporting docs instead of trusting the outline's framing.
 - Implementation review must review the actual code and verification evidence, not just the plan.
-- In implementation review mode, do not modify the implementation code; convert follow-up findings into a newly seeded QRSPI plan dir.
-- When implementation review needs follow-up work, seed the new plan dir with the review doc under `context/question/` and hand off to `/skill:q-question [exact path to copied review file]`.
+- In implementation review mode, write the review artifact before making any follow-up decision or code fix.
+- In implementation review mode, use `/answer` to confirm each `straightforward_fix` item before modifying implementation code.
+- In implementation review mode, only modify implementation code for `straightforward_fix` findings confirmed by the engineer through `/answer`.
+- In implementation review mode, do not ask whether to send `needs_question_research` findings to QRSPI; add them to a follow-up questions doc in the same `plan_dir` automatically.
+- When implementation review needs question/research follow-up, write the questions doc under `[plan_dir]/questions/` and hand off to `/skill:q-research [exact path to questions doc]` when questions are clear. Never create a separate review-followup plan dir.
 - Focused subagent review lanes are optional for tiny/localized reviews and expected for broader reviews; the main session owns synthesis and final judgment.
 - Domain subagents must be selected from the planned/outlined/implemented change signals, not run blindly.
 - Always verify high-signal subagent findings yourself before including them.
 - Always summarize the review artifact findings to the user.
+- Always include a `Changes:` line in the user-facing response summarizing review-time edits, or `Changes: none.` when nothing was changed.
 - Do not abbreviate artifact or next-step paths in the response.
-- Use `/answer` only for real human decisions that block finalizing `design.md`/`outline.md`.
-- Format user-decision prompts to be compatible with `~/.pi/agent/extensions/answer.ts`: one direct question per item, each ending with `?`, followed by an optional `Context:` line.
+- Use `/answer` for real human decisions that block finalizing `design.md`/`outline.md`, and for implementation-review confirmation of each `straightforward_fix` item.
+- Format user-decision prompts to be compatible with `~/.pi/agent/extensions/answer.ts`: one direct question per item, each ending with `?`, followed by an optional `Context:` line. For implementation-review straightforward-fix prompts, the direct question must begin with `Finding N — [finding title/summary].` before asking whether to apply the fix, and the `Context:` line must separate `Finding:`, `Suggested fix:`, and `Verification:` so the problem is clear before the proposed action.
 - Prefer a short accurate review over a long speculative one.
