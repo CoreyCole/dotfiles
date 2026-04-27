@@ -37,6 +37,8 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 Based on the handoff's **Status** and **Next** sections, continue where the previous session left off.
 
+**Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
+
 - If `status: in_progress` - continue the current stage from where it left off. You are working on the `[stage]` stage.
 - If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`; if `next_stage: review`, run `/q-review`). For `review`, prefer passing the exact implement handoff path you just read. For other stages, pass the `plan_dir` from the handoff frontmatter.
 - If `status: complete` and `next_stage` is null - the pipeline is complete. Tell the user.
@@ -49,6 +51,8 @@ Do not present an analysis or ask for confirmation. Just continue working.
 
 When resuming work produces a user-facing completion response, use the same three-line shape:
 
+For `implement` resumes, the `Artifact:` should normally be the newly created handoff file, not just `plan.md`, because implementation always checkpoints via handoff after each verified slice.
+
 ```text
 Artifact: [exact path to the primary artifact file that was created or updated]
 Summary: [brief result]
@@ -56,3 +60,5 @@ Next: [next command, or `pipeline complete`]
 ```
 
 If the handoff indicates the next stage should begin immediately, continue directly rather than stopping to explain the handoff.
+
+During implementation, prefer `/q-resume [new handoff path]` as the next command after each non-final slice. Use `/q-review [handoff path]` only for the final implementation completion handoff.
