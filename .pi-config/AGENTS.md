@@ -8,17 +8,17 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
 - This dotfiles repo currently uses:
   - `~/.pi -> ~/dotfiles/.pi-config`
 - Pi auto-discovers global resources from paths under `~/.pi/agent/`.
-- To keep tracked resources at the top level of `.pi-config/` while still satisfying Pi's expected runtime layout, this repo mirrors shared resources into `agent/` with symlinks:
-  - `agent/extensions -> ../extensions`
-  - `agent/skills -> ../skills`
-  - `agent/agents -> ../agents`
-  - `agent/mcp.json -> ../mcp.json`
-- Runtime state lives directly in `agent/`:
+- Tracked Pi resources live directly in `agent/`, matching Pi's runtime layout:
+  - `agent/extensions/`
+  - `agent/skills/`
+  - `agent/agents/`
+  - `agent/mcp.json`
+- Runtime state also lives in `agent/` and is ignored where appropriate:
   - `agent/settings.json`
   - `agent/auth.json`
   - `agent/sessions/`
   - `agent/run-history.jsonl`
-- Do **not** rely on `~/.pi/extensions/` for auto-discovery. The tracked source files live there only because `~/.pi` points at `.pi-config`; Pi actually loads global extensions from `~/.pi/agent/extensions/`.
+- Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
 
 ______________________________________________________________________
 

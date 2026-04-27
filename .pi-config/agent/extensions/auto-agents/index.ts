@@ -4,12 +4,12 @@ import type { ImageContent, TextContent } from "@mariozechner/pi-ai";
 import { Text } from "@mariozechner/pi-tui";
 import { findAncestorAgentsFiles, resolveReadTarget } from "./paths";
 import { hashAgentsFile } from "./hash";
-import { renderAutoAgentsSummary } from "./render";
+import { formatAutoAgentsSummary } from "./render";
 import { rememberAgentsFile, restoreAutoAgentsState, shouldReadAgentsFile } from "./state";
 import type { AutoAgentsReadDetails, AutoAgentsStateEntry } from "./types";
 
 type ReadContent = TextContent | ImageContent;
-type ReadResult = { content: ReadContent[]; details?: ReadToolDetails };
+type ReadResult = { content: ReadContent[]; details?: ReadToolDetails & AutoAgentsReadDetails };
 
 type AutoLoadedAgentsRead = {
   entry: AutoAgentsStateEntry;
@@ -29,30 +29,22 @@ function formatLoadedAgentsSection(autoLoaded: AutoLoadedAgentsRead[]): string |
 
   const sections = autoLoaded.map(({ entry, result }) => {
     const body = textBlocks(result).join("\n").trimEnd();
-    return [`## Auto-loaded AGENTS.md: ${entry.path}`, body || "[AGENTS.md produced no text content]"].join("\n");
+    return [`## Auto-loaded context: ${entry.path}`, body || "[context file produced no text content]"].join("\n");
   });
 
-  return ["# Auto-loaded AGENTS.md context", ...sections].join("\n\n");
-}
-
-function formatAutoAgentsNotice(loaded: AutoAgentsStateEntry[], skipped: string[]): string | undefined {
-  if (loaded.length === 0 && skipped.length === 0) return undefined;
-
-  const lines = [`[auto-agents loaded ${loaded.length}, skipped ${skipped.length}]`];
-  for (const entry of loaded) lines.push(`loaded: ${entry.path}`);
-  for (const path of skipped) lines.push(`skipped: ${path}`);
-  return lines.join("\n");
+  return ["# Auto-loaded project context", ...sections].join("\n\n");
 }
 
 function composeReadResult(args: {
   autoLoaded: AutoLoadedAgentsRead[];
   skipped: string[];
   targetResult: ReadResult;
-}): ReadResult & { details: ReadToolDetails & AutoAgentsReadDetails } {
+}): ReadResult {
   const loaded = args.autoLoaded.map(({ entry }) => entry);
-  const notice = formatAutoAgentsNotice(loaded, args.skipped);
+  if (loaded.length === 0) return args.targetResult;
+
   const loadedSection = formatLoadedAgentsSection(args.autoLoaded);
-  const prefix = [notice, loadedSection].filter((part): part is string => Boolean(part));
+  const prefix = [loadedSection].filter((part): part is string => Boolean(part));
   const content = prefix.length > 0 ? [textContent(prefix.join("\n\n")), ...args.targetResult.content] : args.targetResult.content;
 
   return {
@@ -60,7 +52,7 @@ function composeReadResult(args: {
     content,
     details: {
       ...(args.targetResult.details ?? {}),
-      autoAgents: { loaded, skipped: args.skipped },
+      autoAgents: { loaded, skipped: [], autoContextContentBlocks: prefix.length },
     },
   };
 }
@@ -112,14 +104,23 @@ export default function autoAgents(pi: ExtensionAPI) {
 
     renderCall: originalRead.renderCall,
     renderResult(result, options, theme, context) {
-      const base = originalRead.renderResult?.(result as any, options, theme, context as any);
-      const summary = renderAutoAgentsSummary(result as { details?: AutoAgentsReadDetails }, options, theme);
+      const readResult = result as ReadResult;
+      const autoContextContentBlocks = readResult.details?.autoAgents?.autoContextContentBlocks ?? 0;
+      const visibleResult =
+        autoContextContentBlocks > 0
+          ? { ...readResult, content: readResult.content.slice(autoContextContentBlocks) }
+          : readResult;
+      const base = originalRead.renderResult?.(visibleResult as any, options, theme, context as any);
+      const summary = formatAutoAgentsSummary(readResult, options, theme);
       if (!summary) return base ?? new Text("", 0, 0);
-      if (!base) return summary;
+      if (!base) return new Text(summary, 0, 0);
 
-      const baseLines = base.render(200).join("\n").trimEnd();
-      const summaryLines = summary.render(200).join("\n").trimEnd();
-      return new Text([summaryLines, baseLines].filter(Boolean).join("\n"), 0, 0);
+      const baseLines = base
+        .render(200)
+        .map((line) => line.trimEnd())
+        .join("\n")
+        .trimEnd();
+      return new Text([summary, baseLines].filter(Boolean).join("\n"), 0, 0);
     },
   });
 }

@@ -4,13 +4,12 @@
 
 This repo currently uses `~/.pi -> ~/dotfiles/.pi-config`.
 
-Pi auto-discovers global `settings.json`, `extensions/`, `skills/`, `themes/`, and related resources from paths under `~/.pi/agent/`, so the tracked config mirrors those resources into `.pi-config/agent/` with symlinks while keeping the source files at the top level of `.pi-config/`.
+Pi auto-discovers global `settings.json`, `extensions/`, `skills/`, `themes/`, and related resources from paths under `~/.pi/agent/`, so the tracked config stores those resources directly under `.pi-config/agent/`.
 
 Current layout:
 
 - Active symlink: `~/.pi -> ~/dotfiles/.pi-config`
-- Runtime discovery paths: `~/.pi/agent/extensions`, `~/.pi/agent/skills`, `~/.pi/agent/agents`, `~/.pi/agent/mcp.json`
-- Tracked source dirs: `.pi-config/extensions`, `.pi-config/skills`, `.pi-config/agents`, `.pi-config/mcp.json`
+- Runtime/tracked discovery paths: `.pi-config/agent/extensions`, `.pi-config/agent/skills`, `.pi-config/agent/agents`, `.pi-config/agent/mcp.json`
 
 Recommended setup:
 
@@ -24,7 +23,7 @@ Then run:
 ~/dotfiles/.pi-config/setup.sh
 ```
 
-That script recreates the `agent/*` symlinks Pi expects.
+That script validates the `~/.pi` symlink and required `agent/*` resource paths.
 
 For Pi-specific agent behavior inside the tracked config, also read `.pi-config/AGENTS.md`.
 
@@ -34,8 +33,8 @@ When editing `~/.pi/agent` / `.pi-config`, avoid loading duplicate extensions th
 
 Current intentional local ownership:
 
-- `.pi-config/extensions/answer.ts`
-- `.pi-config/extensions/execute-command.ts`
+- `.pi-config/agent/extensions/answer.ts`
+- `.pi-config/agent/extensions/execute-command.ts`
 
 These are explicitly loaded from `.pi-config/agent/settings.json`. Do **not** also load another `execute_command` or `answer` implementation from an imported config/package unless you are deliberately replacing the local version.
 

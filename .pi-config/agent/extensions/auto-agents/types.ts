@@ -23,5 +23,6 @@ export interface AutoAgentsReadDetails {
   autoAgents?: {
     loaded: AutoAgentsStateEntry[];
     skipped: string[];
+    autoContextContentBlocks: number;
   };
 }

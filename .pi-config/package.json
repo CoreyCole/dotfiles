@@ -1,10 +1,18 @@
 {
   "name": "pi-config",
   "version": "1.0.0",
-  "description": "Personal pi agent config — all-Codex, symlinked from dotfiles",
+  "description": "Personal pi agent config — all-Codex dotfiles",
   "keywords": [
     "pi-package"
   ],
+  "pi": {
+    "extensions": [
+      "./agent/extensions"
+    ],
+    "skills": [
+      "./agent/skills"
+    ]
+  },
   "author": "CoreyCole",
   "license": "MIT",
   "dependencies": {

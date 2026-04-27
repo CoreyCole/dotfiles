@@ -21,20 +21,24 @@ fi
 echo "Setting up pi-config at $EXPECTED_PI_DIR"
 echo ""
 
-echo "Ensuring Pi auto-discovery paths exist under ~/.pi/agent ..."
+echo "Validating Pi resource paths under ~/.pi/agent ..."
 mkdir -p "$EXPECTED_AGENT_DIR"
-ln -sfn ../extensions "$EXPECTED_AGENT_DIR/extensions"
-ln -sfn ../skills "$EXPECTED_AGENT_DIR/skills"
-ln -sfn ../agents "$EXPECTED_AGENT_DIR/agents"
-ln -sfn ../mcp.json "$EXPECTED_AGENT_DIR/mcp.json"
 
-# Create/validate active settings.json
-if [ ! -f "$EXPECTED_AGENT_DIR/settings.json" ]; then
-  echo "agent/settings.json not found"
-  exit 1
-else
-  echo "agent/settings.json exists"
-fi
+for dir in extensions skills agents; do
+  if [ ! -d "$EXPECTED_AGENT_DIR/$dir" ]; then
+    echo "agent/$dir directory not found"
+    exit 1
+  fi
+  echo "agent/$dir exists"
+done
+
+for file in settings.json mcp.json; do
+  if [ ! -f "$EXPECTED_AGENT_DIR/$file" ]; then
+    echo "agent/$file not found"
+    exit 1
+  fi
+  echo "agent/$file exists"
+done
 
 # Install git packages
 echo "Installing packages..."

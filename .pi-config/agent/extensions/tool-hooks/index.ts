@@ -1,11 +1,13 @@
 import { createBashToolDefinition, getAgentDir, type ExtensionAPI, type SessionStartEvent } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { loadToolHooksConfig } from "./config";
+import { loadToolHooksConfig, loadToolHooksConfigFromObject } from "./config";
 import { buildHookPayload } from "./payload";
 import { createClaudeEnvFile, runHookRules, shellQuote } from "./runner";
 
-const CONFIG_PATH = path.join(path.dirname(getAgentDir()), "config", "tool-hooks.json");
+const GLOBAL_CONFIG_PATH = path.join(path.dirname(getAgentDir()), "config", "tool-hooks.json");
+const PROJECT_SETTINGS_PATH = path.join(".pi", "settings.json");
 
 function sessionStartSource(reason: SessionStartEvent["reason"]): "startup" | "resume" | undefined {
   if (reason === "resume") return "resume";
@@ -13,8 +15,39 @@ function sessionStartSource(reason: SessionStartEvent["reason"]): "startup" | "r
   return undefined;
 }
 
+function findGitRoot(start: string): string {
+  let current = path.resolve(start);
+
+  while (true) {
+    if (existsSync(path.join(current, ".git"))) return current;
+
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(start);
+    current = parent;
+  }
+}
+
+function findProjectSettingsPath(cwd: string): string | undefined {
+  const candidate = path.join(findGitRoot(cwd), PROJECT_SETTINGS_PATH);
+  return existsSync(candidate) ? candidate : undefined;
+}
+
+function loadProjectRules(cwd: string) {
+  const settingsPath = findProjectSettingsPath(cwd);
+  if (!settingsPath) return [];
+
+  const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { toolHooks?: unknown };
+  return settings.toolHooks ? loadToolHooksConfigFromObject(settings.toolHooks) : [];
+}
+
+function loadRules(cwd: string) {
+  const globalRules = existsSync(GLOBAL_CONFIG_PATH) ? loadToolHooksConfig(GLOBAL_CONFIG_PATH) : [];
+  return [...globalRules, ...loadProjectRules(cwd)];
+}
+
 export default function toolHooks(pi: ExtensionAPI) {
-  const rules = loadToolHooksConfig(CONFIG_PATH);
+  const cwd = process.cwd();
+  const rules = loadRules(cwd);
   let claudeEnvFile: string | undefined;
 
   const bashTool = createBashToolDefinition(process.cwd(), {
@@ -35,6 +68,11 @@ export default function toolHooks(pi: ExtensionAPI) {
   pi.registerMessageRenderer("tool-hooks-session-start", (message, _options, theme) => {
     const text = typeof message.content === "string" ? message.content : "";
     return new Text(theme.fg("muted", `[tool-hooks session context]\n${text}`), 0, 0);
+  });
+
+  pi.registerMessageRenderer("tool-hooks-block", (message, _options, theme) => {
+    const text = typeof message.content === "string" ? message.content : "";
+    return new Text(`${theme.fg("warning", "[tool-hooks blocked]")}\n${text}`, 0, 0);
   });
 
   pi.on("session_start", async (event, ctx) => {
@@ -70,7 +108,16 @@ export default function toolHooks(pi: ExtensionAPI) {
 
     const result = await runHookRules({ rules, event: "PreToolUse", payload, ctx, claudeEnvFile });
     if (result.inputPatch) Object.assign(event.input, result.inputPatch);
-    if (result.block) return { block: true, reason: result.reason ?? "Blocked by hook" };
+    if (result.block) {
+      const reason = result.reason ?? "Blocked by hook";
+      pi.sendMessage({
+        customType: "tool-hooks-block",
+        display: true,
+        content: reason,
+        details: { toolName: event.toolName, toolCallId: event.toolCallId },
+      });
+      return { block: true, reason };
+    }
     return undefined;
   });
 

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import type { ResolvedReadTarget } from "./types";
 
+const CONTEXT_FILE_NAME_PRIORITY = [["AGENTS.md"], ["CLAUDE.md"], ["README.md", "readme.md"]];
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 const NARROW_NO_BREAK_SPACE = "\u202F";
 
@@ -75,17 +76,23 @@ export function resolveReadTarget(cwd: string, inputPath: string): ResolvedReadT
 }
 
 export function findAncestorAgentsFiles(targetPath: string): string[] {
-  const files: string[] = [];
+  const directories: string[] = [];
   let current = path.dirname(targetPath);
 
   while (true) {
-    const candidate = path.join(current, "AGENTS.md");
-    if (existsSync(candidate)) files.unshift(candidate);
+    directories.unshift(current);
 
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
 
-  return files;
+  return directories.flatMap((directory) => {
+    for (const fileNames of CONTEXT_FILE_NAME_PRIORITY) {
+      const candidate = fileNames.map((fileName) => path.join(directory, fileName)).find((filePath) => existsSync(filePath));
+      if (candidate) return [candidate];
+    }
+
+    return [];
+  });
 }

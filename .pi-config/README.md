@@ -2,17 +2,13 @@
 
 This directory is the tracked source of truth for Corey Cole's global Pi config.
 
-## Active symlink layout
+## Active layout
 
 The live machine layout is:
 
 - `~/.pi -> ~/dotfiles/.pi-config`
 
-Within that tracked config:
-
-- `agent/` holds Pi runtime files and the paths Pi expects under `~/.pi/agent/`
-- top-level `extensions/`, `skills/`, and `agents/` are the tracked source directories
-- `agent/` exposes those tracked directories back to Pi via symlinks
+Within that tracked config, `agent/` is both the tracked resource location and the runtime location Pi expects under `~/.pi/agent/`.
 
 ## Why this exists
 
@@ -22,22 +18,22 @@ Pi auto-discovers global extensions and similar resources from paths under `~/.p
 - `~/.pi/agent/skills/`
 - `~/.pi/agent/agents/`
 
-Because `~/.pi` itself is symlinked to this tracked directory, the top-level path `~/.pi/extensions/` also exists, but that path is **not** the canonical auto-discovery location for Pi global extensions.
+Because `~/.pi` is symlinked to this tracked directory, those paths resolve directly to:
 
-Use this mental model:
+- `~/dotfiles/.pi-config/agent/extensions/`
+- `~/dotfiles/.pi-config/agent/skills/`
+- `~/dotfiles/.pi-config/agent/agents/`
 
-- tracked source: `~/dotfiles/.pi-config/extensions/*.ts`
-- runtime discovery path: `~/.pi/agent/extensions/*.ts`
-- bridge between them: `~/dotfiles/.pi-config/agent/extensions -> ../extensions`
+There is no extra resource symlink layer.
 
 ## Important paths
 
-### Tracked source
+### Tracked resources
 
-- `extensions/` — custom global Pi extensions checked into dotfiles
-- `skills/` — custom skills checked into dotfiles
-- `agents/` — custom agent definitions checked into dotfiles
-- `mcp.json` — tracked MCP configuration
+- `agent/extensions/` — custom global Pi extensions checked into dotfiles
+- `agent/skills/` — custom skills checked into dotfiles
+- `agent/agents/` — custom agent definitions checked into dotfiles
+- `agent/mcp.json` — tracked MCP configuration
 - `AGENTS.md` — repo-specific instructions for working on this Pi config
 
 ### Runtime state
@@ -48,20 +44,15 @@ Use this mental model:
 - `agent/run-history.jsonl`
 - `agent/git/`
 
-### Runtime symlinks
-
-- `agent/extensions -> ../extensions`
-- `agent/skills -> ../skills`
-- `agent/agents -> ../agents`
-- `agent/mcp.json -> ../mcp.json`
-
 ## Extension rule of thumb
 
-When adding or editing a global extension:
+When adding or editing a global extension, edit the tracked file in:
 
-1. edit the tracked file in `extensions/`
-2. rely on `agent/extensions/` symlink for Pi discovery
-3. do **not** assume `~/.pi/extensions/` is the correct Pi discovery path just because it exists on disk
+```text
+.pi-config/agent/extensions/
+```
+
+Do **not** assume `~/.pi/extensions/` is the correct Pi discovery path just because `~/.pi` points at this directory. Pi's global discovery path is `~/.pi/agent/extensions/`.
 
 ## Setup
 
@@ -74,7 +65,7 @@ Run:
 That script:
 
 - validates the `~/.pi` symlink
-- re-establishes the `agent/*` resource symlinks Pi expects
+- validates required `agent/*` resource paths
 - installs the configured Pi packages
 - ensures `parallel-cli` is installed for `pi-parallel`
 

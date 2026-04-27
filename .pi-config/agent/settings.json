@@ -1,10 +1,10 @@
 {
-  "lastChangelogVersion": "0.69.0",
+  "lastChangelogVersion": "0.70.2",
   "compaction": {
     "enabled": false
   },
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4",
+  "defaultModel": "gpt-5.5",
   "packages": [
     "git:github.com/HazAT/pi-subagents",
     "git:github.com/nicobailon/pi-mcp-adapter",
@@ -17,5 +17,6 @@
     "+extensions/execute-command.ts",
     "+extensions/tool-hooks/index.ts",
     "+extensions/auto-agents/index.ts"
-  ]
+  ],
+  "defaultThinkingLevel": "high"
 }

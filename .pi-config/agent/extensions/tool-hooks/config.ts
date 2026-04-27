@@ -78,10 +78,7 @@ export function validateToolHooksConfig(input: unknown): ClaudeHooksConfigFile {
   return { hooks };
 }
 
-export function loadToolHooksConfig(configPath: string): NormalizedHookRule[] {
-  const absolutePath = resolve(configPath);
-  const parsed = JSON.parse(readFileSync(absolutePath, "utf8"));
-  const file = validateToolHooksConfig(parsed);
+export function normalizeToolHooksConfig(file: ClaudeHooksConfigFile): NormalizedHookRule[] {
   const normalized: NormalizedHookRule[] = [];
 
   for (const event of SUPPORTED_EVENTS) {
@@ -101,4 +98,14 @@ export function loadToolHooksConfig(configPath: string): NormalizedHookRule[] {
   }
 
   return normalized;
+}
+
+export function loadToolHooksConfigFromObject(input: unknown): NormalizedHookRule[] {
+  return normalizeToolHooksConfig(validateToolHooksConfig(input));
+}
+
+export function loadToolHooksConfig(configPath: string): NormalizedHookRule[] {
+  const absolutePath = resolve(configPath);
+  const parsed = JSON.parse(readFileSync(absolutePath, "utf8"));
+  return loadToolHooksConfigFromObject(parsed);
 }
