@@ -7,10 +7,11 @@ git:
     showWholeGraph: true
   overrideGpg: true
   pagers:
-    - pager: delta --paging=never -n --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+    - pager: delta --paging=never --tabs=2 -n --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
 os:
   editPreset: nvim
 gui:
+  tabWidth: 2
   showBottomLine: false
   theme:
     activeBorderColor:
