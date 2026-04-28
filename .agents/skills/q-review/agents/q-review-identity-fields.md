@@ -47,19 +47,21 @@ Use this lane when a change touches or mentions:
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Does the plan define one canonical identity contract and apply it across app, SQL, DB enforcement, historical data, and tests?
 - Are migrations/backfills and duplicate-collision risks handled?
 
 ### Implementation review checks
+
 - Does the implementation actually enforce the same canonical identity contract at every path?
 - Are query/index/migration/test changes sufficient to prevent old and new rows from diverging?
 
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local identity-field guidance.
-2. Inspect canonicalizers, SQL queries, migrations, generated DB structs, import/integration code, caches, and tests for the identity field.
-3. Run safe targeted checks when practical. Do not directly mutate databases.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect canonicalizers, SQL queries, migrations, generated DB structs, import/integration code, caches, and tests for the identity field.
+1. Run safe targeted checks when practical. Do not directly mutate databases.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

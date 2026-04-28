@@ -39,19 +39,21 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Does the plan choose an explicit error surface for every important failure mode?
 - Are row/entity context, retry semantics, user remediation, and operator observability planned?
 
 ### Implementation review checks
+
 - Does the code actually persist/surface failures consistently across backend workflows and frontend views?
 - Are partial failures, retries, and final statuses represented truthfully?
 
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local error-visibility guidance.
-2. Inspect workflow/activity error paths, errorqueue usage, reports/artifacts, status fields, UI pages, logs, tests, and docs.
-3. Run safe targeted tests when practical.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect workflow/activity error paths, errorqueue usage, reports/artifacts, status fields, UI pages, logs, tests, and docs.
+1. Run safe targeted tests when practical.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

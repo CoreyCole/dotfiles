@@ -38,19 +38,21 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Are auth representation, hashing, revocation, tenant scoping, local key creation, and tests planned explicitly?
 - Are failure modes and compatibility with existing API clients addressed?
 
 ### Implementation review checks
+
 - Does the code preserve the exact auth contract and fail closed for malformed or invalid credentials?
 - Are API key storage, hashing, encoding, tenant lookup, and revocation checks consistent across paths?
 
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local API-auth guidance.
-2. Inspect auth middleware, key creation/storage, DB queries/migrations, tests, scripts, and external API handlers.
-3. Run safe targeted tests when practical. Do not create or expose real secrets.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect auth middleware, key creation/storage, DB queries/migrations, tests, scripts, and external API handlers.
+1. Run safe targeted tests when practical. Do not create or expose real secrets.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

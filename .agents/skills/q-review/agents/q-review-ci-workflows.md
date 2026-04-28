@@ -38,10 +38,12 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Does the plan trace workflow/script call chains and prove removed steps are not load-bearing?
 - Are ports, env vars, caches, artifacts, secrets, and all execution paths accounted for?
 
 ### Implementation review checks
+
 - Do the workflow and script changes behave correctly for every triggered path?
 - Are removed or rewired pieces safe based on traced evidence, not assumptions?
 - Are verification commands or dry-runs sufficient for the CI change?
@@ -49,9 +51,9 @@ Review only this lane unless you find a critical issue that another lane might m
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local CI guidance.
-2. Inspect touched workflow files, every referenced script, sourced config, and relevant docs.
-3. Use `rg`/`bash` to trace env vars, ports, called scripts, and removed references. Run safe static checks when available.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect touched workflow files, every referenced script, sourced config, and relevant docs.
+1. Use `rg`/`bash` to trace env vars, ports, called scripts, and removed references. Run safe static checks when available.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

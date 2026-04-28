@@ -38,19 +38,21 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Does the plan identify environments, roles, object names, grants, validation queries, rollback, and downstream dependencies?
 - Are production-safety and data-volume assumptions explicit?
 
 ### Implementation review checks
+
 - Are Snowflake SQL/scripts safe, environment-aware, permission-aware, and verifiable?
 - Are grants, schemas, object names, and downstream dependencies updated consistently?
 
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local Snowflake guidance.
-2. Inspect SQL/scripts/docs/config references and downstream analytics/reporting consumers.
-3. Run read-only `snow` commands only when safe and explicitly useful. Do not mutate shared Snowflake objects during review.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect SQL/scripts/docs/config references and downstream analytics/reporting consumers.
+1. Run read-only `snow` commands only when safe and explicitly useful. Do not mutate shared Snowflake objects during review.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

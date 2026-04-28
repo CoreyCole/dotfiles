@@ -55,11 +55,13 @@ For every Temporal review, answer these from the code or outline:
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Are determinism, retries/idempotency, payload/history size, child workflow boundaries, and worker/API operations planned?
 - Are workflow IDs, signal/query/update semantics, Continue-As-New, and timeout/retry policies explicit where relevant?
 - Are large or unbounded payloads routed through external references rather than workflow history?
 
 ### Implementation review checks
+
 - Did the implementation introduce nondeterminism or replay-breaking command changes?
 - Are activities idempotent and correctly timed out/retried/heartbeated?
 - Are workflow boundaries, child results, local activity results, and signal payloads bounded?
@@ -68,9 +70,9 @@ Review only this lane unless you find a critical issue that another lane might m
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and relevant local Temporal best-practice docs.
-2. Inspect workflow definitions, activities, API start/signal/query code, worker registration, tests, and adjacent patterns.
-3. Run lightweight targeted tests when practical and safe, especially replay/unit tests if present.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect workflow definitions, activities, API start/signal/query code, worker registration, tests, and adjacent patterns.
+1. Run lightweight targeted tests when practical and safe, especially replay/unit tests if present.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

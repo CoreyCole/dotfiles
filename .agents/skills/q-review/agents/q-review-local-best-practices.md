@@ -42,10 +42,10 @@ Do not read every skill blindly. First list skill names/descriptions and filenam
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, plan directory, and changed files/suspected touched areas.
-2. Discover relevant local guidance with targeted `find`/`rg` commands.
-3. Read only the relevant guidance and implicated target files.
-4. Report exact best-practice source paths and exact target file references.
-5. Do not edit files, create review artifacts, or ask the user questions.
+1. Discover relevant local guidance with targeted `find`/`rg` commands.
+1. Read only the relevant guidance and implicated target files.
+1. Report exact best-practice source paths and exact target file references.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

@@ -41,11 +41,13 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Are table source, filters, sorting, pagination, export, saved views, indexes, and UX constraints explicit?
 - Does the plan audit sibling tables and existing patterns rather than designing in isolation?
 - Are backend, frontend, proto, query, and verification slices sequenced coherently?
 
 ### Implementation review checks
+
 - Does the table work end-to-end across frontend form state, API/proto parameters, backend query/search, and export?
 - Are table-specific data-source constraints respected, especially Twisp/OpenSearch/SQL differences?
 - Are verification steps sufficient for filters, sorting, pagination, export, empty/error states, and saved views if present?
@@ -53,9 +55,9 @@ Review only this lane unless you find a critical issue that another lane might m
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local table guidance.
-2. Inspect frontend table components, hooks/forms, API/proto types, backend query/search code, export paths, tests, and sibling table examples.
-3. Run lightweight targeted checks when practical and safe.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect frontend table components, hooks/forms, API/proto types, backend query/search code, export paths, tests, and sibling table examples.
+1. Run lightweight targeted checks when practical and safe.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

@@ -40,10 +40,12 @@ If local guidance conflicts with this prompt, local project guidance wins.
 Review only this lane unless you find a critical issue that another lane might miss.
 
 ### Outline review checks
+
 - Does the plan define the source-data audit, preprocessing, validation, cross-file checks, batching, error reporting, and rollback story?
 - Are representative bad-data cases and fixtures included in test checkpoints?
 
 ### Implementation review checks
+
 - Does the implementation validate and report data issues before corrupting downstream state?
 - Are source-file assumptions backed by audit evidence or robust parser behavior?
 - Are tests and fixtures enough to catch structural, profile, relational, and edge-case data failures?
@@ -51,9 +53,9 @@ Review only this lane unless you find a critical issue that another lane might m
 ## Process
 
 1. Read the parent task, mode, reviewed artifact, changed files, and local data-quality guidance.
-2. Inspect CSV/fixture/schema/scripts/import code, audit artifacts, validation code, Temporal/batch paths, and tests.
-3. Run safe targeted commands when practical (`csvaudit` for local sample files, targeted tests). Do not mutate production or shared databases.
-4. Do not edit files, create review artifacts, or ask the user questions.
+1. Inspect CSV/fixture/schema/scripts/import code, audit artifacts, validation code, Temporal/batch paths, and tests.
+1. Run safe targeted commands when practical (`csvaudit` for local sample files, targeted tests). Do not mutate production or shared databases.
+1. Do not edit files, create review artifacts, or ask the user questions.
 
 ## Output Format
 

@@ -174,11 +174,13 @@ All focused review lane prompts live in `agents/` relative to this `SKILL.md`. R
 | `q-review-tests-verification` | Cross-cutting | slice checkpoints, test coverage, verification evidence, CI risk, and acceptance proof |
 | `q-review-integration-ops` | Cross-cutting | integrations, migrations, rollout/rollback, configuration, observability, and operational risk |
 | `q-review-maintainability` | Cross-cutting | architecture fit, complexity, conventions, readability, and long-term maintainability |
-| `q-review-go` | Domain | Go code, Go tests, package interfaces, generated Go code, concurrency, context/error handling |
+| `q-review-go` | Domain | Go code, package interfaces, generated Go code, concurrency, context/error handling |
+| `q-review-go-tests` | Domain | Go unit/integration tests, plain-if assertions, go-cmp diffs, build tags, helpers, fixtures, and mocks |
 | `q-review-temporal` | Domain | Temporal workflows, activities, workers, workflow-start/signal/query API code, retries, replay, payload history |
 | `q-review-sql` | Domain | PostgreSQL/sqlc queries, migrations, indexes, generated query code, data integrity, RisingWave/materialized views |
 | `q-review-snowflake` | Domain | Snowflake SQL, `snow` CLI scripts, schemas/databases/roles/grants, analytics warehouse operations |
-| `q-review-frontend-ui` | Domain | frontend UI, React/TSX, `.templ`, Datastar, browser behavior, UX/accessibility, Figma/Ranger expectations |
+| `q-review-react-ui` | Domain | monorepo React/Next.js UI, TSX, forms, tables, browser behavior, UX/accessibility, Figma/Ranger expectations |
+| `q-review-datastar-ui` | Domain | cn-agents Datastar/templ UI, SSE streams, backend-owned state, morphs, forms, signals, UX/accessibility |
 | `q-review-data-tables` | Domain | data tables, filters/sorts/pagination/export/saved views, Twisp/OpenSearch/SQL table backends |
 | `q-review-identity-fields` | Domain | identity-bearing fields, normalization, lookup/matching/dedupe/upsert semantics, unique indexes, historical data |
 | `q-review-data-ingestion-quality` | Domain | CSV/TSV/source data, ETL/import quality, migration input validation, cross-file integrity, ingestion readiness |
@@ -187,14 +189,39 @@ All focused review lane prompts live in `agents/` relative to this `SKILL.md`. R
 | `q-review-error-visibility` | Domain | workflow/ingestion error surfaces, error queues, issue pages, status tooltips, integration UI failures |
 | `q-review-local-best-practices` | Catch-all | any domain with project-local `.agents/skills`, `.agents/rules`, `.cursor/rules`, or `.claude/skills` guidance but no dedicated domain reviewer |
 
-Domain agents must first read project-local best-practice docs when present (for example `.agents/skills/go/*.md`, `.agents/skills/temporal-workflows/SKILL.md`, `.agents/skills/writing-sql-queries/SKILL.md`, `.agents/skills/building-tables/SKILL.md`, `.agents/skills/identity-field-hardening/SKILL.md`, `.cursor/rules/*.mdc`, or package-local instructions). These best-practice docs are part of the review source of truth for that lane. Use `q-review-local-best-practices` as the catch-all for "etc." domains with their own local guidance.
+Domain agents must first read project-local best-practice docs when present (for example `.agents/skills/go/*.md`, `.agents/skills/temporal-workflows/SKILL.md`, `.agents/skills/writing-sql-queries/SKILL.md`, `frontend/apps/AGENTS.md`, `.agents/skills/datastar/SKILL.md`, `.agents/skills/building-tables/SKILL.md`, `.agents/skills/identity-field-hardening/SKILL.md`, `.cursor/rules/*.mdc`, or package-local instructions). These best-practice docs are part of the review source of truth for that lane. Use `q-review-local-best-practices` as the catch-all for "etc." domains with their own local guidance.
 
-Default lane selection:
+### Deterministic Lane Selection
 
-- **Outline review:** usually run `q-review-intent-fit`, `q-review-tests-verification`, and then add `q-review-integration-ops`, `q-review-security-invariants`, or `q-review-maintainability` when the outline touches those risks.
-- **Implementation review:** usually run `q-review-correctness`, `q-review-tests-verification`, and then add `q-review-intent-fit`, `q-review-security-invariants`, `q-review-integration-ops`, or `q-review-maintainability` based on the changed code.
-- **Domain dispatch:** add every catalog agent whose trigger matches the reviewed artifacts or changed files. Examples: `.go`/`go.mod`/`_test.go` → `q-review-go`; Temporal workflow/activity/worker/API orchestration → `q-review-temporal`; `.sql`/migrations/sqlc/generated query code/materialized views → `q-review-sql`; `.tsx`/`.templ`/Datastar/Ranger/Figma → `q-review-frontend-ui`; table filter/sort/export work → `q-review-data-tables`; identity normalization/import matching → `q-review-identity-fields`; `.github/**` → `q-review-ci-workflows`.
-- If a change touches security-sensitive code, persistence, migrations, external calls, auth, payments, PII, secrets, concurrency, or deployment/runtime behavior, include the corresponding focused lane.
+Run the q-review lane selector before launching focused subagents. The selector is the routing authority; manual additions are allowed only when you can point to explicit evidence the selector missed.
+
+```bash
+uv run ~/.agents/skills/q-review/bin/select-lanes.py \
+  --mode [outline|implementation] \
+  --plan-dir [plan_dir] \
+  --reviewed-artifact [outline.md-or-implement-handoff] \
+  --pretty
+```
+
+Selector inputs are intentionally narrow for determinism:
+
+- **Outline review:** reads only `[plan_dir]/design.md`, `[plan_dir]/outline.md`, and `[plan_dir]/plan.md` when present. It must not read `questions/`, `research/`, or `context/` for routing.
+- **Implementation review:** reads the implement handoff when provided, explicit changed files when provided, and `git diff` / `git status` changed files. It must not read `questions/`, `research/`, or `context/` for routing.
+
+The selector always includes default cross-cutting lanes:
+
+- **Outline review:** `q-review-intent-fit`, `q-review-tests-verification`
+- **Implementation review:** `q-review-correctness`, `q-review-tests-verification`
+
+It then adds domain lanes from deterministic path/keyword rules. Examples: `.go`/`go.mod` → `q-review-go`; `_test.go`, Go test helpers, or Go integration test plans → `q-review-go-tests`; Temporal workflow/activity/worker/API orchestration → `q-review-temporal`; `.sql`/migrations/sqlc/generated query code/materialized views → `q-review-sql`; monorepo `frontend/**`, `.tsx`, React/Next.js, Ranger, or Figma UI work → `q-review-react-ui`; `cn-agents/**`, `.templ`, Datastar attributes, SSE streams, or Datastar form handlers → `q-review-datastar-ui`; table filter/sort/export work → `q-review-data-tables`; identity normalization/import matching → `q-review-identity-fields`; `.github/**` → `q-review-ci-workflows`.
+
+Use the selector JSON as the source of truth for:
+
+- `selected_lanes` — lane prompts to run
+- `changed_files` / `referenced_paths` — evidence to pass into lane tasks
+- `selected_lanes[].reasons` — routing rationale to preserve in the final review notes when helpful
+
+If the selector fails, fall back to the default lane rules above and mention the selector failure in the review artifact.
 
 Run selected lanes in parallel with the `subagent` tool. Prefer a `chain` with one `parallel` step, but **do not use `output: false` for focused review lanes**. Pi's chain result summary only returns the chain artifact directory, not each lane's full text, so `output: false` can make lane reports inaccessible to the main reviewer.
 
@@ -265,9 +292,10 @@ If a candidate finding is ambiguous, use `codebase-analyzer` to trace the exact 
    - **Implementation review:** review the current code in the changed files and use `git show`, `git diff`, or `git status` as needed to identify what was introduced.
 5. Estimate review scope and choose focused lanes.
    - If the scope is tiny and localized, continue directly.
-   - Otherwise select the focused `agents/q-review-*.md` lane prompts whose lanes match the planned/outlined/implemented change, read those prompts, and run them in parallel through the generic `reviewer` subagent with distinct absolute `output` paths inside `[review_dir]/focused-lanes/`.
-   - Always consider both cross-cutting lanes and domain lanes. Domain lanes are triggered by file types, frameworks, or risks described in `design.md`, `outline.md`, `plan.md`, the implement handoff, or the diff.
-   - Include the mode, `plan_dir`, reviewed artifact path, key context artifacts, changed files or suspected touched areas, local best-practice docs to read, and the lane boundary in each delegated task.
+   - Otherwise run `uv run ~/.agents/skills/q-review/bin/select-lanes.py --mode [mode] --plan-dir [plan_dir] --reviewed-artifact [reviewed_artifact] --pretty` and use its `selected_lanes` as the baseline lane list.
+   - Read the selected `agents/q-review-*.md` lane prompts and run them in parallel through the generic `reviewer` subagent with distinct absolute `output` paths inside `[review_dir]/focused-lanes/`.
+   - Always consider both cross-cutting lanes and domain lanes, but do not route from `questions/`, `research/`, or `context/`; outline routing comes from `design.md` / `outline.md` / `plan.md`, while implementation routing comes from the handoff and actual changed files.
+   - Include the mode, `plan_dir`, reviewed artifact path, selector `changed_files` / `referenced_paths`, key context artifacts, local best-practice docs to read, the selector reason for that lane, and the lane boundary in each delegated task.
    - Wait for all lane reports before drafting the canonical review.
 6. Synthesize lane reports.
    - Read every focused lane report.
