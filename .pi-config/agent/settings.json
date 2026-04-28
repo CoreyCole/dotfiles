@@ -13,8 +13,8 @@
     "git:github.com/nicobailon/pi-mcp-adapter",
     "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
-    "git:git@github.com:sasha-computer/pi-cmux.git",
-    "git:git@github.com:CoreyCole/pi-deterministic-docs.git"
+    "git:git@github.com:CoreyCole/pi-deterministic-docs.git",
+    "git:github.com/algal/pi-context-inspect"
   ],
   "extensions": [
     "+extensions/answer.ts",
