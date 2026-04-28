@@ -76,17 +76,18 @@ Example output:
   ]
 }`;
 
-const CODEX_MODEL_ID = "gpt-5.4-mini";
-const HAIKU_MODEL_ID = "claude-haiku-4-5";
+const DEFAULT_MODEL_ID = process.env.PI_DEFAULT_MODEL ?? "gpt-5.5";
+const DEFAULT_FAST_MODEL_ID = process.env.PI_DEFAULT_FAST_MODEL ?? `${DEFAULT_MODEL_ID}-mini`;
+const HAIKU_MODEL_ID = process.env.PI_ANSWER_FALLBACK_MODEL ?? "claude-haiku-4-5";
 
 /**
- * Prefer Codex mini for extraction when available, otherwise fallback to haiku or the current model.
+ * Prefer the configured fast Codex model for extraction when available, otherwise fallback to haiku or the current model.
  */
 async function selectExtractionModel(
   currentModel: Model<Api>,
   modelRegistry: ModelRegistry,
 ): Promise<Model<Api>> {
-  const codexModel = modelRegistry.find("openai-codex", CODEX_MODEL_ID);
+  const codexModel = modelRegistry.find("openai-codex", DEFAULT_FAST_MODEL_ID);
   if (codexModel) {
     const auth = await modelRegistry.getApiKeyAndHeaders(codexModel);
     if (auth.ok) {

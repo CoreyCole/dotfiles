@@ -14,7 +14,6 @@ export PATH="$HOME/.nix-profile/bin:$PATH"
 export PATH="$HOME/.nvim/bin:$PATH"
 # DB_LOCAL_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
 # DB_L_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
-alias cn="$HOME/dotfiles/setup-tmux.sh"
 
 alias dev="cd $HOME/cn/chestnut-flake/monorepo && git stash && gt sync && git checkout develop; cd db; just migrate up; cd ..; just migrate"
 alias j="just"

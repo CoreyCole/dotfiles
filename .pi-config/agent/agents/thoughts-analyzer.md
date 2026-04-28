@@ -2,7 +2,7 @@
 name: thoughts-analyzer
 description: The research equivalent of codebase-analyzer. Use this subagent_type when wanting to deep dive on a research topic. Not commonly needed otherwise.
 tools: read, grep, find, ls
-model: gpt-5.4-mini
+model: gpt-5.5-mini
 thinking: medium
 ---
 
