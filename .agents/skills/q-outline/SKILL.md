@@ -27,7 +27,7 @@ This skill supports two modes.
    - Read all files in `[plan_dir]/context/design/`
    - Read all files in `[plan_dir]/context/outline/` if any
    - Read all files in `[plan_dir]/prds/`
-1. **If a plan directory path or design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
+1. **If a plan directory path or design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory and all outline artifacts must be written there.
 
 ### Mode 2: Direct outline mode (simple tasks)
 
@@ -70,6 +70,7 @@ Then wait for input.
 ### Standard mode
 
 1. **Verify artifacts are loaded**: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, and `context/outline/`, and any relevant files in `prds/`.
+   - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite or append to the parent plan's `outline.md`; write the follow-up outline to `[parent_plan_dir]/reviews/*/outline.md`.
 2. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
 3. **Define the structural foundation** — types, interfaces, schemas, package structures.
 4. **Break the approved approach into vertical slices.** Each slice must be independently testable.
@@ -199,6 +200,7 @@ You may add one extra sentence noting that `/q-review` will review this outline 
 ## Rules
 
 - This is the structural backbone — longer than the design, shorter than the plan. Include type definitions, schemas, API surfaces, and package structures that the design deliberately omits.
+- For review follow-up work, `outline.md` means `reviews/*/outline.md` in the timestamped review directory. Never fold implementation-review follow-up structure into the parent plan's original `outline.md` unless the user explicitly asks for a parent-plan revision.
 - **Vertical slices, not horizontal layers.** Each slice ships a working piece end-to-end. If your slices are "all models", "all routes", "all tests" — you're doing it wrong.
 - Show signatures and types, NOT full function bodies. The plan stage fills in the implementation.
 - Prefer fenced code blocks over bullet lists for structural content where syntax highlighting helps:

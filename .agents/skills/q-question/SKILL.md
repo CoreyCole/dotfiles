@@ -24,7 +24,8 @@ Establish with ~95% confidence what the user actually wants. Start by investigat
      - `[plan_dir]/outline.md`
      - All files in `[plan_dir]/research/`
      - All files in `[plan_dir]/prds/`
-     - Relevant files in `[plan_dir]/context/question/`
+     - Relevant files in `[plan_dir]/context/question/` when present
+     - For review follow-up plan dirs under `[parent_plan_dir]/reviews/*/`, treat that timestamped review directory as the plan directory; do not climb to or mutate the parent plan's `design.md` / `outline.md`
 1. **If a ticket path, plan directory, artifact path, review-context-doc path, or description was provided**, read it fully and begin.
 2. **If no parameters**, respond:
 
@@ -37,7 +38,8 @@ Please provide:
 
 Tip: `/q-question thoughts/shared/tickets/ENG-1234.md`
 2nd pass: `/q-question thoughts/[git_username]/plans/[timestamp]_[plan-name]`
-Review follow-up: `/skill:q-question thoughts/[git_username]/plans/[timestamp]_[plan-name]/context/question/YYYY-MM-DD_HH-MM-SS_review.md`
+Review follow-up: `/skill:q-question thoughts/[git_username]/plans/[timestamp]_[plan-name]/reviews/YYYY-MM-DD_HH-MM-SS_implementation-review/review.md`
+Or, if the follow-up plan already exists: `/skill:q-question thoughts/[git_username]/plans/[timestamp]_[plan-name]/reviews/YYYY-MM-DD_HH-MM-SS_implementation-review`
 ```
 
 Then wait for input.
@@ -49,14 +51,18 @@ Then wait for input.
 2. **Determine the plan directory**:
    - New work: create `thoughts/[git_username]/plans/[timestamp]_[plan-name]/`
    - Follow-up pass: reuse the existing plan directory exactly
-   - Review-seeded follow-up: if the input is a file under `[plan_dir]/context/question/`, resolve that containing `plan_dir` and reuse it exactly
+   - Review follow-up plan: if the input is inside `[parent_plan_dir]/reviews/*/`, reuse that timestamped review directory exactly
+   - Review artifact seed: if the input is `[parent_plan_dir]/reviews/*/review.md` or a timestamped review directory, create or reuse `[parent_plan_dir]/reviews/*/` as a new review-directory QRSPI plan directory
 
 3. **Ensure scaffolding exists**:
    - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
-   - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, and `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exist
+   - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, `[plan_dir]/adrs/`, `[plan_dir]/handoffs/`, and `[plan_dir]/reviews/` exist
+   - For normal top-level plans, also ensure `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exists
+   - For review-directory follow-up plans, do not create a separate `context/question/` seed; the first artifact is the review follow-up question doc in `questions/`
 
 4. **Read ticket/PRDs and linked docs fully**.
-   - If invoked on a copied implementation-review context doc under `[plan_dir]/context/question/`, read that file fully and treat it as the source problem statement for the new QRSPI loop.
+   - If invoked on a canonical review artifact at `[parent_plan_dir]/reviews/*/review.md`, read it fully and treat it as the source problem statement for the review follow-up loop.
+   - If invoked inside `[parent_plan_dir]/reviews/*/`, read any existing `questions/*.md`, `prds/*`, and `review.md` if present.
 
 5. **Populate `prds/` when relevant**:
    - Store relevant PRDs, ticket exports, screenshots under `[plan_dir]/prds/`
@@ -163,7 +169,9 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 
 ## Rules
 
-- If invoked on a review-seeded context doc from `/q-review`, treat that review as source material for a **new** QRSPI loop. Do not continue the old implementation plan in-place.
+- If invoked on a review artifact from `/q-review`, create or reuse the timestamped `reviews/*/` directory as the QRSPI plan and treat that review as source material for the review follow-up loop. Do not continue the parent implementation plan in-place.
+- For review-directory follow-up plans, write the question doc directly under `questions/`; do not create a separate copied review context under `context/question/`.
+- Never overwrite or append review-follow-up design/outline work into the parent plan's `design.md` or `outline.md` from `q-question`.
 - For review-seeded follow-up work, convert review findings into neutral research questions rather than copying review recommendations as settled solutions.
 - Do NOT include preferred solutions in questions.
 - Do NOT propose approaches or pseudocode.

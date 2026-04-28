@@ -41,7 +41,18 @@ Then wait for input.
 
 1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md`. `plan.md` is your primary input. Check the status checkboxes.
 
-2. **If one or more slices are unchecked, pick the first unchecked slice and execute only that slice in this invocation:**
+2. **Set up the branch before editing code:**
+   - Every implementation slice gets its own Graphite branch stacked on the previous slice branch.
+   - Before Slice 1 edits: if `git branch --show-current` is `develop`, create the Slice 1 branch **from `develop`**.
+   - Before Slice N edits: be on the Slice N branch. If you are still on the previous slice branch, run `gt create <linear-slug>_slice-N` before editing.
+   - Use the Linear ticket's canonical branch slug from the Linear CLI / ticket context, not an ad-hoc name.
+   - Match the plan's slice terminology in the suffix: use `slice-N`, not `phase-N`.
+   - Example stack: `cc/pro-8910-flow-2-compliance-hold-license-validation-node-level_slice-1` -> `cc/pro-8910-flow-2-compliance-hold-license-validation-node-level_slice-2`.
+   - Do not keep committing later slices onto an earlier `slice-N` branch.
+   - Do not rename the branch away from the Linear slug unless the user explicitly asks.
+   - Do not commit `/q-implement` work directly on `develop`.
+
+3. **If one or more slices are unchecked, pick the first unchecked slice and execute only that slice in this invocation:**
    a. Read the files you're about to modify to confirm they match what the plan expects.
    b. If you need fresh orientation for this slice, run `codebase-locator` with a narrowly scoped task and, if needed, `codebase-analyzer` on the surfaced files or flow. Write the resulting timestamped artifact(s) under `[plan_dir]/context/implement/` before editing.
    c. Implement the changes described in the plan.
@@ -52,13 +63,13 @@ Then wait for input.
       - Keep it short and curated.
       - Remove or rewrite stale bullets instead of appending contradictions.
    h. Commit the slice.
-   i. If additional slices remain unchecked after this slice, create a checkpoint handoff via `/q-handoff` (no argument). This is mandatory; do not stop after only updating `plan.md`. Do **not** mention `/q-review` yet.
+   i. If additional slices remain unchecked after this slice, run `gt create <linear-slug>_slice-(N+1)` from the just-committed Slice N branch so the next slice is stacked on top, then create a checkpoint handoff via `/q-handoff` (no argument). This is mandatory; do not stop after only updating `plan.md`. Do **not** mention `/q-review` yet.
    j. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and then create a review handoff via `/q-handoff continue`.
    k. Stop. Do **not** start the next slice in the same invocation.
 
-3. **If all slices are already checked when you start**, do the final verification pass, create a review handoff via `/q-handoff continue`, and stop.
+4. **If all slices are already checked when you start**, do the final verification pass, create a review handoff via `/q-handoff continue`, and stop.
 
-4. **If reality diverges from the plan** (file moved, API changed, pattern different):
+5. **If reality diverges from the plan** (file moved, API changed, pattern different):
    - Stop and present the mismatch clearly:
      ```
      Issue in Slice [N]:
@@ -119,7 +130,9 @@ Do not include a `PR:` line unless the user explicitly asked you to open one.
 - Run the verify step after EVERY slice. Do not skip verification.
 - Update the plan's status checkboxes as you complete slices — this is mandatory, not optional.
 - If a slice fails verification, fix it before moving on. Vertical slices exist so you catch problems early.
+- Never do `/q-implement` coding work on `develop`. If you start on `develop`, first run `gt create <linear-branch-name>` using the ticket's canonical Linear slug and a `slice-N` suffix that matches the plan.
 - Commit after each successful slice. Small, working commits.
+- After each non-final slice commit, create the next slice branch with `gt create <linear-slug>_slice-(N+1)` from the just-committed slice branch before writing the handoff.
 - After each successful slice, create the appropriate handoff via `/q-handoff` before stopping. This is mandatory.
 - Do not prompt for review until all slices are complete.
 - For non-final slices, do not end with `plan.md` as the primary artifact and do not suggest `/q-implement [plan_dir]` as the canonical next step. The canonical next step is `/q-resume [new handoff path]`.

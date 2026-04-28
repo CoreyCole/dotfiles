@@ -22,7 +22,7 @@ You are the third stage of the QRSPI pipeline. You answer the question **"where 
    - Read all files in `[plan_dir]/context/design/` if any
    - Read all files in `[plan_dir]/adrs/` if any
    - Read all files in `[plan_dir]/prds/`
-1. **If a plan directory path or research doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin.
+1. **If a plan directory path or research doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory and all design artifacts must be written there.
 2. **If no parameters**, respond:
 
 ```
@@ -38,6 +38,7 @@ Then wait for input.
 ## Process
 
 1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, all `research/*.md`, relevant context artifacts in `context/research/` and `context/design/`, any existing `adrs/*.md`, and any relevant files in `prds/`.
+   - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite, append to, or "refresh" the parent plan's `design.md`; write the follow-up design to `[parent_plan_dir]/reviews/*/design.md`.
 2. **Read the original ticket / PRD context** if referenced in question docs or stored in `prds/`.
 3. **Read key files** identified in research findings and context artifacts.
 4. **If current-state validation is still missing or stale, run `codebase-locator`** with a narrowly scoped refresh task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/design/`.
@@ -192,6 +193,7 @@ Always include the complete `thoughts/.../design.md` path.
 ## Rules
 
 - Target ~200-300 lines for `design.md`. Keep each ADR concise and decision-focused.
+- For review follow-up work, `design.md` means `reviews/*/design.md` in the timestamped review directory. Never fold implementation-review follow-up decisions into the parent plan's original `design.md` unless the user explicitly asks for a parent-plan revision.
 - Include brief representative snippets only.
 - Every pattern claim must reference a real file from research.
 - Keep rejected or superseded approaches out of `design.md`; put them in timestamped `adrs/*.md` files.

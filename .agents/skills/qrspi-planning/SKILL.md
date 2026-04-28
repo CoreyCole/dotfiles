@@ -20,7 +20,7 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 
 `/q-review` has two review modes:
 - **Outline review** after `outline.md` is written and before `/q-plan`; it should improve `design.md`/`outline.md`, not just report on them
-- **Implementation review** after `/q-implement` completes; if follow-up work is needed, it seeds a new QRSPI plan dir, copies the review into `context/question/`, and hands off to `/skill:q-question [exact context/question review path]`
+- **Implementation review** after `/q-implement` completes; if non-trivial follow-up work is needed, the timestamped review directory itself becomes a QRSPI plan and writes follow-up questions directly under `questions/`
 
 Its canonical review artifact lives in `[plan_dir]/reviews/`.
 
@@ -45,7 +45,7 @@ Common loops:
 - **Outline -> Design**: Structural planning reveals a design flaw. Revise the design before continuing.
 - **Plan -> Outline**: Implementation details show a slice won't work as outlined. Adjust the outline.
 
-The plan directory accumulates artifacts from these loops. Multiple question docs and research docs are expected. Design and outline may be revised. The directory is the living record of the work.
+The plan directory accumulates artifacts from these loops. Multiple question docs and research docs are expected. Design and outline may be revised during pre-implementation planning. After implementation review, non-trivial follow-up work should live in a review-directory follow-up plan so the original parent `design.md` and `outline.md` remain preserved.
 
 ## The Plan Directory
 
@@ -68,7 +68,19 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
   outline.md         # Stage 4: Structured outline
   plan.md            # Stage 5: Implementation plan with status checkboxes
   handoffs/          # Context preservation between sessions
-  reviews/           # Outline and implementation review artifacts from /q-review
+  reviews/           # Timestamped outline and implementation review directories from /q-review
+    YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review/
+      review.md      # Canonical review artifact
+      AGENTS.md      # Present when this review dir also hosts non-trivial follow-up QRSPI work
+      prds/
+      questions/
+      research/
+      design.md
+      adrs/
+      outline.md
+      plan.md
+      handoffs/
+      reviews/
 ```
 
 `context/` artifacts are durable supporting artifacts that aid later stages. They do **not** replace the primary stage artifacts (`questions/*.md`, `research/*.md`, `design.md`, `outline.md`, `plan.md`). `adrs/*.md` are supporting decision records, not default stage artifacts for later steps. Load only the stage-relevant `context/` subdirectories and explicit supporting files listed by each skill; do not bulk-load unrelated context artifacts.
@@ -88,7 +100,7 @@ If you are reusing an existing plan directory, keep that exact path and use the 
 
 ## Handoffs
 
-Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off. After `outline.md` is written, the usual next step is `/q-review [outline.md]`. When `/q-implement` completes, its completion handoff should advance to `/q-review` in implementation mode. Handoffs live in `[plan_dir]/handoffs/`. `/q-review` writes its canonical artifact to `[plan_dir]/reviews/`.
+Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off. After `outline.md` is written, the usual next step is `/q-review [outline.md]`. When `/q-implement` completes, its completion handoff should advance to `/q-review` in implementation mode. Handoffs live in `[plan_dir]/handoffs/`. `/q-review` writes its canonical artifact to `[plan_dir]/reviews/YYYY-MM-DD_HH-MM-SS_[plan-name]_[review-kind]/review.md`.
 
 ## Standard Context Loading
 
@@ -106,7 +118,7 @@ Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skil
 - When a stage needs fresh discovery, use that stage's preferred read-only discovery/analyzer flow and write the resulting artifacts under `context/[stage]/`.
 - Each stage reads the artifacts from prior stages. Don't skip stages — the artifacts are the context.
 - Every stage through outline is a human gate. The human reviews questions, research findings, design, and the design+outline pair before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint; that review should revise the docs toward a ready-for-`/q-plan` state, not just write a report. Do not outsource the thinking.
-- The plan is a machine document. The human aligned on direction via design, outline, and outline review. Save the deep implementation review for the actual code; if it finds follow-up work, start a fresh QRSPI loop from `/skill:q-question [context/question review doc]` with the copied review as context.
+- The plan is a machine document. The human aligned on direction via design, outline, and outline review. Save the deep implementation review for the actual code; if it finds non-trivial follow-up work, create or use `[plan_dir]/reviews/YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review/` as a review-directory QRSPI plan. Seed the follow-up by writing questions directly under `questions/`; do not copy the review into `context/question/`, and do not overwrite the parent plan's `design.md` or `outline.md`.
 - `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete, final verification passes, and the implementation is finished. It does not push or open pull requests unless the user explicitly asks.
 - The plan's status checkboxes are the context recovery mechanism. Keep them updated during implementation.
 - When looping back, add new artifacts rather than overwriting. The history matters.

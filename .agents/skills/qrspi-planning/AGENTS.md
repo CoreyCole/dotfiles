@@ -82,7 +82,7 @@ Keep only the sections that earn their place.
 | code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | No |
 | `reviews/*.md` | Review | `~/.agents/skills/q-review/SKILL.md` | Yes — used for both outline review and implementation review |
 
-Every stage through outline requires human review before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint, and expect that review to improve `design.md`/`outline.md` toward a ready-for-`/q-plan` state. Implementation review follow-up work should start a fresh loop via `/skill:q-question [context/question review doc]`. Do not outsource the thinking.
+Every stage through outline requires human review before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint, and expect that review to improve `design.md`/`outline.md` toward a ready-for-`/q-plan` state. For non-trivial implementation review follow-up work, the timestamped `reviews/<timestamp>_<kind>/` directory itself is the QRSPI plan, seeded by a question doc directly under `questions/`. Do not overwrite the parent plan's `design.md` or `outline.md` for review follow-up work.
 
 ## This process is not linear
 
@@ -111,7 +111,7 @@ Recommended subdirectories inside a plan directory:
   - `context/implement/`
 - `questions/` for timestamped question docs
 - `research/` for timestamped research docs
-- `reviews/` for timestamped `/q-review` artifacts
+- `reviews/` for timestamped `/q-review` directories; non-trivial review follow-ups live under `reviews/<timestamp>_<kind>/`
 
 ## Key constraints
 

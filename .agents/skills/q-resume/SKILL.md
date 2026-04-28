@@ -40,6 +40,7 @@ Based on the handoff's **Status** and **Next** sections, continue where the prev
 **Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
 
 - If `status: in_progress` - continue the current stage from where it left off. You are working on the `[stage]` stage.
+  - For `stage: implement`, each slice must be on its own stacked Graphite branch. Before editing, compare the first unchecked slice in `plan.md` with `git branch --show-current` / the handoff `branch`. If the current branch is still the previous slice branch, run `gt create <linear-slug>_slice-N` from that branch before editing.
 - If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`; if `next_stage: review`, run `/q-review`). For `review`, prefer passing the exact implement handoff path you just read. For other stages, pass the `plan_dir` from the handoff frontmatter.
 - If `status: complete` and `next_stage` is null - the pipeline is complete. Tell the user.
 

@@ -17,7 +17,7 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
    - Read relevant files in `[plan_dir]/context/research/` only when continuing or deepening an existing research pass
    - Pi may have already auto-loaded `[plan_dir]/AGENTS.md` from the cwd. Do **not** explicitly open more plan-dir artifacts beyond the relevant question doc(s) and same-stage `context/research/` files when continuing a pass.
    - Do **NOT** read `design.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, the ticket, or any other forward-looking plan artifacts. The question doc(s) are the only planning artifacts you should intentionally load at the start of research.
-1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read relevant question doc(s) in `[plan_dir]/questions/` fully, and begin.
+1. **If a plan directory path or question doc path was provided**, resolve the plan directory from it, read relevant question doc(s) in `[plan_dir]/questions/` fully, and begin. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory for this research pass.
 2. **If no parameters**, respond:
 
 ```
@@ -36,6 +36,7 @@ Then wait for input.
    - If a specific question doc path was provided, treat it as primary.
    - Otherwise prefer the newest timestamped question doc unless user says otherwise.
    - Stay blind to the rest of the plan directory except same-stage `context/research/` artifacts when continuing an existing research pass.
+   - For review-directory follow-up plans, do not climb to the parent plan's `design.md`, `outline.md`, `plan.md`, or `reviews/` unless the question doc explicitly references a parent artifact as historical context.
 
 2. **Extract the important brainstorm/design context from the relevant question doc(s)** and carry it forward into the research doc.
    - Summarize the key desired outcome, design details, explicit decisions, constraints, and tradeoffs surfaced during `q-question`.
@@ -159,6 +160,7 @@ If the user wants more research, tell them to run `/q-research [exact path to pl
 - The first section of the research doc must be a concise `Brainstorm Summary` carried forward from `q-question` so downstream stages retain the key design context.
 - The `Brainstorm Summary` must preserve validated human decisions and tradeoffs from the question docs; do not invent new decisions in research.
 - Research should stay intentionally blind so the session is not biased by later-stage decisions or curated memory.
+- A review-directory follow-up plan under `[parent_plan_dir]/reviews/*/` is a normal QRSPI plan for research purposes. Write research artifacts under that review directory plan's `research/` and `context/research/`, not under the parent plan.
 - Pi may auto-load `[plan_dir]/AGENTS.md` based on the cwd. Do not explicitly rely on it or expand your reading because of it.
 - Do **NOT** read the ticket, `design.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, or other forward-looking documents that reveal what is being built. The only plan artifacts you should intentionally read are the relevant `questions/*.md` files, plus relevant prior `context/research/` artifacts when continuing a pass. Everything else must come from code surfaced during research and `thoughts/` documents only when the question explicitly asks for historical context, prior decisions, or existing documentation.
 - Always read directly mentioned files fully before spawning sub-tasks.
