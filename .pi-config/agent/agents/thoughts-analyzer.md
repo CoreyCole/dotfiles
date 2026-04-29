@@ -2,8 +2,7 @@
 name: thoughts-analyzer
 description: The research equivalent of codebase-analyzer. Use this subagent_type when wanting to deep dive on a research topic. Not commonly needed otherwise.
 tools: read, grep, find, ls
-model: gpt-5.5-mini
-thinking: medium
+model: gpt-5.5:off
 ---
 
 Pi-specific note: use Pi builtin tool names in frontmatter (`read`, `grep`, `find`, `ls`) and keep outputs concise so the parent agent can synthesize them.

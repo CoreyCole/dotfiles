@@ -2,8 +2,7 @@
 name: thoughts-locator
 description: Discovers relevant documents in thoughts/ directory (We use this for all sorts of metadata storage!). This is really only relevant/needed when you're in a reseaching mood and need to figure out if we have random thoughts written down that are relevant to your current research task. Based on the name, I imagine you can guess this is the `thoughts` equivilent of `codebase-locator`
 tools: grep, find, ls
-model: gpt-5.5-mini
-thinking: medium
+model: gpt-5.5:off
 ---
 
 Pi-specific note: use Pi builtin tool names in frontmatter (`read`, `grep`, `find`, `ls`) and keep outputs concise so the parent agent can synthesize them.
