@@ -200,13 +200,26 @@ uv run ~/.agents/skills/q-review/bin/select-lanes.py \
   --mode [outline|implementation] \
   --plan-dir [plan_dir] \
   --reviewed-artifact [outline.md-or-implement-handoff] \
+  --review-dir [review_dir] \
+  --pretty
+```
+
+For implementation reviews of already-committed deltas, pass the exact range when known:
+
+```bash
+uv run ~/.agents/skills/q-review/bin/select-lanes.py \
+  --mode implementation \
+  --plan-dir [plan_dir] \
+  --reviewed-artifact [implement-handoff] \
+  --review-dir [review_dir] \
+  --diff-range [base]..HEAD \
   --pretty
 ```
 
 Selector inputs are intentionally narrow for determinism:
 
 - **Outline review:** reads only `[plan_dir]/design.md`, `[plan_dir]/outline.md`, and `[plan_dir]/plan.md` when present. It must not read `questions/`, `research/`, or `context/` for routing.
-- **Implementation review:** reads the implement handoff when provided, explicit changed files when provided, and `git diff` / `git status` changed files. It must not read `questions/`, `research/`, or `context/` for routing.
+- **Implementation review:** reads the implement handoff when provided, explicit changed files when provided, `--diff-range` / `--diff-base` committed changes when provided, and `git diff` / `git status` changed files. It must not read `questions/`, `research/`, or `context/` for routing. Handoff/review/context artifact paths must not trigger domain lanes; they are evidence files, not implementation paths.
 
 The selector always includes default cross-cutting lanes:
 
@@ -218,8 +231,10 @@ It then adds domain lanes from deterministic path/keyword rules. Examples: `.go`
 Use the selector JSON as the source of truth for:
 
 - `selected_lanes` — lane prompts to run
-- `changed_files` / `referenced_paths` — evidence to pass into lane tasks
+- `changed_files` / `referenced_paths` — implementation evidence used for routing
+- `evidence_files` — handoffs/review docs/log pointers to pass as context, not domain-routing paths
 - `selected_lanes[].reasons` — routing rationale to preserve in the final review notes when helpful
+- `subagent_tool_args` — exact JSON object to pass to the `subagent` tool when `--review-dir` is provided
 
 If the selector fails, fall back to the default lane rules above and mention the selector failure in the review artifact.
 
@@ -227,45 +242,18 @@ Run selected lanes in parallel with the `subagent` tool. Prefer a `chain` with o
 
 Before launching lanes:
 
-1. Read each selected lane prompt from `agents/[lane].md` relative to this skill directory.
-2. Create a focused-lane reports directory under the timestamped review directory:
+1. Create the focused-lane reports directory under the timestamped review directory:
    ```text
    [review_dir]/focused-lanes/
    ```
-3. Resolve that directory to an absolute path from the current repo root.
-4. Paste the full selected lane prompt into that lane's delegated task.
-5. Run the generic `reviewer` subagent for each lane with a distinct **absolute** `output` path inside the focused-lane reports directory. Do not set a per-task model unless deliberately overriding the root `reviewer` agent config.
-6. Set `chainDir` to `[review_dir]/focused-lane-runs` so Pi's shared chain artifacts stay with the review. Note: Pi appends an internal run id to `chainDir`, so lane `output` paths must be absolute if you need predictable filenames.
-
-Use this shape:
-
-```json
-{
-  "chain": [
-    {
-      "parallel": [
-        {
-          "agent": "reviewer",
-          "task": "Use this focused lane prompt exactly:\n\n[contents of agents/q-review-correctness.md]\n\nReview only this lane for [mode] review. plan_dir=[path]. reviewed_artifact=[path]. changed_files=[paths]. Write the lane report to the provided output path. Do not edit files.",
-          "output": "/abs/repo/[review_dir]/focused-lanes/q-review-correctness.md"
-        },
-        {
-          "agent": "reviewer",
-          "task": "Use this focused lane prompt exactly:\n\n[contents of agents/q-review-tests-verification.md]\n\nReview only this lane for [mode] review. plan_dir=[path]. reviewed_artifact=[path]. changed_files=[paths]. Write the lane report to the provided output path. Do not edit files.",
-          "output": "/abs/repo/[review_dir]/focused-lanes/q-review-tests-verification.md"
-        },
-        {
-          "agent": "reviewer",
-          "task": "Use this focused lane prompt exactly:\n\n[contents of agents/q-review-go.md]\n\nReview only this lane for [mode] review. plan_dir=[path]. reviewed_artifact=[path]. changed_files=[paths]. Write the lane report to the provided output path. Do not edit files.",
-          "output": "/abs/repo/[review_dir]/focused-lanes/q-review-go.md"
-        }
-      ]
-    }
-  ],
-  "chainDir": "[review_dir]/focused-lane-runs",
-  "clarify": false
-}
-```
+2. Run the selector with `--review-dir [review_dir]` so it emits `subagent_tool_args`.
+3. Pass `subagent_tool_args` directly to the `subagent` tool. It already contains:
+   - one `reviewer` task per selected lane
+   - the full focused lane prompt text
+   - absolute output paths under `[review_dir]/focused-lanes/`
+   - `chainDir: [review_dir]/focused-lane-runs`
+   - `clarify: false`
+4. Do not manually rebuild the subagent JSON unless the selector failed or you are deliberately adding a lane with explicit evidence.
 
 After the chain completes, use `read` or `find` to load every expected lane report from `[review_dir]/focused-lanes/`. If any expected report is missing, inspect Pi's returned chain artifact directory and the subagent debug artifacts; if the report still cannot be recovered, rerun that lane with an explicit absolute `output` path before writing the canonical review.
 
@@ -292,8 +280,9 @@ If a candidate finding is ambiguous, use `codebase-analyzer` to trace the exact 
    - **Implementation review:** review the current code in the changed files and use `git show`, `git diff`, or `git status` as needed to identify what was introduced.
 5. Estimate review scope and choose focused lanes.
    - If the scope is tiny and localized, continue directly.
-   - Otherwise run `uv run ~/.agents/skills/q-review/bin/select-lanes.py --mode [mode] --plan-dir [plan_dir] --reviewed-artifact [reviewed_artifact] --pretty` and use its `selected_lanes` as the baseline lane list.
-   - Read the selected `agents/q-review-*.md` lane prompts and run them in parallel through the generic `reviewer` subagent with distinct absolute `output` paths inside `[review_dir]/focused-lanes/`.
+   - Otherwise run `uv run ~/.agents/skills/q-review/bin/select-lanes.py --mode [mode] --plan-dir [plan_dir] --reviewed-artifact [reviewed_artifact] --review-dir [review_dir] --pretty` and use its `selected_lanes` as the baseline lane list.
+   - For implementation reviews of committed work, include `--diff-range [base]..HEAD` or `--diff-base [base]` when the prior reviewed commit/base is known; this prevents the selector from relying only on uncommitted status or handoff text.
+   - Use the selector's `subagent_tool_args` directly as the `subagent` tool input to run selected lanes in parallel through the generic `reviewer` subagent.
    - Always consider both cross-cutting lanes and domain lanes, but do not route from `questions/`, `research/`, or `context/`; outline routing comes from `design.md` / `outline.md` / `plan.md`, while implementation routing comes from the handoff and actual changed files.
    - Include the mode, `plan_dir`, reviewed artifact path, selector `changed_files` / `referenced_paths`, key context artifacts, local best-practice docs to read, the selector reason for that lane, and the lane boundary in each delegated task.
    - Wait for all lane reports before drafting the canonical review.

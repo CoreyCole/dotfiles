@@ -5,11 +5,11 @@
   },
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
   "skills": [],
   "packages": [
-    "git:github.com/HazAT/pi-subagents",
+    "git:github.com/nicobailon/pi-subagents",
     "git:github.com/nicobailon/pi-mcp-adapter",
     "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
@@ -22,3 +22,4 @@
     "+extensions/tool-hooks/index.ts"
   ]
 }
+

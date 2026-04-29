@@ -41,3 +41,4 @@ auth.json
 sessions/
 .zshrc.local
 secrets.sh
+__pycache__/

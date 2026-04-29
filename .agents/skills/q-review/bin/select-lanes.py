@@ -76,6 +76,17 @@ TEXT_FILE_EXTENSIONS = {
     ".sum",
 }
 
+GENERATED_PATH_PATTERNS = (
+    re.compile(r"(^|/)frontend/packages/proto/"),
+    re.compile(r"(^|/)pkg/proto/"),
+    re.compile(r"(^|/)pkg/db/.*\.go$"),
+    re.compile(r"\.pb\.go$"),
+    re.compile(r"\.connect\.go$"),
+    re.compile(r"_pb\.ts$"),
+    re.compile(r"_connect(query)?\.ts$"),
+    re.compile(r"(^|/).*(generated|\.gen)\.(go|ts|tsx|js)$"),
+)
+
 KNOWN_PATH_PREFIXES = (
     ".agents/",
     ".claude/",
@@ -129,6 +140,8 @@ class Evidence:
     kind: str
     path: str
     text: str = ""
+    route_path: bool = True
+    route_text: bool = True
 
 
 @dataclass
@@ -207,7 +220,7 @@ LANE_RULES = [
     LaneRule(
         "q-review-react-ui",
         path_patterns=(
-            p("monorepo frontend path", r"(^|/)frontend(/|$)"),
+            p("monorepo frontend app path", r"(^|/)frontend/apps/"),
             p("React component file", r"\.(tsx|jsx)$"),
         ),
         text_patterns=(
@@ -278,6 +291,7 @@ LANE_RULES = [
         "q-review-integration-ops",
         path_patterns=(
             p("runtime config or migration", r"(^|/)(config|deploy|deployment|ops|observability|db/migrations)(/|$)"),
+            p("API/proto contract", r"(^|/)(proto/|pkg/proto/|frontend/packages/proto/|api/internal/testing/).*\.(proto|go|ts)$"),
         ),
         text_patterns=(
             p("ops/integration risk language", r"\b(external call|webhook|rollout|rollback|observability|backfill|deployment|runtime behavior|feature flag)\b"),
@@ -316,6 +330,43 @@ def display_path(path: Path, repo_root: Path | None = None) -> str:
     except ValueError:
         pass
     return path.as_posix()
+
+
+def repo_relative_path(path: str, repo_root: Path) -> str:
+    normalized = normalize_path(path)
+    candidate = Path(normalized)
+    if candidate.is_absolute():
+        try:
+            return candidate.resolve().relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            return normalized
+    return normalized
+
+
+def is_qrspi_artifact_path(path: str) -> bool:
+    parts = Path(normalize_path(path)).parts
+    if "thoughts" not in parts:
+        return False
+
+    artifact_parts = {"handoffs", "reviews", "questions", "research", "context", "prds", "adrs"}
+    return any(part in artifact_parts for part in parts)
+
+
+def is_generated_code_path(path: str) -> bool:
+    normalized = normalize_path(path)
+    return any(pattern.search(normalized) for pattern in GENERATED_PATH_PATTERNS)
+
+
+def existing_repo_file(path: str, repo_root: Path) -> bool:
+    rel = repo_relative_path(path, repo_root)
+    if is_qrspi_artifact_path(rel):
+        return False
+
+    candidate = Path(rel)
+    if candidate.is_absolute():
+        return candidate.is_file()
+
+    return (repo_root / candidate).is_file()
 
 
 def read_text(path: Path, max_bytes: int = 512_000) -> str:
@@ -393,22 +444,60 @@ def extract_paths(text: str) -> list[str]:
     return paths
 
 
-def git_changed_files(repo_root: Path) -> list[str]:
+def diff_spec(diff_range: str | None, diff_base: str | None, diff_target: str = "HEAD") -> str | None:
+    if diff_range:
+        return diff_range
+    if diff_base:
+        return f"{diff_base}..{diff_target}"
+    return None
+
+
+def git_diff_for_file(
+    repo_root: Path,
+    rel: str,
+    diff_range: str | None = None,
+    diff_base: str | None = None,
+    diff_target: str = "HEAD",
+) -> str:
+    spec = diff_spec(diff_range, diff_base, diff_target)
+    if spec:
+        return run(["git", "diff", spec, "--", rel], repo_root)
+
+    staged = run(["git", "diff", "--cached", "--", rel], repo_root)
+    unstaged = run(["git", "diff", "--", rel], repo_root)
+    return staged + "\n" + unstaged
+
+
+def git_changed_files(
+    repo_root: Path,
+    diff_range: str | None = None,
+    diff_base: str | None = None,
+    diff_target: str = "HEAD",
+) -> list[str]:
     files: set[str] = set()
 
-    for cmd in (["git", "diff", "--name-only"], ["git", "diff", "--cached", "--name-only"]):
+    if diff_range:
+        diff_cmds = [["git", "diff", "--name-only", diff_range]]
+    elif diff_base:
+        diff_cmds = [["git", "diff", "--name-only", f"{diff_base}..{diff_target}"]]
+    else:
+        diff_cmds = [["git", "diff", "--name-only"], ["git", "diff", "--cached", "--name-only"]]
+
+    for cmd in diff_cmds:
         for line in run(cmd, repo_root).splitlines():
-            path = normalize_path(line)
-            if path:
+            path = repo_relative_path(line, repo_root)
+            if path and not is_qrspi_artifact_path(path):
                 files.add(path)
 
+    # Always include uncommitted status in addition to an explicit range so the
+    # review sees local edits made after the last commit.
     for line in run(["git", "status", "--porcelain"], repo_root).splitlines():
         if len(line) < 4:
             continue
-        path = normalize_path(line[3:])
+        path = repo_relative_path(line[3:], repo_root)
         if " -> " in path:
-            path = normalize_path(path.split(" -> ", 1)[1])
-        if path:
+            path = repo_relative_path(path.split(" -> ", 1)[1], repo_root)
+        if path and not is_qrspi_artifact_path(path):
             files.add(path)
 
     return sorted(files)
@@ -436,7 +525,7 @@ def build_outline_evidence(plan_dir: Path, repo_root: Path) -> tuple[list[Eviden
         if not path.is_file():
             continue
         text = read_text(path)
-        evidence.append(Evidence(kind="review_doc", path=display_path(path, repo_root), text=text))
+        evidence.append(Evidence(kind="review_doc", path=display_path(path, repo_root), text=text, route_path=False))
         referenced_paths.extend(extract_paths(text))
     return evidence, sorted(set(referenced_paths))
 
@@ -447,9 +536,18 @@ def build_implementation_evidence(
     reviewed_artifact: Path | None,
     handoff: Path | None,
     explicit_changed_files: list[str],
+    diff_range: str | None = None,
+    diff_base: str | None = None,
+    diff_target: str = "HEAD",
 ) -> tuple[list[Evidence], list[str]]:
     evidence: list[Evidence] = []
-    changed: set[str] = {normalize_path(path) for path in explicit_changed_files if normalize_path(path)}
+    changed: set[str] = {
+        rel
+        for path in explicit_changed_files
+        if normalize_path(path)
+        for rel in [repo_relative_path(path, repo_root)]
+        if not is_qrspi_artifact_path(rel) and not is_generated_code_path(rel)
+    }
 
     handoff_path = handoff or reviewed_artifact
     if not handoff_path and plan_dir:
@@ -457,17 +555,54 @@ def build_implementation_evidence(
 
     if handoff_path and handoff_path.is_file():
         text = read_text(handoff_path)
-        evidence.append(Evidence(kind="handoff", path=display_path(handoff_path, repo_root), text=text))
-        changed.update(extract_paths(text))
+        # Handoffs are evidence artifacts, not implementation artifacts. Use their
+        # extracted repo paths to discover changed files, but do not route lanes from
+        # handoff path or prose; otherwise review summaries can over-select domains.
+        evidence.append(
+            Evidence(
+                kind="handoff",
+                path=display_path(handoff_path, repo_root),
+                text=text,
+                route_path=False,
+                route_text=False,
+            )
+        )
+        for extracted in extract_paths(text):
+            rel = repo_relative_path(extracted, repo_root)
+            if existing_repo_file(rel, repo_root) and not is_generated_code_path(rel):
+                changed.add(rel)
 
-    changed.update(git_changed_files(repo_root))
+    changed.update(
+        path
+        for path in git_changed_files(
+            repo_root,
+            diff_range=diff_range,
+            diff_base=diff_base,
+            diff_target=diff_target,
+        )
+        if not is_generated_code_path(path)
+    )
 
-    normalized_changed = sorted(path for path in changed if path)
+    normalized_changed = sorted(
+        path
+        for path in changed
+        if path and not is_qrspi_artifact_path(path) and not is_generated_code_path(path)
+    )
     for rel in normalized_changed:
         file_path = (repo_root / rel).resolve() if not Path(rel).is_absolute() else Path(rel)
         text = ""
         if file_path.suffix.lower() in TEXT_FILE_EXTENSIONS:
-            text = read_text(file_path)
+            # Route text-pattern lanes from the changed hunks, not the whole file.
+            # Whole-file scanning over-selects lanes because existing imports,
+            # generated comments, or unrelated functions mention domains untouched by
+            # the reviewed diff.
+            text = git_diff_for_file(
+                repo_root,
+                rel,
+                diff_range=diff_range,
+                diff_base=diff_base,
+                diff_target=diff_target,
+            ) or read_text(file_path, max_bytes=64_000)
         evidence.append(Evidence(kind="changed_file", path=rel, text=text))
 
     return evidence, normalized_changed
@@ -491,12 +626,14 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
 
     for rule in LANE_RULES:
         for item in evidence:
-            for spec in rule.path_patterns:
-                if spec.regex.search(item.path):
-                    add_lane(rule.lane_id, f"matched {spec.label}: {item.path}", item.path)
-            for spec in rule.text_patterns:
-                if spec.regex.search(item.text):
-                    add_lane(rule.lane_id, f"matched {spec.label} in {item.path}", item.path)
+            if item.route_path:
+                for spec in rule.path_patterns:
+                    if spec.regex.search(item.path):
+                        add_lane(rule.lane_id, f"matched {spec.label}: {item.path}", item.path)
+            if item.route_text:
+                for spec in rule.text_patterns:
+                    if spec.regex.search(item.text):
+                        add_lane(rule.lane_id, f"matched {spec.label} in {item.path}", item.path)
 
     selected_domain_lanes = {
         lane_id
@@ -538,6 +675,59 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
     }
 
 
+def build_subagent_tool_args(
+    *,
+    mode: str,
+    repo_root: Path,
+    plan_dir: Path | None,
+    reviewed_artifact: Path | None,
+    review_dir: Path,
+    changed_files: list[str],
+    referenced_paths: list[str],
+    evidence_files: list[str],
+    selected_lanes: list[dict[str, object]],
+) -> dict[str, object]:
+    focused_lanes_dir = review_dir / "focused-lanes"
+    chain_dir = review_dir / "focused-lane-runs"
+    parallel_tasks: list[dict[str, str]] = []
+
+    for lane in selected_lanes:
+        lane_id = str(lane["id"])
+        prompt_path = AGENTS_DIR / f"{lane_id}.md"
+        prompt_text = read_text(prompt_path)
+        if not prompt_text:
+            prompt_text = f"# {lane_id}\n\nPrompt file not found at {prompt_path.as_posix()}."
+
+        reasons = lane.get("reasons", [])
+        matched = lane.get("matched_evidence", [])
+        task = (
+            "Use this focused lane prompt exactly:\n\n"
+            f"{prompt_text}\n\n"
+            f"Review only this lane for {mode} review. "
+            f"plan_dir={plan_dir.as_posix() if plan_dir else 'none'}. "
+            f"reviewed_artifact={reviewed_artifact.as_posix() if reviewed_artifact else 'none'}.\n\n"
+            f"Changed files: {', '.join(changed_files) if changed_files else 'none'}.\n"
+            f"Referenced paths: {', '.join(referenced_paths) if referenced_paths else 'none'}.\n"
+            f"Evidence files: {', '.join(evidence_files) if evidence_files else 'none'}.\n"
+            f"Selector reasons for this lane: {json.dumps(reasons, ensure_ascii=False)}.\n"
+            f"Matched evidence for this lane: {json.dumps(matched, ensure_ascii=False)}.\n\n"
+            "Write the lane report to the provided output path. Do not edit files."
+        )
+        parallel_tasks.append(
+            {
+                "agent": "reviewer",
+                "task": task,
+                "output": (focused_lanes_dir / f"{lane_id}.md").as_posix(),
+            }
+        )
+
+    return {
+        "chain": [{"parallel": parallel_tasks}],
+        "chainDir": chain_dir.as_posix(),
+        "clarify": False,
+    }
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Select q-review focused lanes deterministically")
     parser.add_argument("--mode", choices=("outline", "implementation"), help="review mode")
@@ -545,7 +735,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--reviewed-artifact", type=Path, help="outline.md or implementation handoff path")
     parser.add_argument("--handoff", type=Path, help="implementation handoff path")
     parser.add_argument("--repo-root", type=Path, help="repository root; defaults to git root from cwd")
+    parser.add_argument("--review-dir", type=Path, help="timestamped review directory; enables exact subagent_tool_args output")
     parser.add_argument("--changed-file", action="append", default=[], help="explicit implementation changed file; may be repeated")
+    parser.add_argument("--diff-range", help="implementation diff range for committed changes, e.g. BASE..HEAD")
+    parser.add_argument("--diff-base", help="implementation diff base commit; uses BASE..diff-target")
+    parser.add_argument("--diff-target", default="HEAD", help="implementation diff target when --diff-base is used; default HEAD")
     parser.add_argument("--pretty", action="store_true", help="pretty-print JSON output")
     parser.add_argument("--self-test", action="store_true", help="run built-in selector tests")
     return parser.parse_args(argv)
@@ -557,6 +751,7 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
     plan_dir = args.plan_dir.resolve() if args.plan_dir else None
     reviewed_artifact = args.reviewed_artifact.resolve() if args.reviewed_artifact else None
     handoff = args.handoff.resolve() if args.handoff else None
+    review_dir = args.review_dir.resolve() if args.review_dir else None
 
     if not args.mode:
         raise SystemExit("--mode is required unless --self-test is used")
@@ -578,23 +773,45 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
             reviewed_artifact=reviewed_artifact,
             handoff=handoff,
             explicit_changed_files=args.changed_file,
+            diff_range=args.diff_range,
+            diff_base=args.diff_base,
+            diff_target=args.diff_target,
         )
         referenced_paths = []
         evidence_files = [item.path for item in evidence if item.kind == "handoff"]
 
     selection = select_lanes(args.mode, evidence, changed_files, all_lane_ids)
 
-    return {
-        "version": 1,
+    result: dict[str, object] = {
+        "version": 2,
         "mode": args.mode,
         "repo_root": repo_root.as_posix(),
         "plan_dir": plan_dir.as_posix() if plan_dir else None,
+        "review_dir": review_dir.as_posix() if review_dir else None,
         "reviewed_artifact": reviewed_artifact.as_posix() if reviewed_artifact else None,
         "evidence_files": evidence_files,
         "changed_files": changed_files,
         "referenced_paths": referenced_paths,
+        "diff_range": args.diff_range,
+        "diff_base": args.diff_base,
+        "diff_target": args.diff_target,
         **selection,
     }
+
+    if review_dir:
+        result["subagent_tool_args"] = build_subagent_tool_args(
+            mode=args.mode,
+            repo_root=repo_root,
+            plan_dir=plan_dir,
+            reviewed_artifact=reviewed_artifact,
+            review_dir=review_dir,
+            changed_files=changed_files,
+            referenced_paths=referenced_paths,
+            evidence_files=evidence_files,
+            selected_lanes=selection["selected_lanes"],  # type: ignore[arg-type]
+        )
+
+    return result
 
 
 def assert_lanes(result: dict[str, object], expected: set[str], unexpected: set[str] = frozenset()) -> None:
@@ -623,7 +840,11 @@ def self_test() -> None:
             reviewed_artifact=None,
             handoff=None,
             repo_root=repo,
+            review_dir=None,
             changed_file=[],
+            diff_range=None,
+            diff_base=None,
+            diff_target="HEAD",
             pretty=False,
             self_test=False,
         )
@@ -642,6 +863,9 @@ def self_test() -> None:
 
         impl_plan = repo / "impl"
         impl_plan.mkdir()
+        (repo / "cn-agents" / "pkg" / "ui").mkdir(parents=True)
+        (repo / "cn-agents" / "pkg" / "ui" / "panel.templ").write_text("package ui\n")
+        (repo / "cn-agents" / "pkg" / "ui" / "stream.go").write_text("package ui\n")
         handoff = impl_plan / "handoffs" / "handoff.md"
         handoff.parent.mkdir()
         handoff.write_text(
@@ -656,7 +880,11 @@ def self_test() -> None:
             reviewed_artifact=handoff,
             handoff=None,
             repo_root=repo,
+            review_dir=None,
             changed_file=[],
+            diff_range=None,
+            diff_base=None,
+            diff_target="HEAD",
             pretty=False,
             self_test=False,
         )
