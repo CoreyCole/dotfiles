@@ -10,12 +10,7 @@
  * 4. Submits the compiled answers when done
  */
 
-import {
-  complete,
-  type Model,
-  type Api,
-  type UserMessage,
-} from "@mariozechner/pi-ai";
+import { complete, type UserMessage } from "@mariozechner/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -43,6 +38,11 @@ interface ExtractedQuestion {
 interface ExtractionResult {
   questions: ExtractedQuestion[];
 }
+
+type ExtractionOutcome =
+  | { type: "success"; result: ExtractionResult }
+  | { type: "cancelled"; message: string }
+  | { type: "error"; message: string };
 
 const SYSTEM_PROMPT = `You are a question extractor. Given text from a conversation, extract any questions that need answering.
 
@@ -76,36 +76,27 @@ Example output:
   ]
 }`;
 
-const DEFAULT_MODEL_ID = process.env.PI_DEFAULT_MODEL ?? "gpt-5.5";
-const DEFAULT_FAST_MODEL_ID = process.env.PI_DEFAULT_FAST_MODEL ?? `${DEFAULT_MODEL_ID}-mini`;
-const HAIKU_MODEL_ID = process.env.PI_ANSWER_FALLBACK_MODEL ?? "claude-haiku-4-5";
+const ANSWER_MODEL_PROVIDER =
+  process.env.PI_ANSWER_MODEL_PROVIDER ?? "openai-codex";
+const ANSWER_MODEL_ID = process.env.PI_ANSWER_MODEL ?? "gpt-5.5";
 
 /**
- * Prefer the configured fast Codex model for extraction when available, otherwise fallback to haiku or the current model.
+ * Use the configured GPT model for extraction. Do not fall back to other providers.
  */
-async function selectExtractionModel(
-  currentModel: Model<Api>,
-  modelRegistry: ModelRegistry,
-): Promise<Model<Api>> {
-  const codexModel = modelRegistry.find("openai-codex", DEFAULT_FAST_MODEL_ID);
-  if (codexModel) {
-    const auth = await modelRegistry.getApiKeyAndHeaders(codexModel);
-    if (auth.ok) {
-      return codexModel;
-    }
+async function getExtractionModel(modelRegistry: ModelRegistry) {
+  const model = modelRegistry.find(ANSWER_MODEL_PROVIDER, ANSWER_MODEL_ID);
+  if (!model) {
+    throw new Error(
+      `Answer model not found: ${ANSWER_MODEL_PROVIDER}/${ANSWER_MODEL_ID}`,
+    );
   }
 
-  const haikuModel = modelRegistry.find("anthropic", HAIKU_MODEL_ID);
-  if (!haikuModel) {
-    return currentModel;
-  }
-
-  const auth = await modelRegistry.getApiKeyAndHeaders(haikuModel);
+  const auth = await modelRegistry.getApiKeyAndHeaders(model);
   if (!auth.ok) {
-    return currentModel;
+    throw new Error(`Answer model auth failed: ${auth.error}`);
   }
 
-  return haikuModel;
+  return { model, auth };
 }
 
 /**
@@ -472,28 +463,30 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // Select the best model for extraction (prefer Codex mini, then haiku)
-    const extractionModel = await selectExtractionModel(
-      ctx.model,
-      ctx.modelRegistry,
-    );
+    let extractionConfig: Awaited<ReturnType<typeof getExtractionModel>>;
+    try {
+      extractionConfig = await getExtractionModel(ctx.modelRegistry);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      ctx.ui.notify(message, "error");
+      return;
+    }
+
+    const { model: extractionModel, auth } = extractionConfig;
 
     // Run extraction with loader UI
-    const extractionResult = await ctx.ui.custom<ExtractionResult | null>(
+    const extractionOutcome = await ctx.ui.custom<ExtractionOutcome>(
       (tui, theme, _kb, done) => {
         const loader = new BorderedLoader(
           tui,
           theme,
           `Extracting questions using ${extractionModel.id}...`,
         );
-        loader.onAbort = () => done(null);
+        loader.onAbort = () => {
+          done({ type: "cancelled", message: "Cancelled" });
+        };
 
-        const doExtract = async () => {
-          const auth =
-            await ctx.modelRegistry.getApiKeyAndHeaders(extractionModel);
-          if (!auth.ok) {
-            throw new Error(auth.error);
-          }
+        const doExtract = async (): Promise<ExtractionOutcome> => {
           const userMessage: UserMessage = {
             role: "user",
             content: [{ type: "text", text: lastAssistantText! }],
@@ -507,11 +500,19 @@ export default function (pi: ExtensionAPI) {
               apiKey: auth.apiKey,
               headers: auth.headers,
               signal: loader.signal,
+              reasoningEffort: "none",
             },
           );
 
           if (response.stopReason === "aborted") {
-            return null;
+            return { type: "cancelled", message: "Extraction aborted" };
+          }
+
+          if (response.stopReason === "error") {
+            return {
+              type: "error",
+              message: response.errorMessage ?? "Question extraction failed",
+            };
           }
 
           const responseText = response.content
@@ -521,21 +522,41 @@ export default function (pi: ExtensionAPI) {
             .map((c) => c.text)
             .join("\n");
 
-          return parseExtractionResult(responseText);
+          const result = parseExtractionResult(responseText);
+          if (!result) {
+            return {
+              type: "error",
+              message: "Could not parse extracted questions",
+            };
+          }
+
+          return { type: "success", result };
         };
 
         doExtract()
           .then(done)
-          .catch(() => done(null));
+          .catch((error) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            done({
+              type: "error",
+              message: `Question extraction failed: ${message}`,
+            });
+          });
 
         return loader;
       },
     );
 
-    if (extractionResult === null) {
-      ctx.ui.notify("Cancelled", "info");
+    if (extractionOutcome.type !== "success") {
+      ctx.ui.notify(
+        extractionOutcome.message,
+        extractionOutcome.type === "error" ? "error" : "info",
+      );
       return;
     }
+
+    const extractionResult = extractionOutcome.result;
 
     if (extractionResult.questions.length === 0) {
       ctx.ui.notify("No questions found in the last message", "info");
@@ -566,7 +587,7 @@ export default function (pi: ExtensionAPI) {
     );
   };
 
-  pi.events.on("trigger:answer", async (ctx) => {
+  pi.events.on("trigger:answer:v2", async (ctx) => {
     await answerHandler(ctx as ExtensionContext);
   });
 

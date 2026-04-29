@@ -58,7 +58,7 @@ Slash commands are not sent as user messages because that bypasses pi's slash-co
       // Special handling for /answer via event bus (needs context)
       if (command === "/answer") {
         setTimeout(() => {
-          pi.events.emit("trigger:answer", ctx);
+          pi.events.emit("trigger:answer:v2", ctx);
         }, 100);
         return;
       }
