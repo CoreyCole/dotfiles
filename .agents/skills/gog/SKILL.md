@@ -14,6 +14,24 @@ Setup (once)
 - `gog auth add you@gmail.com --services gmail,calendar,drive,contacts,docs,sheets`
 - `gog auth list`
 
+Headless / token-refresh recovery
+
+- `gog auth status` only confirms local config/credential presence. It does NOT prove the refresh token is still good.
+- If real API calls fail with `invalid_grant`, re-run auth instead of trusting `auth status`.
+- For remote/headless reauth, use a two-step flow that prints a browser URL:
+  - Step 1: `gog auth add you@gmail.com --remote --step=1 --services=drive,docs --readonly --json --no-input`
+  - Extract `auth_url` from the JSON and send that exact URL to the user.
+  - Tell the user to approve access and then paste back the full final redirected URL from the browser address bar.
+  - Step 2: `gog auth add you@gmail.com --remote --step=2 --auth-url 'PASTED_REDIRECT_URL' --services=drive,docs --readonly --json --no-input`
+- Important: step 2 must be run with the same auth-shaping flags as step 1 (`--services`, `--readonly`, `--drive-scope`, `--gmail-scope`, `--force-consent`, and any redirect override), or gog will reject it with `manual auth state mismatch`.
+- If Google lands on a localhost callback error page after approval, that's expected in this flow; the user should still copy the full URL.
+- Use the narrowest `--services` set you need (`drive,docs` is enough for reading a Google Doc itinerary).
+- Debugging remote auth state failures:
+  - gog stores remote/manual step-1 state under `~/.config/gogcli/oauth-manual-state-<STATE>.json`.
+  - `manual auth state missing` means that file is absent/expired (TTL is about 10 minutes) or unreadable.
+  - `manual auth state mismatch` usually means the cached file's `client`, `scopes`, `force_consent`, or `redirect_uri` does not exactly match the step-2 invocation / pasted redirect URL.
+  - You can inspect or reconstruct that JSON file in emergencies using the returned `state` value, exact scopes from a `--dry-run`, and the redirect URI from the pasted callback URL, then rerun step 2 with matching flags.
+
 Common commands
 
 - Gmail search: `gog gmail search 'newer_than:7d' --max 10`

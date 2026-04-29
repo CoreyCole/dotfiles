@@ -222,6 +222,7 @@ ls ~/.pi/history/$(basename "$PWD")/research/
 QRSPI plan directories already live under `~/dotfiles/thoughts/...`, so they are version-controlled by default.
 
 If you create standalone plan, research, or review artifacts outside a QRSPI plan directory, mirror them to both:
+
 - `~/.pi/history/<project>/...`
 - `~/dotfiles/thoughts/CoreyCole/...`
 
@@ -230,14 +231,15 @@ If you create standalone plan, research, or review artifacts outside a QRSPI pla
 For any non-trivial task, default to the QRSPI pipeline:
 
 1. `/q-question`
-2. `/q-research`
-3. `/q-design`
-4. `/q-outline`
-5. `/q-plan`
-6. `/q-implement`
-7. `/q-review`
+1. `/q-research`
+1. `/q-design`
+1. `/q-outline`
+1. `/q-plan`
+1. `/q-implement`
+1. `/q-review`
 
 Rules of thumb:
+
 - The stage skills are the process. Read the relevant skill before starting or resuming a stage.
 - Question, research, design, and outline are human gates. The human reviews those artifacts before you move forward.
 - Loop backward when the evidence says you should. Research can invalidate questions, design can reveal missing research, and outline can expose design flaws.
@@ -248,12 +250,14 @@ Rules of thumb:
 If a task is small, straightforward, and the implementation shape should be obvious, you may start directly at `/q-outline` instead of `/q-question`.
 
 Good fit:
+
 - Clear requested behavior with low ambiguity
 - Little or no codebase archaeology needed
 - No meaningful product or architecture uncertainty
 - Likely one or two obvious vertical slices
 
 Not a fit:
+
 - Unclear goals or competing interpretations
 - Need to understand current behavior before choosing direction
 - Changes likely to impact multiple subsystems or non-obvious invariants
@@ -270,9 +274,6 @@ Prefer the QRSPI stage skills over ad hoc chains. Use raw subagents to support a
 |-------|---------|
 | `codebase-locator` | Find relevant files, directories, tests, configs, docs, and related clusters |
 | `codebase-analyzer` | Read targeted files and trace actual code paths with precise file:line references |
-| `worker` | Implement a validated slice, verify it, commit it, and close the associated todo |
-| `reviewer` | Review completed implementation work for quality, correctness, and risk |
-| `researcher` | Do external/web research and synthesize findings alongside code analysis |
 
 Planning, alignment, and stage transitions happen in the main session.
 
@@ -280,9 +281,6 @@ Planning, alignment, and stage transitions happen in the main session.
 
 - **Need codebase discovery during a stage** → Use `codebase-locator`
 - **Need detailed implementation tracing** → Use `codebase-analyzer`
-- **A slice is ready to execute** → Use `worker` (usually through `/q-implement`)
-- **Implementation needs review** → Use `reviewer`
-- **Need external docs or web research** → Use `researcher`
 
 #### When NOT to Delegate
 
@@ -293,29 +291,3 @@ Planning, alignment, and stage transitions happen in the main session.
 - When the user wants to stay hands-on
 
 Default to delegation for substantial work, but keep delegation subordinate to the QRSPI stage flow.
-
-### Skill Triggers
-
-Skills provide specialized instructions for specific tasks. Load them when the context matches. For substantial work, prefer the QRSPI stage skills first.
-
-| When... | Load skill... |
-|---------|---------------|
-| Starting or routing substantial staged work | `qrspi-planning` |
-| Turning a request into research questions | `q-question` |
-| Answering those questions with codebase facts | `q-research` |
-| Converting research into an approach | `q-design` |
-| Producing a structured implementation outline | `q-outline` |
-| Expanding the outline into a tactical machine plan | `q-plan` |
-| Executing one validated implementation slice | `q-implement` |
-| Reviewing completed implementation | `q-review` |
-| Starting work in a new/unfamiliar project, or asked to learn conventions | `learn-codebase` |
-| User explicitly wants free-form ideation before entering QRSPI | `brainstorm` |
-| Making git commits (always — every commit must be polished and descriptive) | `commit` |
-| Working with GitHub | `github` |
-| Asked to simplify/clean up/refactor code | `code-simplifier` |
-| Reading, reviewing, or analyzing a pi session JSONL file | `session-reader` |
-| Adding or configuring an MCP server (global or project-local) | `add-mcp-server` |
-| Running dev servers, test watchers, background tasks, interactive sessions (REPL, debugger), or any process in a separate terminal | `tmux` |
-| Creating cmux workspaces, sending notifications, or workspace-level operations | `cmux` |
-
-**The `commit` skill is mandatory for every single commit.** No quick `git commit -m "fix stuff"` — every commit gets the full treatment with a descriptive subject and body.

@@ -41,15 +41,7 @@ return {
             },
             { "<leader>fc", "<cmd>FzfLua highlights<cr>", desc = "Highlights" },
             { "<leader>fd", "<cmd>FzfLua lsp_document_diagnostics<cr>", desc = "Document diagnostics" },
-            {
-                "<leader>ff",
-                function()
-                    require("fzf-lua").files {
-                        cmd = "fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules --exclude '*_templ.go' --exclude frontend/apps/web/.next --exclude static/js",
-                    }
-                end,
-                desc = "Find files",
-            },
+            { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find files" },
             {
                 "<leader>fg",
                 function()
@@ -117,6 +109,10 @@ return {
                 defaults = { git_icons = false },
                 -- Configuration for specific commands.
                 files = {
+                    hidden = true,
+                    follow = true,
+                    no_ignore = true,
+                    fd_opts = [[--color=never --type f --exclude .git --exclude node_modules --exclude '*_templ.go' --exclude frontend/apps/web/.next --exclude static/js]],
                     winopts = {
                         preview = { hidden = true },
                     },

@@ -292,6 +292,9 @@ func parseFrontmatter(path string) (VideoMetadata, error) {
 		if !inFrontmatter || trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
+		if strings.TrimLeft(line, " \t") != line {
+			continue
+		}
 		parts := strings.SplitN(line, ":", 2)
 		if len(parts) != 2 {
 			continue
