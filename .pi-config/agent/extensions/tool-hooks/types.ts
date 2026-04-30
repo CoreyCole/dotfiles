@@ -1,6 +1,17 @@
-export type ClaudeHookEventName = "SessionStart" | "PreToolUse" | "PostToolUse";
+export type ClaudeHookEventName =
+  | "SessionStart"
+  | "PreToolUse"
+  | "PostToolUse"
+  | "Stop";
 
-export type ClaudeToolName = "Bash" | "Read" | "Write" | "Edit" | "Grep" | "Find" | "Ls";
+export type ClaudeToolName =
+  | "Bash"
+  | "Read"
+  | "Write"
+  | "Edit"
+  | "Grep"
+  | "Find"
+  | "Ls";
 
 export interface ClaudeHooksConfigFile {
   hooks: Partial<Record<ClaudeHookEventName, ClaudeHookMatcherGroup[]>>;

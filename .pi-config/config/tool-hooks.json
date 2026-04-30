@@ -10,6 +10,30 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.pi/agent/scripts/format-post-tool.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.pi/agent/scripts/lint-unstaged-go.mjs",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }

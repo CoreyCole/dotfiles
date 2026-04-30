@@ -1,0 +1,408 @@
+version: '2'
+
+run:
+  build-tags:
+    - codeanalysis
+    - unit
+    - integration
+    - core
+    - twisp
+    - risingwave
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    - asasalint
+    - asciicheck
+    - bodyclose
+    - containedctx
+    - copyloopvar
+    - depguard
+    - dogsled
+    - dupl
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - goconst
+    - gocritic
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - iface
+    - importas
+    - inamedparam
+    - intrange
+    - makezero
+    - misspell
+    - mnd
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - reassign
+    - recvcheck
+    - revive
+    - spancheck
+    - tagalign
+    - tagliatelle
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+
+  settings:
+    depguard:
+      rules:
+        apd:
+          list-mode: lax
+          deny:
+            - pkg: github.com/cockroachdb/apd$
+              desc: use github.com/cockroachdb/apd/v3
+            - pkg: github.com/cockroachdb/apd/v2$
+              desc: use github.com/cockroachdb/apd/v3
+        awsv2:
+          list-mode: lax
+          deny:
+            - pkg: github.com/aws/aws-sdk-go$
+              desc: use github.com/aws/aws-sdk-go-v2
+
+    dupl:
+      threshold: 250
+
+    exhaustive:
+      check:
+        - switch
+        - map
+      default-case-required: true
+
+    importas:
+      # Do not allow unaliased imports of aliased packages.
+      # Default: false
+      no-unaliased: false
+      # Do not allow non-required aliases.
+      # Default: false
+      no-extra-aliases: false
+      # List of aliases
+      # Default: []
+      alias:
+        - pkg: github.com/premiumlabs/monorepo/pkg/proto/com/chestnutfi/api/v1
+          alias: apiv1
+        # You can specify the package path by regular expression,
+        # and alias by regular expression expansion syntax like below.
+        # See https://github.com/julz/importas#use-regular-expression for details.
+        - pkg: github.com/premiumlabs/monorepo/pkg/proto/com/chestnutfi/(\w+)/(v[\w\d]+)
+          alias: $1$2
+
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - appendAssign
+        - appendCombine
+        - argOrder
+        - assignOp
+        - badCall
+        - badCond
+        - badLock
+        - badRegexp
+        - badSorting
+        - badSyncOnceFunc
+        - boolExprSimplify
+        - builtinShadow
+        - builtinShadowDecl
+        - captLocal
+        - caseOrder
+        - codegenComment
+        - commentFormatting
+        - commentedOutCode
+        - commentedOutImport
+        - defaultCaseOrder
+        - deferInLoop
+        - deferUnlambda
+        - deprecatedComment
+        - docStub
+        - dupArg
+        - dupBranchBody
+        - dupCase
+        - dupImport
+        - dupSubExpr
+        - dynamicFmtString
+        - elseif
+        - emptyDecl
+        - emptyFallthrough
+        - emptyStringTest
+        - equalFold
+        - evalOrder
+        - exitAfterDefer
+        - exposedSyncMutex
+        - externalErrorReassign
+        - filepathJoin
+        - flagDeref
+        - flagName
+        - hexLiteral
+        - httpNoBody
+        - ifElseChain
+        - importShadow
+        - indexAlloc
+        - initClause
+        - mapKey
+        - methodExprCall
+        - nestingReduce
+        - newDeref
+        - nilValReturn
+        - octalLiteral
+        - offBy1
+        - paramTypeCombine
+        - preferDecodeRune
+        - preferFilepathJoin
+        - preferFprint
+        - preferStringWriter
+        - preferWriteByte
+        - ptrToRefParam
+        - rangeAppendAll
+        - rangeExprCopy
+        - redundantSprint
+        - regexpMust
+        - regexpPattern
+        - regexpSimplify
+        - returnAfterHttpError
+        - singleCaseSwitch
+        - sliceClear
+        - sloppyLen
+        - sloppyReassign
+        - sloppyTypeAssert
+        - sortSlice
+        - sprintfQuotedString
+        - sqlQuery
+        - stringConcatSimplify
+        - stringXbytes
+        - stringsCompare
+        - switchTrue
+        - syncMapLoadAndDelete
+        - timeExprSimplify
+        - todoCommentWithoutDetail
+        - tooManyResultsChecker
+        - truncateCmp
+        - typeAssertChain
+        - typeDefFirst
+        - typeSwitchVar
+        - typeUnparen
+        - uncheckedInlineErr
+        - underef
+        - unlabelStmt
+        - unlambda
+        - unnecessaryBlock
+        - unnecessaryDefer
+        - unslice
+        - valSwap
+        - weakCond
+        - wrapperFunc
+        - yodaStyleExpr
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/mitchellh/mapstructure
+        - github.com/sashabaranov/go-openai
+        - github.com/honeycombio/otel-config-go
+      replace-local: true
+
+    gosec:
+      excludes:
+        - G601
+
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+
+    misspell:
+      mode: default
+      locale: US
+
+    mnd:
+      ignored-functions:
+        - os.Chmod
+        - os.Mkdir
+        - os.MkdirAll
+        - os.OpenFile
+        - os.WriteFile
+
+    nakedret:
+      max-func-lines: 0
+
+    nestif:
+      min-complexity: 7
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-no-explanation:
+        - funlen
+        - gocognit
+        - lll
+
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: redundant-import-alias
+        - name: constant-logical-expr
+        - name: context-keys-type
+        - name: datarace
+        - name: defer
+          arguments:
+            - [
+                'call-chain',
+                'loop',
+                'method-call',
+                'recover',
+                'immediate-recover',
+                'return',
+              ]
+        - name: early-return
+          arguments:
+            - 'preserve-scope'
+            - 'allow-jump'
+        - name: get-return
+        - name: identical-branches
+        - name: if-return
+        - name: indent-error-flow
+          arguments:
+            - 'preserve-scope'
+        - name: modifies-parameter
+        - name: modifies-value-receiver
+        - name: optimize-operands-order
+        - name: redefines-builtin-id
+        - name: struct-tag
+          arguments:
+            - 'validate,sqlc_enum'
+            - 'validate,-'
+            - 'json,'
+            - 'dynamodbav,omitempty'
+        - name: superfluous-else
+          arguments:
+            - 'preserve-scope'
+        - name: time-equal
+        - name: time-naming
+        - name: unconditional-recursion
+        - name: unexported-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming
+          arguments:
+            - ['ID'] # AllowList
+            - [''] # DenyList
+
+    tagalign:
+      sort: false
+
+    tagliatelle:
+      case:
+        rules:
+          db: snake
+          json: goCamel
+
+    usetesting:
+      context-background: true
+      context-todo: true
+      os-chdir: true
+      os-mkdir-temp: true
+      os-setenv: true
+      os-temp-dir: false
+      os-create-temp: true
+
+  exclusions:
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: pkg/integrations/nipr/
+        linters:
+          - exhaustive
+      - linters:
+          - govet
+        text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/premiumlabs/monorepo)
+        - localmodule
+      custom-order: true
+    gofmt:
+      simplify: true
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'
+        - pattern: 'a[b:len(a)]'
+          replacement: 'a[b:]'
+    gofumpt:
+      extra-rules: true
+    golines:
+      max-len: 90
+      shorten-comments: false
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+  sort-order:
+    - linter
+    - severity
+    - file
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: true
