@@ -1,6 +1,54 @@
+local languages = {
+    "c",
+    "lua",
+    "vim",
+    "vimdoc",
+    "query",
+    "go",
+    "python",
+    "html",
+    "css",
+    "typescript",
+    "javascript",
+    "tsx",
+    "markdown",
+    "markdown_inline",
+    -- Common fenced code block languages in Markdown.
+    "bash",
+    "json",
+    "yaml",
+    "toml",
+    "sql",
+}
+
+local filetypes = {
+    "c",
+    "lua",
+    "vim",
+    "vimdoc",
+    "query",
+    "go",
+    "python",
+    "html",
+    "css",
+    "typescript",
+    "javascript",
+    "typescriptreact",
+    "javascriptreact",
+    "markdown",
+    "sh",
+    "bash",
+    "json",
+    "yaml",
+    "toml",
+    "sql",
+}
+
 return {
     "nvim-treesitter/nvim-treesitter",
-    cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
+    -- The current nvim-treesitter main branch no longer supports lazy-loading
+    -- or the old highlight.enable module. Start highlighting via FileType below.
+    lazy = false,
     build = ":TSUpdate",
     dependencies = {
         "nvim-treesitter/nvim-treesitter-textobjects",
@@ -29,50 +77,19 @@ return {
             end,
         },
     },
-    opts = function()
-        return {
-            ensure_installed = {
-                "c",
-                "lua",
-                "vim",
-                "vimdoc",
-                "query",
-                "go",
-                "python",
-                "html",
-                "css",
-                "typescript",
-                "javascript",
-                "tsx",
-                "markdown",
-                "markdown_inline",
-            },
-            auto_install = false,
-            highlight = {
-                enable = true,
-                use_languagetree = true,
-            },
-            indent = { enable = true },
-            autotag = { enable = true },
-            context_commentstring = {
-                enable = true,
-                config = {
-                    javascript = {
-                        __default = "// %s",
-                        jsx_element = "{/* %s */}",
-                        jsx_fragment = "{/* %s */}",
-                        jsx_attribute = "// %s",
-                        comment = "// %s",
-                    },
-                    sql = {
-                        __default = "-- %s",
-                    },
-                },
-            },
-        }
-    end,
-    config = function(_, opts)
+    config = function()
         dofile(vim.g.base46_cache .. "syntax")
-        require("nvim-treesitter").setup(opts)
+
+        local treesitter = require "nvim-treesitter"
+        treesitter.setup()
+        treesitter.install(languages)
+
+        vim.api.nvim_create_autocmd("FileType", {
+            pattern = filetypes,
+            callback = function(args)
+                pcall(vim.treesitter.start, args.buf)
+                vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+            end,
+        })
     end,
 }
