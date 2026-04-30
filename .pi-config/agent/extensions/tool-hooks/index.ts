@@ -217,5 +217,10 @@ export default function toolHooks(pi: ExtensionAPI) {
         details: { lines: result.additionalContext.length, event: "Stop" },
       });
     }
+    if (result.block) {
+      pi.sendUserMessage(result.reason ?? "Stop hook requested continuation.", {
+        deliverAs: "followUp",
+      });
+    }
   });
 }
