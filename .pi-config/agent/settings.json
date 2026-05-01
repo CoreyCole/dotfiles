@@ -13,8 +13,7 @@
     "git:github.com/nicobailon/pi-mcp-adapter",
     "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
-    "git:git@github.com:CoreyCole/pi-deterministic-docs.git",
-    "git:github.com/algal/pi-context-inspect"
+    "git:git@github.com:CoreyCole/pi-deterministic-docs.git"
   ],
   "extensions": [
     "+extensions/answer.ts",
@@ -22,3 +21,4 @@
     "+extensions/tool-hooks/index.ts"
   ]
 }
+
