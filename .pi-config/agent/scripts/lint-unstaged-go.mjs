@@ -67,12 +67,23 @@ function formatFiles(files) {
   return files.map((file) => `  - ${file}`).join("\n");
 }
 
-function formatCommand(modulePath, files) {
-  const prefix = modulePath === "." ? "" : `cd ${modulePath} && `;
-  return `${prefix}golangci-lint run ${files.join(" ")}`;
+function packageArgsForFiles(files) {
+  return [
+    ...new Set(
+      files.map((file) => {
+        const dir = path.dirname(file);
+        return dir === "." ? "." : `./${dir}`;
+      }),
+    ),
+  ].sort();
 }
 
-function formatFailure(gitRoot, moduleRoot, moduleFiles, result) {
+function formatCommand(modulePath, packageArgs) {
+  const prefix = modulePath === "." ? "" : `cd ${modulePath} && `;
+  return `${prefix}golangci-lint run --new-from-rev=HEAD ${packageArgs.join(" ")}`;
+}
+
+function formatFailure(gitRoot, moduleRoot, moduleFiles, packageArgs, result) {
   const modulePath = path.relative(gitRoot, moduleRoot) || ".";
   const output = [result.stdout.trim(), result.stderr.trim()]
     .filter(Boolean)
@@ -81,7 +92,7 @@ function formatFailure(gitRoot, moduleRoot, moduleFiles, result) {
   return [
     `Module: ${modulePath}`,
     "Command:",
-    `  ${formatCommand(modulePath, moduleFiles)}`,
+    `  ${formatCommand(modulePath, packageArgs)}`,
     "Files:",
     formatFiles(moduleFiles),
     "Output:",
@@ -118,31 +129,32 @@ const files = [...new Set([...modified, ...untracked])]
 
 if (files.length === 0) process.exit(0);
 
-const filesByModuleDir = new Map();
+const filesByModule = new Map();
 for (const file of files) {
   const moduleRoot = findGoModRoot(file, gitRoot);
   if (!moduleRoot) continue;
 
-  const moduleFile = path.relative(moduleRoot, file);
-  const moduleDir = path.dirname(moduleFile);
-  const moduleDirs = filesByModuleDir.get(moduleRoot) ?? new Map();
-  const list = moduleDirs.get(moduleDir) ?? [];
-  list.push(moduleFile);
-  moduleDirs.set(moduleDir, list);
-  filesByModuleDir.set(moduleRoot, moduleDirs);
+  const list = filesByModule.get(moduleRoot) ?? [];
+  list.push(path.relative(moduleRoot, file));
+  filesByModule.set(moduleRoot, list);
 }
 
 const failures = [];
-for (const [moduleRoot, moduleDirs] of filesByModuleDir) {
-  for (const moduleFiles of moduleDirs.values()) {
-    const result = run("golangci-lint", ["run", ...moduleFiles], {
+for (const [moduleRoot, moduleFiles] of filesByModule) {
+  const packageArgs = packageArgsForFiles(moduleFiles);
+  const result = run(
+    "golangci-lint",
+    ["run", "--new-from-rev=HEAD", ...packageArgs],
+    {
       cwd: moduleRoot,
       stdio: ["ignore", "pipe", "pipe"],
-    });
+    },
+  );
 
-    if (result.status !== 0) {
-      failures.push(formatFailure(gitRoot, moduleRoot, moduleFiles, result));
-    }
+  if (result.status !== 0) {
+    failures.push(
+      formatFailure(gitRoot, moduleRoot, moduleFiles, packageArgs, result),
+    );
   }
 }
 

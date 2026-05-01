@@ -348,7 +348,7 @@ Apply the normal code review rubric:
    - If any `needs_question_research` findings exist, use `[review_dir]/` as the QRSPI plan and write the follow-up questions document under `[review_dir]/questions/`.
    - Do **not** ask the engineer whether to send non-straightforward findings to QRSPI; add all `needs_question_research` findings to the review-directory follow-up questions document automatically.
    - Do **not** overwrite or append to the parent plan's `design.md` or `outline.md` for implementation-review follow-up decisions; the review-directory follow-up plan gets its own `design.md` and `outline.md` in later stages.
-   - For every `straightforward_fix` finding, ask a separate `/answer` question confirming the specific proposed action for that item. Each question must include the finding summary, exact file refs, proposed change, and verification command, and allow the engineer to answer `apply`, `skip`, or provide a different instruction. The direct question must be action-oriented and self-contained: `Finding N — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?` Do not ask vague questions like `Should I apply the recommended straightforward fix?` because the answer tool should show the concrete action and concern without requiring the engineer to open the review artifact.
+   - For every `straightforward_fix` finding, ask a separate `/answer` question confirming the specific proposed action for that item. Each question must include the finding summary, exact file refs, proposed change, verification command, and a concrete example scenario showing why the quick fix matters. The direct question must be action-oriented and self-contained: `Finding N — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?` Do not ask vague questions like `Should I apply the recommended straightforward fix?` because the answer tool should show the concrete action and concern without requiring the engineer to open the review artifact.
    - If confirmed fixes belong in a specific existing Graphite branch, prefer `gt modify --into [branch-name]` over checking out that branch manually; Graphite applies the current changes into that branch and restacks descendants automatically. Always confirm with the engineer before running any `gt modify` command, including `gt modify --into`.
    - After `/answer` returns, patch only the straightforward items the engineer confirmed, rerun relevant verification, and update the same review artifact with the fixes, skipped items, follow-up questions doc path, and final status.
    - The follow-up next step for `needs_question_research` findings is `/skill:q-research [exact path to questions doc]`.
@@ -387,7 +387,7 @@ verdict: [correct|needs_attention]
 - [Short bullet for each finding. If none, say the work looks good.]
 
 ### Findings
-[Numbered findings with priority tags and file references. If none, say the work looks good. Each finding must include either `Suggested fix:` for `straightforward_fix` findings or `Questions before fix:` for `needs_question_research` findings. Do not include a finding that has neither a suggested fix nor concrete questions needed before proposing a fix.]
+[Numbered findings with priority tags and file references. If none, say the work looks good. Each finding must include either `Suggested fix:` for `straightforward_fix` findings or `Questions before fix:` for `needs_question_research` findings. Include `Example:` with a concrete before/after or runtime scenario whenever possible for both quick and non-quick findings. For `straightforward_fix` findings, the example must explain why the quick fix should be made now. For `needs_question_research` findings, the example should show the concrete scenario or ambiguity that makes the issue require research/design judgment. Do not include a finding that has neither a suggested fix nor concrete questions needed before proposing a fix.]
 
 ### Focused Review Lanes
 - `[agent-name]` — verdict: [pass|concerns|fail]; included findings: [count]; notes: [short synthesis]
@@ -398,9 +398,9 @@ If no subagents were used, say `Not used; review was small/localized.`
 This section must come after `Findings Summary` and `Findings`. Use answer-tool-compatible formatting when user input is needed. For implementation `straightforward_fix` decisions, make each direct question self-contained by naming the concrete action and the concern it addresses:
 
 1. Finding 1 — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?
-   Context: Concern: [what is broken and exact file refs]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+   Context: Concern: [what is broken and exact file refs]. Example: [concrete scenario showing the bug/risk and why the quick fix matters]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
 2. Finding 2 — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?
-   Context: Concern: [what is broken and exact file refs]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+   Context: Concern: [what is broken and exact file refs]. Example: [concrete scenario showing the bug/risk and why the quick fix matters]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
 
 If none, say `None.`
 
@@ -442,7 +442,7 @@ If no implementation code was fixed in-session, say `None.`
 
 ## Response Format
 
-End with this exact five-line shape. Always include a `Changes:` line summarizing the edits made during the review. If no files were edited and no in-session fixes were applied, say `Changes: none.` Always summarize findings before any `Questions for /answer` section; the `Findings:` line is the required pre-question summary.
+End with this exact five-line shape. Always include a `Changes:` line summarizing the edits made during the review. If no files were edited and no in-session fixes were applied, say `Changes: none.` Always summarize findings before any `Questions for /answer` section; the `Findings:` line is the required pre-question summary. When `Findings:` is not `none`, include a concise `Example:` scenario for each finding whenever possible, including non-quick findings, so the user-facing output explains why the issue matters without requiring the engineer to open the review artifact.
 
 If the verdict is `correct` for an **outline review**:
 
@@ -460,7 +460,7 @@ If the verdict is `needs_attention` for an **outline review** and unresolved fin
 Artifact: [exact path to review file]
 Summary: outline review needs attention. follow-up questions doc created for unresolved findings.
 Changes: [short summary of edits already made during review, or none.]
-Findings: [short summary of the remaining review doc findings]
+Findings: [short summary of the remaining review doc findings, including concise `Example:` scenarios whenever possible]
 Next: /skill:q-research [exact path to questions doc]
 ```
 
@@ -470,7 +470,7 @@ If the verdict is `needs_attention` for an **outline review** only because human
 Artifact: [exact path to review file]
 Summary: outline review needs decisions before design/outline can be finalized.
 Changes: [short summary of edits already made during review, or none.]
-Findings: [short summary of the remaining decision-blocked findings]
+Findings: [short summary of the remaining decision-blocked findings, including concise `Example:` scenarios whenever possible]
 Next: awaiting /answer decisions
 ```
 
@@ -479,9 +479,9 @@ Then add a **Questions for /answer** section using this exact shape, and immedia
 ```text
 Questions for /answer
 1. [Direct question?]
-   Context: [brief context tied to the finding]
+   Context: Concern: [brief context tied to the finding]. Example: [concrete scenario showing why the decision matters, when possible].
 2. [Direct question?]
-   Context: [brief context tied to the finding]
+   Context: Concern: [brief context tied to the finding]. Example: [concrete scenario showing why the decision matters, when possible].
 ```
 
 Do not put any other question marks outside that section unless you intentionally want `/answer` to extract them too.
@@ -504,7 +504,7 @@ If there are `straightforward_fix` findings, then ask the engineer to confirm ea
 Artifact: [exact path to review file]
 Summary: implementation review complete. verdict: needs_attention. non-straightforward findings copied to questions doc as needed; awaiting engineer confirmation for proposed straightforward changes.
 Changes: [short summary of review-time edits already made, or none yet.]
-Findings: [short summary of the review doc findings, including straightforward vs needs-question/research classification]
+Findings: [short summary of the review doc findings, including straightforward vs needs-question/research classification and concise `Example:` scenarios whenever possible]
 Next: awaiting /answer decisions for proposed straightforward changes
 ```
 
@@ -513,9 +513,9 @@ Add a **Questions for /answer** section after the five-line response shape using
 ```text
 Questions for /answer
 1. Finding 1 — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?
-   Context: Concern: [what is broken and exact file refs]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+   Context: Concern: [what is broken and exact file refs]. Example: [concrete scenario showing the bug/risk and why the quick fix matters]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
 2. Finding 2 — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?
-   Context: Concern: [what is broken and exact file refs]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
+   Context: Concern: [what is broken and exact file refs]. Example: [concrete scenario showing the bug/risk and why the quick fix matters]. Proposed change: [what should change]. Verification: [command]. Answer `apply`, `skip`, or provide alternate instructions.
 ```
 
 Do not ask `/answer` whether to create a questions doc for `needs_question_research` findings. Add those findings to the review-directory follow-up plan questions doc automatically before fixing straightforward items.
@@ -526,7 +526,7 @@ If there are no `straightforward_fix` findings and there are `needs_question_res
 Artifact: [exact path to review file]
 Summary: implementation review complete. follow-up questions doc created for non-straightforward findings.
 Changes: [short summary of review-time edits already made, or none.]
-Findings: [short summary of the non-straightforward findings]
+Findings: [short summary of the non-straightforward findings, including concise `Example:` scenarios whenever possible]
 Next: /skill:q-research [exact path to questions doc]
 ```
 
@@ -541,7 +541,7 @@ After `/answer` returns:
   Artifact: [exact path to review file]
   Summary: implementation review straightforward findings handled; follow-up questions doc created for non-straightforward findings.
   Changes: [short summary of applied straightforward fixes plus any review-time doc updates.]
-  Findings: [short summary of remaining non-straightforward findings]
+  Findings: [short summary of remaining non-straightforward findings, including concise `Example:` scenarios whenever possible]
   Next: /skill:q-research [exact path to questions doc]
   ```
 - If no `needs_question_research` findings remain and all confirmed straightforward fixes pass verification, end with:
@@ -557,7 +557,7 @@ After `/answer` returns:
   Artifact: [exact path to review file]
   Summary: implementation review complete. some straightforward findings remain after /answer decisions or verification.
   Changes: [short summary of applied and skipped straightforward fixes.]
-  Findings: [short summary of remaining findings]
+  Findings: [short summary of remaining findings, including concise `Example:` scenarios whenever possible]
   Next: /q-review [exact implementation review artifact path]
   ```
 
@@ -583,5 +583,5 @@ After `/answer` returns:
 - Always include a `Changes:` line in the user-facing response summarizing review-time edits, or `Changes: none.` when nothing was changed.
 - Do not abbreviate artifact or next-step paths in the response.
 - Use `/answer` for real human decisions that block finalizing `design.md`/`outline.md`, and for implementation-review confirmation of each `straightforward_fix` item.
-- Format user-decision prompts to be compatible with `~/.pi/agent/extensions/answer.ts`: one direct question per item, each ending with `?`, followed by an optional `Context:` line. For implementation-review `straightforward_fix` prompts, the direct question must begin with `Finding N — [finding title/summary].` and then ask `Should we [specific proposed change] to address [specific concern]?` so the answer tool shows the concrete action and concern. Do not ask vague questions like `Should I apply the recommended straightforward fix?` The `Context:` line must separate `Concern:`, `Proposed change:`, and `Verification:` so the problem is clear before the proposed action.
+- Format user-decision prompts to be compatible with `~/.pi/agent/extensions/answer.ts`: one direct question per item, each ending with `?`, followed by an optional `Context:` line. For implementation-review `straightforward_fix` prompts, the direct question must begin with `Finding N — [finding title/summary].` and then ask `Should we [specific proposed change] to address [specific concern]?` so the answer tool shows the concrete action and concern. Do not ask vague questions like `Should I apply the recommended straightforward fix?` The `Context:` line must separate `Concern:`, `Example:`, `Proposed change:`, and `Verification:` so the problem is clear before the proposed action and the engineer can see a concrete scenario that justifies making the quick fix.
 - Prefer a short accurate review over a long speculative one.
