@@ -17,6 +17,7 @@ const GLOBAL_CONFIG_PATH = path.join(
   "tool-hooks.json",
 );
 const PROJECT_SETTINGS_PATH = path.join(".pi", "settings.json");
+const STOP_HOOK_LOOP_LIMIT = 3;
 
 function sessionStartSource(
   reason: SessionStartEvent["reason"],
@@ -72,6 +73,8 @@ export default function toolHooks(pi: ExtensionAPI) {
   const cwd = process.cwd();
   const rules = loadRules(cwd);
   let claudeEnvFile: string | undefined;
+  let lastStopHookContinuation: string | undefined;
+  let stopHookContinuationCount = 0;
 
   const bashTool = createBashToolDefinition(process.cwd(), {
     spawnHook: ({ command, cwd, env }) => ({
@@ -218,9 +221,30 @@ export default function toolHooks(pi: ExtensionAPI) {
       });
     }
     if (result.block) {
-      pi.sendUserMessage(result.reason ?? "Stop hook requested continuation.", {
-        deliverAs: "followUp",
-      });
+      const continuation = result.reason ?? "Stop hook requested continuation.";
+      if (continuation === lastStopHookContinuation) {
+        stopHookContinuationCount++;
+      } else {
+        lastStopHookContinuation = continuation;
+        stopHookContinuationCount = 1;
+      }
+
+      if (stopHookContinuationCount >= STOP_HOOK_LOOP_LIMIT) {
+        lastStopHookContinuation = undefined;
+        stopHookContinuationCount = 0;
+        pi.sendMessage({
+          customType: "tool-hooks-stop",
+          display: true,
+          content: `Stop hook returned the same continuation ${STOP_HOOK_LOOP_LIMIT} times; letting the agent stop.\n\n${continuation}`,
+          details: { event: "Stop", loopProtection: true },
+        });
+        return;
+      }
+
+      pi.sendUserMessage(continuation, { deliverAs: "followUp" });
+    } else {
+      lastStopHookContinuation = undefined;
+      stopHookContinuationCount = 0;
     }
   });
 }
