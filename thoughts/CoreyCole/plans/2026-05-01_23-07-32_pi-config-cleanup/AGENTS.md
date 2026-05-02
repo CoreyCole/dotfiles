@@ -14,6 +14,7 @@ note: This is a template. The copy in each plan dir is a living, curated memory.
 - Local agent names should not collide with package-provided `nicobailon/pi-subagents` agents; rename personal variants to `web-researcher`, `rubric-reviewer`, `qrspi-scout`, and `todo-worker`.
 - Local/default agents should use GPT 5.5 throughout; fast tasks should use thinking off, not mini-model variants; builtin `worker` gets a minimal `subagents.agentOverrides.worker.model` setting.
 - QRSPI skills are intentionally retained and are `q-*` skills, not colliding agents.
+- Implementation review `/answer` decision intentionally kept `git:github.com/algal/pi-context-inspect` out of `.pi-config/agent/settings.json`; the desired package list now has five tracked entries.
 
 ## Canonical artifacts
 
