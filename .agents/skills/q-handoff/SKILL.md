@@ -9,6 +9,8 @@ description: Create a handoff document to carry context forward within a QRSPI p
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
+**Handoff mode is stop-work mode.** Once this skill is invoked, do not continue implementation, debugging, refactoring, verification fixes, or artifact edits in the current session. Reads and status/inspection commands are allowed only to gather accurate context for the handoff. The priority is to pass the important context, risks, current state, and next-edit instructions to the next agent so that agent can resume code changes in a fresh session.
+
 ## When Invoked
 
 0. **Load context:**
@@ -40,6 +42,14 @@ You are creating a handoff document to preserve your working context within a QR
 
 ## Process
 
+### 0. Stop editing and inspect only
+
+- Stop all implementation work immediately.
+- Do **not** edit code, tests, generated files, stage artifacts, or plans while creating the handoff.
+- Do **not** fix lint/test failures discovered during handoff creation; record them clearly for the next agent.
+- Use read-only inspection (`git status`, `git diff`, `git log`, file reads, test output already available) to understand what needs to be handed off.
+- The only required write is the handoff document itself. Update `[plan_dir]/AGENTS.md` only when a durable gotcha is critical for future sessions and cannot be safely captured in the handoff alone.
+
 ### 1. Gather metadata
 
 Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for the handoff filename timestamp and frontmatter fields (`date`, `researcher`, `git_commit`, `branch`, `repository`).
@@ -62,9 +72,10 @@ If unknown, ask the user.
 - checkpoint: set `status: in_progress`
   - Use this for any non-final implementation slice so the next step remains `/q-resume`.
 
-### 4. Refresh long-term memory if needed
+### 4. Refresh long-term memory only if essential
 
-Before writing the handoff, update `[plan_dir]/AGENTS.md` if this stage uncovered durable context that future agents should remember first:
+Prefer recording new context in the handoff. Update `[plan_dir]/AGENTS.md` only if this stage uncovered durable context that future agents should remember before reading any handoff, such as:
+
 - approved decisions or scope boundaries
 - important tradeoffs or rejected paths
 - non-obvious invariants, gotchas, or review learnings
@@ -130,6 +141,7 @@ Next: [/q-resume or /q-review] [exact path to handoff file] — [what happens ne
 ```
 
 Line requirements:
+
 - `Implemented:` must be specific to the work captured in the handoff.
 - `Verification:` must include relevant verification evidence when known. If no verification applies for the stage, say `not run` and why.
 - `Next:` must include both the exact resume/review command and a short description of what happens next.
@@ -139,6 +151,7 @@ Line requirements:
 - Do **not** use generic lines like `Implemented: stage complete`, `Implemented: checkpoint saved`, or `Implemented: implementation complete` without describing the actual work.
 
 Next routing:
+
 - For `continue` mode from `implement`, use `/q-review`.
 - For all other handoffs, use `/q-resume`.
 
