@@ -19,6 +19,7 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 | 6 | Implement | `/q-implement` | code changes + verified commits + review handoff | No — human reviews the code via `/q-review` |
 
 `/q-review` has two review modes:
+
 - **Outline review** after `outline.md` is written and before `/q-plan`; it should improve `design.md`/`outline.md`, not just report on them
 - **Implementation review** after `/q-implement` completes; if non-trivial follow-up work is needed, the timestamped review directory itself becomes a QRSPI plan and writes follow-up questions directly under `questions/`
 
@@ -40,6 +41,7 @@ Its canonical review artifact lives in `[plan_dir]/reviews/`.
 The stages above are the *typical* forward flow, but the process loops. When research reveals the questions were wrong, go back to questions. When design surfaces unknowns, do more research. When outlining exposes a flaw in the design, revisit it.
 
 Common loops:
+
 - **Research -> Question**: Research answers reveal the questions missed something. Write new questions and research them.
 - **Design -> Research**: Design needs facts not covered by existing research. Run `/q-research` again with new questions.
 - **Outline -> Design**: Structural planning reveals a design flaw. Revise the design before continuing.
@@ -92,6 +94,7 @@ The copied `AGENTS.md` in the plan directory is the curated long-term memory for
 Before creating a new plan directory or writing a new markdown artifact in this pipeline, run `~/dotfiles/spec_metadata.sh`.
 
 Use its output as the single source of truth for:
+
 - `thoughts/[git_username]/...` path selection
 - `[timestamp]` values in plan directory names and timestamped filenames
 - Frontmatter fields such as `date`, `researcher`, `git_commit`, `branch`, and `repository`
@@ -107,7 +110,7 @@ Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume
 Every stage skill MUST follow this sequence at the start of execution:
 
 1. **Load the pipeline overview** — read `~/.agents/skills/qrspi-planning/SKILL.md` (this file) to orient yourself.
-2. **Load the artifacts listed in the stage skill** — each skill explicitly lists which files to load, including `[plan_dir]/AGENTS.md` when that stage should use the curated long-term memory, plus any stage-relevant `context/` subdirectories. Load exactly those files, no more, no less.
+1. **Load the artifacts listed in the stage skill** — each skill explicitly lists which files to load, including `[plan_dir]/AGENTS.md` when that stage should use the curated long-term memory, plus any stage-relevant `context/` subdirectories. Load exactly those files, no more, no less.
 
 ## Stage Skills
 
@@ -124,3 +127,4 @@ Each stage skill (`~/.agents/skills/q-question/SKILL.md` through `~/.agents/skil
 - When looping back, add new artifacts rather than overwriting. The history matters.
 - When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for filename timestamps and frontmatter metadata.
 - Stage handoffs should prefer the **full path to the newly created artifact** (for example a specific `questions/*.md`, `research/*.md`, `design.md`, `outline.md`, or `plan.md`) in both the success response and the suggested next `/q-*` command. Do not abbreviate to only the parent plan directory when an artifact path exists.
+- **Preserve the stage completion response after follow-ups.** Once a stage artifact exists, every later reply in that stage must still end with the stage's required completion format (for example `Artifact: ...`, `Summary: ...`, `Next: ...`), even if the follow-up was only to fix lint, tweak wording, answer a clarification, or correct a previous response. Address the follow-up first, then re-emit the exact artifact path and next `/q-*` command so the pipeline can continue.

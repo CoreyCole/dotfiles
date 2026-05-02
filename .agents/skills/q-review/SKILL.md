@@ -48,10 +48,10 @@ The goal is to produce a verified implementation review, then choose the right f
    - **Outline mode** if the user passed an `outline.md` path, explicitly asked to review the outline/design, or passed a plan directory that has `outline.md` but no implement-complete handoff.
    - **Implementation mode** if the user passed an implement handoff path, or passed a plan directory with an implement-complete handoff in `[plan_dir]/handoffs/`.
    - If both could apply for a plan directory, prefer **implementation mode** only when you can resolve a complete implement handoff. Otherwise review the outline.
-2. **If an implement handoff path was provided**, read it and resolve `plan_dir` from the frontmatter.
-3. **If an outline path was provided**, resolve `plan_dir` from the parent directory.
-4. **If a plan directory path was provided**, resolve the mode using rule 1.
-5. **If no parameter was provided**, respond:
+1. **If an implement handoff path was provided**, read it and resolve `plan_dir` from the frontmatter.
+1. **If an outline path was provided**, resolve `plan_dir` from the parent directory.
+1. **If a plan directory path was provided**, resolve the mode using rule 1.
+1. **If no parameter was provided**, respond:
 
 ```text
 I'll review either the outline/design pair or the completed implementation and write the canonical review artifact into the plan directory.
@@ -246,16 +246,19 @@ Before launching lanes:
    ```text
    [review_dir]/focused-lanes/
    ```
-2. Run the selector with `--review-dir [review_dir]` so it emits `subagent_tool_args`.
-3. Pass `subagent_tool_args` directly to the `subagent` tool. It already contains:
+1. Run the selector with `--review-dir [review_dir]` so it emits `subagent_tool_args`.
+1. Pass `subagent_tool_args` directly to the `subagent` tool. It already contains:
    - one `reviewer` task per selected lane
-   - the full focused lane prompt text
+   - the full focused lane prompt text, so subagents must not discover prompt files
+   - `cwd: [repo_root]` for each lane task
+   - per-lane instructions to target a 5-minute focused review, use explicit command timeouts, and avoid broad searches outside `cwd`
    - absolute output paths under `[review_dir]/focused-lanes/`
    - `chainDir: [review_dir]/focused-lane-runs`
    - `clarify: false`
-4. Do not manually rebuild the subagent JSON unless the selector failed or you are deliberately adding a lane with explicit evidence.
+   - `control` attention thresholds set to 5 minutes for long-running/stuck lanes
+1. Do not manually rebuild the subagent JSON unless the selector failed or you are deliberately adding a lane with explicit evidence. If you must manually add or rerun a lane, embed the lane prompt text or pass the exact absolute `agents/[lane].md` path including `.md`; never ask a subagent to search for its own prompt.
 
-After the chain completes, use `read` or `find` to load every expected lane report from `[review_dir]/focused-lanes/`. If any expected report is missing, inspect Pi's returned chain artifact directory and the subagent debug artifacts; if the report still cannot be recovered, rerun that lane with an explicit absolute `output` path before writing the canonical review.
+After the chain completes, use `read` or `find` scoped to `[review_dir]/focused-lanes/` to load every expected lane report. If a lane needs attention or runs past 5 minutes without writing its report, interrupt it when possible, then inspect the subagent meta/session artifacts: identify the exact run id, duration, last tool call, and whether the output file is empty. Retry only after narrowing context, setting `cwd`, and making the task more explicit; skip the lane instead of retrying if the selector evidence was low-signal and the main reviewer can verify that domain directly. Record timeout investigation and retry/skip decisions in the canonical review artifact.
 
 Each subagent report is advisory. The main `/q-review` agent must:
 
@@ -270,15 +273,15 @@ If a candidate finding is ambiguous, use `codebase-analyzer` to trace the exact 
 ## Process
 
 1. Run `~/dotfiles/spec_metadata.sh` and use it for the timestamped review directory name and frontmatter metadata.
-2. Resolve the review mode, the exact reviewed artifact path, `plan_dir`, and `review_dir` (`[plan_dir]/reviews/YYYY-MM-DD_HH-MM-SS_[plan-name]_[review-kind]/`).
-3. Build independent understanding before judging.
+1. Resolve the review mode, the exact reviewed artifact path, `plan_dir`, and `review_dir` (`[plan_dir]/reviews/YYYY-MM-DD_HH-MM-SS_[plan-name]_[review-kind]/`).
+1. Build independent understanding before judging.
    - **Outline review:** before reading `outline.md` closely, first locate the related implementation files, tests, configuration, similar existing patterns, adjacent docs/artifacts, and any recent changes in the touched paths. Use targeted discovery/analyzer tools or focused subagents if helpful. Answer: what components this touches, what patterns already exist, what adjacent systems could break, and what prior context already exists.
    - **Implementation review:** read the implement handoff carefully to understand what changed, what passed, and which files to inspect first.
-4. Inspect the actual target.
+1. Inspect the actual target.
    - **Outline review:** read `design.md` and `outline.md` fully, then review the structure, slice boundaries, sequencing, interfaces, migrations, and test checkpoints.
    - **Outline review claim verification:** if the design/outline says "we already have X," verify X exists; if it says "this is similar to Y," read Y; if it references a file, function, interface, dependency, or system behavior, inspect it yourself. Check recent history in touched paths when it matters.
    - **Implementation review:** review the current code in the changed files and use `git show`, `git diff`, or `git status` as needed to identify what was introduced.
-5. Estimate review scope and choose focused lanes.
+1. Estimate review scope and choose focused lanes.
    - If the scope is tiny and localized, continue directly.
    - Otherwise run `uv run ~/.agents/skills/q-review/bin/select-lanes.py --mode [mode] --plan-dir [plan_dir] --reviewed-artifact [reviewed_artifact] --review-dir [review_dir] --pretty` and use its `selected_lanes` as the baseline lane list.
    - For implementation reviews of committed work, include `--diff-range [base]..HEAD` or `--diff-base [base]` when the prior reviewed commit/base is known; this prevents the selector from relying only on uncommitted status or handoff text.
@@ -286,21 +289,22 @@ If a candidate finding is ambiguous, use `codebase-analyzer` to trace the exact 
    - Always consider both cross-cutting lanes and domain lanes, but do not route from `questions/`, `research/`, or `context/`; outline routing comes from `design.md` / `outline.md` / `plan.md`, while implementation routing comes from the handoff and actual changed files.
    - Include the mode, `plan_dir`, reviewed artifact path, selector `changed_files` / `referenced_paths`, key context artifacts, local best-practice docs to read, the selector reason for that lane, and the lane boundary in each delegated task.
    - Wait for all lane reports before drafting the canonical review.
-6. Synthesize lane reports.
+1. Synthesize lane reports.
    - Read every focused lane report.
    - Cluster duplicate candidate findings across lanes.
    - Treat every subagent finding as advisory until verified in the main session.
-7. Verify candidate findings yourself.
+1. Verify candidate findings yourself.
    - Re-read the implicated files.
    - Use `codebase-analyzer` when you need an exact implementation trace.
    - Discard speculative, duplicate, stale, out-of-scope, or low-signal findings.
-8. Apply the correct review lens.
+1. Apply the correct review lens.
 
 ### Outline review lens
 
 Prioritize issues that materially improve plan quality before code is written.
 
 **Core checks**
+
 - does the outline faithfully implement the approved design, or does it quietly drift?
 - are the slices truly vertical, independently testable, and sequenced to reduce risk?
 - are migrations, rollout/rollback, error handling, observability, security, and invariants covered where they matter?
@@ -308,6 +312,7 @@ Prioritize issues that materially improve plan quality before code is written.
 - do the test checkpoints actually prove each slice works?
 
 **Review dimensions**
+
 - **Scope & requirements** — missing requirements, ambiguous language, edge cases, failure modes, and clear out-of-scope boundaries
 - **Technical feasibility** — dependencies, integration points, migrations/state changes, and performance/resource assumptions
 - **Operational readiness** — observability, rollout/rollback, feature flags, and on-call impact
@@ -315,6 +320,7 @@ Prioritize issues that materially improve plan quality before code is written.
 - **Timeline & risk** — unknowns, external dependencies, phasing, and reversibility
 
 **Planner blind spots / red flags**
+
 - happy-path-only slices or checkpoints
 - hand-wave language like "this should be straightforward," "similar to X," or "we'll figure that out later"
 - hidden dependencies on other teams/systems or undocumented contracts
@@ -324,6 +330,7 @@ Prioritize issues that materially improve plan quality before code is written.
 ### Implementation review lens
 
 Apply the normal code review rubric:
+
 - flag only real, actionable issues introduced by the implementation
 - re-run relevant verification commands when practical
 - do not claim a check passed unless you ran it or the handoff clearly marks it as prior evidence
@@ -331,31 +338,33 @@ Apply the normal code review rubric:
 
 9. Write the review artifact to `[review_dir]/review.md`.
 
-10. **If this is outline review, treat it as an editing pass and route unresolved findings forward:**
-   - If the fixes are clear and do not require new human decisions or fresh research, edit `design.md` and/or `outline.md` now.
-   - Re-read the updated docs and ensure the review artifact reflects the post-edit state, not just the pre-edit findings.
-   - If real human decisions are still needed, ask them in a dedicated `Questions for /answer` section, invoke `/answer` in interactive mode, and use the answers to finish updating the docs when possible.
-   - If findings remain after direct edits and `/answer` handling because they need research, design tradeoff analysis, or plan rework, create `[review_dir]/` and write a follow-up questions doc under `[review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_review-followup-questions.md`.
-   - The questions doc must link to the canonical outline review artifact and translate each remaining finding into neutral research/design questions with file references and context.
-   - The desired end state is one of: updated parent `design.md`/`outline.md` ready for `/q-plan`; an `/answer` decision prompt; or a review-directory follow-up questions doc whose next step is `/skill:q-research [exact path to questions doc]`. Do not end with `/q-review` as the next step just because findings exist.
+1. **If this is outline review, treat it as an editing pass and route unresolved findings forward:**
+
+- If the fixes are clear and do not require new human decisions or fresh research, edit `design.md` and/or `outline.md` now.
+- Re-read the updated docs and ensure the review artifact reflects the post-edit state, not just the pre-edit findings.
+- If real human decisions are still needed, ask them in a dedicated `Questions for /answer` section, invoke `/answer` in interactive mode, and use the answers to finish updating the docs when possible.
+- If findings remain after direct edits and `/answer` handling because they need research, design tradeoff analysis, or plan rework, create `[review_dir]/` and write a follow-up questions doc under `[review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_review-followup-questions.md`.
+- The questions doc must link to the canonical outline review artifact and translate each remaining finding into neutral research/design questions with file references and context.
+- The desired end state is one of: updated parent `design.md`/`outline.md` ready for `/q-plan`; an `/answer` decision prompt; or a review-directory follow-up questions doc whose next step is `/skill:q-research [exact path to questions doc]`. Do not end with `/q-review` as the next step just because findings exist.
 
 11. **If this is implementation review, classify findings and use `/answer` item-by-item for straightforward fixes:**
-   - If the verdict is `correct`, the pipeline is complete.
-   - If the verdict is `needs_attention`, classify each finding before asking the engineer:
-     - `straightforward_fix` — the issue, fix, and verification are clear; it is safe to patch in the current review context window after engineer confirmation.
-     - `needs_question_research` — the issue requires product/design judgment, more codebase research, tradeoff analysis, broad refactoring, multiple slices, or unclear ownership.
-   - Write the review artifact before creating follow-up docs or asking the engineer so decisions are grounded in a durable artifact.
-   - If any `needs_question_research` findings exist, use `[review_dir]/` as the QRSPI plan and write the follow-up questions document under `[review_dir]/questions/`.
-   - Do **not** ask the engineer whether to send non-straightforward findings to QRSPI; add all `needs_question_research` findings to the review-directory follow-up questions document automatically.
-   - Do **not** overwrite or append to the parent plan's `design.md` or `outline.md` for implementation-review follow-up decisions; the review-directory follow-up plan gets its own `design.md` and `outline.md` in later stages.
-   - For every `straightforward_fix` finding, ask a separate `/answer` question confirming the specific proposed action for that item. Each question must include the finding summary, exact file refs, proposed change, verification command, and a concrete example scenario showing why the quick fix matters. The direct question must be action-oriented and self-contained: `Finding N — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?` Do not ask vague questions like `Should I apply the recommended straightforward fix?` because the answer tool should show the concrete action and concern without requiring the engineer to open the review artifact.
-   - If confirmed fixes belong in a specific existing Graphite branch, prefer `gt modify --into [branch-name]` over checking out that branch manually; Graphite applies the current changes into that branch and restacks descendants automatically. Always confirm with the engineer before running any `gt modify` command, including `gt modify --into`.
-   - After `/answer` returns, patch only the straightforward items the engineer confirmed, rerun relevant verification, and update the same review artifact with the fixes, skipped items, follow-up questions doc path, and final status.
-   - The follow-up next step for `needs_question_research` findings is `/skill:q-research [exact path to questions doc]`.
-   - Do not use in-session fixing for ambiguous, broad, or design-sensitive findings just because the code edit looks small.
+
+- If the verdict is `correct`, the pipeline is complete.
+- If the verdict is `needs_attention`, classify each finding before asking the engineer:
+  - `straightforward_fix` — the issue, fix, and verification are clear; it is safe to patch in the current review context window after engineer confirmation.
+  - `needs_question_research` — the issue requires product/design judgment, more codebase research, tradeoff analysis, broad refactoring, multiple slices, or unclear ownership.
+- Write the review artifact before creating follow-up docs or asking the engineer so decisions are grounded in a durable artifact.
+- If any `needs_question_research` findings exist, use `[review_dir]/` as the QRSPI plan and write the follow-up questions document under `[review_dir]/questions/`.
+- Do **not** ask the engineer whether to send non-straightforward findings to QRSPI; add all `needs_question_research` findings to the review-directory follow-up questions document automatically.
+- Do **not** overwrite or append to the parent plan's `design.md` or `outline.md` for implementation-review follow-up decisions; the review-directory follow-up plan gets its own `design.md` and `outline.md` in later stages.
+- For every `straightforward_fix` finding, ask a separate `/answer` question confirming the specific proposed action for that item. Each question must include the finding summary, exact file refs, proposed change, verification command, and a concrete example scenario showing why the quick fix matters. The direct question must be action-oriented and self-contained: `Finding N — [finding title/summary]. Should we [specific proposed change] to address [specific concern]?` Do not ask vague questions like `Should I apply the recommended straightforward fix?` because the answer tool should show the concrete action and concern without requiring the engineer to open the review artifact.
+- If confirmed fixes belong in a specific existing Graphite branch, prefer `gt modify --into [branch-name]` over checking out that branch manually; Graphite applies the current changes into that branch and restacks descendants automatically. Always confirm with the engineer before running any `gt modify` command, including `gt modify --into`.
+- After `/answer` returns, patch only the straightforward items the engineer confirmed, rerun relevant verification, and update the same review artifact with the fixes, skipped items, follow-up questions doc path, and final status.
+- The follow-up next step for `needs_question_research` findings is `/skill:q-research [exact path to questions doc]`.
+- Do not use in-session fixing for ambiguous, broad, or design-sensitive findings just because the code edit looks small.
 
 12. If the review surfaces durable learnings that future agents should remember first, update `[plan_dir]/AGENTS.md`.
-13. Always summarize the review doc findings in the user-facing response.
+01. Always summarize the review doc findings in the user-facing response.
 
 ## Review Template
 

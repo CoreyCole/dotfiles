@@ -205,7 +205,7 @@ LANE_RULES = [
             p("sqlc generated or config", r"(^|/)(sqlc\.ya?ml|pkg/db|pkg/types/registry\.go)"),
         ),
         text_patterns=(
-            p("PostgreSQL/sqlc/migration language", r"\b(sqlc|postgres(ql)?|db/migrations|database migration|sql migration|CREATE TYPE|ALTER TYPE|CREATE TABLE|ALTER TABLE|CREATE INDEX|backfill|query plan|enum type|registry\.go)\b"),
+            p("concrete SQL/sqlc/migration language", r"\b(sqlc|db/migrations|database migration|sql migration|SQL query|CREATE TYPE|ALTER TYPE|CREATE TABLE|ALTER TABLE|CREATE INDEX|query plan|PostgreSQL enum|enum type|registry\.go|materialized view|RisingWave|sink|source)\b"),
         ),
     ),
     LaneRule(
@@ -701,9 +701,11 @@ def build_subagent_tool_args(
         reasons = lane.get("reasons", [])
         matched = lane.get("matched_evidence", [])
         task = (
-            "Use this focused lane prompt exactly:\n\n"
+            "Use this focused lane prompt exactly. The prompt is embedded below; do not search for a lane prompt file.\n\n"
             f"{prompt_text}\n\n"
             f"Review only this lane for {mode} review. "
+            f"cwd={repo_root.as_posix()}. "
+            f"repo_root={repo_root.as_posix()}. "
             f"plan_dir={plan_dir.as_posix() if plan_dir else 'none'}. "
             f"reviewed_artifact={reviewed_artifact.as_posix() if reviewed_artifact else 'none'}.\n\n"
             f"Changed files: {', '.join(changed_files) if changed_files else 'none'}.\n"
@@ -711,12 +713,18 @@ def build_subagent_tool_args(
             f"Evidence files: {', '.join(evidence_files) if evidence_files else 'none'}.\n"
             f"Selector reasons for this lane: {json.dumps(reasons, ensure_ascii=False)}.\n"
             f"Matched evidence for this lane: {json.dumps(matched, ensure_ascii=False)}.\n\n"
+            "Operational limits: aim to complete this focused lane in under 5 minutes; if that is not possible, "
+            "write a partial report with the blocking gap instead of continuing broad discovery. Run all bash commands from cwd/repo_root; "
+            "use short explicit timeouts for broad discovery commands, and task-appropriate explicit timeouts for verification commands. "
+            "Never run `find` outside cwd/repo_root or $TMPDIR; prefer exact provided paths and `rg --files` scoped to cwd. "
+            "If context is insufficient after bounded reads, report the gap instead of broad discovery.\n\n"
             "Write the lane report to the provided output path. Do not edit files."
         )
         parallel_tasks.append(
             {
                 "agent": "reviewer",
                 "task": task,
+                "cwd": repo_root.as_posix(),
                 "output": (focused_lanes_dir / f"{lane_id}.md").as_posix(),
             }
         )
@@ -725,6 +733,11 @@ def build_subagent_tool_args(
         "chain": [{"parallel": parallel_tasks}],
         "chainDir": chain_dir.as_posix(),
         "clarify": False,
+        "control": {
+            "needsAttentionAfterMs": 300000,
+            "activeNoticeAfterMs": 300000,
+            "notifyOn": ["needs_attention", "active_long_running"],
+        },
     }
 
 
