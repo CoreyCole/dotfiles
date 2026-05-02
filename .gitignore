@@ -27,7 +27,6 @@
 .claude/downloads
 context/
 .pi-config/node_modules/
-.pi-config/pi-subagents/node_modules/
 .pi-config/auth.json
 .pi-config/sessions/
 .pi-config/agent/auth.json

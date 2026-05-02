@@ -4,3 +4,5 @@ git/
 run-history.jsonl
 sessions/
 history/
+context/
+node_modules/

@@ -9,15 +9,16 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `~/.pi -> ~/dotfiles/.pi-config`
 - Pi auto-discovers global resources from paths under `~/.pi/agent/`.
 - Tracked Pi resources live directly in `agent/`, matching Pi's runtime layout:
+  - `agent/settings.json`
   - `agent/extensions/`
   - `agent/skills/`
   - `agent/agents/`
   - `agent/mcp.json`
 - Runtime state also lives in `agent/` and is ignored where appropriate:
-  - `agent/settings.json`
   - `agent/auth.json`
   - `agent/sessions/`
   - `agent/run-history.jsonl`
+  - `agent/git/`
 - Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
 
 ______________________________________________________________________

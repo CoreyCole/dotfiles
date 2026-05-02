@@ -28,21 +28,44 @@ There is no extra resource symlink layer.
 
 ## Important paths
 
-### Tracked resources
+### Tracked source config
 
+- `agent/settings.json` — tracked Pi settings, package declarations, and explicit extension includes
+- `agent/mcp.json` — tracked MCP configuration
 - `agent/extensions/` — custom global Pi extensions checked into dotfiles
+- `agent/extensions/subagent/config.json` — tracked `nicobailon/pi-subagents` parallel limit config
 - `agent/skills/` — custom skills checked into dotfiles
 - `agent/agents/` — custom agent definitions checked into dotfiles
-- `agent/mcp.json` — tracked MCP configuration
+- `agent/scripts/` — scripts used by tracked extensions/tool hooks
+- `config/tool-hooks.json` — tracked tool-hook configuration
 - `AGENTS.md` — repo-specific instructions for working on this Pi config
+- `package.json` and `package-lock.json` — optional local TypeScript/LSP support for extension development
 
-### Runtime state
+### Ignored runtime/cache/local state
 
-- `agent/settings.json`
 - `agent/auth.json`
 - `agent/sessions/`
 - `agent/run-history.jsonl`
 - `agent/git/`
+- `history/`
+- `context/`
+- `node_modules/`
+
+## Package declarations vs package caches
+
+Configured Pi packages are declared in tracked source config at:
+
+```text
+.pi-config/agent/settings.json
+```
+
+Global git package caches are generated under:
+
+```text
+.pi-config/agent/git/<host>/<path>
+```
+
+That cache directory is intentionally ignored. Do not copy package code into another tracked directory. If a configured package is missing, Pi can resolve it into `agent/git/` during normal startup when online. Use `pi list` for visibility and `pi install <source>` only when manually remediating a package.
 
 ## Extension rule of thumb
 
@@ -62,16 +85,22 @@ Run:
 ~/dotfiles/.pi-config/setup.sh
 ```
 
-That script:
+That script validates the `~/.pi` symlink and required `agent/*` paths, then prints manual remediation guidance for missing tools. It does not install Pi packages, npm dependencies, Homebrew packages, or `parallel-cli`.
 
-- validates the `~/.pi` symlink
-- validates required `agent/*` resource paths
-- installs the configured Pi packages
-- ensures `parallel-cli` is installed for `pi-parallel`
+## Optional local extension development
+
+The root `package.json` and `package-lock.json` are kept so local TypeScript extensions get useful dependency metadata and LSP support.
+
+They are not required for normal Pi startup. If you are editing local TypeScript extensions and want local dependencies installed, run manually:
+
+```bash
+cd ~/.pi
+npm install
+```
 
 ## pi-parallel dependency
 
-`pi-parallel` shells out to the external `parallel-cli` binary. Installing the Pi package alone is not enough.
+`HazAT/pi-parallel` is configured as a Pi package, but it shells out to the external `parallel-cli` binary. Installing or resolving the Pi package alone is not enough for Parallel.ai tools.
 
 Preferred install method:
 
@@ -108,4 +137,29 @@ If `parallel-cli` is missing, Pi tools like `parallel_search`, `parallel_extract
 
 ```text
 spawn parallel-cli ENOENT
+```
+
+## pi-subagents parallel limits
+
+The `nicobailon/pi-subagents` package reads optional config from:
+
+```text
+~/.pi/agent/extensions/subagent/config.json
+```
+
+This repo tracks that file at:
+
+```text
+.pi-config/agent/extensions/subagent/config.json
+```
+
+Current intended limits:
+
+```json
+{
+  "parallel": {
+    "maxTasks": 16,
+    "concurrency": 16
+  }
+}
 ```
