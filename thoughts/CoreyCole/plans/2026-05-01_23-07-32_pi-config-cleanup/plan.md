@@ -16,7 +16,7 @@ plan_dir: thoughts/CoreyCole/plans/2026-05-01_23-07-32_pi-config-cleanup
 
 - [x] Slice 1: Source/runtime boundary documentation and git hygiene
 - [x] Slice 2: Validation-only setup script
-- [ ] Slice 3: Subagent name deconfliction and model normalization
+- [x] Slice 3: Subagent name deconfliction and model normalization
 - [ ] Slice 4: Package config, optional dev dependencies, and Parallel tooling docs
 - [ ] Slice 5: Final validation sweep
 

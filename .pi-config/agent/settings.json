@@ -19,6 +19,12 @@
     "+extensions/answer.ts",
     "+extensions/execute-command.ts",
     "+extensions/tool-hooks/index.ts"
-  ]
+  ],
+  "subagents": {
+    "agentOverrides": {
+      "worker": {
+        "model": "openai-codex/gpt-5.5"
+      }
+    }
+  }
 }
-

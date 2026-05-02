@@ -1,8 +1,11 @@
 ---
-name: scout
-description: Unified reconnaissance agent for QRSPI and general codebase exploration. Finds relevant code and docs, reads targeted sections, traces entry points and data flow, surfaces patterns and tests, and extracts decisions or constraints into a compact context artifact. Caller should pass the output directory for the context doc; scout writes a timestamped markdown artifact there.
+name: qrspi-scout
+description: QRSPI-aware reconnaissance and context artifact writer
 tools: read, grep, find, ls, bash, write
-model: codex-mini-latest
+model: openai-codex/gpt-5.5
+systemPromptMode: replace
+inheritProjectContext: false
+inheritSkills: false
 ---
 
 # Scout Agent
