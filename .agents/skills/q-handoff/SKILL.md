@@ -34,6 +34,8 @@ You are creating a handoff document to preserve your working context within a QR
 
 `review` is the post-implementation handoff target, not a core planning stage. Only when `implement` is fully complete should `continue` create a review-ready handoff and point to `/q-review`. Intermediate implementation checkpoints must stay on `/q-resume`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
 
+Implementation handoffs must not create branches. If the next implementation slice is verification-only (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits), record that it should run on the current top implementation branch instead of creating a placeholder `slice-N` branch. GitHub/Graphite cannot create PRs for empty branches.
+
 ## When to use
 
 - Before context reset mid-stage (no argument)
@@ -110,7 +112,7 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 # [Stage] Handoff
 
 ## Status
-[What is done and what remains.]
+[What is done and what remains. For implementation handoffs, state whether the next slice has planned tracked edits or is verification-only/no-branch.]
 
 ## Learnings
 [Important findings not fully captured in artifacts, with file:line references where relevant.]
