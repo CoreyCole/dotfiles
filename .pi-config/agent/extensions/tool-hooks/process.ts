@@ -86,5 +86,9 @@ export function parseHookOutput(result: CommandRunResult): HookExecutionResult {
     resultPatch: parseResultPatch(parsed.resultPatch),
     additionalContext:
       typeof hookSpecificOutput?.additionalContext === "string" ? hookSpecificOutput.additionalContext : undefined,
+    additionalContextDisplay:
+      typeof hookSpecificOutput?.additionalContextDisplay === "string"
+        ? hookSpecificOutput.additionalContextDisplay
+        : undefined,
   };
 }

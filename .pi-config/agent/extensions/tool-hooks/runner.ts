@@ -68,9 +68,11 @@ export async function runHookRules(args: {
   inputPatch?: Record<string, unknown>;
   resultPatch?: ToolResultPatch;
   additionalContext: string[];
+  additionalContextDisplay: string[];
 }> {
   const matching = args.rules.filter((rule) => rule.event === args.event && matchesHookRule(rule, args.payload));
   const additionalContext: string[] = [];
+  const additionalContextDisplay: string[] = [];
   let inputPatch: Record<string, unknown> | undefined;
   let resultPatch: ToolResultPatch | undefined;
 
@@ -88,10 +90,20 @@ export async function runHookRules(args: {
     const nextResultPatch = filterResultPatch(outcome.resultPatch);
 
     if (outcome.additionalContext) additionalContext.push(outcome.additionalContext);
+    if (outcome.additionalContextDisplay) additionalContextDisplay.push(outcome.additionalContextDisplay);
     if (nextInputPatch) inputPatch = { ...(inputPatch ?? {}), ...nextInputPatch };
     if (nextResultPatch) resultPatch = { ...(resultPatch ?? {}), ...nextResultPatch };
-    if (outcome.block) return { block: true, reason: outcome.reason, inputPatch, resultPatch, additionalContext };
+    if (outcome.block) {
+      return {
+        block: true,
+        reason: outcome.reason,
+        inputPatch,
+        resultPatch,
+        additionalContext,
+        additionalContextDisplay,
+      };
+    }
   }
 
-  return { inputPatch, resultPatch, additionalContext };
+  return { inputPatch, resultPatch, additionalContext, additionalContextDisplay };
 }

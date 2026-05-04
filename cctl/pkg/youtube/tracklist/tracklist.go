@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	StatusMatched = "matched"
-	StatusPartial = "partial"
+	StatusMatched          = "matched"
+	StatusPartial          = "partial"
+	timestampSubmatchCount = 3
 )
 
 type Track struct {
@@ -36,10 +37,15 @@ type Parsed struct {
 }
 
 var (
-	tracklistHeaderPattern = regexp.MustCompile(`(?i)^track\s*list\s*:`)
-	timestampPattern       = regexp.MustCompile(`^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+?)\s*$`)
-	separatorPattern       = regexp.MustCompile(`\s+[–—-]\s+`)
-	parenMixPattern        = regexp.MustCompile(`(?i)\(([^()]*(?:mix|remix|edit|dub|version))\)$`)
+	tracklistHeaderPattern = regexp.MustCompile(
+		`(?i)(?:^|\b)track\s*list\s*` +
+			`(?:official|oficial)?\s*:`,
+	)
+	timestampPattern = regexp.MustCompile(`^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+?)\s*$`)
+	separatorPattern = regexp.MustCompile(`\s+[–—-]\s+`)
+	parenMixPattern  = regexp.MustCompile(
+		`(?i)\(([^()]*(?:mix|remix|edit|dub|version))\)$`,
+	)
 )
 
 func ParseDescription(description string) Parsed {
@@ -74,11 +80,11 @@ func ParseDescription(description string) Parsed {
 	}
 
 	parsed := Parsed{
-		Category:   "dj_set",
 		TrackCount: len(tracks),
 		Tracks:     tracks,
 	}
 	if len(tracks) > 0 {
+		parsed.Category = "dj_set"
 		parsed.HasTracklist = true
 		parsed.TracklistSource = "description"
 	}
@@ -86,13 +92,14 @@ func ParseDescription(description string) Parsed {
 }
 
 func ParseLine(line string) (Track, bool) {
-	m := timestampPattern.FindStringSubmatch(strings.TrimSpace(line))
-	if len(m) != 3 {
-		return Track{}, false
+	trimmed := strings.TrimSpace(line)
+	start := ""
+	rest := trimmed
+	m := timestampPattern.FindStringSubmatch(trimmed)
+	if len(m) == timestampSubmatchCount {
+		start = m[1]
+		rest = strings.TrimSpace(m[2])
 	}
-
-	start := m[1]
-	rest := strings.TrimSpace(m[2])
 	track := Track{Start: start, Raw: line, Status: StatusPartial}
 
 	parts := separatorPattern.Split(rest, 2)
@@ -102,6 +109,10 @@ func ParseLine(line string) (Track, bool) {
 		track.Title, track.Mix = extractMix(title)
 		track.Status = StatusMatched
 		return track, true
+	}
+
+	if start == "" {
+		return Track{}, false
 	}
 
 	track.Title = rest
@@ -116,6 +127,21 @@ func extractMix(title string) (string, string) {
 		mix := strings.TrimSpace(mixMatch[1])
 		title = strings.TrimSpace(strings.TrimSuffix(title, mixMatch[0]))
 		return title, mix
+	}
+
+	openIdx := strings.Index(title, "(")
+	closeIdx := strings.LastIndex(title, ")")
+	if openIdx >= 0 && closeIdx == len(title)-1 && closeIdx > openIdx {
+		mix := strings.TrimSpace(title[openIdx+1 : closeIdx])
+		lowerMix := strings.ToLower(mix)
+		isMix := strings.Contains(lowerMix, "mix") ||
+			strings.Contains(lowerMix, "remix") ||
+			strings.Contains(lowerMix, "edit") ||
+			strings.Contains(lowerMix, "dub") ||
+			strings.Contains(lowerMix, "version")
+		if isMix {
+			return strings.TrimSpace(title[:openIdx]), mix
+		}
 	}
 	return title, ""
 }

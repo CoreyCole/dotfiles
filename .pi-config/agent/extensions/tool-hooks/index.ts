@@ -69,6 +69,12 @@ function loadRules(cwd: string) {
   return [...globalRules, ...loadProjectRules(cwd)];
 }
 
+function getDisplayContent(message: { content: unknown; details?: unknown }): string {
+  const details = message.details as { displayContent?: unknown } | undefined;
+  if (typeof details?.displayContent === "string") return details.displayContent;
+  return typeof message.content === "string" ? message.content : "";
+}
+
 export default function toolHooks(pi: ExtensionAPI) {
   const cwd = process.cwd();
   const rules = loadRules(cwd);
@@ -115,7 +121,7 @@ export default function toolHooks(pi: ExtensionAPI) {
   });
 
   pi.registerMessageRenderer("tool-hooks-stop", (message, _options, theme) => {
-    const text = typeof message.content === "string" ? message.content : "";
+    const text = getDisplayContent(message);
     return new Text(`${theme.fg("muted", "[tool-hooks stop]")}\n${text}`, 0, 0);
   });
 
@@ -217,7 +223,14 @@ export default function toolHooks(pi: ExtensionAPI) {
         customType: "tool-hooks-stop",
         display: true,
         content: result.additionalContext.join("\n\n"),
-        details: { lines: result.additionalContext.length, event: "Stop" },
+        details: {
+          lines: result.additionalContext.length,
+          event: "Stop",
+          displayContent:
+            result.additionalContextDisplay.length > 0
+              ? result.additionalContextDisplay.join("\n\n")
+              : undefined,
+        },
       });
     }
     if (result.block) {

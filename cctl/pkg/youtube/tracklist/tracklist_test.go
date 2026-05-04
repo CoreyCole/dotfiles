@@ -26,7 +26,10 @@ If you vibe with the sound, like, comment and share.`
 	}
 
 	first := parsed.Tracks[0]
-	if first.Start != "00:00" || first.Artist != "Folamour" || first.Title != "These Are Just Places To Me Now" || first.Mix != "Original Mix" || first.Status != StatusMatched {
+	if first.Start != "00:00" || first.Artist != "Folamour" ||
+		first.Title != "These Are Just Places To Me Now" ||
+		first.Mix != "Original Mix" ||
+		first.Status != StatusMatched {
 		t.Fatalf("unexpected first track: %+v", first)
 	}
 
@@ -49,8 +52,60 @@ func TestParseDescriptionReturnsEmptyWithoutTracklistSection(t *testing.T) {
 	if parsed.HasTracklist {
 		t.Fatal("expected no tracklist")
 	}
+	if parsed.Category != "" {
+		t.Fatalf(
+			"expected empty category when no tracklist is found, got %q",
+			parsed.Category,
+		)
+	}
 	if parsed.TrackCount != 0 || len(parsed.Tracks) != 0 {
 		t.Fatalf("expected empty tracklist, got %+v", parsed)
+	}
+}
+
+func TestParseDescriptionSupportsUntimestampedTracklistBlocks(t *testing.T) {
+	t.Parallel()
+
+	description := `Thanks for listening ... truly, thank you 🖤
+
+🎶 Tracklist Oficial:
+Klangkuenstler ft. Alice Phoebe Lou – Man On The Moon (Miguel Campbell Remix)
+M.O.S. – Mermaid Dance (Newman (I Love) Remix)
+TWENTY SIX, Darcey – Stan (Kevin McKay Extended Mix)
+
+Follow me on my social:
+https://www.instagram.com/itslaraland/`
+
+	parsed := ParseDescription(description)
+	if !parsed.HasTracklist {
+		t.Fatal("expected untimestamped tracklist to be detected")
+	}
+	if parsed.Category != "dj_set" {
+		t.Fatalf("expected category dj_set, got %q", parsed.Category)
+	}
+	if parsed.TrackCount != 3 {
+		t.Fatalf("expected 3 tracks, got %d", parsed.TrackCount)
+	}
+
+	first := parsed.Tracks[0]
+	if first.Start != "" || first.Artist != "Klangkuenstler ft. Alice Phoebe Lou" ||
+		first.Title != "Man On The Moon" ||
+		first.Mix != "Miguel Campbell Remix" ||
+		first.Status != StatusMatched {
+		t.Fatalf("unexpected first untimestamped track: %+v", first)
+	}
+}
+
+func TestParseLineSupportsUntimestampedTrackLines(t *testing.T) {
+	t.Parallel()
+
+	track, ok := ParseLine("Dennis Cruz – Bonito")
+	if !ok {
+		t.Fatal("expected untimestamped line to parse")
+	}
+	if track.Start != "" || track.Artist != "Dennis Cruz" || track.Title != "Bonito" ||
+		track.Status != StatusMatched {
+		t.Fatalf("unexpected untimestamped parsed track: %+v", track)
 	}
 }
 
@@ -59,7 +114,8 @@ func TestParseLineSupportsHyphenSeparatorsAndTrailingMixSuffix(t *testing.T) {
 	if !ok {
 		t.Fatal("expected line to parse")
 	}
-	if track.Artist != "Block & Crown" || track.Title != "Love Explosion" || track.Status != StatusMatched {
+	if track.Artist != "Block & Crown" || track.Title != "Love Explosion" ||
+		track.Status != StatusMatched {
 		t.Fatalf("unexpected parsed track: %+v", track)
 	}
 
@@ -69,5 +125,13 @@ func TestParseLineSupportsHyphenSeparatorsAndTrailingMixSuffix(t *testing.T) {
 	}
 	if track.Mix != "Original Mix" {
 		t.Fatalf("expected mix extraction, got %+v", track)
+	}
+
+	track, ok = ParseLine("M.O.S. – Mermaid Dance (Newman (I Love) Remix)")
+	if !ok {
+		t.Fatal("expected nested-parentheses remix line to parse")
+	}
+	if track.Title != "Mermaid Dance" || track.Mix != "Newman (I Love) Remix" {
+		t.Fatalf("expected nested-parentheses remix extraction, got %+v", track)
 	}
 }

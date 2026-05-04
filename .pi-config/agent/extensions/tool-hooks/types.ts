@@ -69,6 +69,7 @@ export interface HookCommandJsonResult {
   hookSpecificOutput?: {
     hookEventName?: ClaudeHookEventName;
     additionalContext?: string;
+    additionalContextDisplay?: string;
   };
 }
 
@@ -76,6 +77,7 @@ export interface HookExecutionResult {
   block?: boolean;
   reason?: string;
   additionalContext?: string;
+  additionalContextDisplay?: string;
   // Shallow input patches are filtered to keys that already exist on the original tool input.
   inputPatch?: Record<string, unknown>;
   // Result patches are filtered to Pi's supported tool-result mutation keys.
