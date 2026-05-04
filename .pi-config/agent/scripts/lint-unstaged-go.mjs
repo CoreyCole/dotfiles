@@ -11,12 +11,13 @@ function run(command, args, options = {}) {
   });
 }
 
-function outputAdditionalContext(text) {
+function outputAdditionalContext(text, displayText) {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "Stop",
         additionalContext: text,
+        additionalContextDisplay: displayText,
       },
     }),
   );
@@ -50,10 +51,20 @@ function findGoModRoot(file, gitRoot) {
   return undefined;
 }
 
-function truncate(text, maxLength = 12000) {
-  if (text.length <= maxLength) return text;
+function extractDisplayTail(text, maxLines = 40) {
+  const lines = text.trimEnd().split("\n");
+  const summaryStart = lines.findLastIndex((line) => /^\d+ issues?:$/.test(line.trim()));
+  if (summaryStart >= 0) {
+    return [
+      "golangci-lint:",
+      ...lines.slice(summaryStart).map((line, index) => {
+        const trimmed = line.trim();
+        return index > 0 && trimmed.startsWith("* ") ? `  ${trimmed}` : trimmed;
+      }),
+    ].join("\n");
+  }
 
-  return `${text.slice(0, maxLength)}\n... truncated ...`;
+  return lines.slice(-maxLines).join("\n");
 }
 
 function indent(text) {
@@ -95,7 +106,7 @@ function formatFailure(gitRoot, moduleRoot, moduleFiles, packageArgs, result) {
     `  ${formatCommand(modulePath, packageArgs)}`,
     "Files:",
     formatFiles(moduleFiles),
-    "Output:",
+    "golangci-lint output:",
     indent(output || `golangci-lint exited with status ${result.status ?? 1}`),
   ].join("\n");
 }
@@ -159,13 +170,12 @@ for (const [moduleRoot, moduleFiles] of filesByModule) {
 }
 
 if (failures.length > 0) {
-  outputAdditionalContext(
-    truncate(
-      [
-        "Go lint found issues in unstaged files.",
-        "Fix these before finishing the task.",
-        failures.join("\n\n---\n\n"),
-      ].join("\n\n"),
-    ),
-  );
+  const context = [
+    "Go lint reported issues in unstaged files.",
+    "Multiple agents may be editing this repo in parallel, so these issues may have been introduced by another agent.",
+    "Treat this as advisory context: investigate whether the findings are from your own changes, but do not assume you must fix unrelated lint issues.",
+    failures.join("\n\n---\n\n"),
+  ].join("\n\n");
+
+  outputAdditionalContext(context, extractDisplayTail(context));
 }
