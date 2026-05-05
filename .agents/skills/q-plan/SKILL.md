@@ -1,13 +1,13 @@
 ---
 name: q-plan
-description: Expand the structured outline into a detailed implementation plan — tactical doc for the coding agent. Fifth stage of QRSPI pipeline. NOT human-reviewed.
+description: Expand the structured outline into a detailed implementation plan — tactical doc for the coding agent. Fifth stage of QRSPI pipeline. Not human-reviewed, but followed by LLM planning review via `/q-review [plan.md]`.
 ---
 
 # Plan — The Implementation
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the fifth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. The human does NOT review this. Human alignment happened in design, outline, and the outline `/q-review`; the human reviews the code again after implementation.
+You are the fifth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. Human alignment happened in question, design, and outline. After this file is written, it gets an LLM planning review via `/q-review [plan.md]` before implementation starts.
 
 ## When Invoked
 
@@ -57,7 +57,7 @@ Then wait for input.
 
 6. **Immediately before writing or updating `plan.md`, gather metadata** with `~/dotfiles/spec_metadata.sh` and use it to populate the frontmatter fields.
 
-7. **Write the plan** directly. No human review step — alignment already happened in design and outline.
+7. **Write the plan** directly. No human review step — alignment already happened in design and outline. The next gate is LLM planning review via `/q-review [plan.md]`.
 
 ## Output Template
 
@@ -118,12 +118,12 @@ When plan.md is written, use this exact response shape:
 ```
 Artifact: [exact path to plan.md]
 Summary: [number] slices ready for implementation.
-Next: /q-implement [exact path to plan.md]
+Next: /q-review [exact path to plan.md]
 ```
 
 Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
-No human review of the plan — alignment already happened in design, outline, and outline review. The human reviews the code.
+No human review of the plan — alignment already happened in design, outline, and outline review. The plan is still reviewed by the LLM via `/q-review [plan.md]` before `/q-implement`.
 
 ## Rules
 
@@ -132,4 +132,5 @@ No human review of the plan — alignment already happened in design, outline, a
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
 - Every slice must end with a verify step — a command the implementing agent can run.
 - Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
+- The completion `Next:` must point to `/q-review [exact path to plan.md]`; implementation starts only after the plan review is clean.
 - In every user-facing completion response, use the same three-line shape: `Artifact: ...`, `Summary: ...`, `Next: ...`.

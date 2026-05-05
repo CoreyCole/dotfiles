@@ -193,6 +193,8 @@ Next: /q-design [exact path to research doc]
 
 If the user wants more research, tell them to run `/q-research [exact path to plan_dir] [additional question prompt]`; this will open question-preview mode before any new research starts.
 
+If the question doc lives under `[parent_plan_dir]/reviews/*_[outline|plan]-review/questions/`, stop and route to `/skill:q-research-for-review [exact path to question doc]` instead. Planning-review research needs review category context and a different next step.
+
 ## Rules
 
 - This is research, not design. No solutions, no pseudocode.
@@ -201,7 +203,8 @@ If the user wants more research, tell them to run `/q-research [exact path to pl
 - The first section of the research doc must be a concise `Brainstorm Summary` carried forward from `q-question` or question-preview approval so downstream stages retain the key design context.
 - The `Brainstorm Summary` must preserve validated human decisions and tradeoffs from the question docs; do not invent new decisions in research.
 - Research should stay intentionally blind so the session is not biased by later-stage decisions or curated memory.
-- A review-directory follow-up plan under `[parent_plan_dir]/reviews/*/` is a normal QRSPI plan for research purposes. Write research artifacts under that review directory plan's `research/` and `context/research/`, not under the parent plan.
+- An implementation-review follow-up plan under `[parent_plan_dir]/reviews/*_implementation-review/` is a normal QRSPI plan for research purposes. Write research artifacts under that review directory's `research/` and `context/research/`, not under the parent plan.
+- Planning-review research questions under `[parent_plan_dir]/reviews/*_[outline|plan]-review/questions/` must use `/skill:q-research-for-review`, not normal `/q-research`, because they need review category context and route to `/skill:q-address-review-research`.
 - Pi may auto-load `[plan_dir]/AGENTS.md` based on the cwd. Do not explicitly rely on it or expand your reading because of it.
 - Do **NOT** read the ticket, `design.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, or other forward-looking documents that reveal what is being built. The only plan artifacts you should intentionally read are the relevant `questions/*.md` files, plus relevant prior `context/research/` artifacts when continuing a pass. Everything else must come from code surfaced during research and `thoughts/` documents only when the question explicitly asks for historical context, prior decisions, or existing documentation.
 - Always read directly mentioned files fully before spawning sub-tasks.

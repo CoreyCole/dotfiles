@@ -20,37 +20,45 @@ Be constructively adversarial and collaborative:
 ## Process
 
 1. **Load the plan or design context.**
+
    - If the user provided a file, read it fully.
    - If the user described the plan inline, restate the core proposal in 2-4 bullets.
    - If the scope is unclear, ask for the missing artifact or description first.
 
-2. **Explore before asking.**
+1. **Explore before asking.**
+
    - If a question can be answered by inspecting the codebase, docs, config, tests, history, or existing patterns, investigate instead of asking the user.
    - Use lightweight discovery first (`rg`, `find`, `ls`, targeted reads).
    - Summarize the relevant facts you found before asking the next human-judgment question.
 
-3. **Map the decision tree.**
+1. **Map the decision tree.**
+
    - Identify the major decision branches: goals, scope, users, constraints, architecture, data model, interfaces, rollout, observability, failure modes, tests, and non-goals.
    - Do not dump the whole tree at once; use it to choose the next best question.
 
-4. **Ask one question at a time.**
+1. **Ask one question at a time.**
+
    - Each turn should contain exactly one direct question unless the user explicitly asks for a batch.
    - For every question, include your recommended answer and concise reasoning.
+   - Be extremely concise. Sacrifice grammar for the sake of concision.
    - Phrase the question so the user can answer by confirming, rejecting, or adjusting the recommendation.
 
-5. **Resolve dependencies between decisions.**
+1. **Resolve dependencies between decisions.**
+
    - If an answer changes an upstream premise, revisit dependent branches.
    - Do not move to implementation details before goals, constraints, and success criteria are clear.
    - Do not accept vague answers when they hide meaningful tradeoffs.
 
-6. **Track decisions as you go.**
+1. **Track decisions as you go.**
+
    - Maintain a concise running summary in the conversation:
      - decisions confirmed
      - assumptions still unverified
      - questions deferred to codebase research
      - open risks or tradeoffs
 
-7. **Exit only when shared understanding is reached.**
+1. **Exit only when shared understanding is reached.**
+
    - Stop when the plan/design has clear goals, scope, constraints, decision rationale, open risks, and next steps.
    - If the discussion should enter QRSPI, recommend the next stage:
      - `/q-question` when research questions remain
@@ -77,6 +85,7 @@ Question: [one direct question for the user]
 ## Rules
 
 - Ask one question at a time.
+- Be extremely concise. Sacrifice grammar for the sake of concision.
 - Provide a recommended answer for each human-judgment question.
 - Investigate codebase-answerable questions yourself instead of asking the user.
 - Do not write code while grilling.

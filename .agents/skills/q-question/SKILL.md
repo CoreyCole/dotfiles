@@ -25,9 +25,10 @@ Establish with ~95% confidence what the user actually wants. Start by investigat
      - All files in `[plan_dir]/research/`
      - All files in `[plan_dir]/prds/`
      - Relevant files in `[plan_dir]/context/question/` when present
-     - For review follow-up plan dirs under `[parent_plan_dir]/reviews/*/`, treat that timestamped review directory as the plan directory; do not climb to or mutate the parent plan's `design.md` / `outline.md`
+     - For implementation-review follow-up plan dirs under `[parent_plan_dir]/reviews/*_implementation-review/`, treat that timestamped review directory as the plan directory; do not climb to or mutate the parent plan's `design.md` / `outline.md`
+     - For planning-review follow-up dirs under `[parent_plan_dir]/reviews/*_[outline|plan]-review/`, treat the review directory as a lightweight research workspace; question docs still go under its `questions/`, and later `/skill:q-address-review-research` applies fixes to the parent docs
 1. **If a ticket path, plan directory, artifact path, review-context-doc path, or description was provided**, read it fully and begin.
-2. **If no parameters**, respond:
+1. **If no parameters**, respond:
 
 ```
 I'll help decompose a ticket into research questions.
@@ -48,67 +49,81 @@ Then wait for input.
 
 1. **Gather metadata** by running `~/dotfiles/spec_metadata.sh`. Use its `Git Username` and `Timestamp For Filename` output for the plan directory, question filename, and frontmatter fields.
 
-2. **Determine the plan directory**:
+1. **Determine the plan directory**:
+
    - New work: create `thoughts/[git_username]/plans/[timestamp]_[plan-name]/`
    - Follow-up pass: reuse the existing plan directory exactly
    - Review follow-up plan: if the input is inside `[parent_plan_dir]/reviews/*/`, reuse that timestamped review directory exactly
-   - Review artifact seed: if the input is `[parent_plan_dir]/reviews/*/review.md` or a timestamped review directory, create or reuse `[parent_plan_dir]/reviews/*/` as a new review-directory QRSPI plan directory
+   - Review artifact seed: if the input is `[parent_plan_dir]/reviews/*_implementation-review/review.md` or an implementation review directory, create or reuse that directory as a new review-directory QRSPI plan directory
+   - Planning review seed: if the input is `[parent_plan_dir]/reviews/*_[outline|plan]-review/review.md` or a planning review directory, reuse that directory as a lightweight research workspace, not as a full nested QRSPI plan
 
-3. **Ensure scaffolding exists**:
+1. **Ensure scaffolding exists**:
+
    - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
    - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, `[plan_dir]/adrs/`, `[plan_dir]/handoffs/`, and `[plan_dir]/reviews/` exist
-   - For normal top-level plans, also ensure `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exists
-   - For review-directory follow-up plans, do not create a separate `context/question/` seed; the first artifact is the review follow-up question doc in `questions/`
+   - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exists
+   - For planning-review research workspaces, ensure `[plan_dir]/context/research/` exists for `/skill:q-research-for-review` locator/analyzer artifacts
+   - For review-directory follow-up plans and planning-review research workspaces, do not create a separate copied review seed in `context/question/`; the first artifact is the review follow-up question doc in `questions/`
 
-4. **Read ticket/PRDs and linked docs fully**.
+1. **Read ticket/PRDs and linked docs fully**.
+
    - If invoked on a canonical review artifact at `[parent_plan_dir]/reviews/*/review.md`, read it fully and treat it as the source problem statement for the review follow-up loop.
    - If invoked inside `[parent_plan_dir]/reviews/*/`, read any existing `questions/*.md`, `prds/*`, and `review.md` if present.
 
-5. **Populate `prds/` when relevant**:
+1. **Populate `prds/` when relevant**:
+
    - Store relevant PRDs, ticket exports, screenshots under `[plan_dir]/prds/`
    - Prefer descriptive filenames and preserve history
 
-6. **Investigate before asking**:
+1. **Investigate before asking**:
+
    - Before interviewing the engineer, do lightweight context discovery using basic `rg`, `find`, `ls`, or targeted reads based on the ticket/PRD.
    - Use the results to validate terminology, identify likely entry points, and spot obvious implementation files, tests, docs, or configs.
    - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
    - Share a short "what I found" summary before moving into interview questions.
    - Do NOT try to map the whole area or deeply analyze the implementation at this stage.
 
-7. **Start with a short creative brainstorm before converging**:
+1. **Start with a short creative brainstorm before converging**:
+
    - Sketch a few plausible question areas, tensions, unknowns, forks in the road, and decision-tree branches.
    - Use the brainstorm to expose hidden assumptions, dependencies between decisions, and missing context.
    - Keep it short and exploratory — this is for discovering better questions, not proposing solutions.
+   - Use `/grill-me` style for brainstorm/interview turns: be extremely concise; sacrifice grammar for concision.
    - Do not commit to an approach during the brainstorm.
 
-8. **Interview the lead engineer before finalizing questions**:
+1. **Interview the lead engineer before finalizing questions**:
+
    - Treat the human in chat as the lead engineer / design owner unless told otherwise.
    - Interview relentlessly but respectfully: walk down each important branch of the decision tree until shared understanding is reached.
    - Resolve dependencies between decisions one-by-one; do not ask about a downstream choice before its upstream premise is clear.
    - Ask questions one at a time by default. If several independent questions truly need batch input, use `/answer`, but keep each item focused.
+   - Keep interview questions and recommendations extremely concise. Sacrifice grammar for concision.
    - For each human-judgment question, provide your recommended answer and why, then ask the engineer to confirm, reject, or adjust it.
    - Focus on desired outcome, goals, design principles, scope, non-goals, constraints, risks, success criteria, and tradeoffs.
    - Let the engineer explicitly defer open factual or codebase questions to the research phase when appropriate.
 
    If confidence is below ~95%, continue the interview. Do not guess.
 
-9. **Optionally read a few surfaced files yourself** — only enough to sharpen the research questions, not to answer them or form a solution.
+1. **Optionally read a few surfaced files yourself** — only enough to sharpen the research questions, not to answer them or form a solution.
 
-10. **Write a concise `Brainstorm Summary`** that will become the first section of the question doc. Capture the important design context surfaced during investigation, brainstorm, and interview:
-   - For review-seeded follow-up work, summarize which review findings are in scope for this new loop, which are intentionally deferred, and any requested outcome or sequencing guidance from the lead engineer.
-   - desired outcome
-   - explicit design details or constraints already established
-   - decisions already made
-   - tradeoffs, risks, non-goals, or tensions that research should keep in view
+1. **Write a concise `Brainstorm Summary`** that will become the first section of the question doc. Capture the important design context surfaced during investigation, brainstorm, and interview:
+
+- For review-seeded follow-up work, summarize which review findings are in scope for this new loop, which are intentionally deferred, and any requested outcome or sequencing guidance from the lead engineer.
+- desired outcome
+- explicit design details or constraints already established
+- decisions already made
+- tradeoffs, risks, non-goals, or tensions that research should keep in view
 
 11. **If the interview surfaced durable constraints, decisions, or non-goals that future stages should not forget, update `[plan_dir]/AGENTS.md`** with concise bullets.
-   - Keep it curated and stable.
-   - Do not copy the whole brainstorm summary into AGENTS.
+
+- Keep it curated and stable.
+- Do not copy the whole brainstorm summary into AGENTS.
 
 12. **Write 3-7 research questions** to a new timestamped file under `[plan_dir]/questions/`. Questions must be:
-   - Specific and independently answerable
-   - Neutral
-   - Fact-focused
+
+- Specific and independently answerable
+- Neutral
+- Fact-focused
 
 13. **Include Codebase References** section with suggested starting points.
 
@@ -169,8 +184,9 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 
 ## Rules
 
-- If invoked on a review artifact from `/q-review`, create or reuse the timestamped `reviews/*/` directory as the QRSPI plan and treat that review as source material for the review follow-up loop. Do not continue the parent implementation plan in-place.
-- For review-directory follow-up plans, write the question doc directly under `questions/`; do not create a separate copied review context under `context/question/`.
+- If invoked on an implementation review artifact from `/q-review`, create or reuse the timestamped `reviews/*_implementation-review/` directory as the QRSPI plan and treat that review as source material for the review follow-up loop. Do not continue the parent implementation plan in-place.
+- If invoked on a planning review artifact from `/q-review`, reuse the timestamped `reviews/*_[outline|plan]-review/` directory as a lightweight research workspace. Write neutral questions under its `questions/`; after `/skill:q-research-for-review`, `/skill:q-address-review-research` applies fixes to the parent planning docs.
+- For review-directory follow-up plans and planning-review research workspaces, write the question doc directly under `questions/`; do not create a separate copied review context under `context/question/`.
 - Never overwrite or append review-follow-up design/outline work into the parent plan's `design.md` or `outline.md` from `q-question`.
 - For review-seeded follow-up work, convert review findings into neutral research questions rather than copying review recommendations as settled solutions.
 - Do NOT include preferred solutions in questions.
@@ -190,5 +206,6 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Do NOT write the question doc until the lead-engineer interview is complete.
 - Treat the user's first request as a hypothesis, not a spec.
 - Do NOT turn `q-question` into a mapping pass or deep analysis stage.
+- Use extreme concision for the brainstorm/interview conversation, not as a special style rule for the final research questions doc.
 - Keep it short: questions, not essays.
 - Use: `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.

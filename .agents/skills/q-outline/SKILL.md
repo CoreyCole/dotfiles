@@ -1,13 +1,13 @@
 ---
 name: q-outline
-description: Create a structured outline (~2 pages) — signatures, types, vertical slices, test checkpoints. Fourth stage of QRSPI pipeline. `/q-review` is the formal human review gate before code.
+description: Create a structured outline (~2 pages) — signatures, types, vertical slices, test checkpoints. Fourth stage of QRSPI pipeline. `/q-review` is the formal LLM planning review gate before `/q-plan`.
 ---
 
 # Structured Outline — How Do We Get There?
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the fourth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. After the outline is written, `/q-review` is the formal human review gate before `/q-plan`.
+You are the fourth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
 
@@ -34,19 +34,19 @@ This skill supports two modes.
 Use this mode when the user has a clear, bounded task and wants to skip earlier QRSPI stages.
 
 1. **If no plan directory path was provided, but the user gave a concrete task/ticket/description or referenced files**, do NOT stop and ask for prior QRSPI artifacts.
-2. Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for:
+1. Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for:
    - git username
    - `Timestamp For Filename` for the plan directory and any timestamped filenames
    - frontmatter fields (`date`, `researcher`, `git_commit`, `branch`, `repository`)
-3. Create a new plan directory under:
+1. Create a new plan directory under:
    - `thoughts/[git_username]/plans/[timestamp]_[plan-slug]/`
-4. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
-5. Ensure `context/{question,research,design,outline,plan,implement}/` exists in the new plan directory.
-6. Treat user-provided task + referenced files as source material.
-7. Read all referenced files fully.
-8. Read relevant codebase files needed to produce an accurate outline. If current-state discovery is still needed, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/outline/`.
-9. Write `outline.md` in the new plan directory.
-10. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
+1. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
+1. Ensure `context/{question,research,design,outline,plan,implement}/` exists in the new plan directory.
+1. Treat user-provided task + referenced files as source material.
+1. Read all referenced files fully.
+1. Read relevant codebase files needed to produce an accurate outline. If current-state discovery is still needed, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/outline/`.
+1. Write `outline.md` in the new plan directory.
+1. If helpful, you may add lightweight supporting artifacts (`research/`, `design.md`) for your own structure, but this is optional.
 
 ### If no useful input was provided
 
@@ -71,33 +71,35 @@ Then wait for input.
 
 1. **Verify artifacts are loaded**: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, and `context/outline/`, and any relevant files in `prds/`.
    - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite or append to the parent plan's `outline.md`; write the follow-up outline to `[parent_plan_dir]/reviews/*/outline.md`.
-2. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
-3. **Define the structural foundation** — types, interfaces, schemas, package structures.
-4. **Break the approved approach into vertical slices.** Each slice must be independently testable.
-5. **For each slice, define:**
+1. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
+1. **Define the structural foundation** — types, interfaces, schemas, package structures.
+1. **Break the approved approach into vertical slices.** Each slice must be independently testable.
+1. **For each slice, define:**
    - Files to create or modify
    - Key signatures and types (what, not how)
    - Test checkpoint — how to verify this slice works
-6. **Present the outline to the user** for review.
-7. **Iterate** until approved.
-8. **If the approved outline locked in durable slice boundaries, sequencing changes, or non-obvious implementation constraints, update `[plan_dir]/AGENTS.md`.**
+1. **Present the outline to the user** for review.
+1. **Iterate** until approved.
+1. **If the approved outline locked in durable slice boundaries, sequencing changes, or non-obvious implementation constraints, update `[plan_dir]/AGENTS.md`.**
    - Keep it short and curated.
    - Point back to `outline.md` or other canonical artifacts instead of duplicating them.
-9. **Immediately before writing or updating `outline.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
+1. **Immediately before writing or updating `outline.md`, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
 
 ### Direct-outline mode
 
 1. Derive the structure from the concrete task + codebase reality.
-2. Build sensible vertical slices in delivery order.
-3. Include signatures/types and explicit test checkpoints.
-4. Present to user for review and iterate until approved.
-5. Immediately before writing or updating `outline.md`, run `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
+1. Build sensible vertical slices in delivery order.
+1. Include signatures/types and explicit test checkpoints.
+1. Present to user for review and iterate until approved.
+1. Immediately before writing or updating `outline.md`, run `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields, and then write the final outline.
 
 ## Output Template
 
-Write to `[plan_dir]/outline.md`:
+Write to `[plan_dir]/outline.md`.
 
-```markdown
+Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
+
+````markdown
 ---
 date: [ISO datetime with timezone]
 researcher: [git_username]
@@ -129,9 +131,10 @@ type ExampleResult struct {
 }
 
 func DoThing(ctx context.Context, input ExampleInput) (ExampleResult, error)
-```
+````
 
 ## Database Schema (if applicable)
+
 Use fenced `sql` blocks for schema, indexes, and query-shape notes.
 
 ```sql
@@ -142,6 +145,7 @@ create table example_records (
 ```
 
 ## Package / File Structure
+
 Use normal markdown for file/package layouts. Prefer short path lists or compact bullets.
 
 - `pkg/example/`
@@ -149,6 +153,7 @@ Use normal markdown for file/package layouts. Prefer short path lists or compact
 - `db/queries/example.sql`
 
 ## API Surface (if applicable)
+
 Use fenced `go`, `proto`, or `text` blocks depending on the surface being described.
 
 ```go
@@ -160,6 +165,7 @@ func (s Service) CreateExample(...) (*connect.Response[v1.CreateExampleResponse]
 ### Slice 1: [Name]
 
 **Files:**
+
 - `path/to/file.ext` (new)
 - `path/to/other.ext` (modify)
 
@@ -172,15 +178,19 @@ type NewStruct struct { ... }
 **Test checkpoint:** [How to verify this slice works — specific command or assertion]
 
 ### Slice 2: [Name]
+
 [Use the same block-based format]
 
 ### Slice N: [Name]
+
 ...
 
 ## Out of Scope
+
 Use normal markdown bullets for explicit exclusions.
 
 - [Things explicitly not included in this implementation]
+
 ```
 
 ## Response
@@ -188,9 +198,11 @@ Use normal markdown bullets for explicit exclusions.
 When outline.md is written, use this exact response shape:
 
 ```
+
 Artifact: [exact path to outline.md]
 Summary: [brief summary of slices and their test checkpoints]
 Next: /q-review [exact path to outline.md]
+
 ```
 
 You may add one extra sentence noting that `/q-review` will review this outline together with `design.md` before `/q-plan`.
@@ -211,5 +223,7 @@ You may add one extra sentence noting that `/q-review` will review this outline 
 - Use normal markdown, not fenced `text` blocks, for file lists, checkpoints, and out-of-scope notes.
 - Do not cram type definitions into inline bullets unless the content is very short. The outline should read like a header file, not meeting notes.
 - Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
+- Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
 - Present to the user BEFORE writing the final file. This is the last review gate.
 - In every user-facing completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.
+```

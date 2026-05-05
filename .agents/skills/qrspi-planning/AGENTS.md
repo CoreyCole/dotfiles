@@ -1,128 +1,140 @@
 ---
 source: ~/.agents/skills/qrspi-planning/AGENTS.md
 copied_by: /q-question
-note: This is a template. The copy in each plan dir is a living, curated memory. Keep it short and prune stale items.
+note: This is a template. The copy in each plan dir is living, curated memory. Keep it short and prune stale items.
 ---
 
 # Plan Directory
 
-This directory follows the QRSPI planning pipeline. It grows over time as stages complete and loops add new artifacts.
+This directory follows the QRSPI planning pipeline. It grows as stages complete and review loops add artifacts.
 
 ## Role of this AGENTS.md
 
-The copy of this file inside a specific plan dir is the long-term memory for that plan.
-Use it to preserve only the durable context that future agents should load before diving back into the stage artifacts and code.
+The copy of this file inside a specific plan dir is long-term memory for that plan.
 
-Capture things like:
-- approved decisions that must not be accidentally undone
+Use it to preserve only durable context that future agents should load before reading stage artifacts and code:
+
+- approved decisions that must not be undone accidentally
 - important tradeoffs and rejected paths
 - non-obvious invariants, gotchas, or review learnings
-- scope boundaries, naming choices, or sequencing changes that now define the work
-- pointers to the canonical artifact or code location for more detail
+- scope boundaries, naming choices, or sequencing changes that define the work
+- pointers to canonical artifacts or code locations for details
 
-This file complements the primary artifacts:
-- `questions/`, `research/`, `design.md`, `outline.md`, `plan.md`, and `reviews/` remain the canonical stage records
-- handoffs are short-term checkpoints
-- this AGENTS.md is the curated cross-session memory for long plan / implement / review loops
+This file complements primary artifacts. It does not replace `questions/`, `research/`, `design.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
 
-## Keep it curated
+## Keep It Curated
 
-Context is expensive. Do **not** turn this file into a diary or dump.
-
-Add an item only when it is likely to matter to a future agent after the current context window is gone.
+Do not turn this file into a diary or dump.
 
 Good candidates:
+
 - stable decisions with downstream impact
 - nuance that took real effort to learn
 - review feedback that changed the accepted approach
-- "watch out" details that are easy to miss from the happy-path artifacts
+- watch-out details easy to miss from happy-path artifacts
 
 Bad candidates:
+
 - raw command output or stack traces
 - temporary debugging notes
-- status updates or task lists already covered by `plan.md` checkboxes or handoffs
+- status updates already covered by `plan.md` checkboxes or handoffs
 - long summaries of artifacts that already exist
-- facts likely to go stale unless you are also updating or removing them when they change
+- facts likely to go stale
 
 When adding content:
-- prefer short bullets over prose
-- include exact artifact paths or `file:line` references where useful
+
+- prefer short bullets
+- include exact artifact paths or `file:line` references when useful
 - update or delete stale items instead of appending contradictions
 - keep the highest-signal items near the top
 - if in doubt, leave it out
 
-## How to orient yourself
+## How to Orient Yourself
 
-1. **Read this file's plan-specific memory first** if it has been filled in.
-2. **Read the pipeline overview**: `~/.agents/skills/qrspi-planning/SKILL.md`
-3. **Determine what stage you're in** by checking which artifacts exist below.
-4. **Read the skill for that stage** to understand the process, templates, and rules.
+1. Read this file's plan-specific memory first if it has been filled in.
+1. Read the pipeline overview: `~/.agents/skills/qrspi-planning/SKILL.md`.
+1. Determine the current stage by checking which artifacts exist.
+1. Read the skill for that stage.
 
-Use this file to prioritize what matters. Do not treat it as a replacement for the stage artifacts.
+## Suggested Sections for Plan-Specific Memory
 
-## Suggested sections for the copied file
+Keep only sections that earn their place:
 
-Keep only the sections that earn their place.
+- **Current focus** — what loop or checkpoint we are in
+- **Decisions to preserve** — approved choices, scope boundaries, naming, sequencing
+- **Important tradeoffs / rejected paths** — only when future agents might reopen them
+- **Invariants / gotchas** — non-obvious rules, edge cases, traps
+- **Canonical artifacts** — the few docs future agents should open first
 
-- **Current focus** — what loop or checkpoint we are in right now
-- **Decisions to preserve** — approved choices, scope boundaries, naming, sequencing changes
-- **Important tradeoffs / rejected paths** — only when future agents might otherwise re-open them
-- **Invariants / gotchas** — non-obvious rules, edge cases, or traps discovered during implementation or review
-- **Canonical artifacts** — the few docs or context files future agents should open first
+## Stages and Skills
 
-## Stages and their skills
+| Artifact | Stage | Skill | Gate |
+|----------|-------|-------|------|
+| `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Human |
+| `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Human |
+| `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Human |
+| `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | LLM review via `/q-review [outline.md]` |
+| `plan.md` | Plan | `~/.agents/skills/q-plan/SKILL.md` | LLM review via `/q-review [plan.md]` |
+| code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | LLM code review via `/q-review [handoff.md]` |
+| `reviews/*/review.md` | Review | `~/.agents/skills/q-review/SKILL.md` | Routes to planning or implementation review |
 
-| Artifact | Stage | Skill | Human gate? |
-|----------|-------|-------|-------------|
-| `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Yes |
-| `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Yes |
-| `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Yes |
-| `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | Yes — follow with `/q-review [outline.md]` before `/q-plan` |
-| `plan.md` | Plan | `~/.agents/skills/q-plan/SKILL.md` | No |
-| code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | No |
-| `reviews/*.md` | Review | `~/.agents/skills/q-review/SKILL.md` | Yes — used for both outline review and implementation review |
+## Review Behavior
 
-Every stage through outline requires human review before proceeding. Use `/q-review [outline.md]` as the formal outline review checkpoint, and expect that review to improve `design.md`/`outline.md` toward a ready-for-`/q-plan` state. For non-trivial implementation review follow-up work, the timestamped `reviews/<timestamp>_<kind>/` directory itself is the QRSPI plan, seeded by a question doc directly under `questions/`. Do not overwrite the parent plan's `design.md` or `outline.md` for review follow-up work.
+Planning review happens before implementation:
 
-## This process is not linear
+- `/q-review [outline.md]` reviews `design.md` and `outline.md`.
+- `/q-review [plan.md]` reviews `design.md`, `outline.md`, and `plan.md`.
+- Clear planning findings are fixed directly in the parent docs.
+- Findings needing codebase facts create research questions under the timestamped planning review directory.
+- Run `/skill:q-research-for-review` on those questions so research preserves the review category context.
+- After that research, `/skill:q-address-review-research` applies fixes back to the parent `design.md`, `outline.md`, and `plan.md`.
+- Human judgment questions should be rare and go through `/answer`.
 
-You may loop back to earlier stages at any time. If research reveals missed questions, write new question docs. If design surfaces unknowns, do more research. The directory accumulates artifacts from these loops — multiple question docs and research docs are expected.
+Implementation review happens after code exists:
 
-## Path convention
+- Straightforward code findings can be fixed immediately as a final review-fix slice stacked on top of the implementation.
+- Deeper findings create a full QRSPI follow-up plan inside the timestamped implementation review directory.
+- That implementation review directory owns its own `design.md`, `outline.md`, and `plan.md` for follow-up slices.
+- Never overwrite the parent plan's planning docs for implementation-review follow-up work.
 
-Plan directory paths always start with `thoughts/` and follow this structure:
+## Path Convention
 
-```
+Top-level plan directories start with `thoughts/`:
+
+```text
 thoughts/[git_username]/plans/[timestamp]_[plan-name]/
 ```
 
-All `/q-*` commands take this path as their argument. Use the full relative path starting from `thoughts/`.
+Review follow-up plan directories live under the parent plan:
 
-When creating a new plan directory or markdown artifact inside it, run `~/dotfiles/spec_metadata.sh` first. Use it as the source of truth for `git_username`, `Timestamp For Filename`, and frontmatter fields such as `date`, `researcher`, `git_commit`, `branch`, and `repository`.
+```text
+thoughts/[git_username]/plans/[timestamp]_[plan-name]/reviews/YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review/
+```
 
-Recommended subdirectories inside a plan directory:
-- `prds/` for PRDs, ticket exports, screenshots, and related product context
-- `context/` for supporting codebase context artifacts
-  - `context/question/`
-  - `context/research/`
-  - `context/design/`
-  - `context/outline/`
-  - `context/plan/`
-  - `context/implement/`
-- `questions/` for timestamped question docs
-- `research/` for timestamped research docs
-- `reviews/` for timestamped `/q-review` directories; non-trivial review follow-ups live under `reviews/<timestamp>_<kind>/`
+Before creating a new plan directory or markdown artifact, run `~/dotfiles/spec_metadata.sh` and use its `Git Username`, `Timestamp For Filename`, and frontmatter fields.
 
-## Key constraints
+Recommended top-level subdirectories:
 
-- **Stage-specific read-only discovery.** Within QRSPI, use the stage skill's preferred discovery/analyzer flow and write its outputs under `context/[stage]/`.
-- **Separate context windows.** Question and Research run in fresh contexts. Research is blind to the ticket.
-- **Instruction budget.** Stay under ~40 instructions per stage. Don't combine stages.
-- **Read the code, not the plan.** The plan is a machine doc for the coding agent. Human reviews code.
+- `prds/`
+- `context/{question,research,design,outline,plan,implement}/`
+- `questions/`
+- `research/`
+- `adrs/`
+- `handoffs/`
+- `reviews/`
+
+## Key Constraints
+
+- Use stage-specific read-only discovery and write outputs under `context/[stage]/`.
+- Keep Question and Research in separate, focused contexts.
+- Research is blind to forward-looking plan docs unless a review follow-up question explicitly references a review artifact.
+- The plan is a tactical machine document, but it still gets an LLM review before implementation.
+- Planning review edits docs directly; implementation review fixes code only for straightforward findings and uses a review-dir QRSPI plan for deeper work.
 
 ## Handoffs
 
-If you need to preserve context between sessions: `~/.agents/skills/q-handoff/SKILL.md`
-If you're resuming from a handoff: `~/.agents/skills/q-resume/SKILL.md`
-
 Use handoffs for checkpoint status. Promote only durable, high-signal learnings into this AGENTS.md.
+
+- Resume stage work with `~/.agents/skills/q-resume/SKILL.md`.
+- Create handoffs with `~/.agents/skills/q-handoff/SKILL.md`.
+- During implementation, continue with `/q-resume [handoff]` until the final completion handoff points to `/q-review [handoff]`.

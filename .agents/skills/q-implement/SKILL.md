@@ -44,6 +44,7 @@ Then wait for input.
 1. **Set up the branch before editing code:**
 
    - Create a Graphite branch only for a slice that will introduce tracked source/test/doc changes.
+   - If `plan_dir` is a timestamped implementation review directory under `[parent_plan_dir]/reviews/*_implementation-review/`, this is follow-up implementation work. Create follow-up slice branches stacked on top of the already-reviewed implementation head, using the existing ticket slug plus a review suffix such as `review-slice-N`; do not overwrite or reuse the parent implementation slice branches.
    - Verification-only slices (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits) do **not** get their own branch. Run them on the current top implementation branch. If they pass, mark the slice complete and hand off to review; GitHub cannot create PRs for empty branches.
    - Before Slice 1 edits: if `git branch --show-current` is `develop`, create the Slice 1 branch **from `develop`**.
    - Before Slice N edits: be on the Slice N branch only when Slice N has planned tracked edits. If you are still on the previous slice branch and Slice N has planned tracked edits, run `gt create <linear-slug>_slice-N` before editing.
@@ -140,7 +141,8 @@ Do not include a `PR:` line unless the user explicitly asked you to open one.
 - Never do `/q-implement` coding work on `develop`. If you start on `develop`, first run `gt create <linear-branch-name>` using the ticket's canonical Linear slug and a `slice-N` suffix that matches the plan.
 - Commit after each successful slice that changed tracked files. Small, working commits.
 - Do not commit or branch for verification-only slices with no tracked changes.
-- After each non-final edit slice commit, create the next slice branch with `gt create <linear-slug>_slice-(N+1)` only when the next slice has planned tracked edits. If the next slice is verification-only, do not create a placeholder branch.
+- For implementation-review follow-up plans under `reviews/*_implementation-review/`, branch names should make the stacked review follow-up clear, for example `<linear-slug>_review-slice-N`.
+- After each non-final edit slice commit, create the next slice branch with `gt create <linear-slug>_slice-(N+1)` for normal parent plans, or `gt create <linear-slug>_review-slice-(N+1)` for implementation-review follow-up plans, only when the next slice has planned tracked edits. If the next slice is verification-only, do not create a placeholder branch.
 - After each successful slice, create the appropriate handoff via `/q-handoff` before stopping. This is mandatory.
 - Do not prompt for review until all slices are complete.
 - For non-final slices, do not end with `plan.md` as the primary artifact and do not suggest `/q-implement [plan_dir]` as the canonical next step. The canonical next step is `/q-resume [new handoff path]`.
