@@ -25,6 +25,12 @@
   navigate = true  # use n and N to move between diff sections
   dark = true      # or light = true, or omit for auto-detection
   syntax-theme = "base16"
+  # Terminals cannot do transparent ANSI backgrounds; use near-black red/green
+  # backgrounds to approximate less distracting diff line highlights.
+  plus-style = syntax "#001a00"
+  plus-emph-style = syntax "#003000"
+  minus-style = syntax "#1a0000"
+  minus-emph-style = syntax "#300000"
 
 [tag]
   gpgSign = true
