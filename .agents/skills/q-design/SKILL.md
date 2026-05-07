@@ -1,6 +1,6 @@
 ---
 name: q-design
-description: Create a ~200-300 line design document — WHERE are we going? Current state, recommended approach, and timestamped ADRs under `adrs/` for detailed design decisions. Third stage of QRSPI pipeline. Human alignment gate.
+description: Run a design brainstorm interview, then create a ~200-300 line design document — WHERE are we going? Current state, recommended approach, and timestamped ADRs under `adrs/`. Third stage of QRSPI pipeline. Human alignment gate.
 ---
 
 # Design — Where Are We Going?
@@ -42,6 +42,7 @@ Then wait for input.
 1. **Read the original ticket / PRD context** if referenced in question docs or stored in `prds/`.
 1. **Read key files** identified in research findings and context artifacts.
 1. **If current-state validation is still missing or stale, run `codebase-locator`** with a narrowly scoped refresh task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/design/`.
+1. **Run the design brainstorm interview before writing the first design draft.** Use the loaded research to stress-test the design direction with the user one question at a time. Do not write `design.md` or ADRs until the key goals, scope, constraints, decisions, risks, and next step are clear, or the user explicitly says to stop the interview and draft.
 1. **Draft the design artifacts:**
    - `design.md` stays lean and default-loadable:
      - Current state
@@ -64,6 +65,27 @@ Then wait for input.
    - Keep it short and curated.
    - Point back to `design.md`, `adrs/*.md`, or other canonical artifacts instead of duplicating them.
 1. **Immediately before writing or updating `design.md` and any ADRs, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields and timestamped ADR filenames, and then write the final version(s).
+
+## Design Brainstorm Interview
+
+After loading research and validating current state, stress-test the design direction before drafting artifacts.
+
+1. **Restate the core proposal** in 2-4 bullets.
+1. **Explore before asking.** If a question can be answered by inspecting code, docs, tests, config, or history, investigate it yourself first. Summarize the relevant facts before asking the next human-judgment question.
+1. **Map the decision branches internally:** goals, scope, users, constraints, architecture, data model, interfaces, rollout, observability, failure modes, tests, and non-goals. Do not dump the whole tree; use it to choose the next best question.
+1. **Ask one question at a time.** Each interview turn must contain exactly one direct question, unless the user explicitly asks for a batch. Include your recommended answer and concise reasoning.
+1. **Resolve upstream decisions before downstream details.** If an answer changes a premise, revisit dependent branches before moving on.
+1. **Track a concise running summary** across turns: confirmed decisions, assumptions still unverified, codebase questions researched, and open risks/tradeoffs.
+1. **Exit the interview only when shared understanding is reached** or the user explicitly asks you to draft now.
+
+Use this question format for each interview turn:
+
+```text
+Decision branch: [short branch name]
+What I found: [only if you investigated code/docs first]
+Recommendation: [your recommended answer and why]
+Question: [one direct question for the user]
+```
 
 ## Output Template
 
@@ -196,6 +218,7 @@ Always include the complete `thoughts/.../design.md` path.
 
 - Target ~200-300 lines for `design.md`. Keep each ADR concise and decision-focused.
 - Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
+- Do not write the first `design.md` draft before the design brainstorm interview reaches shared understanding or the user explicitly asks you to draft now.
 - For review follow-up work, `design.md` means `reviews/*/design.md` in the timestamped review directory. Never fold implementation-review follow-up decisions into the parent plan's original `design.md` unless the user explicitly asks for a parent-plan revision.
 - Include brief representative snippets only.
 - Every pattern claim must reference a real file from research.
