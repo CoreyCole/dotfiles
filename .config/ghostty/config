@@ -13,6 +13,7 @@ right-click-action = paste
 
 window-padding-x = 0
 window-padding-y = 0
+window-decoration = none
 
 # 100MB lazily allocated
 scrollback-limit = 100000000
