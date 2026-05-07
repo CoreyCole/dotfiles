@@ -59,7 +59,7 @@ When `needs_followup_qrspi` findings exist, the same `review_dir` is the follow-
 [review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review-followup-questions.md
 ```
 
-Later stages write `design.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-implement` then uses that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation stack.
+Later stages write `design.md`, `design-product.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-implement` then uses that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation stack.
 
 ## Load Context
 
@@ -74,7 +74,7 @@ Later stages write `design.md`, `outline.md`, and `plan.md` inside `review_dir`,
    - `[plan_dir]/plan.md`
    - code files changed by implementation, using handoff sections, `git status`, `git diff`, `git show`, or the known branch range
    - verification evidence from the handoff
-1. Read `design.md`, `outline.md`, `questions/*.md`, `research/*.md`, and planning context only as needed to clarify intent. The primary review target is code plus verification evidence.
+1. Read `design.md`, `design-product.md`, `outline.md`, `questions/*.md`, `research/*.md`, and planning context only as needed to clarify intent. The primary review target is code plus verification evidence.
 
 ## Focused Review Lanes
 
@@ -101,7 +101,7 @@ uv run ~/.agents/skills/q-review/bin/select-lanes.py \
   --pretty
 ```
 
-Use the selector's `subagent_tool_args` directly with the `subagent` tool. Focused lane reports are advisory; verify each candidate finding yourself before including it.
+Use the selector's `subagent_tool_args` directly with the `subagent` tool. It disables the builtin reviewer defaults for `reads` and `progress` so focused lanes do not create root `plan.md` / `progress.md` files. Focused lane reports are advisory; verify each candidate finding yourself before including it.
 
 ## Process
 
@@ -121,7 +121,7 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. Focus
    - Commit only files changed by these fixes when project workflow expects committed slices.
 1. For `needs_followup_qrspi` findings, initialize `review_dir` as a normal QRSPI plan:
    - copy `AGENTS.md` from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
-   - create `prds/`, `questions/`, `research/`, `adrs/`, `handoffs/`, `reviews/`, and `context/{question,research,design,outline,plan,implement}/`
+   - create `prds/`, `questions/`, `research/`, `adrs/`, `handoffs/`, `reviews/`, and `context/{question,research,design,design-product,outline,plan,implement}/`
    - write `prds/source-review.md` pointing to `review.md`
    - write neutral research questions under `questions/`
 1. Update `review.md` with applied fixes, commits/branches if any, verification results, and the follow-up question doc path.
@@ -228,8 +228,8 @@ Next: /q-review [exact implementation handoff path]
 - Write `review.md` before applying code fixes or creating follow-up plans.
 - Apply only `straightforward_fix` code changes directly.
 - Treat direct code fixes as a final review-fix slice stacked on top of the implementation, not as parent planning-doc edits.
-- Never edit the parent plan's `design.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
-- Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, `outline.md`, and `plan.md`.
+- Never edit the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
+- Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
 - Seed deeper follow-up with neutral research questions; do not copy review recommendations as settled solutions.
 - Do not ask whether to create the follow-up QRSPI plan; create it automatically for `needs_followup_qrspi` findings.
 - Prefer a short, verified review over speculative findings.

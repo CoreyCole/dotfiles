@@ -27,12 +27,13 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 | Stage | Load these artifacts |
 |-------|---------------------|
-| question | `[plan_dir]/AGENTS.md`, existing `questions/*.md`, relevant `context/question/*.md`, `research/*.md`, `design.md`, `outline.md`, `prds/*` as relevant |
+| question | `[plan_dir]/AGENTS.md`, existing `questions/*.md`, relevant `context/question/*.md`, `research/*.md`, `design.md`, `design-product.md`, `outline.md`, `prds/*` as relevant |
 | research | relevant `questions/*.md`, relevant `context/research/*.md` |
 | design | `[plan_dir]/AGENTS.md`, `questions/*.md`, `research/*.md`, `adrs/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md` |
-| outline | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/outline/*.md` |
-| plan | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `outline.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/outline/*.md`, `context/plan/*.md` |
-| implement | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*`, relevant `context/plan/*.md`, latest relevant `context/implement/*.md` |
+| design-product | `[plan_dir]/AGENTS.md`, `questions/*.md`, `research/*.md`, `design.md`, `adrs/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md` |
+| outline | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md` |
+| plan | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `outline.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md`, `context/plan/*.md` |
+| implement | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*`, relevant `context/design-product/*.md`, `context/plan/*.md`, latest relevant `context/implement/*.md` |
 
 ### 3. Continue working
 
@@ -43,7 +44,7 @@ Based on the handoff's **Status** and **Next** sections, continue where the prev
 - If `status: in_progress` - continue the current stage from where it left off. You are working on the `[stage]` stage.
   - For `stage: implement`, create a new stacked Graphite branch only when the first unchecked slice has planned tracked source/test/doc edits. Before editing, compare the first unchecked slice in `plan.md` with `git branch --show-current` / the handoff `branch`. If the current branch is still the previous slice branch and the next slice has planned tracked edits, run `gt create <linear-slug>_slice-N` from that branch before editing.
   - If the next unchecked implementation slice is verification-only (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits), do not create a branch. Run verification on the current top implementation branch, mark the slice complete if it passes, and hand off to `/q-review` if implementation is complete. Empty branches do not get PRs.
-- If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`; if `next_stage: review`, run `/q-review`). For `review`, prefer passing the exact implement handoff path you just read. For other stages, pass the `plan_dir` from the handoff frontmatter.
+- If `status: complete` and `next_stage` is set - the previous stage is done. Start the next stage by running the corresponding `/q-*` skill (e.g. if `next_stage: design`, run `/q-design`; if `next_stage: design-product`, run `/q-design-product`; if `next_stage: review`, run `/q-review`). For `review`, prefer passing the exact implement handoff path you just read. For other stages, pass the `plan_dir` from the handoff frontmatter.
 - If `status: complete` and `next_stage` is null - the pipeline is complete. Tell the user.
 
 Apply any **Learnings**, **User Decisions**, and referenced **Context Artifacts** from the handoff as you work.

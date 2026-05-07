@@ -1,6 +1,6 @@
 ---
 name: q-review-plan
-description: LLM review for QRSPI planning artifacts before implementation. Use after outline or plan creation to review and directly fix design.md, outline.md, and plan.md; creates research follow-up questions only when codebase facts are missing.
+description: LLM review for QRSPI planning artifacts before implementation. Use after outline or plan creation to review and directly fix design.md, design-product.md, outline.md, and plan.md; creates research follow-up questions only when codebase facts are missing.
 ---
 
 # QRSPI Planning Review
@@ -8,13 +8,14 @@ description: LLM review for QRSPI planning artifacts before implementation. Use 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
-Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design interview. Findings should usually become direct edits to `design.md`, `outline.md`, or `plan.md`.
+Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design/product-design interview. Findings should usually become direct edits to `design.md`, `design-product.md`, `outline.md`, or `plan.md`.
 
 ## Review Target
 
 Load the planning artifacts that exist for the provided plan directory:
 
 - Always review `design.md` when present.
+- Always review `design-product.md` when present.
 - Always review `outline.md` when present.
 - Review `plan.md` when present, especially when the input is `plan.md` or the plan has already been written.
 
@@ -26,7 +27,7 @@ Classify every real finding into exactly one bucket:
 
 | Bucket | Meaning | Action |
 |---|---|---|
-| `obvious_doc_fix` | The issue and fix are clear from the existing docs/code you already verified. | Edit `design.md`, `outline.md`, or `plan.md` immediately. |
+| `obvious_doc_fix` | The issue and fix are clear from the existing docs/code you already verified. | Edit `design.md`, `design-product.md`, `outline.md`, or `plan.md` immediately. |
 | `needs_codebase_research` | The review found a likely issue, but the right doc change depends on facts not yet researched. | Automatically create a research questions doc under the review directory. Next step is `/skill:q-research-for-review`; do not ask the human for permission. |
 | `needs_human_judgment` | The issue depends on product/business intent, risk tolerance, or a tradeoff not settled in prior QRSPI artifacts. This should be rare. | Ask via `/answer`; then apply the decision to the docs. |
 
@@ -59,7 +60,7 @@ Research follow-up question docs go directly under:
 [review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_review-followup-questions.md
 ```
 
-The review directory is a lightweight research workspace for planning-review follow-up. It does not get its own `design.md`, `outline.md`, or `plan.md`; `q-address-review-research` applies the researched fixes back to the parent planning docs.
+The review directory is a lightweight research workspace for planning-review follow-up. It does not get its own `design.md`, `design-product.md`, `outline.md`, or `plan.md`; `q-address-review-research` applies the researched fixes back to the parent planning docs.
 
 ## Load Context
 
@@ -69,9 +70,10 @@ The review directory is a lightweight research workspace for planning-review fol
 1. Read:
    - `[plan_dir]/AGENTS.md`
    - `[plan_dir]/design.md` if present
+   - `[plan_dir]/design-product.md` if present
    - `[plan_dir]/outline.md` if present
    - `[plan_dir]/plan.md` if present and in scope
-   - relevant `questions/*.md`, `research/*.md`, `prds/*`, and `context/{design,outline,plan}/*`
+   - relevant `questions/*.md`, `research/*.md`, `prds/*`, and `context/{design,design-product,outline,plan}/*`
    - code/files explicitly referenced by the planning docs, plus any files needed to verify claims
 1. If no planning artifact exists, stop and ask for a valid plan directory or artifact path.
 
@@ -90,7 +92,7 @@ uv run ~/.agents/skills/q-review/bin/select-lanes.py \
   --pretty
 ```
 
-Use the selector's `subagent_tool_args` directly with the `subagent` tool. Planning reviews route from `design.md`, `outline.md`, and `plan.md` only. Do not route lanes from `questions/`, `research/`, or `context/` paths.
+Use the selector's `subagent_tool_args` directly with the `subagent` tool. It disables the builtin reviewer defaults for `reads` and `progress` so focused lanes do not create root `plan.md` / `progress.md` files. Planning reviews route from `design.md`, `design-product.md`, `outline.md`, and `plan.md` only. Do not route lanes from `questions/`, `research/`, or `context/` paths.
 
 Focused lane reports are advisory. Verify every candidate finding yourself before including it in `review.md` or changing docs.
 
@@ -104,15 +106,15 @@ Focused lane reports are advisory. Verify every candidate finding yourself befor
    - Identify touched components, interfaces, data models, tests, migrations, rollout concerns, and nearby patterns.
    - Verify major named references and assumptions in the codebase.
 1. Review planning docs for:
-   - fidelity to approved questions/research/design
-   - hidden scope drift or missing requirements
+   - fidelity to approved questions/research/design/product design
+   - hidden scope drift or missing requirements, especially product Critical Findings
    - vertical slice quality and sequencing
    - concrete file paths, interfaces, migrations, rollback, observability, and invariants
-   - test checkpoints that actually prove each slice works
+   - test checkpoints that actually prove each slice works and cover product E2E edge cases
    - plan steps that are too vague for a coding agent
 1. Run focused lanes when useful, then synthesize and verify candidate findings.
 1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`.
-1. Apply all `obvious_doc_fix` edits directly to `design.md`, `outline.md`, and/or `plan.md`.
+1. Apply all `obvious_doc_fix` edits directly to `design.md`, `design-product.md`, `outline.md`, and/or `plan.md`.
 1. For each `needs_codebase_research` finding, create `[review_dir]/questions/`, `[review_dir]/research/`, and `[review_dir]/context/research/`, then write neutral research questions under `[review_dir]/questions/`. Questions must link to `[review_dir]/review.md`, the affected parent docs, and exact file refs.
 1. For each `needs_human_judgment` finding, write a self-contained `Questions for /answer` item. Use `/answer`, then apply the answer to the docs when possible.
 1. Re-read edited docs and ensure `review.md` describes the post-edit state.
@@ -134,6 +136,7 @@ review_mode: planning
 review_kind: [outline-review|plan-review]
 reviewed_artifacts:
   - [design.md path or none]
+  - [design-product.md path or none]
   - [outline.md path or none]
   - [plan.md path or none]
 status: complete
@@ -187,7 +190,7 @@ If all findings were fixed directly and the review is ready for the next stage:
 ```text
 Artifact: [exact path to review.md]
 Summary: planning review complete. verdict: correct.
-Changes: [short summary of edits to design.md / outline.md / plan.md / AGENTS.md, or none.]
+Changes: [short summary of edits to design.md / design-product.md / outline.md / plan.md / AGENTS.md, or none.]
 Findings: none.
 Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-implement exact-plan-path]
 ```
@@ -223,7 +226,7 @@ Then add a `Questions for /answer` section and immediately invoke `/answer` with
 ## Rules
 
 - Planning review is an LLM review gate, not the human design review.
-- Address clear findings directly in `design.md`, `outline.md`, and `plan.md`.
+- Address clear findings directly in `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
 - Review `plan.md` after `/q-plan`; the old rule that the plan is never reviewed no longer applies.
 - Do not leave obvious documentation fixes as passive findings.
 - Do not ask the human about `needs_codebase_research` findings; create the research questions doc automatically.

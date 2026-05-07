@@ -35,7 +35,7 @@ Read:
 - `[review_dir]/review.md` fully
 - relevant prior `[review_dir]/research/*.md` and `[review_dir]/context/research/*` when continuing a review research pass
 
-Do not read the parent plan's `design.md`, `outline.md`, or `plan.md` unless the question doc explicitly references a section that must be understood to answer the factual question. If you read parent planning docs, treat them as context for the review finding, not as facts about the codebase.
+Do not read the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` unless the question doc explicitly references a section that must be understood to answer the factual question. If you read parent planning docs, treat them as context for the review finding, not as facts about the codebase.
 
 ## Research Process
 
@@ -48,7 +48,7 @@ Follow `q-research` for discovery, locator/analyzer delegation, synthesis, verif
    - If research shows the original finding is invalid, say so with evidence.
    - If research reveals a product/business tradeoff, mark it as `needs_human_judgment` and explain the decision needed.
    - If research reveals another factual gap, write the next neutral research question in `Open Questions`.
-1. Do not propose broad solutions or implementation plans. Provide facts that let the next skill update `design.md`, `outline.md`, or `plan.md`.
+1. Do not propose broad solutions or implementation plans. Provide facts that let the next skill update `design.md`, `design-product.md`, `outline.md`, or `plan.md`.
 
 ## Output
 

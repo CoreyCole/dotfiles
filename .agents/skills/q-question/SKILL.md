@@ -61,7 +61,7 @@ Then wait for input.
 
    - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
    - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, `[plan_dir]/adrs/`, `[plan_dir]/handoffs/`, and `[plan_dir]/reviews/` exist
-   - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{question,research,design,outline,plan,implement}/` exists
+   - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{question,research,design,design-product,outline,plan,implement}/` exists
    - For planning-review research workspaces, ensure `[plan_dir]/context/research/` exists for `/skill:q-research-for-review` locator/analyzer artifacts
    - For review-directory follow-up plans and planning-review research workspaces, do not create a separate copied review seed in `context/question/`; the first artifact is the review follow-up question doc in `questions/`
 

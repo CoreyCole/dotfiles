@@ -5,7 +5,7 @@
 """Deterministically select q-review focused lanes.
 
 The selector is intentionally dependency-free and conservative. It routes from:
-- outline mode: design.md, outline.md, and optional plan.md only
+- outline mode: design.md, design-product.md, outline.md, and optional plan.md only
 - implementation mode: explicit changed files, implement handoff paths, and git diff/status
 
 It does not read questions/, research/, or context/ for lane selection.
@@ -520,7 +520,7 @@ def newest_implementation_handoff(plan_dir: Path) -> Path | None:
 def build_outline_evidence(plan_dir: Path, repo_root: Path) -> tuple[list[Evidence], list[str]]:
     evidence: list[Evidence] = []
     referenced_paths: list[str] = []
-    for name in ("design.md", "outline.md", "plan.md"):
+    for name in ("design.md", "design-product.md", "outline.md", "plan.md"):
         path = plan_dir / name
         if not path.is_file():
             continue
@@ -689,7 +689,7 @@ def build_subagent_tool_args(
 ) -> dict[str, object]:
     focused_lanes_dir = review_dir / "focused-lanes"
     chain_dir = review_dir / "focused-lane-runs"
-    parallel_tasks: list[dict[str, str]] = []
+    parallel_tasks: list[dict[str, object]] = []
 
     for lane in selected_lanes:
         lane_id = str(lane["id"])
@@ -726,6 +726,8 @@ def build_subagent_tool_args(
                 "task": task,
                 "cwd": repo_root.as_posix(),
                 "output": (focused_lanes_dir / f"{lane_id}.md").as_posix(),
+                "reads": False,
+                "progress": False,
             }
         )
 

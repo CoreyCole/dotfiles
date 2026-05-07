@@ -20,7 +20,7 @@ Use it to preserve only durable context that future agents should load before re
 - scope boundaries, naming choices, or sequencing changes that define the work
 - pointers to canonical artifacts or code locations for details
 
-This file complements primary artifacts. It does not replace `questions/`, `research/`, `design.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
+This file complements primary artifacts. It does not replace `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
 
 ## Keep It Curated
 
@@ -73,6 +73,7 @@ Keep only sections that earn their place:
 | `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Human |
 | `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Human |
 | `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Human |
+| `design-product.md` | Product Design | `~/.agents/skills/q-design-product/SKILL.md` | Human |
 | `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | LLM review via `/q-review [outline.md]` |
 | `plan.md` | Plan | `~/.agents/skills/q-plan/SKILL.md` | LLM review via `/q-review [plan.md]` |
 | code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | LLM code review via `/q-review [handoff.md]` |
@@ -82,19 +83,19 @@ Keep only sections that earn their place:
 
 Planning review happens before implementation:
 
-- `/q-review [outline.md]` reviews `design.md` and `outline.md`.
-- `/q-review [plan.md]` reviews `design.md`, `outline.md`, and `plan.md`.
+- `/q-review [outline.md]` reviews `design.md`, `design-product.md`, and `outline.md`.
+- `/q-review [plan.md]` reviews `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
 - Clear planning findings are fixed directly in the parent docs.
 - Findings needing codebase facts create research questions under the timestamped planning review directory.
 - Run `/skill:q-research-for-review` on those questions so research preserves the review category context.
-- After that research, `/skill:q-address-review-research` applies fixes back to the parent `design.md`, `outline.md`, and `plan.md`.
+- After that research, `/skill:q-address-review-research` applies fixes back to the parent `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
 - Human judgment questions should be rare and go through `/answer`.
 
 Implementation review happens after code exists:
 
 - Straightforward code findings can be fixed immediately as a final review-fix slice stacked on top of the implementation.
 - Deeper findings create a full QRSPI follow-up plan inside the timestamped implementation review directory.
-- That implementation review directory owns its own `design.md`, `outline.md`, and `plan.md` for follow-up slices.
+- That implementation review directory owns its own `design.md`, `design-product.md`, `outline.md`, and `plan.md` for follow-up slices.
 - Never overwrite the parent plan's planning docs for implementation-review follow-up work.
 
 ## Path Convention
@@ -116,7 +117,7 @@ Before creating a new plan directory or markdown artifact, run `~/dotfiles/spec_
 Recommended top-level subdirectories:
 
 - `prds/`
-- `context/{question,research,design,outline,plan,implement}/`
+- `context/{question,research,design,design-product,outline,plan,implement}/`
 - `questions/`
 - `research/`
 - `adrs/`
@@ -128,6 +129,7 @@ Recommended top-level subdirectories:
 - Use stage-specific read-only discovery and write outputs under `context/[stage]/`.
 - Keep Question and Research in separate, focused contexts.
 - Research is blind to forward-looking plan docs unless a review follow-up question explicitly references a review artifact.
+- Product design is a required human gate between technical design and outline.
 - The plan is a tactical machine document, but it still gets an LLM review before implementation.
 - Planning review edits docs directly; implementation review fixes code only for straightforward findings and uses a review-dir QRSPI plan for deeper work.
 

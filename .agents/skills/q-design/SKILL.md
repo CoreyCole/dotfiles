@@ -179,7 +179,7 @@ When design.md is written, use this exact response shape:
 ```
 Artifact: [exact path to design.md]
 Summary: [brief summary of the recommended approach and key decisions; if ADRs were written, include their exact `adrs/...` paths here]
-Next: /q-outline [exact path to design.md]
+Next: /q-design-product [exact path to design.md]
 ```
 
 If there are open questions, include them below as:

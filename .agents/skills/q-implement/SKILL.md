@@ -1,13 +1,13 @@
 ---
 name: q-implement
-description: Execute one implementation slice per invocation. Sixth stage of QRSPI pipeline. Update status checkboxes and create per-slice handoffs as you go — they are your context recovery mechanism.
+description: Execute one implementation slice per invocation. Seventh stage of QRSPI pipeline. Load `design-product.md`, update status checkboxes, and create per-slice handoffs as you go — they are your context recovery mechanism.
 ---
 
 # Implement — Execute the Plan
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the sixth stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
+You are the seventh stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
 
 Implementation is always handoff-driven. After every successful slice, the authoritative artifact is the new handoff document for that slice, and the canonical next command is `/q-resume [that handoff path]` until implementation is complete.
 
@@ -18,9 +18,11 @@ Implementation is always handoff-driven. After every successful slice, the autho
    - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
+   - Read `[plan_dir]/design-product.md`
    - Read `[plan_dir]/outline.md`
    - Read `[plan_dir]/plan.md`
    - Read all files in `[plan_dir]/research/`
+   - Read all files in `[plan_dir]/context/design-product/`
    - Read all files in `[plan_dir]/context/plan/`
    - Read the newest relevant files in `[plan_dir]/context/implement/` if any
    - Read all files in `[plan_dir]/prds/`
@@ -39,7 +41,7 @@ Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md`. `plan.md` is your primary input. Check the status checkboxes.
+1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md` and `design-product.md`. `plan.md` is your primary input. Check the status checkboxes and preserve product Critical Findings during implementation.
 
 1. **Set up the branch before editing code:**
 
@@ -65,13 +67,14 @@ Then wait for input.
    e. If verification fails, fix the issue. If you can't fix it, stop and tell the user.
    f. If verification passes, update the checkbox in `plan.md` from `[ ]` to `[x]`.
    g. If the slice surfaced durable decisions, tradeoffs, review learnings, or gotchas that future agents should remember first, update `[plan_dir]/AGENTS.md`.
-      - Keep it short and curated.
-      - Remove or rewrite stale bullets instead of appending contradictions.
-   h. Commit the slice if tracked source/test/doc changes were made. For a verification-only slice with no tracked changes, do not commit and do not create an empty branch.
-   i. If additional edit slices remain unchecked after this slice, run `gt create <linear-slug>_slice-(N+1)` from the just-committed Slice N branch so the next edit slice is stacked on top, then create a checkpoint handoff via `/q-handoff` (no argument). This is mandatory; do not stop after only updating `plan.md`. Do **not** mention `/q-review` yet.
-   j. If only verification-only slices remain, do not pre-create a branch for them. Create a checkpoint handoff via `/q-handoff` with `Next` pointing to `/q-resume`; the resumed agent will run the verification-only slice on the current top branch.
-   k. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and then create a review handoff via `/q-handoff continue`.
-   l. Stop. Do **not** start the next slice in the same invocation.
+
+   - Keep it short and curated.
+   - Remove or rewrite stale bullets instead of appending contradictions.
+     h. Commit the slice if tracked source/test/doc changes were made. For a verification-only slice with no tracked changes, do not commit and do not create an empty branch.
+     i. If additional edit slices remain unchecked after this slice, run `gt create <linear-slug>_slice-(N+1)` from the just-committed Slice N branch so the next edit slice is stacked on top, then create a checkpoint handoff via `/q-handoff` (no argument). This is mandatory; do not stop after only updating `plan.md`. Do **not** mention `/q-review` yet.
+     j. If only verification-only slices remain, do not pre-create a branch for them. Create a checkpoint handoff via `/q-handoff` with `Next` pointing to `/q-resume`; the resumed agent will run the verification-only slice on the current top branch.
+     k. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and then create a review handoff via `/q-handoff continue`.
+     l. Stop. Do **not** start the next slice in the same invocation.
 
 1. **If all slices are already checked when you start**, do the final verification pass, create a review handoff via `/q-handoff continue`, and stop.
 
@@ -91,6 +94,7 @@ Then wait for input.
 If your context window resets mid-implementation:
 
 1. Read `[plan_dir]/AGENTS.md`
+1. Read `[plan_dir]/design-product.md`
 1. Read `[plan_dir]/plan.md`
 1. Read the newest implement-stage handoff in `[plan_dir]/handoffs/` if one exists
 1. Read the newest relevant context artifact in `[plan_dir]/context/implement/` if one exists

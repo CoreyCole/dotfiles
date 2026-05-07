@@ -1,6 +1,6 @@
 ---
 name: qrspi-planning
-description: High-level overview of the QRSPI planning pipeline — Question, Research, Design, Outline, Plan, Implement, Review. Read this to understand stage flow, review loops, and artifact ownership before using individual stage skills.
+description: High-level overview of the QRSPI planning pipeline — Question, Research, Design, Product Design, Outline, Plan, Implement, Review. Read this to understand stage flow, review loops, and artifact ownership before using individual stage skills.
 ---
 
 # QRSPI Planning Pipeline
@@ -13,10 +13,11 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 |---|-------|-------|----------|------|
 | 1 | Question | `/q-question` | `questions/*.md` | Human alignment on goals, scope, tradeoffs, and research agenda |
 | 2 | Research | `/q-research` | `research/*.md` | Human reviews facts before design |
-| 3 | Design | `/q-design` | `design.md` + `adrs/*.md` | Human approves direction |
-| 4 | Outline | `/q-outline` | `outline.md` | LLM review via `/q-review [outline.md]` |
-| 5 | Plan | `/q-plan` | `plan.md` | LLM review via `/q-review [plan.md]` |
-| 6 | Implement | `/q-implement` | code changes + verified commits + review handoff | LLM code review via `/q-review [handoff.md]` |
+| 3 | Design | `/q-design` | `design.md` + `adrs/*.md` | Human approves technical direction |
+| 4 | Product Design | `/q-design-product` | `design-product.md` | Human approves product/PRD coverage |
+| 5 | Outline | `/q-outline` | `outline.md` | LLM review via `/q-review [outline.md]` |
+| 6 | Plan | `/q-plan` | `plan.md` | LLM review via `/q-review [plan.md]` |
+| 7 | Implement | `/q-implement` | code changes + verified commits + review handoff | LLM code review via `/q-review [handoff.md]` |
 
 `/q-review` is a router:
 
@@ -30,6 +31,8 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 Run planning review after `outline.md` and again after `plan.md`:
 
 ```text
+/q-design-product [plan_dir]/design.md
+/q-outline [plan_dir]/design-product.md
 /q-review [plan_dir]/outline.md
 /q-plan [plan_dir]/outline.md
 /q-review [plan_dir]/plan.md
@@ -38,31 +41,32 @@ Run planning review after `outline.md` and again after `plan.md`:
 
 Planning review findings are handled in three ways:
 
-1. `obvious_doc_fix` — edit `design.md`, `outline.md`, or `plan.md` directly during review.
+1. `obvious_doc_fix` — edit `design.md`, `design-product.md`, `outline.md`, or `plan.md` directly during review.
 1. `needs_codebase_research` — create a research questions doc under the timestamped planning review directory, then run `/skill:q-research-for-review` on it. After research, run `/skill:q-address-review-research` to update the parent planning docs from `review.md` plus the research doc.
 1. `needs_human_judgment` — ask through `/answer`, then update the planning docs from the decision. This should be rare when `/q-question` did its job.
 
-Planning-review research directories are lightweight research workspaces. They do not get their own `design.md`, `outline.md`, or `plan.md`; the researched fixes apply back to the parent planning docs.
+Planning-review research directories are lightweight research workspaces. They do not get their own `design.md`, `design-product.md`, `outline.md`, or `plan.md`; the researched fixes apply back to the parent planning docs.
 
 ### Implementation review after code exists
 
 Implementation review examines actual code and verification evidence.
 
 - `straightforward_fix` findings can be fixed immediately as a final review-fix slice stacked on top of the implementation.
-- Deeper findings become a full QRSPI follow-up plan inside the timestamped implementation review directory. That review directory gets its own `questions/`, `research/`, `design.md`, `outline.md`, `plan.md`, `handoffs/`, and nested `reviews/`. Later `/q-implement` work from that review-dir plan stacks new branch slices on top of the original implementation.
+- Deeper findings become a full QRSPI follow-up plan inside the timestamped implementation review directory. That review directory gets its own `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, and nested `reviews/`. Later `/q-implement` work from that review-dir plan stacks new branch slices on top of the original implementation.
 
-Never overwrite the parent plan's `design.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
+Never overwrite the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
 
 ## Key Principles
 
 - **Do not outsource the thinking.** The engineer is a critical part of the human gates. The agent dumps; the human steers.
-- **LLM review edits artifacts.** Planning review should improve `design.md`, `outline.md`, and `plan.md` directly when fixes are clear. A passive report is not enough.
-- **Human-facing planning is compressed.** For `design.md` and `outline.md` artifacts: be extremely concise. Sacrifice grammar for the sake of concision. In `/q-question`, apply that style to the brainstorm/interview turns, not to the final research questions doc.
+- **LLM review edits artifacts.** Planning review should improve `design.md`, `design-product.md`, `outline.md`, and `plan.md` directly when fixes are clear. A passive report is not enough.
+- **Human-facing planning is compressed.** For `design.md`, `design-product.md`, and `outline.md` artifacts: be extremely concise. Sacrifice grammar for the sake of concision. In `/q-question`, apply that style to the brainstorm/interview turns, not to the final research questions doc.
 - **Separate context windows.** Question and Research run in fresh contexts. Research is blind to forward-looking plan artifacts and answers questions with codebase facts.
 - **Instruction budget.** Keep each stage skill focused. Do not combine stages into one mega-prompt.
 - **Dumb zone.** Context windows degrade when overfilled. Load only the artifacts the stage skill names.
 - **Vertical slices, not horizontal layers.** Each slice ships end-to-end with a verification checkpoint.
-- **Design = brain dump + brain surgery.** Capture the approved direction in a lean doc; keep detailed decisions in ADRs.
+- **Design = brain dump + brain surgery.** Capture the approved technical direction in a lean doc; keep detailed decisions in ADRs.
+- **Product Design = PRD coverage gate.** Audit requirements, user/demo implications, hidden product edges, and explicit non-goals before implementation shape hardens.
 - **Plan = tactical machine doc.** The plan is written for the implementing agent, but it still gets an LLM review before code starts.
 
 ## The Process Is Not Linear
@@ -71,8 +75,9 @@ The stages are the typical forward flow, but loops are expected:
 
 - **Research -> Question**: Research reveals the questions missed something.
 - **Design -> Research**: Design needs facts not covered by existing research.
-- **Outline -> Design**: Structural planning reveals a design flaw.
-- **Plan -> Outline/Design**: Implementation steps reveal a slice or interface problem.
+- **Product Design -> Design/Research**: PRD coverage reveals a product gap or missing fact.
+- **Outline -> Product Design/Design**: Structural planning reveals a product or technical design flaw.
+- **Plan -> Outline/Product Design/Design**: Implementation steps reveal a slice, requirement, or interface problem.
 - **Planning Review -> Research for Review -> Address Review Research**: Review finds a factual gap; `q-research-for-review` answers it with category-aware context; `q-address-review-research` updates parent docs.
 - **Implementation Review -> QRSPI follow-up**: Code review finds deeper work; the implementation review directory becomes a new plan dir for stacked follow-up slices.
 
@@ -88,6 +93,7 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
     question/
     research/
     design/
+    design-product/
     outline/
     plan/
     implement/
@@ -96,6 +102,7 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
   research/
   design.md
   adrs/
+  design-product.md
   outline.md
   plan.md
   handoffs/
@@ -119,6 +126,7 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
       research/
       design.md
       adrs/
+      design-product.md
       outline.md
       plan.md
       handoffs/
@@ -147,6 +155,8 @@ Use its output for:
 
 Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off.
 
+- After `design.md`: next is `/q-design-product [design.md]`.
+- After `design-product.md`: next is `/q-outline [design-product.md]`.
 - After `outline.md`: next is `/q-review [outline.md]`.
 - After `plan.md`: next is `/q-review [plan.md]`.
 - During implementation: intermediate handoffs resume with `/q-resume`.
@@ -168,6 +178,7 @@ Each stage skill contains the full process, templates, and rules for that step:
 - `~/.agents/skills/q-question/SKILL.md`
 - `~/.agents/skills/q-research/SKILL.md`
 - `~/.agents/skills/q-design/SKILL.md`
+- `~/.agents/skills/q-design-product/SKILL.md`
 - `~/.agents/skills/q-outline/SKILL.md`
 - `~/.agents/skills/q-plan/SKILL.md`
 - `~/.agents/skills/q-implement/SKILL.md`
@@ -181,8 +192,8 @@ Each stage skill contains the full process, templates, and rules for that step:
 
 - When a stage needs fresh discovery, use that stage's preferred read-only discovery/analyzer flow and write artifacts under `context/[stage]/`.
 - Each stage reads artifacts from prior stages as directed by its skill. Do not skip stages for non-trivial work.
-- Every stage through design is a human gate. Outline and plan are LLM-reviewed gates before implementation.
-- `/q-review [outline.md]` and `/q-review [plan.md]` should revise planning docs toward readiness, not merely report issues.
+- Every stage through product design is a human gate. Outline and plan are LLM-reviewed gates before implementation.
+- `/q-review [outline.md]` and `/q-review [plan.md]` should revise planning docs toward readiness, including `design-product.md`, not merely report issues.
 - `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete and verification passes.
 - Keep `plan.md` status checkboxes updated during implementation.
 - When looping back before implementation, update parent planning artifacts. When addressing implementation review follow-up, use the implementation review directory as the new plan dir.

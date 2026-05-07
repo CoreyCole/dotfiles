@@ -1,6 +1,6 @@
 ---
 name: q-review
-description: Router for QRSPI LLM reviews. Use for reviewing design, outline, plan, or completed implementation artifacts; loads q-review-plan before code exists and q-review-implementation after code has been written.
+description: Router for QRSPI LLM reviews. Use for reviewing design, product design, outline, plan, or completed implementation artifacts; loads q-review-plan before code exists and q-review-implementation after code has been written.
 ---
 
 # QRSPI Review Router
@@ -9,14 +9,14 @@ description: Router for QRSPI LLM reviews. Use for reviewing design, outline, pl
 
 `/q-review` is the stable entry point for QRSPI LLM review. It does not contain the review workflow itself. It resolves whether code has been written, then loads exactly one focused review skill:
 
-- `~/.agents/skills/q-review-plan/SKILL.md` for pre-implementation planning review of `design.md`, `outline.md`, and `plan.md` when present.
+- `~/.agents/skills/q-review-plan/SKILL.md` for pre-implementation planning review of `design.md`, `design-product.md`, `outline.md`, and `plan.md` when present.
 - `~/.agents/skills/q-review-implementation/SKILL.md` for post-implementation code review after `/q-implement` completes.
 
 ## When Invoked
 
 1. Read `~/.agents/skills/qrspi-planning/SKILL.md`.
 1. Resolve the input:
-   - `outline.md`, `design.md`, or `plan.md` path → planning review.
+   - `outline.md`, `design.md`, `design-product.md`, or `plan.md` path → planning review.
    - Implement-complete handoff path under `[plan_dir]/handoffs/` → implementation review.
    - Plan directory path → inspect artifacts to choose mode.
    - Canonical review artifact path under `[plan_dir]/reviews/*/review.md` → use the `review_mode` frontmatter if present.
@@ -26,7 +26,7 @@ description: Router for QRSPI LLM reviews. Use for reviewing design, outline, pl
 I'll run a QRSPI review and route it based on whether implementation code exists.
 
 Please provide one of:
-- an outline path, e.g. `/q-review thoughts/[git_username]/plans/.../outline.md`
+- a product design or outline path, e.g. `/q-review thoughts/[git_username]/plans/.../design-product.md` or `/q-review thoughts/[git_username]/plans/.../outline.md`
 - a plan path, e.g. `/q-review thoughts/[git_username]/plans/.../plan.md`
 - an implement-complete handoff path, e.g. `/q-review thoughts/[git_username]/plans/.../handoffs/YYYY-MM-DD_HH-MM-SS_implement-handoff.md`
 - or a plan directory path, e.g. `/q-review thoughts/[git_username]/plans/YYYY-MM-DD_HH-MM-SS_plan-name`
@@ -40,8 +40,8 @@ Then wait for input.
 
 Choose planning review when:
 
-- the input is `design.md`, `outline.md`, or `plan.md`
-- the user asks to review the design, outline, plan, or planning docs
+- the input is `design.md`, `design-product.md`, `outline.md`, or `plan.md`
+- the user asks to review the design, product design, outline, plan, or planning docs
 - the input is a plan directory that has no implement-complete handoff
 - the input is a plan directory with `plan.md` but implementation is not complete
 
@@ -73,6 +73,6 @@ After resolving implementation review, read and follow:
 
 - Do not run both review modes in one invocation.
 - Do not keep using this router after mode selection; load the focused skill and follow it.
-- Planning review edits planning documents directly when findings are clear.
+- Planning review edits planning documents directly when findings are clear, including `design-product.md`.
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
 - Always return the canonical review artifact path produced by the focused skill.
