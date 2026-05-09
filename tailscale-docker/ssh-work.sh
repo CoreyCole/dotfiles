@@ -2,30 +2,26 @@
 set -euo pipefail
 
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVICE="personal"
-HOSTNAME="mac-docker-personal"
-SOCKS_PORT=1055
+SERVICE="work"
+HOSTNAME="mac-docker-work"
+SOCKS_PORT=1056
+TARGET="${1:-default}"
 
-# resolve target from argument
-case "${1:-ruby}" in
-  ruby)
-    REMOTE_USER="ruby"
-    REMOTE_HOST="ruby"
-    ;;
-  oc|claude)
-    REMOTE_USER="claude"
-    REMOTE_HOST="claude-1"
+case "$TARGET" in
+  default)
+    REMOTE_USER="coreycole"
+    REMOTE_HOST="coreys-macbook-pro-1"
     ;;
   swarm)
-    REMOTE_USER="coreycole"
-    REMOTE_HOST="swarm"
+    REMOTE_USER="swarm"
+    REMOTE_HOST="swarms-macbook-pro-1"
     ;;
   *@*)
-    REMOTE_USER="${1%@*}"
-    REMOTE_HOST="${1#*@}"
+    REMOTE_USER="${TARGET%@*}"
+    REMOTE_HOST="${TARGET#*@}"
     ;;
   *)
-    echo "Usage: $0 [ruby|oc|swarm|user@host]"
+    echo "Usage: $0 [swarm|user@host]"
     exit 1
     ;;
 esac
@@ -90,7 +86,7 @@ fi
 IP=$(run_tailscale ip -4 "$REMOTE_HOST" 2>/dev/null || true)
 
 if [ -z "$IP" ]; then
-  echo "Could not find '$REMOTE_HOST' on the personal tailnet."
+  echo "Could not find '$REMOTE_HOST' on the work tailnet."
   echo "Available nodes:"
   run_tailscale status
   exit 1

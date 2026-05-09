@@ -86,6 +86,7 @@ export PATH="$HOME/.local/bin:$PATH"
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"
 
-# SSH into personal tailnet machines via docker
+# SSH into tailnet machines via docker
 home() { "$HOME/dotfiles/tailscale-docker/ssh-home.sh" "${1:-ruby}"; }
+work() { "$HOME/dotfiles/tailscale-docker/ssh-work.sh" "${1:-default}"; }
 export PATH="$HOME/go/bin:~/.npm-global/bin:$PATH"
