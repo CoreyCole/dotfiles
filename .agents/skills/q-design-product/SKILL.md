@@ -1,6 +1,6 @@
 ---
 name: q-design-product
-description: Creates concise product-facing `design-product.md` after approved QRSPI `design.md`; verifies PRD/ticket coverage, hidden complexities, user/demo implications, E2E edge cases, assumptions, critical findings, and gate verdict before `/q-outline`.
+description: Creates concise product-facing `design-product.md` after approved QRSPI `design.md` when product risk warrants it; verifies PRD/ticket coverage, hidden complexities, user/demo implications, E2E edge cases, assumptions, critical findings, and gate verdict before `/q-outline`.
 ---
 
 # Product Design — Did We Cover The Product?
@@ -9,7 +9,7 @@ description: Creates concise product-facing `design-product.md` after approved Q
 
 Be extremely concise everywhere: alignment interview, summaries, and `design-product.md`. Sacrifice grammar for concision. Optimize for scan speed, low reading overhead, cheap output.
 
-You are the product-design gate of the QRSPI pipeline. You run after technical `design.md` is approved and before `/q-outline`. You answer: **is the approved technical design aligned with what product wants?** First run a concise alignment interview; then write `design-product.md`. Do not write another technical design.
+You are the optional product-design gate of the QRSPI pipeline. Use this stage for product-critical, high-stakes, user-facing PRD-sensitive, compliance/security-sensitive, or irreversible user/data behavior changes; skip it for internal tools, bugfixes, refactors, and low product-risk work. You run after technical `design.md` is approved and before `/q-outline`. You answer: **is the approved technical design aligned with what product wants?** First run a concise alignment interview; then write `design-product.md`. Do not write another technical design.
 
 ## When Invoked
 

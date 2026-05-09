@@ -1,6 +1,6 @@
 ---
 name: q-implement
-description: Execute one implementation slice per invocation. Seventh stage of QRSPI pipeline. Load `design-product.md`, update status checkboxes, and create per-slice handoffs as you go — they are your context recovery mechanism.
+description: Execute one implementation slice per invocation. Seventh stage of QRSPI pipeline. Load `plan.md` and optional `design-product.md`, update status checkboxes, and create per-slice handoffs as you go — they are your context recovery mechanism.
 ---
 
 # Implement — Execute the Plan
@@ -18,11 +18,11 @@ Implementation is always handoff-driven. After every successful slice, the autho
    - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
-   - Read `[plan_dir]/design-product.md`
+   - Read `[plan_dir]/design-product.md` if present
    - Read `[plan_dir]/outline.md`
    - Read `[plan_dir]/plan.md`
    - Read all files in `[plan_dir]/research/`
-   - Read all files in `[plan_dir]/context/design-product/`
+   - Read all files in `[plan_dir]/context/design-product/` if any
    - Read all files in `[plan_dir]/context/plan/`
    - Read the newest relevant files in `[plan_dir]/context/implement/` if any
    - Read all files in `[plan_dir]/prds/`
@@ -41,7 +41,17 @@ Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md` and `design-product.md`. `plan.md` is your primary input. Check the status checkboxes and preserve product Critical Findings during implementation.
+1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md` and `plan.md`. `design-product.md` is optional. `plan.md` is your primary input. Check the status checkboxes and preserve product Critical Findings during implementation when `design-product.md` exists.
+
+1. **Set up a fresh implementation directory before editing code:**
+
+   - Never use `git worktree` for `/q-implement` work.
+   - Implementation must happen in a fresh filesystem copy of the repository whose directory name is associated with the plan directory or ticket slug.
+   - If you are already inside the fresh copy for this plan/ticket, continue there. Otherwise create one next to the source checkout and switch into it before branch setup.
+   - Derive the copy name from the Linear ticket slug when available; otherwise use the plan directory basename. Example: `repo-pro-8910-flow-2-compliance-hold-implement` or `repo-2026-03-29_12-26-32_feature-name-implement`.
+   - macOS: `cp -ac source-dir clean-copy-dir`
+   - Linux: `cp -a --reflink=auto source-dir clean-copy-dir`
+   - After copying, run `git status --short` in the fresh directory and confirm the starting state before creating or modifying branches.
 
 1. **Set up the branch before editing code:**
 
@@ -93,8 +103,9 @@ Then wait for input.
 
 If your context window resets mid-implementation:
 
+1. Confirm you are in the fresh implementation directory for this plan/ticket, not the original checkout and not a `git worktree`; if needed, recreate the fresh copy with `cp -ac` on macOS or `cp -a --reflink=auto` on Linux before continuing.
 1. Read `[plan_dir]/AGENTS.md`
-1. Read `[plan_dir]/design-product.md`
+1. Read `[plan_dir]/design-product.md` if present
 1. Read `[plan_dir]/plan.md`
 1. Read the newest implement-stage handoff in `[plan_dir]/handoffs/` if one exists
 1. Read the newest relevant context artifact in `[plan_dir]/context/implement/` if one exists
@@ -139,6 +150,7 @@ Do not include a `PR:` line unless the user explicitly asked you to open one.
 ## Rules
 
 - Implement exactly one slice per invocation. Never roll directly into the next slice after finishing one.
+- Always do `/q-implement` work in a fresh filesystem copy named for the plan directory or ticket slug. Never use `git worktree`.
 - Run the verify step after EVERY slice. Do not skip verification.
 - Update the plan's status checkboxes as you complete slices — this is mandatory, not optional.
 - If a slice fails verification, fix it before moving on. Vertical slices exist so you catch problems early.

@@ -37,6 +37,8 @@ You are creating a handoff document to preserve your working context within a QR
 
 Implementation handoffs must not create branches. If the next implementation slice is verification-only (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits), record that it should run on the current top implementation branch instead of creating a placeholder `slice-N` branch. GitHub/Graphite cannot create PRs for empty branches.
 
+Implementation handoffs must also preserve the fresh-directory rule: never use `git worktree`; `/q-implement` and `/q-resume` implementation work happens in a fresh filesystem copy named for the plan directory or ticket slug. Record the current implementation directory when known, or instruct the next agent to create one with macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir` before editing.
+
 ## When to use
 
 - Before context reset mid-stage (no argument)
@@ -114,6 +116,9 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 
 ## Status
 [What is done and what remains. For implementation handoffs, state whether the next slice has planned tracked edits or is verification-only/no-branch.]
+
+## Working Directory
+[For implementation handoffs: exact fresh implementation directory path if known, and confirm it is not a git worktree. If unknown, instruct the next agent to create a fresh copy named for the plan/ticket before editing. For non-implementation handoffs: omit or say not applicable.]
 
 ## Learnings
 [Important findings not fully captured in artifacts, with file:line references where relevant.]

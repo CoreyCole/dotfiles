@@ -9,7 +9,7 @@ description: Router for QRSPI LLM reviews. Use for reviewing design, product des
 
 `/q-review` is the stable entry point for QRSPI LLM review. It does not contain the review workflow itself. It resolves whether code has been written, then loads exactly one focused review skill:
 
-- `~/.agents/skills/q-review-plan/SKILL.md` for pre-implementation planning review of `design.md`, `design-product.md`, `outline.md`, and `plan.md` when present.
+- `~/.agents/skills/q-review-plan/SKILL.md` for pre-implementation planning review of `design.md`, optional `design-product.md`, `outline.md`, and `plan.md` when present.
 - `~/.agents/skills/q-review-implementation/SKILL.md` for post-implementation code review after `/q-implement` completes.
 
 ## When Invoked
@@ -73,6 +73,7 @@ After resolving implementation review, read and follow:
 
 - Do not run both review modes in one invocation.
 - Do not keep using this router after mode selection; load the focused skill and follow it.
-- Planning review edits planning documents directly when findings are clear, including `design-product.md`.
+- Planning review edits planning documents directly when findings are clear, including `design-product.md` when present.
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
+- The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, and approved QRSPI constraints in both `review.md` and the user response.
 - Always return the canonical review artifact path produced by the focused skill.

@@ -20,7 +20,7 @@ Use it to preserve only durable context that future agents should load before re
 - scope boundaries, naming choices, or sequencing changes that define the work
 - pointers to canonical artifacts or code locations for details
 
-This file complements primary artifacts. It does not replace `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
+This file complements primary artifacts. It does not replace `context/brainstorms/`, `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
 
 ## Keep It Curated
 
@@ -73,7 +73,7 @@ Keep only sections that earn their place:
 | `questions/*.md` | Question | `~/.agents/skills/q-question/SKILL.md` | Human |
 | `research/*.md` | Research | `~/.agents/skills/q-research/SKILL.md` | Human |
 | `design.md` | Design | `~/.agents/skills/q-design/SKILL.md` | Human |
-| `design-product.md` | Product Design | `~/.agents/skills/q-design-product/SKILL.md` | Human |
+| `design-product.md` | Product Design | `~/.agents/skills/q-design-product/SKILL.md` | Optional human gate for product-critical/high-stakes work |
 | `outline.md` | Outline | `~/.agents/skills/q-outline/SKILL.md` | LLM review via `/q-review [outline.md]` |
 | `plan.md` | Plan | `~/.agents/skills/q-plan/SKILL.md` | LLM review via `/q-review [plan.md]` |
 | code changes | Implement | `~/.agents/skills/q-implement/SKILL.md` | LLM code review via `/q-review [handoff.md]` |
@@ -83,8 +83,8 @@ Keep only sections that earn their place:
 
 Planning review happens before implementation:
 
-- `/q-review [outline.md]` reviews `design.md`, `design-product.md`, and `outline.md`.
-- `/q-review [plan.md]` reviews `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
+- `/q-review [outline.md]` reviews `design.md`, optional `design-product.md`, and `outline.md`.
+- `/q-review [plan.md]` reviews `design.md`, optional `design-product.md`, `outline.md`, and `plan.md`.
 - Clear planning findings are fixed directly in the parent docs.
 - Findings needing codebase facts create research questions under the timestamped planning review directory.
 - Run `/skill:q-research-for-review` on those questions so research preserves the review category context.
@@ -117,7 +117,7 @@ Before creating a new plan directory or markdown artifact, run `~/dotfiles/spec_
 Recommended top-level subdirectories:
 
 - `prds/`
-- `context/{question,research,design,design-product,outline,plan,implement}/`
+- `context/{brainstorms,question,research,design,design-product,outline,plan,implement}/`
 - `questions/`
 - `research/`
 - `adrs/`
@@ -126,12 +126,13 @@ Recommended top-level subdirectories:
 
 ## Key Constraints
 
-- Use stage-specific read-only discovery and write outputs under `context/[stage]/`.
+- Use stage-specific read-only discovery and write outputs under `context/[stage]/`; q-question also writes interview rationale under `context/brainstorms/` for q-design.
 - Keep Question and Research in separate, focused contexts.
 - Research is blind to forward-looking plan docs unless a review follow-up question explicitly references a review artifact.
-- Product design is a required human gate between technical design and outline.
+- Product design is optional. Use it for product-critical, high-stakes, user-facing PRD-sensitive, compliance/security-sensitive, or irreversible user/data behavior changes; skip it for internal tools, bugfixes, refactors, and low product-risk work.
 - The plan is a tactical machine document, but it still gets an LLM review before implementation.
 - Planning review edits docs directly; implementation review fixes code only for straightforward findings and uses a review-dir QRSPI plan for deeper work.
+- Implementation runs in a fresh filesystem copy named for the plan directory or ticket slug. Never use `git worktree`; use macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir`.
 
 ## Handoffs
 
@@ -140,3 +141,4 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 - Resume stage work with `~/.agents/skills/q-resume/SKILL.md`.
 - Create handoffs with `~/.agents/skills/q-handoff/SKILL.md`.
 - During implementation, continue with `/q-resume [handoff]` until the final completion handoff points to `/q-review [handoff]`.
+- Implementation handoffs should record the fresh implementation directory path when known, or explicitly tell the next agent to create the fresh copy before editing.

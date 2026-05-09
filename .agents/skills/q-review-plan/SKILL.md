@@ -1,6 +1,6 @@
 ---
 name: q-review-plan
-description: LLM review for QRSPI planning artifacts before implementation. Use after outline or plan creation to review and directly fix design.md, design-product.md, outline.md, and plan.md; creates research follow-up questions only when codebase facts are missing.
+description: LLM review for QRSPI planning artifacts before implementation. Use after outline or plan creation to review and directly fix design.md, optional design-product.md, outline.md, and plan.md; creates research follow-up questions only when codebase facts are missing.
 ---
 
 # QRSPI Planning Review
@@ -8,14 +8,14 @@ description: LLM review for QRSPI planning artifacts before implementation. Use 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
-Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design/product-design interview. Findings should usually become direct edits to `design.md`, `design-product.md`, `outline.md`, or `plan.md`.
+Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design/product-design interview. Findings should usually become direct edits to `design.md`, optional `design-product.md`, `outline.md`, or `plan.md`.
 
 ## Review Target
 
 Load the planning artifacts that exist for the provided plan directory:
 
 - Always review `design.md` when present.
-- Always review `design-product.md` when present.
+- Review `design-product.md` when present. Missing `design-product.md` is not itself a finding for internal tools, bugfixes, refactors, or other low product-risk work.
 - Always review `outline.md` when present.
 - Review `plan.md` when present, especially when the input is `plan.md` or the plan has already been written.
 
@@ -73,7 +73,7 @@ The review directory is a lightweight research workspace for planning-review fol
    - `[plan_dir]/design-product.md` if present
    - `[plan_dir]/outline.md` if present
    - `[plan_dir]/plan.md` if present and in scope
-   - relevant `questions/*.md`, `research/*.md`, `prds/*`, and `context/{design,design-product,outline,plan}/*`
+   - relevant `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, `prds/*`, and `context/{design,design-product,outline,plan}/*`
    - code/files explicitly referenced by the planning docs, plus any files needed to verify claims
 1. If no planning artifact exists, stop and ask for a valid plan directory or artifact path.
 
@@ -104,16 +104,18 @@ Focused lane reports are advisory. Verify every candidate finding yourself befor
    - `plan-review` if reviewing `plan.md` too.
 1. Build understanding before judging:
    - Identify touched components, interfaces, data models, tests, migrations, rollout concerns, and nearby patterns.
+   - Summarize the current planned design/approach at a high level.
+   - Check alignment with PRDs, ticket text, question docs, `context/brainstorms/`, research findings, and approved plan-memory constraints.
    - Verify major named references and assumptions in the codebase.
 1. Review planning docs for:
-   - fidelity to approved questions/research/design/product design
-   - hidden scope drift or missing requirements, especially product Critical Findings
+   - fidelity to approved questions/research/design and optional product design
+   - hidden scope drift or missing requirements, especially product Critical Findings when present
    - vertical slice quality and sequencing
    - concrete file paths, interfaces, migrations, rollback, observability, and invariants
    - test checkpoints that actually prove each slice works and cover product E2E edge cases
    - plan steps that are too vague for a coding agent
 1. Run focused lanes when useful, then synthesize and verify candidate findings.
-1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`.
+1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`. Only flag a missing `design-product.md` when the work is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior.
 1. Apply all `obvious_doc_fix` edits directly to `design.md`, `design-product.md`, `outline.md`, and/or `plan.md`.
 1. For each `needs_codebase_research` finding, create `[review_dir]/questions/`, `[review_dir]/research/`, and `[review_dir]/context/research/`, then write neutral research questions under `[review_dir]/questions/`. Questions must link to `[review_dir]/review.md`, the affected parent docs, and exact file refs.
 1. For each `needs_human_judgment` finding, write a self-contained `Questions for /answer` item. Use `/answer`, then apply the answer to the docs when possible.
@@ -148,6 +150,14 @@ verdict: [correct|needs_attention]
 
 ## Summary
 [Short assessment of the reviewed planning docs after direct edits.]
+
+## Current Design / Plan
+[High-level summary of what the current design/outline/plan proposes.]
+
+## Requirements Alignment
+- PRD/ticket requirements: [aligned/gaps, with refs]
+- Brainstormed requirements and decisions: [aligned/gaps, with refs to `context/brainstorms/`]
+- Research/design constraints: [aligned/gaps, with refs]
 
 ## Findings Summary
 - [Finding summary, or `None.`]
@@ -189,7 +199,8 @@ If all findings were fixed directly and the review is ready for the next stage:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: planning review complete. verdict: correct.
+Summary: planning review complete. verdict: correct. Current plan: [one-sentence high-level design/plan summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including notable gaps or "aligned".]
 Changes: [short summary of edits to design.md / design-product.md / outline.md / plan.md / AGENTS.md, or none.]
 Findings: none.
 Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-implement exact-plan-path]
@@ -205,7 +216,8 @@ If codebase research is needed:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: planning review needs codebase research before all docs can be finalized.
+Summary: planning review needs codebase research before all docs can be finalized. Current plan: [one-sentence high-level design/plan summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including notable gaps.]
 Changes: [short summary of direct doc edits already made, or none.]
 Findings: [concise finding summaries with classification and examples]
 Next: /skill:q-research-for-review [exact path to follow-up questions doc]
@@ -215,7 +227,8 @@ If human judgment is needed, first write `review.md`, then end with:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: planning review needs human decisions before all docs can be finalized.
+Summary: planning review needs human decisions before all docs can be finalized. Current plan: [one-sentence high-level design/plan summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including decision-dependent gaps.]
 Changes: [short summary of direct doc edits already made, or none.]
 Findings: [concise decision-blocked findings with examples]
 Next: awaiting /answer decisions
@@ -233,4 +246,5 @@ Then add a `Questions for /answer` section and immediately invoke `/answer` with
 - Use `needs_human_judgment` only for genuine business/product decisions not settled by prior QRSPI artifacts.
 - Never edit implementation code in planning review.
 - Do not create a full nested QRSPI design/outline/plan for planning-review research follow-up. Use `q-address-review-research` to apply researched fixes back to the parent docs.
+- In both `review.md` and the user response, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
 - Always summarize the canonical review artifact and exact next command.

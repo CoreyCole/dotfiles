@@ -25,6 +25,7 @@ Establish with ~95% confidence what the user actually wants. Start by investigat
      - All files in `[plan_dir]/research/`
      - All files in `[plan_dir]/prds/`
      - Relevant files in `[plan_dir]/context/question/` when present
+     - Existing files in `[plan_dir]/context/brainstorms/` when present
      - For implementation-review follow-up plan dirs under `[parent_plan_dir]/reviews/*_implementation-review/`, treat that timestamped review directory as the plan directory; do not climb to or mutate the parent plan's `design.md` / `outline.md`
      - For planning-review follow-up dirs under `[parent_plan_dir]/reviews/*_[outline|plan]-review/`, treat the review directory as a lightweight research workspace; question docs still go under its `questions/`, and later `/skill:q-address-review-research` applies fixes to the parent docs
 1. **If a ticket path, plan directory, artifact path, review-context-doc path, or description was provided**, read it fully and begin.
@@ -61,9 +62,16 @@ Then wait for input.
 
    - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
    - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, `[plan_dir]/adrs/`, `[plan_dir]/handoffs/`, and `[plan_dir]/reviews/` exist
-   - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{question,research,design,design-product,outline,plan,implement}/` exists
-   - For planning-review research workspaces, ensure `[plan_dir]/context/research/` exists for `/skill:q-research-for-review` locator/analyzer artifacts
+   - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{brainstorms,question,research,design,design-product,outline,plan,implement}/` exists
+   - For planning-review research workspaces, ensure `[plan_dir]/context/{brainstorms,research}/` exists for brainstorm notes and `/skill:q-research-for-review` locator/analyzer artifacts
    - For review-directory follow-up plans and planning-review research workspaces, do not create a separate copied review seed in `context/question/`; the first artifact is the review follow-up question doc in `questions/`
+
+1. **Create the brainstorm artifact before interviewing** at `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md`.
+
+   - Use `~/dotfiles/spec_metadata.sh` timestamp/frontmatter.
+   - Start it with sections for `Problem framing`, `Investigation notes`, `Decision branches`, `Interview log`, and `Rationale to preserve for design`.
+   - Append to it after each investigation summary, brainstorm branch, and human-answer turn. Capture decisions, rejected branches, constraints, tradeoffs, and why the next question changed. Do not dump a raw transcript.
+   - For review-directory follow-up plans and planning-review research workspaces, write the brainstorm artifact directly under that directory's `context/brainstorms/`.
 
 1. **Read ticket/PRDs and linked docs fully**.
 
@@ -81,6 +89,7 @@ Then wait for input.
    - Use the results to validate terminology, identify likely entry points, and spot obvious implementation files, tests, docs, or configs.
    - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
    - Share a short "what I found" summary before moving into interview questions.
+   - Append the findings and why they matter to the brainstorm artifact.
    - Do NOT try to map the whole area or deeply analyze the implementation at this stage.
 
 1. **Start with a short creative brainstorm before converging**:
@@ -89,6 +98,7 @@ Then wait for input.
    - Use the brainstorm to expose hidden assumptions, dependencies between decisions, and missing context.
    - Keep it short and exploratory — this is for discovering better questions, not proposing solutions.
    - Use `/grill-me` style for brainstorm/interview turns: be extremely concise; sacrifice grammar for concision.
+   - Append the branch map, tensions, and discarded/kept paths to the brainstorm artifact.
    - Do not commit to an approach during the brainstorm.
 
 1. **Interview the lead engineer before finalizing questions**:
@@ -101,12 +111,13 @@ Then wait for input.
    - For each human-judgment question, provide your recommended answer and why, then ask the engineer to confirm, reject, or adjust it.
    - Focus on desired outcome, goals, design principles, scope, non-goals, constraints, risks, success criteria, and tradeoffs.
    - Let the engineer explicitly defer open factual or codebase questions to the research phase when appropriate.
+   - Append each answer's rationale, resulting decision, and next-question implication to the brainstorm artifact.
 
    If confidence is below ~95%, continue the interview. Do not guess.
 
 1. **Optionally read a few surfaced files yourself** — only enough to sharpen the research questions, not to answer them or form a solution.
 
-1. **Write a concise `Brainstorm Summary`** that will become the first section of the question doc. Capture the important design context surfaced during investigation, brainstorm, and interview:
+1. **Finalize the brainstorm artifact** with a concise `Rationale to preserve for design` section. Then write a concise `Brainstorm Summary` for the question doc from that artifact. Capture the important design context surfaced during investigation, brainstorm, and interview:
 
 - For review-seeded follow-up work, summarize which review findings are in scope for this new loop, which are intentionally deferred, and any requested outcome or sequencing guidance from the lead engineer.
 - desired outcome
@@ -143,6 +154,7 @@ stage: question
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 question_doc: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md"
+brainstorm_doc: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_topic-name.md"
 prev_question_docs:
   - "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/..."
 ---
@@ -157,6 +169,9 @@ prev_question_docs:
 
 ## Context
 [1-3 sentence summary of validated user need. No solution proposal.]
+
+## Brainstorm Artifact
+- `context/brainstorms/YYYY-MM-DD_HH-MM-SS_topic-name.md` — full interview rationale and decision branches for design.
 
 ## Questions
 1. [Specific question about current behavior, data flow, or architecture]
@@ -193,6 +208,7 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Do NOT propose approaches or pseudocode.
 - Always investigate lightweight codebase context before asking the engineer questions.
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
+- Always create and maintain `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md` during the brainstorm/interview before writing questions.
 - Always start with a short creative brainstorm before converging on the final questions.
 - Always ask the lead engineer before proceeding to write the question doc.
 - Ask interview questions one at a time by default; use `/answer` only when batching independent questions is genuinely clearer.

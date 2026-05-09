@@ -33,6 +33,7 @@ Create one timestamped implementation review directory:
   questions/
   research/
   context/
+    brainstorms/
     question/
     research/
     design/
@@ -59,7 +60,7 @@ When `needs_followup_qrspi` findings exist, the same `review_dir` is the follow-
 [review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review-followup-questions.md
 ```
 
-Later stages write `design.md`, `design-product.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-implement` then uses that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation stack.
+Later stages write `design.md`, optional `design-product.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-implement` then uses that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation stack.
 
 ## Load Context
 
@@ -74,7 +75,7 @@ Later stages write `design.md`, `design-product.md`, `outline.md`, and `plan.md`
    - `[plan_dir]/plan.md`
    - code files changed by implementation, using handoff sections, `git status`, `git diff`, `git show`, or the known branch range
    - verification evidence from the handoff
-1. Read `design.md`, `design-product.md`, `outline.md`, `questions/*.md`, `research/*.md`, and planning context only as needed to clarify intent. The primary review target is code plus verification evidence.
+1. Read `design.md`, optional `design-product.md`, `outline.md`, `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, PRDs/tickets, and planning context as needed to clarify intent and alignment. The primary review target is code plus verification evidence.
 
 ## Focused Review Lanes
 
@@ -108,6 +109,7 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
 1. Run `~/dotfiles/spec_metadata.sh` before creating `review_dir` or writing markdown.
 1. Create `review_dir` and write `review.md` there.
 1. Build understanding from the handoff, changed files, verification evidence, and relevant plan requirements.
+1. Summarize the implemented behavior at a high level and check alignment with PRDs, ticket text, question docs, `context/brainstorms/`, research findings, design/outline/plan, and approved plan-memory constraints.
 1. Review actual code for correctness, regressions, security, invariants, tests, operations, and maintainability.
 1. Run focused lanes when useful; read every lane report; verify candidate findings yourself.
 1. Classify findings into `straightforward_fix` and `needs_followup_qrspi`.
@@ -121,7 +123,7 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
    - Commit only files changed by these fixes when project workflow expects committed slices.
 1. For `needs_followup_qrspi` findings, initialize `review_dir` as a normal QRSPI plan:
    - copy `AGENTS.md` from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
-   - create `prds/`, `questions/`, `research/`, `adrs/`, `handoffs/`, `reviews/`, and `context/{question,research,design,design-product,outline,plan,implement}/`
+   - create `prds/`, `questions/`, `research/`, `adrs/`, `handoffs/`, `reviews/`, and `context/{brainstorms,question,research,design,design-product,outline,plan,implement}/`
    - write `prds/source-review.md` pointing to `review.md`
    - write neutral research questions under `questions/`
 1. Update `review.md` with applied fixes, commits/branches if any, verification results, and the follow-up question doc path.
@@ -149,6 +151,15 @@ verdict: [correct|needs_attention]
 
 ## Summary
 [Short assessment of the implementation after any straightforward fixes.]
+
+## Current Implementation
+[High-level summary of what the implementation does now.]
+
+## Requirements Alignment
+- PRD/ticket requirements: [aligned/gaps, with refs]
+- Brainstormed requirements and decisions: [aligned/gaps, with refs to `context/brainstorms/`]
+- Design/outline/plan commitments: [aligned/gaps, with refs]
+- Verification evidence: [what proves alignment and what remains unproven]
 
 ## Findings Summary
 - [Finding summary, or `None.`]
@@ -186,7 +197,8 @@ If no findings remain:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: implementation review complete. verdict: correct.
+Summary: implementation review complete. verdict: correct. Current implementation: [one-sentence high-level implementation summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including unproven areas or "aligned".]
 Changes: [straightforward fixes applied, branch/commit if any, or none.]
 Findings: none.
 Next: pipeline complete
@@ -196,7 +208,8 @@ If straightforward fixes were applied and deeper follow-up is needed:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: implementation review complete. straightforward fixes applied; follow-up QRSPI plan created for deeper findings.
+Summary: implementation review complete. straightforward fixes applied; follow-up QRSPI plan created for deeper findings. Current implementation: [one-sentence high-level implementation summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including gaps driving follow-up.]
 Changes: [short summary of fixes, branch/commit if any.]
 Findings: [remaining needs_followup_qrspi findings with examples]
 Next: /q-research [exact path to follow-up questions doc]
@@ -206,7 +219,8 @@ If only deeper follow-up is needed:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: implementation review complete. follow-up QRSPI plan created for deeper findings.
+Summary: implementation review complete. follow-up QRSPI plan created for deeper findings. Current implementation: [one-sentence high-level implementation summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including gaps driving follow-up.]
 Changes: none.
 Findings: [needs_followup_qrspi findings with examples]
 Next: /q-research [exact path to follow-up questions doc]
@@ -216,7 +230,8 @@ If straightforward fixes were attempted but verification still fails:
 
 ```text
 Artifact: [exact path to review.md]
-Summary: implementation review needs attention. straightforward fix verification did not pass.
+Summary: implementation review needs attention. straightforward fix verification did not pass. Current implementation: [one-sentence high-level implementation summary].
+Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including unverified or broken areas.]
 Changes: [short summary of attempted fixes.]
 Findings: [remaining failing findings with examples]
 Next: /q-review [exact implementation handoff path]
@@ -229,8 +244,9 @@ Next: /q-review [exact implementation handoff path]
 - Apply only `straightforward_fix` code changes directly.
 - Treat direct code fixes as a final review-fix slice stacked on top of the implementation, not as parent planning-doc edits.
 - Never edit the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
-- Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, `design-product.md`, `outline.md`, and `plan.md`.
+- Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, optional `design-product.md`, `outline.md`, and `plan.md`.
 - Seed deeper follow-up with neutral research questions; do not copy review recommendations as settled solutions.
 - Do not ask whether to create the follow-up QRSPI plan; create it automatically for `needs_followup_qrspi` findings.
 - Prefer a short, verified review over speculative findings.
+- In both `review.md` and the user response, summarize the current implementation at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, design/outline/plan commitments, and verification evidence.
 - Always summarize the canonical review artifact and exact next command.

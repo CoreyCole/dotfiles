@@ -17,6 +17,7 @@ You are the third stage of the QRSPI pipeline. You answer the question **"where 
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
    - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
+   - Read all files in `[plan_dir]/context/brainstorms/`
    - Read all files in `[plan_dir]/research/`
    - Read all files in `[plan_dir]/context/research/`
    - Read all files in `[plan_dir]/context/design/` if any
@@ -37,12 +38,12 @@ Then wait for input.
 
 ## Process
 
-1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, all `research/*.md`, relevant context artifacts in `context/research/` and `context/design/`, any existing `adrs/*.md`, and any relevant files in `prds/`.
+1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, all `context/brainstorms/*.md`, all `research/*.md`, relevant context artifacts in `context/research/` and `context/design/`, any existing `adrs/*.md`, and any relevant files in `prds/`.
    - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite, append to, or "refresh" the parent plan's `design.md`; write the follow-up design to `[parent_plan_dir]/reviews/*/design.md`.
 1. **Read the original ticket / PRD context** if referenced in question docs or stored in `prds/`.
 1. **Read key files** identified in research findings and context artifacts.
 1. **If current-state validation is still missing or stale, run `codebase-locator`** with a narrowly scoped refresh task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/design/`.
-1. **Run the design brainstorm interview before writing the first design draft.** Use the loaded research to stress-test the design direction with the user one question at a time. Do not write `design.md` or ADRs until the key goals, scope, constraints, decisions, risks, and next step are clear, or the user explicitly says to stop the interview and draft.
+1. **Run the design brainstorm interview before writing the first design draft.** Use the loaded research and `context/brainstorms/` rationale to stress-test the design direction with the user one question at a time. Do not write `design.md` or ADRs until the key goals, scope, constraints, decisions, risks, and next step are clear, or the user explicitly says to stop the interview and draft.
 1. **Draft the design artifacts:**
    - `design.md` stays lean and default-loadable:
      - Current state
@@ -201,7 +202,7 @@ When design.md is written, use this exact response shape:
 ```
 Artifact: [exact path to design.md]
 Summary: [brief summary of the recommended approach and key decisions; if ADRs were written, include their exact `adrs/...` paths here]
-Next: /q-design-product [exact path to design.md]
+Next: [For product-critical/high-stakes/user-facing PRD-sensitive work: `/q-design-product [exact path to design.md]`; otherwise: `/q-outline [exact path to design.md]`]
 ```
 
 If there are open questions, include them below as:

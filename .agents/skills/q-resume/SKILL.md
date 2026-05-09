@@ -27,19 +27,21 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 | Stage | Load these artifacts |
 |-------|---------------------|
-| question | `[plan_dir]/AGENTS.md`, existing `questions/*.md`, relevant `context/question/*.md`, `research/*.md`, `design.md`, `design-product.md`, `outline.md`, `prds/*` as relevant |
+| question | `[plan_dir]/AGENTS.md`, existing `questions/*.md`, relevant `context/question/*.md`, `research/*.md`, `design.md`, optional `design-product.md`, `outline.md`, `prds/*` as relevant |
 | research | relevant `questions/*.md`, relevant `context/research/*.md` |
 | design | `[plan_dir]/AGENTS.md`, `questions/*.md`, `research/*.md`, `adrs/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md` |
 | design-product | `[plan_dir]/AGENTS.md`, `questions/*.md`, `research/*.md`, `design.md`, `adrs/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md` |
-| outline | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md` |
-| plan | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `outline.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md`, `context/plan/*.md` |
-| implement | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*`, relevant `context/design-product/*.md`, `context/plan/*.md`, latest relevant `context/implement/*.md` |
+| outline | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, optional `design-product.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md` |
+| plan | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, optional `design-product.md`, `outline.md`, `research/*.md`, `prds/*`, relevant `context/research/*.md`, `context/design/*.md`, `context/design-product/*.md`, `context/outline/*.md`, `context/plan/*.md` |
+| implement | `[plan_dir]/AGENTS.md`, `questions/*.md`, `design.md`, optional `design-product.md`, `outline.md`, `plan.md`, `research/*.md`, `prds/*`, relevant `context/design-product/*.md`, `context/plan/*.md`, latest relevant `context/implement/*.md` |
 
 ### 3. Continue working
 
 Based on the handoff's **Status** and **Next** sections, continue where the previous session left off.
 
 **Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
+
+**Fresh-directory rule for implementation resumes:** never resume implementation in a `git worktree`. Use the fresh filesystem copy named for the plan directory or ticket slug. If the handoff does not identify an existing fresh implementation directory, create one next to the source checkout before editing: macOS `cp -ac source-dir clean-copy-dir`; Linux `cp -a --reflink=auto source-dir clean-copy-dir`. Run `git status --short` in that directory before branch or code changes.
 
 - If `status: in_progress` - continue the current stage from where it left off. You are working on the `[stage]` stage.
   - For `stage: implement`, create a new stacked Graphite branch only when the first unchecked slice has planned tracked source/test/doc edits. Before editing, compare the first unchecked slice in `plan.md` with `git branch --show-current` / the handoff `branch`. If the current branch is still the previous slice branch and the next slice has planned tracked edits, run `gt create <linear-slug>_slice-N` from that branch before editing.

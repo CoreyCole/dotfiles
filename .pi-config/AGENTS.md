@@ -61,6 +61,17 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 
 **The right amount of complexity is the minimum needed for the current task.**
 
+### Never Use Worktrees
+
+Do **not** use `git worktree` for parallel work, clean working directories, reviews, or experiments. Worktrees introduce extra Git state and operational complexity that is not worth it here.
+
+If you need a clean copy of a repository, make a filesystem copy instead:
+
+- macOS: `cp -ac source-dir clean-copy-dir`
+- Linux: `cp -a --reflink=auto source-dir clean-copy-dir`
+
+This is fast and storage-efficient without adding worktree management overhead.
+
 ### Think Forward
 
 There is only a way forward. Backward compatibility is a concern for libraries and SDKs — not for products. When building a product, **never hedge with fallback code, legacy shims, or defensive workarounds** for situations that no longer exist or may never occur. That's wasted cycles.
