@@ -11,6 +11,7 @@ local languages = {
     "typescript",
     "javascript",
     "tsx",
+    "templ",
     "markdown",
     "markdown_inline",
     -- Common fenced code block languages in Markdown.
@@ -35,6 +36,7 @@ local filetypes = {
     "javascript",
     "typescriptreact",
     "javascriptreact",
+    "templ",
     "markdown",
     "sh",
     "bash",
@@ -83,6 +85,8 @@ return {
         local treesitter = require "nvim-treesitter"
         treesitter.setup()
         treesitter.install(languages)
+
+        vim.filetype.add { extension = { templ = "templ" } }
 
         vim.api.nvim_create_autocmd("FileType", {
             pattern = filetypes,

@@ -120,6 +120,7 @@ PATH_RE = re.compile(
 )
 
 FRONTMATTER_NAME_RE = re.compile(r"^name:\s*(\S+)\s*$", re.MULTILINE)
+PLAN_SLICE_RE = re.compile(r"^##\s+Slice\s+(\d+)\s*:\s*(.+?)\s*$", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,32 @@ class LaneSelection:
             self.reasons.append(reason)
         if evidence not in self.matched_evidence:
             self.matched_evidence.append(evidence)
+
+
+@dataclass(frozen=True)
+class PlanSlice:
+    index: int
+    title: str
+
+
+@dataclass(frozen=True)
+class StackBranchSpec:
+    branch: str
+    parent: str | None = None
+    slice_index: int | None = None
+
+
+@dataclass(frozen=True)
+class ReviewSlice:
+    index: int
+    title: str
+    branch: str | None = None
+    parent: str | None = None
+    diff_range: str | None = None
+    diff_command: str | None = None
+    stat_command: str | None = None
+    files_command: str | None = None
+    changed_files: tuple[str, ...] = ()
 
 
 def rx(pattern: str) -> re.Pattern[str]:
@@ -348,8 +375,10 @@ def is_qrspi_artifact_path(path: str) -> bool:
     if "thoughts" not in parts:
         return False
 
-    artifact_parts = {"handoffs", "reviews", "questions", "research", "context", "prds", "adrs"}
-    return any(part in artifact_parts for part in parts)
+    # QRSPI/thoughts files are planning evidence, not implementation paths for
+    # lane routing. Including changed plan/review docs as changed files causes
+    # noisy domain lanes and confuses branch/slice ownership.
+    return True
 
 
 def is_generated_code_path(path: str) -> bool:
@@ -468,6 +497,30 @@ def git_diff_for_file(
     return staged + "\n" + unstaged
 
 
+def path_matches_scope(path: str, scope_prefixes: Iterable[str]) -> bool:
+    prefixes = [normalize_path(prefix).rstrip("/") for prefix in scope_prefixes if normalize_path(prefix)]
+    if not prefixes:
+        return True
+    normalized = normalize_path(path)
+    return any(normalized == prefix or normalized.startswith(prefix + "/") for prefix in prefixes)
+
+
+def git_changed_files_for_range(
+    repo_root: Path,
+    diff_range: str,
+    scope_prefixes: Iterable[str] = (),
+) -> list[str]:
+    return sorted(
+        {
+            rel
+            for line in run(["git", "diff", "--name-only", diff_range], repo_root).splitlines()
+            if line.strip()
+            for rel in [repo_relative_path(line, repo_root)]
+            if not is_qrspi_artifact_path(rel) and path_matches_scope(rel, scope_prefixes)
+        }
+    )
+
+
 def git_changed_files(
     repo_root: Path,
     diff_range: str | None = None,
@@ -501,6 +554,130 @@ def git_changed_files(
             files.add(path)
 
     return sorted(files)
+
+
+def parse_plan_slices(plan_dir: Path | None) -> list[PlanSlice]:
+    if not plan_dir:
+        return []
+    plan_path = plan_dir / "plan.md"
+    text = read_text(plan_path, max_bytes=512_000)
+    slices: list[PlanSlice] = []
+    for match in PLAN_SLICE_RE.finditer(text):
+        slices.append(PlanSlice(index=int(match.group(1)), title=match.group(2).strip()))
+    return slices
+
+
+def implementation_scope_prefixes(plan_dir: Path | None, repo_root: Path) -> list[str]:
+    if not plan_dir:
+        return []
+    prefixes: set[str] = set()
+    for name in ("design.md", "outline.md", "plan.md"):
+        text = read_text(plan_dir / name, max_bytes=512_000)
+        for extracted in extract_paths(text):
+            rel = repo_relative_path(extracted, repo_root)
+            if not rel or is_qrspi_artifact_path(rel):
+                continue
+            path = Path(rel)
+            if path.suffix.lower() in TEXT_FILE_EXTENSIONS:
+                parent = path.parent.as_posix()
+                if parent and parent != ".":
+                    prefixes.add(parent)
+                else:
+                    prefixes.add(rel)
+            else:
+                prefixes.add(rel.rstrip("/"))
+    return sorted(prefixes)
+
+
+def parse_stack_branch_spec(spec: str) -> StackBranchSpec:
+    raw = spec.strip()
+    if not raw:
+        raise SystemExit("--stack-branch values cannot be empty")
+
+    slice_index: int | None = None
+    body = raw
+    prefix_match = re.match(r"^(?:slice[-_ ]*)?(\d+)=(.+)$", raw, re.IGNORECASE)
+    if prefix_match:
+        slice_index = int(prefix_match.group(1))
+        body = prefix_match.group(2).strip()
+
+    parent: str | None = None
+    branch = body
+    if ".." in body:
+        parent, branch = [part.strip() for part in body.split("..", 1)]
+
+    if not branch:
+        raise SystemExit(f"invalid --stack-branch value: {spec!r}")
+    return StackBranchSpec(branch=branch, parent=parent or None, slice_index=slice_index)
+
+
+def shell_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\\''") + "'"
+
+
+def build_review_slices(
+    plan_dir: Path | None,
+    repo_root: Path,
+    stack_branch_specs: list[str],
+) -> list[ReviewSlice]:
+    plan_slices = parse_plan_slices(plan_dir)
+    scope_prefixes = implementation_scope_prefixes(plan_dir, repo_root)
+    specs = [parse_stack_branch_spec(spec) for spec in stack_branch_specs]
+
+    if not specs:
+        return [ReviewSlice(index=s.index, title=s.title) for s in plan_slices]
+
+    by_index = {s.index: s for s in plan_slices}
+    review_slices: list[ReviewSlice] = []
+    for offset, spec in enumerate(specs, start=1):
+        slice_index = spec.slice_index or offset
+        plan_slice = by_index.get(slice_index)
+        title = plan_slice.title if plan_slice else f"Branch {spec.branch}"
+        diff_range = f"{spec.parent}..{spec.branch}" if spec.parent else None
+        changed_files = tuple(git_changed_files_for_range(repo_root, diff_range, scope_prefixes)) if diff_range else ()
+        branch_q = shell_quote(spec.branch)
+        parent_q = shell_quote(spec.parent) if spec.parent else None
+        review_slices.append(
+            ReviewSlice(
+                index=slice_index,
+                title=title,
+                branch=spec.branch,
+                parent=spec.parent,
+                diff_range=diff_range,
+                diff_command=(
+                    f"git diff {parent_q}..{branch_q}"
+                    if parent_q
+                    else f"gt info --branch {branch_q} --diff --no-interactive"
+                ),
+                stat_command=(
+                    f"git diff --stat {parent_q}..{branch_q}"
+                    if parent_q
+                    else f"gt info --branch {branch_q} --stat --no-interactive"
+                ),
+                files_command=(
+                    f"git diff --name-only {parent_q}..{branch_q}"
+                    if parent_q
+                    else f"gt info --branch {branch_q} --stat --no-interactive"
+                ),
+                changed_files=changed_files,
+            )
+        )
+
+    return sorted(review_slices, key=lambda s: s.index)
+
+
+def review_slice_to_json(review_slice: ReviewSlice) -> dict[str, object]:
+    return {
+        "index": review_slice.index,
+        "title": review_slice.title,
+        "branch": review_slice.branch,
+        "parent": review_slice.parent,
+        "diff_range": review_slice.diff_range,
+        "diff_command": review_slice.diff_command,
+        "stat_command": review_slice.stat_command,
+        "files_command": review_slice.files_command,
+        "changed_files": list(review_slice.changed_files),
+    }
 
 
 def newest_implementation_handoff(plan_dir: Path) -> Path | None:
@@ -686,6 +863,7 @@ def build_subagent_tool_args(
     referenced_paths: list[str],
     evidence_files: list[str],
     selected_lanes: list[dict[str, object]],
+    review_slices: list[ReviewSlice],
 ) -> dict[str, object]:
     focused_lanes_dir = review_dir / "focused-lanes"
     chain_dir = review_dir / "focused-lane-runs"
@@ -700,6 +878,15 @@ def build_subagent_tool_args(
 
         reasons = lane.get("reasons", [])
         matched = lane.get("matched_evidence", [])
+        slice_lines: list[str] = []
+        if review_slices:
+            for review_slice in review_slices:
+                branch = f" branch={review_slice.branch}" if review_slice.branch else ""
+                parent = f" parent={review_slice.parent}" if review_slice.parent else ""
+                diff = f" diff_command={review_slice.diff_command}" if review_slice.diff_command else ""
+                files = f" changed_files={', '.join(review_slice.changed_files)}" if review_slice.changed_files else ""
+                slice_lines.append(f"- Slice {review_slice.index}: {review_slice.title}{branch}{parent}{diff}{files}")
+        review_slices_text = "\n".join(slice_lines) if slice_lines else "none"
         task = (
             "Use this focused lane prompt exactly. The prompt is embedded below; do not search for a lane prompt file.\n\n"
             f"{prompt_text}\n\n"
@@ -711,14 +898,18 @@ def build_subagent_tool_args(
             f"Changed files: {', '.join(changed_files) if changed_files else 'none'}.\n"
             f"Referenced paths: {', '.join(referenced_paths) if referenced_paths else 'none'}.\n"
             f"Evidence files: {', '.join(evidence_files) if evidence_files else 'none'}.\n"
+            f"Review slices and branch diff commands:\n{review_slices_text}\n"
             f"Selector reasons for this lane: {json.dumps(reasons, ensure_ascii=False)}.\n"
             f"Matched evidence for this lane: {json.dumps(matched, ensure_ascii=False)}.\n\n"
+            "If review slices are listed, review and report each slice separately. Use the provided per-slice diff command before broad discovery when a branch is listed. "
+            "Your report MUST include a `## Slice Reviews` section with one `### Slice N: title` subsection per listed slice. "
+            "Under each slice subsection, write lane-specific findings for that slice or exactly `No findings.`. This lets the orchestrator fold fixes into the correct Graphite branch.\n\n"
             "Operational limits: aim to complete this focused lane in under 5 minutes; if that is not possible, "
             "write a partial report with the blocking gap instead of continuing broad discovery. Run all bash commands from cwd/repo_root; "
             "use short explicit timeouts for broad discovery commands, and task-appropriate explicit timeouts for verification commands. "
             "Never run `find` outside cwd/repo_root or $TMPDIR; prefer exact provided paths and `rg --files` scoped to cwd. "
             "If context is insufficient after bounded reads, report the gap instead of broad discovery.\n\n"
-            "Write the lane report to the provided output path. Do not edit files."
+            "Write the lane report to the provided output path. Do not edit implementation files."
         )
         parallel_tasks.append(
             {
@@ -752,6 +943,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, help="repository root; defaults to git root from cwd")
     parser.add_argument("--review-dir", type=Path, help="timestamped review directory; enables exact subagent_tool_args output")
     parser.add_argument("--changed-file", action="append", default=[], help="explicit implementation changed file; may be repeated")
+    parser.add_argument(
+        "--stack-branch",
+        action="append",
+        default=[],
+        help=(
+            "Graphite stack branch/slice to review; may be repeated from bottom to top. "
+            "Accepted forms: BRANCH, PARENT..BRANCH, N=BRANCH, or N=PARENT..BRANCH. "
+            "When PARENT is supplied, subagents get git diff/stat/name-only commands for that slice."
+        ),
+    )
     parser.add_argument("--diff-range", help="implementation diff range for committed changes, e.g. BASE..HEAD")
     parser.add_argument("--diff-base", help="implementation diff base commit; uses BASE..diff-target")
     parser.add_argument("--diff-target", default="HEAD", help="implementation diff target when --diff-base is used; default HEAD")
@@ -775,6 +976,16 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
 
     all_lane_ids = discover_lane_ids()
 
+    review_slices = build_review_slices(plan_dir, repo_root, args.stack_branch)
+    stack_changed_files = sorted(
+        {
+            path
+            for review_slice in review_slices
+            for path in review_slice.changed_files
+            if path and not is_generated_code_path(path)
+        }
+    )
+
     if args.mode == "outline":
         evidence, referenced_paths = build_outline_evidence(plan_dir, repo_root)
         for rel in referenced_paths:
@@ -787,11 +998,13 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
             repo_root=repo_root,
             reviewed_artifact=reviewed_artifact,
             handoff=handoff,
-            explicit_changed_files=args.changed_file,
+            explicit_changed_files=[*args.changed_file, *stack_changed_files],
             diff_range=args.diff_range,
             diff_base=args.diff_base,
             diff_target=args.diff_target,
         )
+        if stack_changed_files and not args.diff_range and not args.diff_base:
+            changed_files = stack_changed_files
         referenced_paths = []
         evidence_files = [item.path for item in evidence if item.kind == "handoff"]
 
@@ -807,6 +1020,7 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
         "evidence_files": evidence_files,
         "changed_files": changed_files,
         "referenced_paths": referenced_paths,
+        "review_slices": [review_slice_to_json(review_slice) for review_slice in review_slices],
         "diff_range": args.diff_range,
         "diff_base": args.diff_base,
         "diff_target": args.diff_target,
@@ -824,6 +1038,7 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
             referenced_paths=referenced_paths,
             evidence_files=evidence_files,
             selected_lanes=selection["selected_lanes"],  # type: ignore[arg-type]
+            review_slices=review_slices,
         )
 
     return result
@@ -857,6 +1072,7 @@ def self_test() -> None:
             repo_root=repo,
             review_dir=None,
             changed_file=[],
+            stack_branch=[],
             diff_range=None,
             diff_base=None,
             diff_target="HEAD",
@@ -897,6 +1113,7 @@ def self_test() -> None:
             repo_root=repo,
             review_dir=None,
             changed_file=[],
+            stack_branch=[],
             diff_range=None,
             diff_base=None,
             diff_target="HEAD",
