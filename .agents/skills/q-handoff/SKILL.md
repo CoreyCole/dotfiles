@@ -135,7 +135,9 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 
 ### 6. Sync
 
-Run `just sync-thoughts`.
+For non-implementation stages, run `just sync-thoughts` from the normal source checkout.
+
+For implementation handoffs from a fresh copied repo, `just sync-thoughts` is allowed, but note that the repo script only pulls/pushes on `main`; on slice branches it formats and commits thought changes locally, then skips pull/push. Prefer syncing thoughts before implementation starts, from the source checkout, before the fresh copy and slice branch are created. If canonical hosted thoughts must be updated immediately, copy/sync the handoff to the source checkout/main workflow explicitly.
 
 ### 7. Tell the user
 

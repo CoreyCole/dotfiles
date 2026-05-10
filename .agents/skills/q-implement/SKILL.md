@@ -43,6 +43,12 @@ Then wait for input.
 
 1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md` and `plan.md`. `design-product.md` is optional. `plan.md` is your primary input. Check the status checkboxes and preserve product Critical Findings during implementation when `design-product.md` exists.
 
+1. **Sync thoughts before making the fresh implementation copy:**
+
+   - If this is the initial implementation start and you are still in the source checkout before creating/copying the implementation directory, run `just sync-thoughts` first so planning artifacts are formatted, committed, pulled/rebased, and synced on the source checkout before any implementation branch is created.
+   - Do this before `gt create <slug>_slice-1` and before copying the repository. This keeps the copied repo from inheriting unsynced thought artifacts and avoids needing `just sync-thoughts` from an untracked fresh-copy branch later.
+   - If you are resuming inside an existing fresh implementation copy, do not run `just sync-thoughts` there just to sync planning docs; record canonical thought updates in the handoff or sync from the source checkout after the implementation checkpoint.
+
 1. **Set up a fresh implementation directory before editing code:**
 
    - Never use `git worktree` for `/q-implement` work.
@@ -51,7 +57,7 @@ Then wait for input.
    - Derive the copy name from the Linear ticket slug when available; otherwise use the plan directory basename. Example: `repo-pro-8910-flow-2-compliance-hold-implement` or `repo-2026-03-29_12-26-32_feature-name-implement`.
    - macOS: `cp -ac source-dir clean-copy-dir`
    - Linux: `cp -a --reflink=auto source-dir clean-copy-dir`
-   - After copying, run `git status --short` in the fresh directory and confirm the starting state before creating or modifying branches.
+   - After copying, run `git status --short` and `gt log short` in the fresh directory. If the current branch appears in the Graphite stack, do not run `gt track`; if Graphite does not recognize a plain copied branch, run `gt track` before `gt modify`/`gt create`.
 
 1. **Set up the branch before editing code:**
 
@@ -150,12 +156,13 @@ Do not include a `PR:` line unless the user explicitly asked you to open one.
 ## Rules
 
 - Implement exactly one slice per invocation. Never roll directly into the next slice after finishing one.
+- Before the initial fresh copy/implementation branch, run `just sync-thoughts` in the source checkout so planning artifacts are synced on main/upstream before implementation branches are created.
 - Always do `/q-implement` work in a fresh filesystem copy named for the plan directory or ticket slug. Never use `git worktree`.
 - Run the verify step after EVERY slice. Do not skip verification.
 - Update the plan's status checkboxes as you complete slices — this is mandatory, not optional.
 - If a slice fails verification, fix it before moving on. Vertical slices exist so you catch problems early.
 - Never do `/q-implement` coding work on `develop`. If you start on `develop`, first run `gt create <linear-branch-name>` using the ticket's canonical Linear slug and a `slice-N` suffix that matches the plan.
-- Commit after each successful slice that changed tracked files. Small, working commits.
+- Commit after each successful slice that changed tracked files. Small, working commits. In agent sessions, prefer `gt modify --commit --no-interactive -m "..."` so Graphite does not wait for an editor or prompt.
 - Do not commit or branch for verification-only slices with no tracked changes.
 - For implementation-review follow-up plans under `reviews/*_implementation-review/`, branch names should make the stacked review follow-up clear, for example `<linear-slug>_review-slice-N`.
 - After each non-final edit slice commit, create the next slice branch with `gt create <linear-slug>_slice-(N+1)` for normal parent plans, or `gt create <linear-slug>_review-slice-(N+1)` for implementation-review follow-up plans, only when the next slice has planned tracked edits. If the next slice is verification-only, do not create a placeholder branch.
