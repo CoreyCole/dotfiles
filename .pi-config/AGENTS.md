@@ -63,14 +63,14 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 
 ### Never Use Worktrees
 
-Do **not** use `git worktree` for parallel work, clean working directories, reviews, or experiments. Worktrees introduce extra Git state and operational complexity that is not worth it here.
+Do **not** use `git worktree` for parallel work, clean working directories, reviews, QRSPI implementation, or experiments. Worktrees introduce extra Git state and operational complexity that is not worth it here.
 
-If you need a clean copy of a repository, make a filesystem copy instead:
+When you need an isolated workspace, make an efficient filesystem copy of the whole repository instead. This is a normal directory copy, not a git worktree:
 
 - macOS: `cp -ac source-dir clean-copy-dir`
 - Linux: `cp -a --reflink=auto source-dir clean-copy-dir`
 
-This is fast and storage-efficient without adding worktree management overhead.
+These copy modes use clone/reflink behavior where supported, so they are fast and storage-efficient without adding worktree management overhead. After the copied workspace is merged or no longer needed, delete the copied directory with normal filesystem cleanup.
 
 ### Think Forward
 

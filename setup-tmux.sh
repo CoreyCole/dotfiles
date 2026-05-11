@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Tmux session setup script for chestnut-flake development
 
-SESSION_NAME="cn"
+SESSION_NAME="$(whoami)"
 FLAKE_DIR="$HOME/cn/chestnut-flake"
 MONOREPO_DIR="$FLAKE_DIR/monorepo"
 MONOREPO2_DIR="$FLAKE_DIR/monorepo2"
 MONOREPO3_DIR="$FLAKE_DIR/monorepo3"
 CN_AGENTS_DIR="$FLAKE_DIR/cn-agents"
-DATASTARUI_DIR="$CN_AGENTS_DIR/pkg/datastarui"
 
 # Check if session already exists
 tmux has-session -t $SESSION_NAME 2>/dev/null
@@ -51,42 +50,33 @@ PANE_R3=$(tmux split-window -t "$PANE_R2" -v -p 50 -c "$MONOREPO_DIR" -P -F '#{p
 # Select top-left pane
 tmux select-pane -t "$PANE_CN_AGENTS"
 
-# Window 1: monorepo with nvim
-tmux new-window -t $SESSION_NAME:1 -c "$MONOREPO_DIR"
-direnv allow
-nix develop --command true # builds the chestnut-flake, then exits
-tmux send-keys -t $SESSION_NAME:1 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
+create_lazygit_window() {
+    local window="$1"
+    local dir="$2"
 
-# Window 2: monorepo2 with nvim
-tmux new-window -t $SESSION_NAME:2 -c "$MONOREPO2_DIR"
-tmux send-keys -t $SESSION_NAME:2 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
+    tmux new-window -t "$SESSION_NAME:$window" -c "$dir"
+    local left_pane
+    left_pane=$(tmux display-message -t "$SESSION_NAME:$window" -p '#{pane_id}')
+    tmux split-window -t "$left_pane" -h -p 50 -c "$dir"
+    tmux send-keys -t "$left_pane" "lazygit" C-m
+    tmux select-pane -t "$left_pane"
+}
 
-# Window 3: monorepo3 with nvim
-tmux new-window -t $SESSION_NAME:3 -c "$MONOREPO3_DIR"
-tmux send-keys -t $SESSION_NAME:3 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
+# Windows 1-3: the three main monorepo checkouts, with lazygit on the left
+# and an empty terminal on the right.
+create_lazygit_window 1 "$MONOREPO_DIR"
+create_lazygit_window 2 "$MONOREPO2_DIR"
+create_lazygit_window 3 "$MONOREPO3_DIR"
 
-# Window 4: cn-agents with nvim and fzf file search
-tmux new-window -t $SESSION_NAME:4 -c "$CN_AGENTS_DIR"
-tmux send-keys -t $SESSION_NAME:4 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
+# Windows 4-8: chestnut-flake terminals.
+for window in 4 5 6 7 8; do
+    tmux new-window -t "$SESSION_NAME:$window" -c "$FLAKE_DIR"
+done
 
-# Window 5: datastarui with nvim and fzf file search
-tmux new-window -t $SESSION_NAME:5 -c "$DATASTARUI_DIR"
-tmux send-keys -t $SESSION_NAME:5 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
+# Window 9: dotfiles, with lazygit on the left and an empty terminal on the right.
+create_lazygit_window 9 "$HOME/dotfiles"
 
-# Window 6: chestnut-flake
-tmux new-window -t $SESSION_NAME:6 -c "$FLAKE_DIR"
-
-# Window 7: chestnut-flake
-tmux new-window -t $SESSION_NAME:7 -c "$FLAKE_DIR"
-
-# Window 8: chestnut-flake
-tmux new-window -t $SESSION_NAME:8 -c "$FLAKE_DIR"
-
-# Window 9: dotfiles with nvim and fzf file search
-tmux new-window -t $SESSION_NAME:9 -c "$HOME/dotfiles"
-tmux send-keys -t $SESSION_NAME:9 "nvim -c 'lua require(\"fzf-lua\").files({ cmd = \"fd --type f --hidden --follow --no-ignore --exclude .git --exclude node_modules\" })'" C-m
-
-# Select window 1 (nvim) to start
+# Select window 1 to start
 tmux select-window -t $SESSION_NAME:1
 
 # Send startup script to 2nd left pane (monorepo) - runs just up
