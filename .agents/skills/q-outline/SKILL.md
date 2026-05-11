@@ -1,13 +1,13 @@
 ---
 name: q-outline
-description: Create a structured outline (~2 pages) from approved `design.md` plus optional `design-product.md` — signatures, types, vertical slices, test checkpoints. Fifth stage of QRSPI pipeline. `/q-review` is the formal LLM planning review gate before `/q-plan`.
+description: Create a structured outline (~2 pages) from approved `design.md` and optional `design-product.md` — signatures, types, vertical slices, test checkpoints. Fifth stage of QRSPI pipeline. `/q-review` is the formal LLM planning review gate before `/q-plan`.
 ---
 
 # Structured Outline — How Do We Get There?
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
-You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; `design-product.md` is optional and used for product-critical or high-stakes work. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
+You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
 
@@ -23,6 +23,8 @@ This skill supports two modes.
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
    - Read `[plan_dir]/design-product.md` if present
+   - Read ADR files listed in `design.md` frontmatter `related_adrs` (or all files in `[plan_dir]/adrs/` if the frontmatter is missing/empty)
+   - Read brainstorm docs listed in `design.md` frontmatter `brainstorm_docs` if not already loaded
    - Read all files in `[plan_dir]/research/`
    - Read all files in `[plan_dir]/context/research/`
    - Read all files in `[plan_dir]/context/design/`
@@ -71,10 +73,10 @@ Then wait for input.
 
 ### Standard mode
 
-1. **Verify artifacts are loaded**: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, optional `design-product.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, `context/design-product/` when present, and `context/outline/`, and any relevant files in `prds/`.
+1. **Verify artifacts are loaded**: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, ADRs from `design.md` frontmatter `related_adrs` (or `[plan_dir]/adrs/` fallback), optional `design-product.md`, all `research/*.md`, brainstorm docs from `design.md` frontmatter `brainstorm_docs`, relevant context artifacts in `context/research/`, `context/design/`, optional `context/design-product/`, and `context/outline/`, and any relevant files in `prds/`.
    - Missing `design-product.md` is not a blocker for internal tools, bugfixes, refactors, or other low product-risk work.
    - Stop if `design-product.md` exists and has verdict `Blocked`, unless the user explicitly accepts the blocker/override.
-   - If the task is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior, stop and ask whether to run `/q-design-product` before outlining.
+   - If `design-product.md` is missing but product/PRD coverage is clearly needed, ask whether to run `/q-design-product [design.md]` first; otherwise proceed from `design.md`.
    - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite or append to the parent plan's `outline.md`; write the follow-up outline to `[parent_plan_dir]/reviews/*/outline.md`.
 1. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
 1. **Define the structural foundation** — types, interfaces, schemas, package structures.
@@ -120,7 +122,7 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 # Outline: [Feature Name]
 
 ## Overview
-[2-3 sentences. What we're building, the approved technical approach from design.md, and the product-design verdict if design-product.md exists (otherwise note product design was not used because scope is internal/low product-risk).]
+[2-3 sentences. What we're building, the approved technical approach from design.md, and the product gate verdict from design-product.md if present (or note product design was not used because scope is internal/low product-risk; or direct-task context in direct mode).]
 
 ## Type Definitions
 Use fenced code blocks for structural content so it gets syntax highlighting.
@@ -210,7 +212,7 @@ Next: /q-review [exact path to outline.md]
 
 ```
 
-You may add one extra sentence noting that `/q-review` will review this outline together with `design.md` and optional `design-product.md` before `/q-plan`.
+You may add one extra sentence noting that `/q-review` will review this outline together with `design.md` and `design-product.md` if present before `/q-plan`.
 
 **If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above.
 
@@ -229,7 +231,7 @@ You may add one extra sentence noting that `/q-review` will review this outline 
 - Do not cram type definitions into inline bullets unless the content is very short. The outline should read like a header file, not meeting notes.
 - Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
 - Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
-- If `design-product.md` exists, preserve its Critical Findings in slices, test checkpoints, or Out of Scope.
+- Standard mode must preserve `design-product.md` Critical Findings in slices, test checkpoints, or Out of Scope when `design-product.md` exists.
 - Present to the user BEFORE writing the final file. This is the last human review gate before LLM planning review.
 - In every user-facing completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.
 ```

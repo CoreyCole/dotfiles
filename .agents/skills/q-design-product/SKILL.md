@@ -19,6 +19,7 @@ You are the optional product-design gate of the QRSPI pipeline. Use this stage f
    - Read `[plan_dir]/design.md`
    - Read all files in `[plan_dir]/questions/`
    - Read all files in `[plan_dir]/research/`
+   - Read all files in `[plan_dir]/context/question/` especially question-stage product captures like `context/question/linear/issue.json`
    - Read all files in `[plan_dir]/context/research/`
    - Read all files in `[plan_dir]/context/design/`
    - Read all files in `[plan_dir]/context/design-product/` if any
@@ -63,7 +64,7 @@ Document verdicts: `Pass`, `Blocked`, `Pass with accepted non-goals`.
 
 ## Source Capture
 
-If Linear/Notion/Slack/web/Figma/product sources are provided or referenced and no captured copy exists, capture them before interviewing:
+If Linear/Notion/Slack/web/Figma/product sources are provided or referenced and no captured copy exists, capture them before interviewing. Question-stage captures under `context/question/{linear,notion,external}/` count as captured copies; use them instead of blocking or duplicating.
 
 | Source | Store |
 |---|---|
@@ -93,7 +94,7 @@ Question: [one direct confirm/reject/adjust question]
 
 1. **Verify required inputs**: product source and approved `design.md`. If either missing, stop and ask.
 1. **Capture external product sources** using Source Capture unless already present.
-1. **Read all relevant context** in `prds/`, `context/*/`, `design.md`, ADRs, questions/research, and referenced docs/files before interviewing.
+1. **Read all relevant context** in `prds/`, `context/question/`, `context/*/`, `design.md`, ADRs, questions/research, and referenced docs/files before interviewing.
 1. **Extract product requirements and design claims**: product intent, proposed behavior, affected users, demos, rollout assumptions, non-goals.
 1. **Run alignment interview**. One question at a time until aligned.
 1. **Compare design against product requirements**. Mark coverage mechanically in matrix.
@@ -197,6 +198,7 @@ Always include the complete `thoughts/.../design-product.md` path when written.
 - Grill before writing. Do not create `design-product.md` until agent and engineer are aligned or engineer explicitly asks for a draft.
 - Always require both product source and approved `design.md`.
 - Do not treat `design.md` as the PRD.
+- Treat question-stage captures such as `context/question/linear/issue.json` as valid product source inputs.
 - Missing PRD/ticket/product source or missing design blocks document creation.
 - `Gap` or `Ambiguous` rows block unless explicitly accepted as non-goals or overridden.
 - Do not bury blockers in prose; surface them in matrix, Gate Verdict, and Critical Findings.

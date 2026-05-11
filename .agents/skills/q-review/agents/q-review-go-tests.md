@@ -79,6 +79,7 @@ Do not run an exhaustive repository-wide audit beyond the affected packages/path
 ### Helpers, cleanup, context, and mocks
 
 - Test helper functions should call `t.Helper()` first.
+- Do not add local pointer helpers like `stringPtr`, `int32Ptr`, or `boolPtr` when `pkg/pointers.To` works.
 - Helpers that create resources should use `t.Cleanup()`, not `defer` that runs when the helper returns.
 - Cleanup functions should not use `t.Context()` after the test has completed; use a fresh background/timeout context when cleanup needs a context.
 - Tests should use `t.Context()` for test-scoped contexts when supported by the project Go version.
@@ -98,6 +99,7 @@ Do not run an exhaustive repository-wide audit beyond the affected packages/path
 - Are composite expected values compared with `gocmp.Compare()` and useful diff output?
 - Are unit/integration build tags correct for each changed test file?
 - Are `t.Parallel()`, `t.Helper()`, `t.Cleanup()`, `t.Context()`, expected-error returns, and mock usage consistent with local guidance?
+- Do changed tests use `pointers.To` instead of new local pointer helpers?
 - Are test failures readable enough for a future engineer to understand expected vs actual values quickly?
 
 ## Process

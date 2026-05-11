@@ -28,6 +28,7 @@ Review only this lane unless you find a critical issue that another lane might m
 - Does the code follow existing patterns and avoid architecture drift?
 - Is the change simpler than plausible alternatives while preserving behavior?
 - Are abstractions, dependencies, public APIs, and file organization justified?
+- Are new wrappers, local pointer helpers, set implementations, and type conversion helpers justified instead of using existing project helpers?
 - Are readability, naming, duplication, and comments/doc updates acceptable for future maintainers?
 
 ## Process

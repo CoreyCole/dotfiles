@@ -32,6 +32,7 @@ context/
 .pi-config/agent/auth.json
 .pi-config/agent/sessions/
 .pi-config/agent/run-history.jsonl
+.pi-config/agent/mcp*
 context/
 *.local*
 .claude/.ranger_cache.json

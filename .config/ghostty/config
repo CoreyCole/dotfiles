@@ -47,4 +47,3 @@ keybind = ctrl+shift+r=reload_config
 keybind = ctrl+shift+R=reload_config
 keybind = ctrl+shift+t=new_tab
 keybind = ctrl+shift+T=new_tab
-keybind = alt+t=new_tab

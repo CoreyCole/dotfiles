@@ -66,6 +66,9 @@ Then wait for input.
    - Keep it short and curated.
    - Point back to `design.md`, `adrs/*.md`, or other canonical artifacts instead of duplicating them.
 1. **Immediately before writing or updating `design.md` and any ADRs, gather metadata** with `~/dotfiles/spec_metadata.sh`, use it to populate the frontmatter fields and timestamped ADR filenames, and then write the final version(s).
+   - `design.md` frontmatter must always include `related_adrs` and `brainstorm_docs` YAML arrays.
+   - `related_adrs` lists all ADR files that belong to this design. Use `[]` if none.
+   - `brainstorm_docs` lists every loaded artifact that contains a brainstorm summary or original brainstorming context (usually `questions/*.md`, research docs with `Brainstorm Summary`, or explicit brainstorm artifacts). Use `[]` if none.
 
 ## Design Brainstorm Interview
 
@@ -105,6 +108,10 @@ repository: [repository name]
 stage: design
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+related_adrs:
+  - "thoughts/[git_username]/plans/[timestamp]_[plan-name]/adrs/YYYY-MM-DD_HH-MM-SS_decision-slug.md"
+brainstorm_docs:
+  - "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_questions.md"
 ---
 
 # Design: [Feature Name]
@@ -202,7 +209,8 @@ When design.md is written, use this exact response shape:
 ```
 Artifact: [exact path to design.md]
 Summary: [brief summary of the recommended approach and key decisions; if ADRs were written, include their exact `adrs/...` paths here]
-Next: [For product-critical/high-stakes/user-facing PRD-sensitive work: `/q-design-product [exact path to design.md]`; otherwise: `/q-outline [exact path to design.md]`]
+Optional: /q-design-product [exact path to design.md]  # use when product-critical, high-stakes, user-facing, PRD-sensitive, compliance/security-sensitive, irreversible user/data behavior, demo impact, or stakeholder alignment matters
+Next: /q-outline [exact path to design.md]
 ```
 
 If there are open questions, include them below as:

@@ -35,6 +35,10 @@ If local guidance conflicts with this prompt, local project guidance wins. If no
 - Check pointer/value semantics, nil handling, zero values, and slice/map aliasing.
 - Check goroutine lifecycle, channel close ownership, race risks, and shared mutable state.
 - Check repository/service interfaces for unnecessary widening or leaky abstractions.
+- Prefer function results shaped as `(result, error)`; flag signatures like `(result, bool, error)` or other multi-value tuples where the non-error values are not self-describing. Prefer a named result struct plus `error` so fields like `Found`, `Created`, or `Skipped` make boolean meaning explicit.
+- Flag one-field wrapper structs introduced only to carry one map/slice/result; return the underlying value directly until a second field exists.
+- Before accepting new local helpers, check for project helpers: `pointers.To` for pointer literals, `collections.Set` for membership sets, and `api/internal/api/pkg/encode` or `pkg/proto` for date/range/proto conversions.
+- For uniqueness helpers, prefer `collections.Set` for membership; preserve stable output order when callers rely on first-seen order.
 - Check generated code flows (`sqlc`, protobuf, mocks) when SQL/proto/interface changes require regeneration.
 
 ## Go Test Coordination
@@ -54,6 +58,8 @@ Review only this lane unless you find a critical issue that another lane might m
 ### Implementation review checks
 
 - Does the Go code compile conceptually and follow local conventions?
+- Do changed function signatures avoid ambiguous multi-value returns such as `(result, bool, error)` in favor of `(NamedResult, error)` with clearly named fields?
+- Does new helper code duplicate existing helpers such as `pointers.To`, `collections.Set`, `encode.DateRange`, or `proto.DateRange`?
 - Are context, errors, transactions, goroutines, and generated artifacts handled correctly?
 - Are adjacent tests meaningful enough to reveal Go behavior regressions, leaving detailed test-style compliance to `q-review-go-tests`?
 

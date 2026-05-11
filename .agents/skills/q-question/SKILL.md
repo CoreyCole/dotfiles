@@ -78,6 +78,17 @@ Then wait for input.
    - If invoked on a canonical review artifact at `[parent_plan_dir]/reviews/*/review.md`, read it fully and treat it as the source problem statement for the review follow-up loop.
    - If invoked inside `[parent_plan_dir]/reviews/*/`, read any existing `questions/*.md`, `prds/*`, and `review.md` if present.
 
+1. **For Linear tickets, capture complete ticket context before brainstorming**:
+
+   - Trigger when input is a Linear identifier/link/export or the ticket text clearly references Linear.
+   - Create `[plan_dir]/context/question/linear/images/` as needed; this stores ticket assets, not copied review seeds.
+   - Run `linear-cli i get [ISSUE] --output json` and `linear-cli cm list [ISSUE] --all --output json`; save results under `[plan_dir]/context/question/linear/issue.json` and `comments.json`, plus a readable `comments.md` with author/date/body. Always include `--all` so paginated comments are not missed.
+   - Extract `https://uploads.linear.app/...` URLs from the issue description and every comment.
+   - Download image uploads to `[plan_dir]/context/question/linear/images/` using `linear-cli up fetch [URL] -f [path]`; preserve extensions. Use a temporary filename first if the helpful title depends on viewing the image.
+   - Name images `[issue]_[helpful-title]_[source]_[NN].[ext]`, where helpful-title comes from nearby text, alt text, comment context, or visible screenshot purpose after reading the image. Do not leave opaque upload IDs as the only title.
+   - Read each downloaded image before the interview; include the image paths, source comment/description, and why they matter in the `Brainstorm Summary`.
+   - Treat comment text as source context for brainstorm/interview and research-question scope, not as settled design truth.
+
 1. **Populate `prds/` when relevant**:
 
    - Store relevant PRDs, ticket exports, screenshots under `[plan_dir]/prds/`
@@ -122,6 +133,7 @@ Then wait for input.
 - For review-seeded follow-up work, summarize which review findings are in scope for this new loop, which are intentionally deferred, and any requested outcome or sequencing guidance from the lead engineer.
 - desired outcome
 - explicit design details or constraints already established
+- Linear comments and downloaded image paths when they informed context
 - decisions already made
 - tradeoffs, risks, non-goals, or tensions that research should keep in view
 
@@ -164,6 +176,7 @@ prev_question_docs:
 ## Brainstorm Summary
 - [Validated desired outcome from investigation/brainstorm/interview]
 - [Important design details, constraints, or non-goals already established]
+- [Linear comments/images used as context, with paths like `context/question/linear/images/...` when applicable]
 - [Decisions already made and tradeoffs to preserve during research]
 - [Open tensions intentionally deferred to research]
 
@@ -207,6 +220,7 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Do NOT include preferred solutions in questions.
 - Do NOT propose approaches or pseudocode.
 - Always investigate lightweight codebase context before asking the engineer questions.
+- For Linear tickets, always fetch issue comments before brainstorming and download/read Linear image uploads into `[plan_dir]/context/question/linear/images/` before writing the question doc.
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
 - Always create and maintain `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md` during the brainstorm/interview before writing questions.
 - Always start with a short creative brainstorm before converging on the final questions.
