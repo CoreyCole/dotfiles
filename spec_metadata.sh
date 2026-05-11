@@ -2,8 +2,12 @@
 set -euo pipefail
 
 # Collect metadata
-DATETIME_TZ=$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M:%S %Z')
-FILENAME_TS=$(TZ=America/Los_Angeles date '+%Y-%m-%d_%H-%M-%S')
+# Use an explicit zoneinfo path. On this system, TZ=America/Los_Angeles is
+# parsed as a POSIX TZ string with abbreviation "America" and UTC offset 0;
+# TZ=:/usr/share/zoneinfo/... forces IANA zoneinfo handling.
+LA_TZ=:/usr/share/zoneinfo/America/Los_Angeles
+DATETIME_TZ=$(TZ=$LA_TZ date '+%Y-%m-%d %H:%M:%S %Z')
+FILENAME_TS=$(TZ=$LA_TZ date '+%Y-%m-%d_%H-%M-%S')
 
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 	REPO_NAME=$(basename "$(git remote get-url origin 2>/dev/null || git rev-parse --show-toplevel)" .git)
