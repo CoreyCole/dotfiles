@@ -133,6 +133,7 @@ Recommended top-level subdirectories:
 - The plan is a tactical machine document, but it still gets an LLM review before implementation.
 - Planning review edits docs directly; implementation review fixes code only for straightforward findings and uses a review-dir QRSPI plan for deeper work.
 - Implementation runs in a fresh filesystem copy named for the plan directory or ticket slug. Never use `git worktree`; use macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir`.
+- For `cn-agents` QRSPI implementation, the fresh workspace starts from latest `main`, then each tracked edit slice gets a Graphite branch (`gt create ..._slice-N`) and Graphite commit. Do not commit slices directly to `main`; merge the completed implementation stack back with `/cn-agents-merge` after implementation/review.
 
 ## Handoffs
 

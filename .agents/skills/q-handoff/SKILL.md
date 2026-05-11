@@ -39,11 +39,11 @@ Implementation handoffs must not create branches. If the next implementation sli
 
 Implementation handoffs must also preserve the fresh-directory rule: never use `git worktree`; `/q-implement` and `/q-resume` implementation work happens in a fresh filesystem copy named for the plan directory or ticket slug. Record the current implementation directory when known, or instruct the next agent to create one with macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir` before editing. The fresh workspace is the isolation boundary; do not assume a branch should exist.
 
-Implementation handoffs must record the repository submission model. For `cn-agents`, write explicitly: stay on `main` in the recorded fresh workspace, do not run `gt create`/`gt modify`, and commit edit slices directly with `git commit`. For Graphite repos, write the current slice branch and whether the next edit slice needs a `gt create <linear-slug>_slice-N` branch.
+Implementation handoffs must record the repository submission model. For `cn-agents`, write explicitly: implementation uses a fresh workspace plus Graphite slice branches; record the current slice branch, whether the next edit slice needs `gt create <slug>_slice-N`, and that final integration uses `/cn-agents-merge`. For other Graphite repos, write the current slice branch and whether the next edit slice needs a `gt create <linear-slug>_slice-N` branch.
 
 Implementation handoffs should be created only after the implementation agent has run the slice's `just check ...` command for the changed Go/templ files so formatting/lint issues are cleaned up before handoff. This lint cleanup requirement applies only to the implementation phase; do not run implementation lint/build cleanup during question, research, design, outline, or plan handoffs.
 
-Implementation handoffs must record commit-message expectations when relevant: non-verification slice commits use the `### Commit Message` dictated in `plan.md`, with the commit body as XML wrapped in `<qrspi-commit>` and containing `<workspace>`, `<slice number="N">`, and `<artifacts>` entries for `<design>`, `<outline>`, and `<plan>`. Also record whether the command should be direct `git commit` (`cn-agents`) or a Graphite commit/modify command (Graphite repos).
+Implementation handoffs must record commit-message expectations when relevant: non-verification slice commits use the `### Commit Message` dictated in `plan.md`, with the commit body as XML wrapped in `<qrspi-commit>` and containing `<workspace>`, `<slice number="N">`, and `<artifacts>` entries for `<design>`, `<outline>`, and `<plan>`. Also record the Graphite commit/modify command for `cn-agents` and other Graphite repos, plus the final `/cn-agents-merge` expectation for `cn-agents` stacks.
 
 ## When to use
 
@@ -122,10 +122,10 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 # [Stage] Handoff
 
 ## Status
-[What is done and what remains. For implementation handoffs, state whether the next slice has planned tracked edits or is verification-only/no-branch, and state the repo submission model: `cn-agents` direct-main or Graphite stacked branches.]
+[What is done and what remains. For implementation handoffs, state whether the next slice has planned tracked edits or is verification-only/no-branch, and state the repo submission model: `cn-agents` workspace Graphite slice branches + `/cn-agents-merge`, or other Graphite stacked branches.]
 
 ## Working Directory
-[For implementation handoffs: exact fresh implementation directory path if known, confirm it is not a git worktree, and record the current branch. If this is `cn-agents`, explicitly say the expected branch is `main` and slice commits are direct `git commit`s in this workspace. If unknown, instruct the next agent to create a fresh copy named for the plan/ticket before editing. For non-implementation handoffs: omit or say not applicable.]
+[For implementation handoffs: exact fresh implementation directory path if known, confirm it is not a git worktree, and record the current branch. If this is `cn-agents`, explicitly say tracked edit slices happen on Graphite slice branches in this workspace, not direct `main`; final integration is `/cn-agents-merge`. If unknown, instruct the next agent to use the `/q-plan`-created fresh copy named for the plan/ticket before editing. For non-implementation handoffs: omit or say not applicable.]
 
 ## Learnings
 [Important findings not fully captured in artifacts, with file:line references where relevant.]
@@ -140,7 +140,7 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 [Relevant verification evidence when known, or `not run` with a short reason. For implementation handoffs, include the `just check ...` command run for changed Go/templ files, plus any slice-specific tests. Planning-stage handoffs do not need implementation lint/build cleanup.]
 
 ## Next
-[Specific instructions for the next session. For implementation handoffs, include whether the next commit should use direct `git commit` (`cn-agents`) or Graphite, and whether it should use the XML `<qrspi-commit>` body dictated in `plan.md`. For implement-complete handoffs, tell the reviewer what to review first and which verification evidence already passed.]
+[Specific instructions for the next session. For implementation handoffs, include whether the next commit should use Graphite (`cn-agents` and other Graphite repos), whether a new slice branch is needed, and whether it should use the XML `<qrspi-commit>` body dictated in `plan.md`. For implement-complete handoffs, tell the reviewer what to review first, which verification evidence already passed, and that final `cn-agents` integration uses `/cn-agents-merge` after review.]
 ```
 
 ### 6. Sync
@@ -156,11 +156,11 @@ git status --short
 
 Hard rule: do **not** run `just sync-thoughts` from a Graphite slice branch when the handoff must be published to canonical hosted thoughts. The repo script only pulls/pushes on `main`; on slice branches it formats and commits thought changes locally, then skips pull/push, leaving the handoff stranded in the implementation copy.
 
-For `cn-agents`, implementation handoffs are normally created and committed directly on `main` inside the fresh implementation workspace as part of the slice commit. Do not mention `/cn-agents-merge`, `gt create`, or slice branches for this workflow. If the copy is not on `main`, stop and record that the handoff is local-only until a `main` checkout can safely commit/sync it.
+For `cn-agents`, implementation handoffs are normally created inside the fresh implementation workspace on the current Graphite slice branch and travel with that branch stack. Mention the current branch, the next slice branch if needed, and `/cn-agents-merge` as the final integration command after implementation/review. Do not require the workspace to be on `main` for slice handoffs.
 
 For Graphite repos, if the copy is still on a slice branch, do not fake hosted sync success. Record the handoff as written locally and report that canonical thoughts sync is blocked until a `main` checkout can run `just sync-thoughts` or the handoff is copied to the canonical source checkout.
 
-Before claiming the handoff is synced, verify the sync commit can be pushed from `main`, was included in the direct `cn-agents` slice commit, or was already pushed by `just sync-thoughts`.
+Before claiming the handoff is synced, verify the handoff was committed on the current implementation slice branch, was copied/synced to the canonical thoughts checkout, or was already pushed by `just sync-thoughts`. For `cn-agents`, do not claim canonical integration until `/cn-agents-merge` brings the slice stack back to `main`.
 
 ### 7. Tell the user
 

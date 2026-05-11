@@ -116,7 +116,7 @@ Then wait for input.
 
    Each non-verification slice must include a `### Commit Message` section. Verification-only/no-change slices must say `No commit: verification-only slice.` The commit subject must include the implementation workspace name and the slice number. The commit body must be XML wrapped in `<qrspi-commit>` and include the workspace name, slice number/name, and paths to `design.md`, `outline.md`, and `plan.md`.
 
-   Also state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that implementation uses the fresh workspace on `main` with direct `git commit` per slice and no `gt create`/`gt modify`. For Graphite repos, say slices with tracked edits use stacked Graphite branches. The workspace model is always used; branching is repo-specific.
+   Also state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that implementation uses a fresh workspace created from latest `main`, then `gt create ..._slice-N` for each tracked edit slice, Graphite commits per slice, and `/cn-agents-merge` after implementation/review is complete. Do not say `cn-agents` commits slices directly to `main`. For other Graphite repos, say slices with tracked edits use stacked Graphite branches. The workspace model is always used; branching is repo-specific.
 
    Use this exact commit-message shape:
 
@@ -144,7 +144,7 @@ Then wait for input.
    - The workspace directory is created by `/q-plan` and should be based on the plan slug/timestamp, for example a sibling directory named `[repo-name]-[plan-timestamp]_[plan-slug]`.
    - Before creating the workspace, `/q-plan` must run `just sync-thoughts` from the planning/source checkout after writing `plan.md` so planning artifacts are formatted, committed, pulled/rebased, pushed, and available to the copied workspace.
    - Before `/q-implement`, the workspace copy must be on `main` at latest `origin/main` (or the project's canonical trunk equivalent).
-   - The workspace copy is the isolation boundary. For `cn-agents`, keep that workspace on `main` and commit slices directly; do not create slice branches. For Graphite repos, create slice branches during `/q-implement` only when the slice has planned tracked edits.
+   - The workspace copy is the isolation boundary. For `cn-agents`, start that workspace from latest `main`, then create Graphite slice branches during `/q-implement` for each slice with planned tracked edits; merge the finished stack back with `/cn-agents-merge`. For other Graphite repos, create slice branches during `/q-implement` only when the slice has planned tracked edits.
    - The full `[plan_dir]` contents must be present inside the workspace at the same relative `thoughts/...` path so `/q-implement [plan.md]` can load the plan, reviews, AGENTS.md memory, ADRs, questions, research, and handoffs.
    - If a later `/q-review` modifies planning artifacts, `/q-review` must run `just sync-thoughts` in the planning/source checkout and then sync the full `[plan_dir]/` into the workspace directory recorded in the QRSPI `<workspace>` element.
    - If an existing workspace directory is present and dirty, stop and ask before replacing it. Move it aside only with an explicit backup name and only after confirming that is desired.
@@ -221,6 +221,8 @@ The workspace was created from latest `origin/main` after `just sync-thoughts`, 
 
 Do not use `git worktree`. If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
 
+Repository submission model: for `cn-agents`, start implementation from this workspace on latest `main`, then create a Graphite branch for each tracked edit slice (`gt create ..._slice-N`), commit slices with Graphite, and run `/cn-agents-merge` after implementation/review is complete. Do not commit QRSPI implementation slices directly to `main`.
+
 ## Slice 1: [Name]
 
 ### Files
@@ -282,7 +284,7 @@ No human review of the plan — alignment already happened in design, outline, a
 - This plan is for the coding agent, not the human. Be explicit. Include full code, exact file paths, exact commands.
 - Status checkboxes at the top are mandatory — they are the context recovery mechanism for `/q-implement`.
 - Include `Implementation Workspace Prep` in every plan and create the workspace before completing `/q-plan`, so `/q-implement` starts from that recorded fresh filesystem copy on latest `origin/main` with the reviewed plan directory copied into the workspace.
-- Include the repository submission model in every implementation plan: `cn-agents` = direct `git commit` on `main` inside the fresh workspace, no Graphite; Graphite repos = stacked slice branches for tracked edit slices.
+- Include the repository submission model in every implementation plan: `cn-agents` = fresh workspace plus Graphite slice branches for tracked edit slices, then `/cn-agents-merge`; Graphite repos = stacked slice branches for tracked edit slices.
 - Run `just sync-thoughts` after writing `plan.md` and before creating the implementation workspace.
 - Include `<workspace>` immediately after `<status>` in every QRSPI result footer when a workspace is known; for `/q-plan`, it is mandatory and must contain the absolute workspace path.
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
