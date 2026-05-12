@@ -14,6 +14,7 @@ It does not read questions/, research/, or context/ for lane selection.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -48,6 +49,7 @@ LANE_ORDER = [
     "q-review-ci-workflows",
     "q-review-api-auth",
     "q-review-error-visibility",
+    "q-review-codebase-rules",
     "q-review-local-best-practices",
 ]
 
@@ -182,6 +184,13 @@ class ReviewSlice:
     stat_command: str | None = None
     files_command: str | None = None
     changed_files: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RuleMatch:
+    path: str
+    patterns: tuple[str, ...]
+    matched_files: tuple[str, ...]
 
 
 def rx(pattern: str) -> re.Pattern[str]:
@@ -785,6 +794,123 @@ def build_implementation_evidence(
     return evidence, normalized_changed
 
 
+def parse_rule_paths_frontmatter(text: str) -> tuple[str, ...]:
+    if not text.startswith("---"):
+        return ()
+
+    end = text.find("\n---", 3)
+    if end == -1:
+        return ()
+
+    frontmatter = text[3:end]
+    for line in frontmatter.splitlines():
+        if not line.startswith("paths:"):
+            continue
+        raw_patterns = line.removeprefix("paths:").strip()
+        return tuple(
+            pattern.strip().strip("'\"")
+            for pattern in raw_patterns.split(",")
+            if pattern.strip()
+        )
+
+    return ()
+
+
+def discover_rule_matches(repo_root: Path, candidate_paths: Iterable[str]) -> list[RuleMatch]:
+    normalized_candidates = sorted(
+        {
+            normalize_path(path)
+            for path in candidate_paths
+            if normalize_path(path) and not is_generated_code_path(normalize_path(path))
+        }
+    )
+    if not normalized_candidates:
+        return []
+
+    rule_files: list[Path] = []
+    for rules_dir in (repo_root / ".agents" / "rules",):
+        if not rules_dir.exists():
+            continue
+        rule_files.extend(
+            path
+            for path in rules_dir.rglob("*")
+            if path.is_file() and path.suffix in {".md", ".mdc"}
+        )
+
+    matches: list[RuleMatch] = []
+    for rule_file in sorted(set(rule_files)):
+        text = read_text(rule_file)
+        patterns = parse_rule_paths_frontmatter(text)
+        if not patterns:
+            continue
+        matched_files = tuple(
+            candidate
+            for candidate in normalized_candidates
+            if any(fnmatch.fnmatch(candidate, pattern) for pattern in patterns)
+        )
+        if not matched_files:
+            continue
+        matches.append(
+            RuleMatch(
+                path=display_path(rule_file, repo_root),
+                patterns=patterns,
+                matched_files=matched_files,
+            )
+        )
+
+    return matches
+
+
+def add_codebase_rules_lane(
+    selection: dict[str, object],
+    rule_matches: list[RuleMatch],
+    all_lane_ids: list[str],
+) -> dict[str, object]:
+    if not rule_matches or "q-review-codebase-rules" not in all_lane_ids:
+        return selection
+
+    selected_lanes = list(selection["selected_lanes"])  # type: ignore[index]
+    if any(lane["id"] == "q-review-codebase-rules" for lane in selected_lanes):
+        return selection
+
+    selected_lanes.append(
+        {
+            "id": "q-review-codebase-rules",
+            "reasons": [
+                "selected because changed/referenced files match local rule frontmatter"
+            ],
+            "matched_evidence": [
+                f"{match.path} -> {', '.join(match.matched_files)}"
+                for match in rule_matches
+            ],
+        }
+    )
+    order = {lane_id: index for index, lane_id in enumerate(all_lane_ids)}
+    selected_lanes.sort(key=lambda lane: order.get(str(lane["id"]), len(order)))
+    selected_ids = {str(lane["id"]) for lane in selected_lanes}
+
+    selection = dict(selection)
+    selection["selected_lanes"] = selected_lanes
+    selection["skipped_lanes"] = [
+        lane
+        for lane in selection["skipped_lanes"]  # type: ignore[index]
+        if str(lane["id"]) not in selected_ids
+    ]
+
+    return selection
+
+
+def rule_matches_to_json(rule_matches: list[RuleMatch]) -> list[dict[str, object]]:
+    return [
+        {
+            "path": match.path,
+            "patterns": list(match.patterns),
+            "matched_files": list(match.matched_files),
+        }
+        for match in rule_matches
+    ]
+
+
 def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], all_lane_ids: list[str]) -> dict[str, object]:
     selected: dict[str, LaneSelection] = {}
 
@@ -864,6 +990,7 @@ def build_subagent_tool_args(
     evidence_files: list[str],
     selected_lanes: list[dict[str, object]],
     review_slices: list[ReviewSlice],
+    rule_matches: list[RuleMatch],
 ) -> dict[str, object]:
     focused_lanes_dir = review_dir / "focused-lanes"
     chain_dir = review_dir / "focused-lane-runs"
@@ -887,6 +1014,7 @@ def build_subagent_tool_args(
                 files = f" changed_files={', '.join(review_slice.changed_files)}" if review_slice.changed_files else ""
                 slice_lines.append(f"- Slice {review_slice.index}: {review_slice.title}{branch}{parent}{diff}{files}")
         review_slices_text = "\n".join(slice_lines) if slice_lines else "none"
+        rule_matches_text = json.dumps(rule_matches_to_json(rule_matches), ensure_ascii=False)
         task = (
             "Use this focused lane prompt exactly. The prompt is embedded below; do not search for a lane prompt file.\n\n"
             f"{prompt_text}\n\n"
@@ -899,6 +1027,7 @@ def build_subagent_tool_args(
             f"Referenced paths: {', '.join(referenced_paths) if referenced_paths else 'none'}.\n"
             f"Evidence files: {', '.join(evidence_files) if evidence_files else 'none'}.\n"
             f"Review slices and branch diff commands:\n{review_slices_text}\n"
+            f"Relevant local rule files matched by frontmatter: {rule_matches_text}.\n"
             f"Selector reasons for this lane: {json.dumps(reasons, ensure_ascii=False)}.\n"
             f"Matched evidence for this lane: {json.dumps(matched, ensure_ascii=False)}.\n\n"
             "If review slices are listed, review and report each slice separately. Use the provided per-slice diff command before broad discovery when a branch is listed. "
@@ -1008,7 +1137,10 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
         referenced_paths = []
         evidence_files = [item.path for item in evidence if item.kind == "handoff"]
 
+    rule_candidate_paths = [*changed_files, *referenced_paths]
+    rule_matches = discover_rule_matches(repo_root, rule_candidate_paths)
     selection = select_lanes(args.mode, evidence, changed_files, all_lane_ids)
+    selection = add_codebase_rules_lane(selection, rule_matches, all_lane_ids)
 
     result: dict[str, object] = {
         "version": 2,
@@ -1020,6 +1152,7 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
         "evidence_files": evidence_files,
         "changed_files": changed_files,
         "referenced_paths": referenced_paths,
+        "relevant_rules": rule_matches_to_json(rule_matches),
         "review_slices": [review_slice_to_json(review_slice) for review_slice in review_slices],
         "diff_range": args.diff_range,
         "diff_base": args.diff_base,
@@ -1039,6 +1172,7 @@ def run_selector(args: argparse.Namespace) -> dict[str, object]:
             evidence_files=evidence_files,
             selected_lanes=selection["selected_lanes"],  # type: ignore[arg-type]
             review_slices=review_slices,
+            rule_matches=rule_matches,
         )
 
     return result
