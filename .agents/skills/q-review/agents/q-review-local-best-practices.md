@@ -35,6 +35,7 @@ Do not read every skill blindly. First list skill names/descriptions and filenam
 ## Review Checks
 
 - Did the implementation or outline violate explicit local hard rules?
+- For Go changes, did the plan/implementation follow `.agents/rules/go-style.md` utility-package guidance such as `pkg/pointers.To`, `pkg/collections.Set`, nullable `Ptr()`, and `pkg/checked`?
 - Are required commands, generated artifacts, build tags, migration practices, test patterns, or review checklists missing?
 - Did the plan/handoff claim compliance with a local convention that the code does not actually follow?
 - Are there local best-practice docs the main reviewer should explicitly use in another lane?

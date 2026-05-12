@@ -114,6 +114,7 @@ Focused lane reports are advisory. Verify every candidate finding yourself befor
    - concrete file paths, interfaces, migrations, rollback, observability, and invariants
    - test checkpoints that actually prove each slice works and cover product E2E edge cases
    - plan steps that are too vague for a coding agent
+   - local codebase rules under `.agents/rules/`, especially Go utility-package rules (`pkg/pointers.To`, `pkg/collections.Set`, nullable `Ptr()`, `pkg/checked`) when the plan writes Go files
 1. Run focused lanes when useful, then synthesize and verify candidate findings.
 1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`. Only flag a missing `design-product.md` when the work is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior.
 1. Apply all `obvious_doc_fix` edits directly to `design.md`, `design-product.md`, `outline.md`, and/or `plan.md`.

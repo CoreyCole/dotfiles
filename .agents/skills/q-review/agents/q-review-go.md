@@ -37,7 +37,7 @@ If local guidance conflicts with this prompt, local project guidance wins. If no
 - Check repository/service interfaces for unnecessary widening or leaky abstractions.
 - Prefer function results shaped as `(result, error)`; flag signatures like `(result, bool, error)` or other multi-value tuples where the non-error values are not self-describing. Prefer a named result struct plus `error` so fields like `Found`, `Created`, or `Skipped` make boolean meaning explicit.
 - Flag one-field wrapper structs introduced only to carry one map/slice/result; return the underlying value directly until a second field exists.
-- Before accepting new local helpers, check for project helpers: `pointers.To` for pointer literals, `collections.Set` for membership sets, and `api/internal/api/pkg/encode` or `pkg/proto` for date/range/proto conversions.
+- Before accepting new local helpers, check for project helpers: `pkg/pointers.To` for pointer literals, `pkg/collections.Set` for membership sets, nullable `Ptr()` methods for nullable DB values, `pkg/checked` for integer conversions, and `api/internal/api/pkg/encode` or `pkg/proto` for date/range/proto conversions.
 - For uniqueness helpers, prefer `collections.Set` for membership; preserve stable output order when callers rely on first-seen order.
 - Check generated code flows (`sqlc`, protobuf, mocks) when SQL/proto/interface changes require regeneration.
 

@@ -104,6 +104,7 @@ Then wait for input.
 
 1. **Read key files from the codebase** that the outline references — you need to see the actual code to write accurate implementation steps.
 
+   - If the plan will edit Go files, read relevant codebase rules before writing implementation steps: `.agents/rules/go-style.md` when present and package-local `AGENTS.md`/`CLAUDE.md`. Make the plan use shared helpers (`pkg/pointers.To`, `pkg/collections.Set`, nullable `Ptr()`, `pkg/checked`) instead of hand-rolled equivalents.
    - If the current file graph, entry points, or nearby patterns are still unclear, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/plan/` before finalizing the plan.
 
 1. **Expand each slice** from the outline into detailed implementation steps:
