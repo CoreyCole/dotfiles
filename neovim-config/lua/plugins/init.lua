@@ -59,9 +59,21 @@ return {
     {
         "numToStr/Comment.nvim",
         event = "VeryLazy",
+        dependencies = {
+            "JoosepAlviste/nvim-ts-context-commentstring",
+        },
         config = function()
+            local context_commentstring_pre_hook =
+                require("ts_context_commentstring.integrations.comment_nvim").create_pre_hook()
+
             require("Comment").setup {
-                pre_hook = require("ts_context_commentstring.integrations.comment_nvim").create_pre_hook(),
+                pre_hook = function(ctx)
+                    local ok, commentstring = pcall(context_commentstring_pre_hook, ctx)
+
+                    if ok then
+                        return commentstring
+                    end
+                end,
             }
         end,
     },
@@ -70,11 +82,15 @@ return {
         event = "VeryLazy",
         dependencies = {
             "nvim-treesitter/nvim-treesitter",
-            "numToStr/Comment.nvim",
         },
         init = function()
             vim.g.skip_ts_context_commentstring_module = true
-            require("nvim-treesitter").setup {}
+        end,
+        opts = {
+            enable_autocmd = false,
+        },
+        config = function(_, opts)
+            require("ts_context_commentstring").setup(opts)
         end,
     },
     {
