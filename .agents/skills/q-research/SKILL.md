@@ -82,12 +82,14 @@ Reply `go` to start this research. Any edits, objections, or discussion will mov
 1. **Phase 1 — location pass. Spawn one or more parallel `codebase-locator` sub-agents across the research areas**:
 
    - Ask `codebase-locator` for concrete paths, likely entry points, the smallest useful next-read set, related tests/config/docs, and any directory clusters relevant to the question.
+   - Include the QRSPI subagent robustness contract below in every locator task.
    - When a question explicitly asks about prior decisions, existing research, historical context, or documents in `thoughts/`, ask `codebase-locator` to search `thoughts/` too and correct any `thoughts/searchable/` paths back to editable paths.
    - Write each locator result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
 
 1. **Phase 2 — analysis pass. Run `codebase-analyzer` on the most promising files or flows surfaced by the locator results**:
 
    - Ask `codebase-analyzer` to trace entry points, data flow, important types, transformations, configuration, patterns, and error handling with exact file:line references.
+   - Include the QRSPI subagent robustness contract below in every analyzer task.
    - Keep analyzer tasks narrow and factual.
    - Write each analyzer result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
 
@@ -96,6 +98,40 @@ Reply `go` to start this research. Any edits, objections, or discussion will mov
    - Do not synthesize early.
    - Prioritize live codebase findings as the primary source of truth.
    - Treat `thoughts/` findings as supplementary historical context.
+   - After each subagent pass, read every output artifact and verify it is a real report. If an artifact is empty, only contains raw tool-call markup/JSON such as `<tool_call>` or `{"cmd": ...}`, has no concrete paths for a locator task, or has no file:line/code references for an analyzer task, treat that subagent result as failed. Rerun that specific task once with the robustness contract emphasized before synthesizing.
+
+## QRSPI Subagent Robustness Contract
+
+Include this contract verbatim in locator and analyzer tasks:
+
+```text
+You are running inside pi. Use only the tools available to your agent, especially bash/read when present. Do not output tool-call XML, JSON tool invocations, or proposed commands as your answer. Actually run bounded searches/reads and then return findings.
+
+Run commands from the provided cwd/repo_root. Use short explicit timeouts for broad searches. Never run find outside cwd/repo_root or $TMPDIR; prefer rg/rg --files scoped to cwd. If context is insufficient after bounded reads, report the gap instead of continuing broad discovery.
+
+Return a markdown report, not a transcript. Include concrete paths and exact file:line references wherever possible.
+
+Required report shape:
+# [Locator|Analyzer] Report: [topic]
+
+## Findings
+- [fact] — `path:line`
+
+## Relevant Files
+- `path` — why it matters
+
+## Smallest Next-Read Set
+- `path`
+
+## Tests / Docs / Config
+- `path` or `None found.`
+
+## Searches / Verification
+- [commands or reads actually performed]
+
+## Gaps
+- [not found / not determined, or `None.`]
+```
 
 1. **Synthesize and verify in main context**.
 

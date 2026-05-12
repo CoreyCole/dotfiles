@@ -1017,6 +1017,10 @@ def build_subagent_tool_args(
         rule_matches_text = json.dumps(rule_matches_to_json(rule_matches), ensure_ascii=False)
         task = (
             "Use this focused lane prompt exactly. The prompt is embedded below; do not search for a lane prompt file.\n\n"
+            "Pi subagent runtime contract: use only tools available to your agent, especially bash/read when present. "
+            "Do not output tool-call XML, JSON tool invocations, or proposed commands as your answer. "
+            "Actually run bounded searches/reads/verification and then return the lane report. "
+            "Return markdown only, not a transcript. If a needed tool is unavailable or context is insufficient after bounded reads, report the gap in the lane report.\n\n"
             f"{prompt_text}\n\n"
             f"Review only this lane for {mode} review. "
             f"cwd={repo_root.as_posix()}. "
@@ -1038,6 +1042,8 @@ def build_subagent_tool_args(
             "use short explicit timeouts for broad discovery commands, and task-appropriate explicit timeouts for verification commands. "
             "Never run `find` outside cwd/repo_root or $TMPDIR; prefer exact provided paths and `rg --files` scoped to cwd. "
             "If context is insufficient after bounded reads, report the gap instead of broad discovery.\n\n"
+            "The final answer and output file must start with the lane report heading from the embedded prompt and include Findings, What I Read, Verification, and Notes for Main Reviewer sections. "
+            "Do not include raw `<tool_call>` blocks, JSON command objects, or unevaluated shell snippets as the report body. "
             "Write the lane report to the provided output path. Do not edit implementation files."
         )
         parallel_tasks.append(

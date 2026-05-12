@@ -141,9 +141,10 @@ Then wait for input.
 
    The section must include these invariants:
 
-   - Implementation happens in a fresh filesystem copy, never a git worktree.
-   - The workspace directory is created by `/q-plan` and should be based on the plan slug/timestamp, for example a sibling directory named `[repo-name]-[plan-timestamp]_[plan-slug]`.
-   - Before creating the workspace, `/q-plan` must run `just sync-thoughts` from the planning/source checkout after writing `plan.md` so planning artifacts are formatted, committed, pulled/rebased, pushed, and available to the copied workspace.
+   - Implementation happens in a fresh, efficient filesystem copy of the whole repo, never a git worktree. This is a normal copied directory, not a worktree.
+   - The workspace directory is created by `/q-plan` and must be a sibling directory named `[repo-name]-[plan-dir-basename]`, where `[plan-dir-basename]` is the final directory name of the active QRSPI plan directory. Example: plan dir `thoughts/.../plans/2026-05-07_12-12-40_pr-review-analysis-tools_implementation-review` in repo `cn-agents` uses workspace `../cn-agents-2026-05-07_12-12-40_pr-review-analysis-tools_implementation-review`.
+   - Before creating the workspace, `/q-plan` must sync the planning/source checkout to latest trunk (`gt sync` or `git pull --ff-only` on `main`/canonical trunk), run `just sync-thoughts` after writing `plan.md` so planning artifacts are committed/synced, and then verify `git status --short` is clean.
+   - Do not copy from a dirty checkout. If local work must be preserved, inspect it, stash it (including untracked files when needed), make the clean copy, then re-apply the stash in the original checkout only after the copy exists.
    - Before `/q-implement`, the workspace copy must be on `main` at latest `origin/main` (or the project's canonical trunk equivalent).
    - The workspace copy is the isolation boundary. For `cn-agents`, start that workspace from latest `main`, then create Graphite slice branches during `/q-implement` for each slice with planned tracked edits; merge the finished stack back with `/cn-agents-merge`. For other Graphite repos, create slice branches during `/q-implement` only when the slice has planned tracked edits.
    - The full `[plan_dir]` contents must be present inside the workspace at the same relative `thoughts/...` path so `/q-implement [plan.md]` can load the plan, reviews, AGENTS.md memory, ADRs, questions, research, and handoffs.
@@ -153,24 +154,29 @@ Then wait for input.
    Include a concise command template adapted to the repository, using filesystem copy commands only:
 
    ```bash
-   # From the canonical checkout, immediately after writing plan.md:
-   just sync-thoughts
-
-   git fetch origin
+   # From the canonical checkout, before copying:
    git checkout main
-   git pull --ff-only origin main
+   gt sync                         # or: git pull --ff-only origin main
+
+   # After writing plan.md and before copying:
+   just sync-thoughts
+   test -z "$(git status --short)" # expect clean; if not, inspect/stash before copying
 
    cd ..
-   cp -a --reflink=auto [canonical-repo-dir] [workspace-dir]
-   rsync -a [planning-checkout]/[plan_dir]/ [workspace-dir]/[plan_dir]/
+   workspace_dir="[repo-name]-[plan-dir-basename]"
+   # macOS/APFS efficient clone copy:
+   cp -ac [canonical-repo-dir] "$workspace_dir"
+   # Linux/GNU cp efficient reflink copy:
+   cp -a --reflink=auto [canonical-repo-dir] "$workspace_dir"
+   rsync -a [planning-checkout]/[plan_dir]/ "$workspace_dir"/[plan_dir]/
 
-   cd [workspace-dir]
+   cd "$workspace_dir"
    git branch --show-current      # expect main
    git rev-parse HEAD origin/main # expect matching commits
    test -f [plan_dir]/plan.md
    ```
 
-   If project hooks require `gt sync` instead of `git pull`, say so in the command comments rather than forcing a blocked command.
+   Pick exactly one `cp` command for the host OS. These copy modes use clone/reflink behavior where supported, so the workspace is fast and storage-efficient while remaining a normal directory copy, not a git worktree. If project hooks require `gt sync` instead of `git pull`, say so in the command comments rather than forcing a blocked command.
 
 1. **If the plan locks in durable sequencing changes, invariants, or implementation caveats that future implementers/reviewers should remember first, update `[plan_dir]/AGENTS.md`.**
 
@@ -183,7 +189,7 @@ Then wait for input.
 
 1. **Run `just sync-thoughts` in the planning/source checkout** after writing `plan.md`. If it fails, stop with status `blocked` or `error`; do not create an implementation workspace from unsynced planning artifacts.
 
-1. **Create the fresh implementation workspace** from the synced source checkout using filesystem copy (`cp -a --reflink=auto` on Linux, `cp -ac` on macOS), then ensure `[plan_dir]/plan.md` exists at the same relative path inside that workspace. Record the absolute workspace path in the plan's `Implementation Workspace Prep` section and in the completion XML `<workspace>` element.
+1. **Create the fresh implementation workspace** from the synced, clean source checkout using an efficient filesystem copy (`cp -ac` on macOS, `cp -a --reflink=auto` on Linux), then ensure `[plan_dir]/plan.md` exists at the same relative path inside that workspace. This must be a normal copied directory, not a git worktree. Record the absolute workspace path in the plan's `Implementation Workspace Prep` section and in the completion XML `<workspace>` element.
 
 ## Output Template
 
@@ -220,7 +226,7 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 The workspace was created from latest `origin/main` after `just sync-thoughts`, and this plan directory was copied into the same relative `thoughts/...` path inside it. If `/q-review` modifies planning artifacts, it must run `just sync-thoughts` in the planning/source checkout and then sync `[plan_dir]/` into this workspace before handing off to `/q-implement`.
 
-Do not use `git worktree`. If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
+Do not use `git worktree`. This workspace is a normal copied directory created with efficient filesystem clone/reflink copy (`cp -ac` on macOS, `cp -a --reflink=auto` on Linux). If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
 
 Repository submission model: for `cn-agents`, start implementation from this workspace on latest `main`, then create a Graphite branch for each tracked edit slice (`gt create ..._slice-N`), commit slices with Graphite, and run `/cn-agents-merge` after implementation/review is complete. Do not commit QRSPI implementation slices directly to `main`.
 

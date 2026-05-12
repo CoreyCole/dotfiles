@@ -112,6 +112,9 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
 1. Summarize the implemented behavior at a high level and check alignment with PRDs, ticket text, question docs, `context/brainstorms/`, research findings, design/outline/plan, and approved plan-memory constraints.
 1. Review actual code for correctness, regressions, security, invariants, tests, operations, and maintainability.
 1. Run focused lanes when useful; read every lane report; verify candidate findings yourself.
+   - Treat a lane output as failed if it is empty, only contains raw tool-call markup/JSON such as `<tool_call>` or `{"cmd": ...}`, lacks the required lane report sections, or contains no evidence for its findings.
+   - Rerun each failed lane once with the same task plus an explicit reminder to actually use tools and return only the markdown lane report.
+   - If the rerun still fails, record the lane as unavailable in `review.md` and continue with your own targeted verification instead of trusting it.
 1. Classify findings into `straightforward_fix` and `needs_followup_qrspi`.
 1. Write the initial `review.md` before applying code fixes or creating follow-up docs.
 1. Apply all `straightforward_fix` findings directly when safe:

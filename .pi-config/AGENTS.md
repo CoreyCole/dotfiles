@@ -70,7 +70,7 @@ When you need an isolated workspace, make an efficient filesystem copy of the wh
 - macOS: `cp -ac source-dir clean-copy-dir`
 - Linux: `cp -a --reflink=auto source-dir clean-copy-dir`
 
-These copy modes use clone/reflink behavior where supported, so they are fast and storage-efficient without adding worktree management overhead. After the copied workspace is merged or no longer needed, delete the copied directory with normal filesystem cleanup.
+These copy modes use clone/reflink behavior where supported, so they are fast and storage-efficient without adding worktree management overhead. Leave copied workspaces in place after merge; workspace cleanup is manual. Do not delete copied workspace directories unless explicitly asked.
 
 ### Think Forward
 
