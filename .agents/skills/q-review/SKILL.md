@@ -73,7 +73,7 @@ After resolving implementation review, read and follow:
 
 - Do not run both review modes in one invocation.
 - Do not keep using this router after mode selection; load the focused skill and follow it.
-- Planning review edits planning documents directly when findings are clear, including `design-product.md` when present.
+- Planning review edits planning documents directly when findings are clear, including `design-product.md` when present. After a successful `plan.md` review, the next stage is `/q-workspace [plan.md]`, not `/q-implement`.
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
 - The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, and approved QRSPI constraints in both `review.md` and the user response.
 - Always return the canonical review artifact path produced by the focused skill.

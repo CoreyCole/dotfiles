@@ -30,14 +30,14 @@ When more than one artifact is relevant, keep `<artifact>` as the primary next-c
 
 Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
 
-If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next>` is `/q-implement [plan.md]`. For stage completion, emit only a fenced `xml` QRSPI footer; do not duplicate Artifact/Summary/Next in prose:
+If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next>` is `/q-workspace [plan.md]`. For stage completion, emit only a fenced `xml` QRSPI footer; do not duplicate Artifact/Summary/Next in prose:
 
 ```xml
 <qrspi-result>
   <stage>plan</stage>
   <status>complete</status>
   <workspace>
-[absolute path to the fresh implementation workspace directory created by q-plan]
+[empty; q-workspace creates/repairs this after plan review]
   </workspace>
   <policy>
     <autoMode>[latest known autoMode]</autoMode>
@@ -115,14 +115,14 @@ Then wait for input.
    - Commands to verify each slice
    - A dictated commit message for the slice, using the exact format below
 
-   Each non-verification slice must include a `### Commit Message` section. Verification-only/no-change slices must say `No commit: verification-only slice.` The commit subject must include the implementation workspace name and the slice number. The commit body must be XML wrapped in `<qrspi-commit>` and include the workspace name, slice number/name, and paths to `design.md`, `outline.md`, and `plan.md`.
+   Each non-verification slice must include a `### Commit Message` section. Verification-only/no-change slices must say `No commit: verification-only slice.` The commit subject must follow Conventional Commits 1.0.0: `<type>[optional scope]: <description>`. The subject description should still mention the implementation workspace/slice when useful, but the required machine-readable slice metadata belongs in the QRSPI XML footer. The commit footer must include XML wrapped in `<qrspi-commit>` with the workspace name, slice number/name, and paths to `design.md`, `outline.md`, and `plan.md`.
 
-   Also state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that implementation uses a fresh workspace created from latest `main`, then `gt create ..._slice-N` for each tracked edit slice, Graphite commits per slice, and `/cn-agents-merge` after implementation/review is complete. Do not say `cn-agents` commits slices directly to `main`. For other Graphite repos, say slices with tracked edits use stacked Graphite branches. The workspace model is always used; branching is repo-specific.
+   Also state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that `/q-workspace` selects the workspace base, then `/q-implement` or `/q-resume` implements/verifies each tracked edit slice first and only then runs `gt create ..._slice-N` or `..._review_plan_slice-N` with the final conventional commit message. Graphite commits per slice, and `/cn-agents-merge` after implementation/review is complete. Do not say `cn-agents` commits slices directly to `main` or pre-creates the next slice branch before editing. For other Graphite repos, slices with tracked edits use the same end-of-slice Graphite branch creation rule. The workspace model is always used; branching is repo-specific.
 
    Use this exact commit-message shape:
 
    ```text
-   [workspace-name] slice N: [imperative summary]
+   feat([scope]): [imperative summary for workspace slice N]
 
    <qrspi-commit>
      <workspace>[workspace-name]</workspace>
@@ -137,46 +137,21 @@ Then wait for input.
 
 1. **Add status checkboxes** at the top — these are the context recovery mechanism. When the implementing agent's context window resets, it reloads this file and the checkboxes tell it where to pick up.
 
-1. **Add an `Implementation Workspace Prep` section before the first slice.** This section documents the filesystem copy that `/q-plan` creates for `/q-implement` after the final planning review.
+1. **Add an `Implementation Workspace Prep` section before the first slice.** This section documents that `/q-workspace` creates or repairs the filesystem copy after the final `/q-review [plan.md]` succeeds.
 
    The section must include these invariants:
 
-   - Implementation happens in a fresh, efficient filesystem copy of the whole repo, never a git worktree. This is a normal copied directory, not a worktree.
-   - The workspace directory is created by `/q-plan` and must be a sibling directory named `[repo-name]-[plan-dir-basename]`, where `[plan-dir-basename]` is the final directory name of the active QRSPI plan directory. Example: plan dir `thoughts/.../plans/2026-05-07_12-12-40_pr-review-analysis-tools_implementation-review` in repo `cn-agents` uses workspace `../cn-agents-2026-05-07_12-12-40_pr-review-analysis-tools_implementation-review`.
-   - Before creating the workspace, `/q-plan` must sync the planning/source checkout to latest trunk (`gt sync` or `git pull --ff-only` on `main`/canonical trunk), run `just sync-thoughts` after writing `plan.md` so planning artifacts are committed/synced, and then verify `git status --short` is clean.
-   - Do not copy from a dirty checkout. If local work must be preserved, inspect it, stash it (including untracked files when needed), make the clean copy, then re-apply the stash in the original checkout only after the copy exists.
-   - Before `/q-implement`, the workspace copy must be on `main` at latest `origin/main` (or the project's canonical trunk equivalent).
-   - The workspace copy is the isolation boundary. For `cn-agents`, start that workspace from latest `main`, then create Graphite slice branches during `/q-implement` for each slice with planned tracked edits; merge the finished stack back with `/cn-agents-merge`. For other Graphite repos, create slice branches during `/q-implement` only when the slice has planned tracked edits.
+   - Implementation happens in a fresh filesystem copy, never a git worktree.
+   - `/q-workspace`, not `/q-plan`, chooses the final workspace base after plan-review edits are complete.
+   - The workspace directory should be based on the plan slug/timestamp, for example a sibling directory named `[repo-name]-[plan-timestamp]_[plan-slug]`.
+   - For normal parent plans, `/q-workspace` usually bases the copy on latest `origin/main` (or project trunk).
+   - For implementation-review follow-up/review-fixes plans under `[parent_plan_dir]/reviews/*_implementation-review/`, `/q-workspace` must prove whether the parent implementation stack top is already merged into `origin/main`. If yes, base on latest `origin/main`. If no, base on the parent implementation stack top branch/commit so review fixes stack on top and no work is lost.
+   - In Graphite repos, including `cn-agents`, when the parent stack is unmerged the first review-fix slice branch created later by `/q-implement` must have `gt parent` equal to the parent implementation stack top branch.
+   - The workspace copy is the isolation boundary. For `cn-agents`, use Graphite slice branches during `/q-implement` for each slice with planned tracked edits; merge the finished stack back with `/cn-agents-merge`.
    - The full `[plan_dir]` contents must be present inside the workspace at the same relative `thoughts/...` path so `/q-implement [plan.md]` can load the plan, reviews, AGENTS.md memory, ADRs, questions, research, and handoffs.
-   - If a later `/q-review` modifies planning artifacts, `/q-review` must run `just sync-thoughts` in the planning/source checkout and then sync the full `[plan_dir]/` into the workspace directory recorded in the QRSPI `<workspace>` element.
    - If an existing workspace directory is present and dirty, stop and ask before replacing it. Move it aside only with an explicit backup name and only after confirming that is desired.
 
-   Include a concise command template adapted to the repository, using filesystem copy commands only:
-
-   ```bash
-   # From the canonical checkout, before copying:
-   git checkout main
-   gt sync                         # or: git pull --ff-only origin main
-
-   # After writing plan.md and before copying:
-   just sync-thoughts
-   test -z "$(git status --short)" # expect clean; if not, inspect/stash before copying
-
-   cd ..
-   workspace_dir="[repo-name]-[plan-dir-basename]"
-   # macOS/APFS efficient clone copy:
-   cp -ac [canonical-repo-dir] "$workspace_dir"
-   # Linux/GNU cp efficient reflink copy:
-   cp -a --reflink=auto [canonical-repo-dir] "$workspace_dir"
-   rsync -a [planning-checkout]/[plan_dir]/ "$workspace_dir"/[plan_dir]/
-
-   cd "$workspace_dir"
-   git branch --show-current      # expect main
-   git rev-parse HEAD origin/main # expect matching commits
-   test -f [plan_dir]/plan.md
-   ```
-
-   Pick exactly one `cp` command for the host OS. These copy modes use clone/reflink behavior where supported, so the workspace is fast and storage-efficient while remaining a normal directory copy, not a git worktree. If project hooks require `gt sync` instead of `git pull`, say so in the command comments rather than forcing a blocked command.
+   Include a concise command template that points to `/q-workspace` rather than attempting to finish workspace creation inside `/q-plan`.
 
 1. **If the plan locks in durable sequencing changes, invariants, or implementation caveats that future implementers/reviewers should remember first, update `[plan_dir]/AGENTS.md`.**
 
@@ -187,9 +162,9 @@ Then wait for input.
 
 1. **Write the plan** directly. No human review step — alignment already happened in design and outline. The next gate is LLM planning review via `/q-review [plan.md]`.
 
-1. **Run `just sync-thoughts` in the planning/source checkout** after writing `plan.md`. If it fails, stop with status `blocked` or `error`; do not create an implementation workspace from unsynced planning artifacts.
+1. **Run `just sync-thoughts` in the planning/source checkout** after writing `plan.md`. If it fails, stop with status `blocked` or `error`; do not advance to review with unsynced planning artifacts.
 
-1. **Create the fresh implementation workspace** from the synced, clean source checkout using an efficient filesystem copy (`cp -ac` on macOS, `cp -a --reflink=auto` on Linux), then ensure `[plan_dir]/plan.md` exists at the same relative path inside that workspace. This must be a normal copied directory, not a git worktree. Record the absolute workspace path in the plan's `Implementation Workspace Prep` section and in the completion XML `<workspace>` element.
+1. **Do not create the implementation workspace in `/q-plan`.** Workspace creation/repair is the separate `/q-workspace` stage after final `/q-review [plan.md]`, because review edits can change the plan and review-fixes plans may need to stack on an unmerged parent implementation branch.
 
 ## Output Template
 
@@ -218,17 +193,19 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 
 ## Implementation Workspace Prep
 
-`/q-plan` created this fresh filesystem copy for `/q-implement`:
+`/q-workspace` will create or repair the fresh filesystem copy for `/q-implement` after `/q-review [plan.md]` succeeds.
+
+Planned workspace path:
 
 ```text
-[absolute workspace path]
+[absolute workspace path candidate]
 ```
 
-The workspace was created from latest `origin/main` after `just sync-thoughts`, and this plan directory was copied into the same relative `thoughts/...` path inside it. If `/q-review` modifies planning artifacts, it must run `just sync-thoughts` in the planning/source checkout and then sync `[plan_dir]/` into this workspace before handing off to `/q-implement`.
+Workspace base selection is deferred to `/q-workspace` so it can account for plan-review edits and unmerged parent stacks. For normal plans, the base is usually latest `origin/main`. For review-fixes plans under `reviews/*_implementation-review/`, `/q-workspace` must prove whether the parent implementation stack top is merged into `origin/main`; if not, it must base the workspace on that parent top branch/commit and record the expected `gt parent` for review-fix slice branches.
 
 Do not use `git worktree`. This workspace is a normal copied directory created with efficient filesystem clone/reflink copy (`cp -ac` on macOS, `cp -a --reflink=auto` on Linux). If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
 
-Repository submission model: for `cn-agents`, start implementation from this workspace on latest `main`, then create a Graphite branch for each tracked edit slice (`gt create ..._slice-N`), commit slices with Graphite, and run `/cn-agents-merge` after implementation/review is complete. Do not commit QRSPI implementation slices directly to `main`.
+Repository submission model: for `cn-agents`, implement in the workspace selected by `/q-workspace`, then create a Graphite branch for each tracked edit slice at the end of that slice (`gt create ..._slice-N` or `..._review_plan_slice-N`) after implementation and verification. Commit slices with Conventional Commit messages plus QRSPI XML footers, and run `/cn-agents-merge` after implementation/review is complete. Do not commit QRSPI implementation slices directly to `main` and do not pre-create future slice branches.
 
 ## Slice 1: [Name]
 
@@ -257,7 +234,7 @@ Repository submission model: for `cn-agents`, start implementation from this wor
 ### Commit Message
 
 ```text
-[workspace-name] slice 1: [imperative summary]
+feat([scope]): [imperative summary for workspace slice 1]
 
 <qrspi-commit>
   <workspace>[workspace-name]</workspace>
@@ -290,16 +267,16 @@ No human review of the plan — alignment already happened in design, outline, a
 
 - This plan is for the coding agent, not the human. Be explicit. Include full code, exact file paths, exact commands.
 - Status checkboxes at the top are mandatory — they are the context recovery mechanism for `/q-implement`.
-- Include `Implementation Workspace Prep` in every plan and create the workspace before completing `/q-plan`, so `/q-implement` starts from that recorded fresh filesystem copy on latest `origin/main` with the reviewed plan directory copied into the workspace.
+- Include `Implementation Workspace Prep` in every plan, but do not create the workspace in `/q-plan`; `/q-workspace` creates or repairs it after the plan review and records the final base branch/commit.
 - Include the repository submission model in every implementation plan: `cn-agents` = fresh workspace plus Graphite slice branches for tracked edit slices, then `/cn-agents-merge`; Graphite repos = stacked slice branches for tracked edit slices.
-- Run `just sync-thoughts` after writing `plan.md` and before creating the implementation workspace.
-- Include `<workspace>` immediately after `<status>` in every QRSPI result footer when a workspace is known; for `/q-plan`, it is mandatory and must contain the absolute workspace path.
+- Run `just sync-thoughts` after writing `plan.md`.
+- Include `<workspace>` immediately after `<status>` in every QRSPI result footer when a workspace is known; for `/q-plan`, it may be empty because `/q-workspace` is responsible for final workspace creation.
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
 - If `design-product.md` exists, preserve its Critical Findings in concrete implementation steps, verification, or explicit Out of Scope notes.
 - Every slice must include a verify step — a command the implementing agent can run.
-- Every non-verification slice must include a dictated `### Commit Message` block after its verify step. The subject must include the workspace name and slice number; the body must be XML wrapped in `<qrspi-commit>` and include `<workspace>`, `<slice number="N">`, and `<artifacts>` with exact `<design>`, `<outline>`, and `<plan>` paths.
+- Every non-verification slice must include a dictated `### Commit Message` block after its verify step. The subject must be Conventional Commits 1.0.0 compliant (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc. with optional scope); the footer must include XML wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` with exact `<design>`, `<outline>`, and `<plan>` paths.
 - Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
-- The completion `Next:` must point to `/q-review [exact path to plan.md]` when `enablePlanReviews=true`, or `/q-implement [exact path to plan.md]` when `enablePlanReviews=false`; final implementation review still always runs.
+- The completion `Next:` must point to `/q-review [exact path to plan.md]` when `enablePlanReviews=true`, or `/q-workspace [exact path to plan.md]` when `enablePlanReviews=false`; final implementation review still always runs.
 - In every user-facing completion response, use the same three-line shape: `Artifact: ...`, `Summary: ...`, `Next: ...`.
 ```
 ````

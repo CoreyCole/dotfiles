@@ -1,0 +1,36 @@
+---
+description: Prefer collections.Set over map-as-set patterns in cctl Go code
+globs:
+  - "cctl/**/*.go"
+alwaysApply: false
+---
+
+# Prefer collections.Set for sets
+
+When cctl Go code needs a membership set, use `collections.Set` from `cctl/pkg/collections` instead of raw `map[T]struct{}` patterns.
+
+Flag changed Go code that uses a map only for membership tracking, such as:
+
+```go
+seen := map[string]struct{}{}
+seen[value] = struct{}{}
+if _, ok := seen[value]; ok {
+    // ...
+}
+```
+
+Prefer:
+
+```go
+seen := collections.NewSet[string]()
+seen.Add(value)
+if seen.Has(value) {
+    // ...
+}
+```
+
+Acceptable exceptions:
+
+- Generated code
+- External API interop that requires a map
+- A benchmarked hot path where raw maps are intentionally chosen

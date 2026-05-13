@@ -37,7 +37,7 @@ Every primary QRSPI stage and review/helper that completes a workflow transition
   <stage>design</stage>
   <status>complete</status>
   <workspace>
-[absolute path to the q-plan-created implementation workspace, when known]
+[absolute path to the q-workspace-created implementation workspace, when known]
   </workspace>
   <policy>
     <autoMode>false</autoMode>
@@ -60,7 +60,7 @@ thoughts/.../design.md
 ```
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
-`<workspace>` appears immediately after `<status>` whenever the implementation workspace is known. `/q-plan` must create that workspace and include its absolute path; later stages preserve it so `/q-implement` runs there.
+`<workspace>` appears immediately after `<status>` whenever the implementation workspace is known. `/q-workspace` creates or repairs that workspace after final plan review and includes its absolute path; later stages preserve it so `/q-implement` runs there.
 `<next>` is display/debug intent only; runtime validates and may rewrite it from latest persisted policy before starting another run.
 
 # QRSPI Planning Pipeline
@@ -77,8 +77,9 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 | 4 | Product Design (optional) | `/q-design-product` | `design-product.md` | Human approves product/PRD coverage when needed |
 | 5 | Outline | `/q-outline` | `outline.md` | LLM review via `/q-review [outline.md]` |
 | 6 | Plan | `/q-plan` | `plan.md` | LLM review via `/q-review [plan.md]` |
-| 7 | Implement | `/q-implement` | code changes + verified commits + review handoff | LLM code review via `/q-review [handoff.md]` |
-| 8 | Done | final `/q-review` | `done.md` | Terminal whole-plan completion summary |
+| 7 | Workspace | `/q-workspace` | prepared implementation workspace + synced plan dir | Base/stack safety gate before implementation |
+| 8 | Implement | `/q-implement` | code changes + verified commits + review handoff | LLM code review via `/q-review [handoff.md]` |
+| 9 | Done | final `/q-review` | `done.md` | Terminal whole-plan completion summary |
 
 `/q-review` is a router:
 
@@ -97,6 +98,7 @@ Run planning review after `outline.md` and again after `plan.md`:
 /q-review [plan_dir]/outline.md
 /q-plan [plan_dir]/outline.md
 /q-review [plan_dir]/plan.md
+/q-workspace [plan_dir]/plan.md
 /q-implement [plan_dir]/plan.md
 
 # optional product gate when product-critical, high-stakes, user-facing, PRD-sensitive, compliance/security-sensitive, irreversible user/data behavior, demo impact, or stakeholder alignment matters
@@ -105,6 +107,7 @@ Run planning review after `outline.md` and again after `plan.md`:
 /q-review [plan_dir]/outline.md
 /q-plan [plan_dir]/outline.md
 /q-review [plan_dir]/plan.md
+/q-workspace [plan_dir]/plan.md
 /q-implement [plan_dir]/plan.md
 ```
 
@@ -142,8 +145,8 @@ Never overwrite the parent plan's `design.md`, `design-product.md`, `outline.md`
 - **Instruction budget.** Keep each stage skill focused. Do not combine stages into one mega-prompt.
 - **Dumb zone.** Context windows degrade when overfilled. Load only the artifacts the stage skill names.
 - **Vertical slices, not horizontal layers.** Each slice ships end-to-end with a verification checkpoint.
-- **Fresh implementation directories, never worktrees.** Implementation runs in a fresh, efficient filesystem copy of the whole repo named `[repo-name]_[plan-dir-basename]`, where `[plan-dir-basename]` is the final directory name of the active QRSPI plan directory. Do not use `git worktree`; use macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir`. These are normal copied directories using clone/reflink behavior where supported, not git worktrees.
-- **Branch/submission model is repository-specific, and `cn-agents` uses workspace stack branches.** The fresh implementation workspace isolates concurrent work; branch policy follows the repo. Chestnut monorepo work normally uses Graphite slice branches. `cn-agents` QRSPI work also uses Graphite slice branches inside the fresh implementation workspace: start from latest `main`, run `gt create ..._slice-N` for each tracked edit slice, commit with Graphite, and merge the completed stack back with `/cn-agents-merge`. Do not commit QRSPI implementation slices directly to `main` in `cn-agents`.
+- **Fresh implementation directories, never worktrees.** `/q-workspace` creates or repairs a fresh filesystem copy named for the plan directory or ticket slug after final plan review. Do not use `git worktree`; use macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir`.
+- **Branch/submission model is repository-specific, and `cn-agents` uses workspace stack branches.** The fresh implementation workspace isolates concurrent work; branch policy follows the repo. Chestnut monorepo work normally uses Graphite slice branches. `cn-agents` QRSPI work also uses Graphite slice branches inside the fresh implementation workspace. `/q-workspace` selects the correct base: latest `main` when safe, or an unmerged parent stack top for review-fixes plans. Then `/q-implement` runs `gt create ..._slice-N` or `..._review_plan_slice-N` for tracked edit slices, commits with Graphite, and merges the completed stack back with `/cn-agents-merge`. Do not commit QRSPI implementation slices directly to `main` in `cn-agents`.
 - **Design = brain dump + brain surgery.** Capture the approved technical direction in a lean doc; keep detailed decisions in ADRs.
 - **Product Design = optional PRD coverage gate.** Use for product-critical, high-stakes, user-facing PRD-sensitive, compliance/security-sensitive, irreversible user/data behavior changes, demo impact, or non-technical stakeholder alignment concerns. Skip for internal tools, bugfixes, refactors, and low product-risk work.
 - **Plan = tactical machine doc.** The plan is written for the implementing agent, but it still gets an LLM review before code starts.
@@ -252,10 +255,10 @@ Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume
 - After `design.md`: next is `/q-outline [design.md]`; optional product gate is `/q-design-product [design.md]` when product coverage is warranted.
 - After `design-product.md`: next is `/q-outline [design-product.md]`.
 - After `outline.md`: next is `/q-review [outline.md]`.
-- After `plan.md`: `/q-plan` runs `just sync-thoughts`, creates the implementation workspace, includes it in `<workspace>`, then next is `/q-review [plan.md]`.
-- During implementation: intermediate handoffs resume with `/q-resume` in the same recorded implementation workspace. The workspace is the unit of isolation; do not assume a branch exists or should be created.
+- After `plan.md`: `/q-plan` runs `just sync-thoughts`, then next is `/q-review [plan.md]`. After successful plan review, run `/q-workspace [plan.md]`; it creates/repairs the implementation workspace, records the base branch/commit in XML and plan memory, and then next is `/q-implement [plan.md]`.
+- During implementation: intermediate handoffs resume with `/q-resume` in the same `/q-workspace`-recorded implementation workspace. The workspace is the unit of isolation; do not assume a branch exists or should be created. For Graphite edit slices, write the handoff before `gt create` so it is included in the slice commit; use `git_commit: pending-slice-commit` in that self-contained handoff and report the final branch-head hash only in the QRSPI XML result.
 - Repository commit policy must be preserved in plans/handoffs: monorepo usually means Graphite slice branches; `cn-agents` means fresh workspace plus Graphite slice branches for each tracked edit slice, then `/cn-agents-merge` at the end. Do not record a `cn-agents` expectation to stay on `main` for slice commits.
-- Implementation handoffs record the fresh implementation directory or instruct the next agent to create one; they must not point agents at `git worktree`.
+- Implementation handoffs record the `/q-workspace` implementation directory; they must not instruct agents to create ad-hoc copies and must not point agents at `git worktree`.
 - After all implementation slices are complete: the completion handoff advances to `/q-review [handoff.md]` in implementation mode.
 
 ## Standard Context Loading
@@ -277,6 +280,7 @@ Each stage skill contains the full process, templates, and rules for that step:
 - `~/.agents/skills/q-design-product/SKILL.md`
 - `~/.agents/skills/q-outline/SKILL.md`
 - `~/.agents/skills/q-plan/SKILL.md`
+- `~/.agents/skills/q-workspace/SKILL.md`
 - `~/.agents/skills/q-implement/SKILL.md`
 - `~/.agents/skills/q-review/SKILL.md`
 - `~/.agents/skills/q-review-plan/SKILL.md`
@@ -291,9 +295,9 @@ Each stage skill contains the full process, templates, and rules for that step:
 - Question, Research, and Design are human gates. Product Design is an optional human gate when product coverage is needed. Outline and plan are LLM-reviewed gates before implementation.
 - `/q-review [outline.md]` and `/q-review [plan.md]` should revise planning docs toward readiness, including `design-product.md` when present, not merely report issues.
 - `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete and verification passes.
-- `/q-implement` and implementation-stage `/q-resume` work must happen in the fresh efficient filesystem copy created by `/q-plan` and recorded in `<workspace>`. Never use `git worktree`; the workspace is a normal copied directory, not a worktree.
-- Branching is not automatic. Follow the target repo's submission model after entering the workspace: use Graphite slice branches in repos that use Graphite. `cn-agents` uses this model too: create a branch for each tracked edit slice in the workspace, and use `/cn-agents-merge` after implementation/review is complete.
-- `/q-review` must run `just sync-thoughts` after modifying planning artifacts; when `<workspace>` is known, it must sync the updated plan directory into that workspace before `/q-implement`.
+- `/q-implement` and implementation-stage `/q-resume` work must happen in the fresh filesystem copy created/repaired by `/q-workspace` and recorded in `<workspace>`. Never use `git worktree`.
+- Branching is not automatic. Follow the target repo's submission model after entering the workspace: use Graphite slice branches in repos that use Graphite. `cn-agents` uses this model too: create a branch for each tracked edit slice in the workspace, and use `/cn-agents-merge` after implementation/review is complete. For review-fixes plans whose parent stack is unmerged, `/q-workspace` must base the workspace on the parent stack top so `gt parent` of review-fix branches points at that top branch.
+- `/q-review` must run `just sync-thoughts` after modifying planning artifacts. Final plan review advances to `/q-workspace`, which syncs the reviewed plan directory into the chosen implementation workspace before `/q-implement`.
 - Keep `plan.md` status checkboxes updated during implementation.
 - When looping back before implementation, update parent planning artifacts. When addressing implementation review follow-up, use the implementation review directory as the new plan dir.
 - When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for timestamps and frontmatter.

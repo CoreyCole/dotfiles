@@ -207,14 +207,14 @@ Summary: planning review complete. verdict: correct. Current plan: [one-sentence
 Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including notable gaps or "aligned".]
 Changes: [short summary of edits to design.md / design-product.md / outline.md / plan.md / AGENTS.md, or none.]
 Findings: none.
-Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-implement exact-plan-path]
+Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-workspace exact-plan-path]
 ```
 
 Choose the next command this way:
 
 - If `plan.md` does not exist, next is `/q-plan [exact outline.md path]`.
 - If `plan.md` was just created or edited and has not had a plan review pass yet, next is `/q-review [exact plan.md path]`.
-- If this was a `plan-review` and no findings remain, next is `/q-implement [exact plan.md path]`.
+- If this was a `plan-review` and no findings remain, next is `/q-workspace [exact plan.md path]`.
 
 If codebase research is needed:
 

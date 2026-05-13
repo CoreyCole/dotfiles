@@ -37,7 +37,7 @@ Intermediate handoffs use `<stage>implement</stage>`, `<status>handoff</status>`
   <stage>implement</stage>
   <status>[handoff or complete]</status>
   <workspace>
-[absolute path to the implementation workspace created by q-plan]
+[absolute path to the implementation workspace created/repaired by q-workspace]
   </workspace>
   <policy>
     <autoMode>[latest known autoMode]</autoMode>
@@ -99,28 +99,24 @@ Then wait for input.
 
 1. **Verify artifacts are loaded** from step 0, including `[plan_dir]/AGENTS.md` and `plan.md`. `design-product.md` is optional. `plan.md` is your primary input. Check the status checkboxes and preserve product Critical Findings during implementation when `design-product.md` exists.
 
-1. **Use the implementation workspace created by `/q-plan`:**
+1. **Use the implementation workspace created or repaired by `/q-workspace`:**
 
-   - Normal parent-plan implementation must run inside the absolute workspace path recorded by `/q-plan` in the latest QRSPI `<workspace>` element and in `plan.md`'s `Implementation Workspace Prep` section.
-   - Do not create another fresh copy during `/q-implement` for a normal parent plan. If the recorded workspace path is missing, inaccessible, dirty in an unexpected way, or does not contain `[plan_dir]/plan.md`, stop and ask rather than silently creating a second implementation copy.
+   - Implementation must run inside the absolute workspace path recorded by `/q-workspace` in the latest QRSPI `<workspace>` element and in `plan.md`'s `Implementation Workspace Prep` section.
+   - Do not create another fresh copy during `/q-implement`. If the recorded workspace path is missing, inaccessible, dirty in an unexpected way, or does not contain `[plan_dir]/plan.md`, stop and ask rather than silently creating a second implementation copy.
    - Never use `git worktree` for `/q-implement` work.
    - If invoked from the planning/source checkout, switch to the recorded workspace before branch setup and code edits.
-   - Do not run `just sync-thoughts` from the implementation workspace just to sync planning docs. `/q-plan` syncs thoughts after creating the plan, and `/q-review` syncs after modifying planning docs and copies updates into the workspace.
-   - Exception: if `plan_dir` is an implementation-review follow-up plan under `[parent_plan_dir]/reviews/*_implementation-review/` and has its own `design.md`/`outline.md`/`plan.md`, do **not** make another fresh workspace/copy for review fixes. Reuse the original implementation copy/checkout from the parent plan so review-fix branches stack on top of the already-reviewed implementation.
-   - For review-dir follow-up plans, find the original implementation copy from the parent plan handoffs/review artifacts or current cwd. If it is unavailable, stop and ask for the original implementation directory; do not create a second copy that would fork the stack.
+   - Do not run `just sync-thoughts` from the implementation workspace just to sync planning docs. `/q-workspace` syncs reviewed planning docs and copies them into the workspace.
+   - For review-dir follow-up plans under `[parent_plan_dir]/reviews/*_implementation-review/`, verify `/q-workspace` selected a base that preserves the parent implementation stack. If the parent stack was unmerged, the current workspace branch/commit must be the parent stack top before creating review-fix slice branches.
    - After switching to the recorded workspace, run `git status --short`, identify the repository, and apply that repository's submission model before editing.
-   - **cn-agents model:** if the repository is `cn-agents`, use the fresh implementation workspace as the isolation boundary, then use Graphite slice branches inside it. Start from latest `main`; for each tracked edit slice, create or use the matching `..._slice-N` branch with `gt create`/Graphite commands, commit that slice with Graphite, and leave final integration to `/cn-agents-merge`. Do not commit QRSPI implementation slices directly to `main`.
+   - **cn-agents model:** if the repository is `cn-agents`, use the prepared workspace as the isolation boundary, then use Graphite slice branches inside it. For each tracked edit slice, implement and verify on the current base/top branch, then use `gt create ..._slice-N` (normal plans) or `gt create ..._review_plan_slice-N` (review-fixes plans) to create the slice branch and commit after you have the full slice context. Leave final integration to `/cn-agents-merge`. Do not commit QRSPI implementation slices directly to `main`. If this is a review-fixes plan and the parent stack is unmerged, run `gt parent` after branch creation and verify it equals the parent implementation top branch recorded by `/q-workspace`.
    - **Graphite model:** only in repos that use Graphite (for example the Chestnut monorepo), run `gt log short`. If the current branch appears in the Graphite stack, do not run `gt track`; if Graphite does not recognize a plain copied branch, run `gt track` before `gt modify`/`gt create`.
 
 1. **Set up the repository submission target before editing code:**
 
    - First determine whether the current repo is `cn-agents` or another Graphite/trunk-based repo. Do not assume direct-to-main just because the implementation is in a fresh workspace; `cn-agents` uses Graphite slice branches in that workspace.
-   - For `cn-agents`, create a Graphite branch for each slice with planned tracked edits (`gt create ..._slice-N`), commit completed slices with Graphite, and record the branch/commit hash in the handoff. If you are on `main` and the next slice has tracked edits, create the slice branch before editing. If you are on an existing matching slice branch, continue there.
-   - For Graphite repos, create a Graphite branch only for a slice that will introduce tracked source/test/doc changes.
-   - In Graphite repos, if `plan_dir` is a timestamped implementation review directory under `[parent_plan_dir]/reviews/*_implementation-review/`, this is follow-up implementation work. Reuse the original implementation copy and create follow-up slice branches stacked on top of the already-reviewed implementation head with `gt create <linear-slug>_review_plan_slice-N`; do not overwrite, reuse, or fork away from the parent implementation slice branches.
+   - For `cn-agents` and other Graphite repos, do **not** pre-create the next slice branch before making edits. Implement the slice on the current base/top branch, run verification, update the plan/handoff docs, then run `gt create <slug>_slice-N` (or review-plan variant) with the final conventional commit message. This lets the implementing agent write the commit after seeing the complete diff and verification results.
+   - If you are already on an existing matching slice branch for this slice (for example after recovering from a partial attempt), continue there and use `gt modify` to update the slice commit instead of creating a duplicate branch.
    - Verification-only slices (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits) do **not** get their own branch. Run them in the current implementation workspace/current top branch. If they pass, mark the slice complete and hand off to review; GitHub/Graphite cannot create PRs for empty branches.
-   - Graphite repos only: before Slice 1 edits, if `git branch --show-current` is `develop`, create the Slice 1 branch **from `develop`**.
-   - Graphite repos only: before Slice N edits, be on the Slice N branch only when Slice N has planned tracked edits. If you are still on the previous slice branch and Slice N has planned tracked edits, run `gt create <linear-slug>_slice-N` before editing.
    - Graphite repos only: if a verification-only slice fails and needs a code fix, put the fix on the branch that owns the broken change (usually the current top branch via `gt modify`; use `gt modify --into <branch>` only after explicit user confirmation).
    - Graphite repos only: use the Linear ticket's canonical branch slug from the Linear CLI / ticket context, not an ad-hoc name.
    - Graphite repos only: match the plan's slice terminology in the suffix: use `slice-N`, not `phase-N`.
@@ -141,11 +137,14 @@ Then wait for input.
 
    - Keep it short and curated.
    - Remove or rewrite stale bullets instead of appending contradictions.
-     h. Commit the slice if tracked source/test/doc changes were made, using the exact `### Commit Message` block dictated in that slice of `plan.md`. Do not improvise or omit the body; the commit body must be XML wrapped in `<qrspi-commit>`. Use the repo's commit mechanism: Graphite commit/modify commands for `cn-agents` and other Graphite repos. If the slice changed tracked files but has no dictated commit message, update `plan.md` first to add one in the required format. For a verification-only slice with no tracked changes, do not commit and do not create an empty branch.
-     i. If additional edit slices remain unchecked after this slice, create the next slice branch for `cn-agents` and other Graphite repos only when the next slice has planned tracked edits: run `gt create <slug>_slice-(N+1)` from the just-committed Slice N branch so the next edit slice is stacked on top. Then create a checkpoint handoff via `/q-handoff` (no argument). This is mandatory; do not stop after only updating `plan.md`. Do **not** mention `/q-review` yet.
-     j. If only verification-only slices remain, do not pre-create a branch for them. Create a checkpoint handoff via `/q-handoff` with `Next` pointing to `/q-resume`; the resumed agent will run the verification-only slice in the current implementation workspace.
-     k. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and then create a review handoff via `/q-handoff continue`.
-     l. Stop. Do **not** start the next slice in the same invocation.
+     h. Create the required implementation handoff **before committing** so the handoff travels in the same slice commit. For Graphite edit slices created after implementation, set handoff frontmatter `git_commit` to `pending-slice-commit` (or the current pre-slice base hash plus an explanatory note), not to a self-referential final hash. The final branch-head hash belongs in the QRSPI XML response after commit.
+     i. Commit the slice if tracked source/test/doc changes were made. In `cn-agents` and other Graphite repos, create the slice branch at this point with `gt create <slug>_slice-N -m "$(cat /tmp/slice-commit-message.txt)"` (or the repo's non-interactive equivalent); if already on the matching slice branch, use `gt modify --no-interactive -m "$(cat /tmp/slice-commit-message.txt)"` to amend the current slice commit. Do **not** use `gt modify --commit` for post-create handoff/content fixes; `gt modify` amends by default and `--commit` creates an additional commit. Do not run `gt create` before the slice is implemented, verified, and the handoff is written. For a verification-only slice with no tracked changes, do not commit and do not create an empty branch.
+     j. Commit messages must follow Conventional Commits 1.0.0: `<type>[optional scope]: <description>` as the subject, optional explanatory body, then footer section. Include the QRSPI XML as a footer after a blank line, wrapped in `<qrspi-commit>` and containing `<workspace>`, `<slice number="N">`, and `<artifacts>` entries for exact `<design>`, `<outline>`, and `<plan>` paths. If the slice's `### Commit Message` block is missing, non-conventional, or lacks the XML footer, update `plan.md` before committing.
+     k. After `gt create`/`gt modify`, capture the final branch-head hash with `git rev-parse --short HEAD` for the response XML only. Do not amend solely to replace `pending-slice-commit` in the handoff; putting the commit's own final hash inside the same commit is impossible without changing the hash again.
+     l. If additional edit slices remain unchecked after this slice, do **not** pre-create the next branch. The checkpoint handoff should tell the next `/q-resume` agent to implement the next edit slice on the current top branch and run `gt create <slug>_slice-(N+1)` only after that slice is implemented and verified. Do **not** mention `/q-review` yet.
+     m. If only verification-only slices remain, do not pre-create a branch for them. The checkpoint handoff should point to `/q-resume`; the resumed agent will run the verification-only slice in the current implementation workspace.
+     n. If this was the last unchecked slice, do the final verification pass, write a concise finished-implementation summary, and create a review handoff via `/q-handoff continue` before committing that final edit slice or, for verification-only completion, without a new commit.
+     o. Stop. Do **not** start the next slice in the same invocation.
 
 1. **If all slices are already checked when you start**, do the final verification pass, create a review handoff via `/q-handoff continue`, and stop.
 
@@ -164,7 +163,7 @@ Then wait for input.
 
 If your context window resets mid-implementation:
 
-1. Confirm you are in the implementation workspace recorded by `/q-plan` and not a `git worktree`. For normal parent-plan implementation, use the recorded workspace path from the latest QRSPI `<workspace>` element or `plan.md`'s `Implementation Workspace Prep`; do not recreate it unless the user explicitly approves replacement. For implementation-review follow-up plans under `reviews/*_implementation-review/`, use the original implementation copy/checkout from the parent plan; do not create a second fresh copy for review fixes.
+1. Confirm you are in the implementation workspace recorded by `/q-workspace` and not a `git worktree`. Use the recorded workspace path from the latest QRSPI `<workspace>` element or `plan.md`'s `Implementation Workspace Prep`; do not recreate it unless the user explicitly approves replacement. For implementation-review follow-up plans under `reviews/*_implementation-review/`, verify the workspace base preserves the parent implementation stack as recorded by `/q-workspace`.
 1. Read `[plan_dir]/AGENTS.md`
 1. Read `[plan_dir]/design-product.md` if present
 1. Read `[plan_dir]/plan.md`
@@ -185,22 +184,22 @@ For non-final implementation slices, `<artifact>` must be the newly created impl
 
 - Implement exactly one slice per invocation. Never roll directly into the next slice after finishing one.
 - Every implementation and review-fix slice should be independently reviewable/testable by the engineer. Include the diff/branch context, behavior to inspect, and exact verification/manual test command or UI scenario in the handoff/XML summary.
-- Always do `/q-implement` work in the fresh filesystem copy created by `/q-plan` and recorded in `<workspace>` / `plan.md`. Never use `git worktree`.
+- Always do `/q-implement` work in the fresh filesystem copy created/repaired by `/q-workspace` and recorded in `<workspace>` / `plan.md`. Never use `git worktree`.
 - Do not create a second normal implementation copy in `/q-implement`; stop and ask if the recorded workspace is missing or unusable.
 - Run the verify step after EVERY slice. Do not skip verification.
 - Update the plan's status checkboxes as you complete slices — this is mandatory, not optional.
 - If a slice fails verification, fix it before moving on. Vertical slices exist so you catch problems early.
-- Never do `/q-implement` coding work on `develop`. In Graphite repos, including `cn-agents`, if you start on trunk (`develop` for monorepo, `main` for cn-agents) and the next slice has tracked edits, first run `gt create <slug>_slice-N` using the plan/ticket slug and a `slice-N` suffix that matches the plan.
-- Commit after each successful slice that changed tracked files. Use the exact commit message dictated by the slice's `### Commit Message` block in `plan.md`; it must include the workspace name and slice in the subject and an XML body wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` containing exact `<design>`, `<outline>`, and `<plan>` paths. In `cn-agents` and other Graphite repos, prefer `gt modify --commit --no-interactive -m "$(cat /tmp/slice-commit-message.txt)"` or equivalent non-interactive command so Graphite does not wait for an editor or prompt.
+- Never do `/q-implement` coding work on `develop`. In Graphite repos, including `cn-agents`, do not pre-create slice branches before implementation. Start from the current base/top branch, implement and verify the slice, then create the slice branch with `gt create <slug>_slice-N` (or modify the existing matching slice branch) using the plan/ticket slug and a `slice-N` suffix that matches the plan.
+- Commit after each successful slice that changed tracked files. Use a Conventional Commit subject (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc.), optional body, and QRSPI XML footer. The footer must be wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` containing exact `<design>`, `<outline>`, and `<plan>` paths. In `cn-agents` and other Graphite repos, prefer `gt create <slug>_slice-N -m "$(cat /tmp/slice-commit-message.txt)"` after implementation/verification/handoff creation, or `gt modify --no-interactive -m "$(cat /tmp/slice-commit-message.txt)"` when already on the matching slice branch. Remember: `gt modify` amends by default; `gt modify --commit` creates a new commit and is usually wrong for fixing the current slice.
 - Do not commit or branch for verification-only slices with no tracked changes.
 - For implementation-review follow-up plans under `reviews/*_implementation-review/`, do not create a new fresh copy; stack fixes in the original implementation copy. In Graphite repos, including `cn-agents`, branch names must make the stacked review plan clear: `gt create <slug>_review_plan_slice-N`. Each review-fix slice must give the engineer a small focused fix to review/test on top of the original implementation stack.
-- After each non-final edit slice commit, create the next slice branch in Graphite repos, including `cn-agents`: `gt create <slug>_slice-(N+1)` for normal parent plans, or `gt create <slug>_review_plan_slice-(N+1)` for implementation-review follow-up plans, only when the next slice has planned tracked edits. If the next slice is verification-only, do not create a placeholder branch.
+- After each non-final edit slice commit, do not create the next slice branch. The next `/q-resume` agent owns the next slice context and will run `gt create <slug>_slice-(N+1)` or `gt create <slug>_review_plan_slice-(N+1)` only after implementing and verifying that next slice. If the next slice is verification-only, no branch is created.
 - After each successful slice, create the appropriate handoff via `/q-handoff` before stopping. This is mandatory.
 - Do not prompt for review until all slices are complete.
 - For non-final slices, do not end with `plan.md` as the primary artifact and do not suggest `/q-implement [plan_dir]` as the canonical next step. The canonical next step is `/q-resume [new handoff path]`.
 - When implementation is complete, the completion handoff must target `/q-review` and summarize the finished implementation, not just the last slice.
 - End every successful slice response with only the required fenced `xml` `<qrspi-result>` footer; put implementation, verification, artifact, and next-step details in the XML `<summary>`, `<artifact>`, `<artifacts>`, and `<next>` elements.
-- Include `<workspace>` immediately after `<status>` in implementation result XML, using the absolute workspace path created by `/q-plan`.
+- Include `<workspace>` immediately after `<status>` in implementation result XML, using the absolute workspace path created/repaired by `/q-workspace`.
 - Never push or open a pull request as part of this skill unless the user explicitly asks for it.
 - If you hit a problem not covered by the plan, update the plan before continuing. The plan stays alive.
 - Read the code you're about to modify before changing it — the codebase may have evolved since the plan was written.

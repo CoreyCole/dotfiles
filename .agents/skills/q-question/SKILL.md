@@ -70,6 +70,13 @@ Then wait for input.
 
    - Use `~/dotfiles/spec_metadata.sh` timestamp/frontmatter.
    - Start it with sections for `Problem framing`, `Investigation notes`, `Decision branches`, `Interview log`, and `Rationale to preserve for design`.
+   - Keep it structured. Do not append every human turn as another bullet in one growing list.
+   - Use subsections under `Interview log` grouped by decision topic. For each topic, record:
+     - `Prompt` — the question/recommendation posed, in one line.
+     - `User decision` — confirmed/rejected/adjusted guidance.
+     - `Rationale` — why this matters for design/research.
+     - `Next implication` — what branch/question this unlocks.
+   - Maintain `Rationale to preserve for design` as categorized bullets (`Desired UX`, `Runtime lifecycle`, `State/logs/cleanup`, `Temporal`, `SQLite`, `Non-goals/open questions`). Rewrite/merge bullets as understanding changes instead of appending duplicate chronology.
    - Append to it after each investigation summary, brainstorm branch, and human-answer turn. Capture decisions, rejected branches, constraints, tradeoffs, and why the next question changed. Do not dump a raw transcript.
    - For review-directory follow-up plans and planning-review research workspaces, write the brainstorm artifact directly under that directory's `context/brainstorms/`.
 
@@ -223,6 +230,7 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - For Linear tickets, always fetch issue comments before brainstorming and download/read Linear image uploads into `[plan_dir]/context/question/linear/images/` before writing the question doc.
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
 - Always create and maintain `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md` during the brainstorm/interview before writing questions.
+- Keep brainstorm artifacts organized by decision topic, not chronological append-only bullets. Rewrite sections to stay readable as the interview evolves.
 - Always start with a short creative brainstorm before converging on the final questions.
 - Always ask the lead engineer before proceeding to write the question doc.
 - Ask interview questions one at a time by default; use `/answer` only when batching independent questions is genuinely clearer.
