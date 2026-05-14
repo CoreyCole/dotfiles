@@ -39,11 +39,12 @@ Then wait for input.
 ## Process
 
 1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, all `context/brainstorms/*.md`, all `research/*.md`, relevant context artifacts in `context/research/` and `context/design/`, any existing `adrs/*.md`, and any relevant files in `prds/`.
+   - Extract q-question's confirmed Language / Domain Model, Alignment, and `ADR candidates for design` from `context/brainstorms/*.md` and the question summaries.
    - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite, append to, or "refresh" the parent plan's `design.md`; write the follow-up design to `[parent_plan_dir]/reviews/*/design.md`.
 1. **Read the original ticket / PRD context** if referenced in question docs or stored in `prds/`.
 1. **Read key files** identified in research findings and context artifacts.
 1. **If current-state validation is still missing or stale, run `codebase-locator`** with a narrowly scoped refresh task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/design/`.
-1. **Run the design brainstorm interview before writing the first design draft.** Use the loaded research and `context/brainstorms/` rationale to stress-test the design direction with the user one question at a time. Do not write `design.md` or ADRs until the key goals, scope, constraints, decisions, risks, and next step are clear, or the user explicitly says to stop the interview and draft.
+1. **Run the design brainstorm interview before writing the first design draft.** Use the loaded research, q-question Language / Alignment context, and `ADR candidates for design` to stress-test only unresolved design-direction choices with the user one question at a time. Do not repeat q-question's full alignment interview unless research invalidated a premise. Do not write `design.md` or ADRs until the key goals, scope, constraints, decisions, risks, and next step are clear, or the user explicitly says to stop the interview and draft.
 1. **Draft the design artifacts:**
    - `design.md` stays lean and default-loadable:
      - Current state
@@ -52,13 +53,10 @@ Then wait for input.
      - Recommended approach and rationale
      - Brief decision summaries with links to ADRs
      - Open questions
-   - Create `adrs/` if needed, then write **one ADR per design decision** at:
+   - Review every q-question `ADR candidates for design` item after research. In `design.md`, record a concise disposition: accepted as ADR, resolved without ADR, deferred, or invalidated by research.
+   - Create `adrs/` if needed, then write **one ADR per accepted design decision** at:
      - `[plan_dir]/adrs/YYYY-MM-DD_HH-MM-SS_[decision-slug].md`
-   - Each ADR captures the detailed record for that decision:
-     - Context and decision drivers
-     - The chosen decision
-     - Alternatives considered / rejected
-     - Consequences / trade-offs
+   - Use the simplified ADR body format by default: title plus 1-3 sentences covering context, decision, and why. Add optional sections only when they add genuine value.
    - Keep rejected or superseded approaches out of `design.md` beyond a brief linked summary.
 1. **Present the design to the user** for review. If you wrote or updated ADRs, summarize the key decisions and their ADR links too.
 1. **Iterate** until approved.
@@ -74,13 +72,13 @@ Then wait for input.
 
 After loading research and validating current state, stress-test the design direction before drafting artifacts.
 
-1. **Restate the core proposal** in 2-4 bullets.
+1. **Restate the confirmed q-question alignment and research-backed design problem** in 2-4 bullets.
 1. **Explore before asking.** If a question can be answered by inspecting code, docs, tests, config, or history, investigate it yourself first. Summarize the relevant facts before asking the next human-judgment question.
 1. **Map the decision branches internally:** goals, scope, users, constraints, architecture, data model, interfaces, rollout, observability, failure modes, tests, and non-goals. Do not dump the whole tree; use it to choose the next best question.
 1. **Ask one question at a time.** Each interview turn must contain exactly one direct question, unless the user explicitly asks for a batch. Include your recommended answer and concise reasoning.
 1. **Resolve upstream decisions before downstream details.** If an answer changes a premise, revisit dependent branches before moving on.
 1. **Track a concise running summary** across turns: confirmed decisions, assumptions still unverified, codebase questions researched, and open risks/tradeoffs.
-1. **Exit the interview only when shared understanding is reached** or the user explicitly asks you to draft now.
+1. **Exit the interview only when shared understanding is reached** on the remaining design-direction choices and ADR-candidate disposition, or the user explicitly asks you to draft now.
 
 Use this question format for each interview turn:
 
@@ -145,6 +143,11 @@ Going with this approach because [reasons grounded in research].
 - [Decision summary]. See [`adrs/YYYY-MM-DD_HH-MM-SS_decision-slug.md`](adrs/YYYY-MM-DD_HH-MM-SS_decision-slug.md).
 - [Decision summary]. See [`adrs/YYYY-MM-DD_HH-MM-SS_other-decision.md`](adrs/YYYY-MM-DD_HH-MM-SS_other-decision.md).
 
+## ADR Candidate Disposition
+- Accepted as ADR: [candidate] → `adrs/YYYY-MM-DD_HH-MM-SS_decision-slug.md`
+- Resolved without ADR: [candidate] — [why no ADR needed]
+- Deferred / invalidated by research: [candidate] — [why]
+
 ## Open Questions
 - [Question needing human input]
 ```
@@ -174,32 +177,16 @@ related_artifact: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/design.
 
 # ADR: [Decision Name]
 
+[1-3 sentences: context, what we decided, and why.]
+
 ## Status
 Accepted
 
-## Context
-[Problem framing, constraints, and why this decision was needed.]
-
-## Decision Drivers
-- [Driver]
-- [Driver]
-
-## Decision
-[The selected decision for this specific topic.]
-
-## Alternatives Considered
-
-### Alternative A: [Name]
-**Status:** Rejected
-[Why it was considered, why it was rejected, and when it might have been reasonable.]
-
-### Alternative B: [Name]
-**Status:** Rejected
-[Same treatment.]
+## Considered Options
+- [Optional. Include only when rejected alternatives are worth remembering.]
 
 ## Consequences
-- [Positive consequence]
-- [Trade-off / cost]
+- [Optional. Include only when downstream effects are non-obvious.]
 ```
 
 ## Response
@@ -232,7 +219,9 @@ Always include the complete `thoughts/.../design.md` path.
 - Include brief representative snippets only.
 - Every pattern claim must reference a real file from research.
 - Keep rejected or superseded approaches out of `design.md`; put them in timestamped `adrs/*.md` files.
-- Use one ADR per design decision, not one monolithic decision dump.
+- Use one ADR per accepted design decision, not one monolithic decision dump.
+- Do not convert every q-question ADR candidate into an ADR. Write ADRs only for accepted decisions that are hard to reverse, surprising without context, and the result of a real tradeoff.
+- Prefer the simplified ADR body format: 1-3 sentences, optional sections only when valuable.
 - Present to user BEFORE finalizing.
 - Write for teammate alignment.
 - In every completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.

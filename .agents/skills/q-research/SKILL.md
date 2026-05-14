@@ -13,10 +13,10 @@ You are the second stage of the QRSPI pipeline. You receive research questions a
 
 0. **Load context:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
-   - If a specific `questions/*.md` path was provided, read that question doc fully and begin the research process.
+   - If a specific `questions/*.md` path was provided, resolve the plan directory, read `[plan_dir]/AGENTS.md` if present, then read that question doc fully and begin the research process.
    - If continuing or deepening an existing research pass, read relevant files in `[plan_dir]/context/research/` only after the research agenda has been approved.
-   - Pi may have already auto-loaded `[plan_dir]/AGENTS.md` from the cwd. Do **not** explicitly open more plan-dir artifacts beyond the relevant question doc(s) and same-stage `context/research/` files when continuing a pass.
-   - Do **NOT** read `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, the ticket, or any other forward-looking plan artifacts. The question doc(s) are the only planning artifacts you should intentionally load at the start of research.
+   - Use `AGENTS.md` and the question doc to understand what to look for. Do not treat them as proof of current behavior. Every factual answer must be grounded in current code/docs/tests with file:line references.
+   - Do **NOT** read `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, the ticket, or any other forward-looking plan artifacts unless explicitly part of review-follow-up mode.
 1. **If a specific question doc path was provided**, resolve the plan directory from it, read it fully, and begin. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory for this research pass.
 1. **If invoked without a specific question doc path** — including no parameters, a plan directory only, or a free-form prompt — do **not** start research immediately. Enter question-preview mode:
    - Use the current session context and the user's prompt to propose the 3-7 research questions you intend to answer.
@@ -65,13 +65,13 @@ Reply `go` to start this research. Any edits, objections, or discussion will mov
    - If a specific question doc path was provided, treat it as primary.
    - If the question doc was just created from question-preview mode, treat it as primary.
    - Do not default to the newest timestamped question doc without lead-engineer approval.
-   - Stay blind to the rest of the plan directory except same-stage `context/research/` artifacts when continuing an existing research pass.
+   - Stay blind to the rest of the plan directory except `[plan_dir]/AGENTS.md` and same-stage `context/research/` artifacts when continuing an existing research pass.
    - For review-directory follow-up plans, do not climb to the parent plan's `design.md`, `design-product.md`, `outline.md`, `plan.md`, or `reviews/` unless the question doc explicitly references a parent artifact as historical context.
 
-1. **Extract the important brainstorm/design context from the relevant question doc(s)** and carry it forward into the research doc.
+1. **Extract the important framing context from AGENTS.md and the relevant question doc(s)** and carry it forward into the research doc.
 
-   - Summarize the key desired outcome, design details, explicit decisions, constraints, and tradeoffs surfaced during `q-question` or question-preview approval.
-   - Preserve human-confirmed context; do not invent new decisions here.
+   - Summarize the key desired outcome, design principles, terminology, constraints, non-goals, and tradeoffs surfaced during `q-question` or question-preview approval.
+   - Preserve human-confirmed context as framing only; do not invent new decisions here and do not treat framing as evidence of current behavior.
    - Decompose the work into a small set of research areas or sub-questions before you delegate.
 
 1. **Read any directly mentioned files fully before spawning sub-agents.**
@@ -188,6 +188,9 @@ plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 ## Research Question
 [The research scope for this pass and which question doc(s) it answers]
 
+## Evidence Boundary
+Use `AGENTS.md` and the question doc to understand what to look for. Do not treat them as proof of current behavior. Every factual answer must be grounded in current code/docs/tests with file:line references.
+
 ## Summary
 [High-level findings answering the research questions]
 
@@ -238,11 +241,11 @@ If the question doc lives under `[parent_plan_dir]/reviews/*_[outline|plan]-revi
 - If the lead engineer responds to previewed questions with anything other than exact `go`, invoke `/q-question` and stop this research pass.
 - The first section of the research doc must be a concise `Brainstorm Summary` carried forward from `q-question` or question-preview approval so downstream stages retain the key design context.
 - The `Brainstorm Summary` must preserve validated human decisions and tradeoffs from the question docs; do not invent new decisions in research.
-- Research should stay intentionally blind so the session is not biased by later-stage decisions or curated memory.
+- Research should stay intentionally blind to solution/planning artifacts so the session is not biased by later-stage decisions.
+- Read `[plan_dir]/AGENTS.md` and the question doc for framing. Use `AGENTS.md` and the question doc to understand what to look for. Do not treat them as proof of current behavior. Every factual answer must be grounded in current code/docs/tests with file:line references.
 - An implementation-review follow-up plan under `[parent_plan_dir]/reviews/*_implementation-review/` is a normal QRSPI plan for research purposes. Write research artifacts under that review directory's `research/` and `context/research/`, not under the parent plan.
 - Planning-review research questions under `[parent_plan_dir]/reviews/*_[outline|plan]-review/questions/` must use `/skill:q-research-for-review`, not normal `/q-research`, because they need review category context and route to `/skill:q-address-review-research`.
-- Pi may auto-load `[plan_dir]/AGENTS.md` based on the cwd. Do not explicitly rely on it or expand your reading because of it.
-- Do **NOT** read the ticket, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, or other forward-looking documents that reveal what is being built. The only plan artifacts you should intentionally read are the relevant `questions/*.md` files, plus relevant prior `context/research/` artifacts when continuing a pass. Everything else must come from code surfaced during research and `thoughts/` documents only when the question explicitly asks for historical context, prior decisions, or existing documentation.
+- Do **NOT** read the ticket, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, `prds/`, or other forward-looking documents that reveal what is being built. The only plan artifacts you should intentionally read are `[plan_dir]/AGENTS.md`, the relevant `questions/*.md` files, plus relevant prior `context/research/` artifacts when continuing a pass. Everything else must come from code surfaced during research and `thoughts/` documents only when the question explicitly asks for historical context, prior decisions, or existing documentation.
 - Always read directly mentioned files fully before spawning sub-tasks.
 - Always wait for all sub-agents to complete before synthesizing findings.
 - Prioritize live codebase findings as the source of truth; use `thoughts/` as supplementary historical context.

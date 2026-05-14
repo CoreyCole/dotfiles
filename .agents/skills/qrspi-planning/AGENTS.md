@@ -14,10 +14,13 @@ The copy of this file inside a specific plan dir is long-term memory for that pl
 
 Use it to preserve only durable context that future agents should load before reading stage artifacts and code:
 
+- pointers to canonical q-question artifacts: brainstorm/alignment and research agenda
 - approved decisions that must not be undone accidentally
 - important tradeoffs and rejected paths
 - non-obvious invariants, gotchas, or review learnings
 - scope boundaries, naming choices, or sequencing changes that define the work
+- language/domain ambiguities future agents are likely to misuse
+- ADR candidates that q-design must reconsider after research
 - pointers to canonical artifacts or code locations for details
 
 This file complements primary artifacts. It does not replace `context/brainstorms/`, `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, or `reviews/`.
@@ -61,8 +64,11 @@ When adding content:
 Keep only sections that earn their place:
 
 - **Current focus** — what loop or checkpoint we are in
+- **Canonical context** — pointers to q-question brainstorm/alignment and research agenda artifacts
 - **Decisions to preserve** — approved choices, scope boundaries, naming, sequencing
+- **Language and ambiguity notes** — canonical terms or soft-normalizations likely to matter later
 - **Important tradeoffs / rejected paths** — only when future agents might reopen them
+- **ADR candidates for design** — candidates raised before research; q-design decides disposition
 - **Invariants / gotchas** — non-obvious rules, edge cases, traps
 - **Canonical artifacts** — the few docs future agents should open first
 
@@ -126,9 +132,14 @@ Recommended top-level subdirectories:
 
 ## Key Constraints
 
-- Use stage-specific read-only discovery and write outputs under `context/[stage]/`; q-question also writes interview rationale under `context/brainstorms/` for q-design.
+- Use stage-specific read-only discovery and write outputs under `context/[stage]/`; q-question also writes active context under `context/brainstorms/` for q-design.
+- q-question's brainstorm artifact is the single structured place for early Language / Domain Model, Alignment, decision branches, interview rationale, and ADR candidates. `AGENTS.md` points to it and preserves only durable highlights.
+- q-question should investigate relevant code/docs/past thoughts before asking, then confirm the synthesized understanding with the lead engineer. It aligns goals, scope, design principles, terminology, and tradeoffs; it does not choose the implementation approach.
+- q-research reads `AGENTS.md` and the question doc for framing only. Use `AGENTS.md` and the question doc to understand what to look for. Do not treat them as proof of current behavior. Every factual answer must be grounded in current code/docs/tests with file:line references.
+- q-design consumes q-question Language / Alignment context and ADR candidates after research, asks only unresolved design-direction questions, and records ADR-candidate disposition.
+- QRSPI ADRs use the simplified body format by default: title plus 1-3 sentences covering context, decision, and why; optional sections only when valuable.
 - Keep Question and Research in separate, focused contexts.
-- Research is blind to forward-looking plan docs unless a review follow-up question explicitly references a review artifact.
+- Research reads `AGENTS.md` and `questions/*.md` for framing, but stays blind to forward-looking plan docs unless a review follow-up question explicitly references a review artifact.
 - Product design is optional. Use it for product-critical, high-stakes, user-facing PRD-sensitive, compliance/security-sensitive, or irreversible user/data behavior changes; skip it for internal tools, bugfixes, refactors, and low product-risk work.
 - The plan is a tactical machine document, but it still gets an LLM review before implementation.
 - Planning review edits docs directly; implementation review fixes code only for straightforward findings and uses a review-dir QRSPI plan for deeper work.

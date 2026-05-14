@@ -141,7 +141,7 @@ Never overwrite the parent plan's `design.md`, `design-product.md`, `outline.md`
 - **Do not outsource the thinking.** The engineer is a critical part of the human gates. The agent dumps; the human steers.
 - **LLM review edits artifacts.** Planning review should improve `design.md`, `design-product.md`, `outline.md`, and `plan.md` directly when fixes are clear. A passive report is not enough.
 - **Human-facing planning is compressed.** For `design.md`, `design-product.md`, and `outline.md` artifacts: be extremely concise. Sacrifice grammar for the sake of concision. In `/q-question`, apply that style to the brainstorm/interview turns, not to the final research questions doc.
-- **Separate context windows.** Question and Research run in fresh contexts. Research is blind to forward-looking plan artifacts and answers questions with codebase facts.
+- **Separate context windows.** Question and Research run in fresh contexts. Research reads `AGENTS.md` and question docs for framing, stays blind to forward-looking plan artifacts, and answers questions with codebase facts.
 - **Instruction budget.** Keep each stage skill focused. Do not combine stages into one mega-prompt.
 - **Dumb zone.** Context windows degrade when overfilled. Load only the artifacts the stage skill names.
 - **Vertical slices, not horizontal layers.** Each slice ships end-to-end with a verification checkpoint.
@@ -230,9 +230,9 @@ thoughts/[git_username]/plans/[timestamp]_[plan-name]/
       reviews/
 ```
 
-`context/` artifacts support later stages but do not replace primary stage artifacts. `context/brainstorms/` preserves q-question interview rationale for q-design. Load only the context subdirectories named by the active stage skill.
+`context/` artifacts support later stages but do not replace primary stage artifacts. `context/brainstorms/` preserves q-question active context for q-design: Language / Domain Model, Alignment, decision branches, interview rationale, and ADR candidates. Load only the context subdirectories named by the active stage skill.
 
-The copied `AGENTS.md` in each plan directory is curated long-term memory. Preserve only durable decisions, gotchas, invariants, review learnings, and pointers to canonical artifacts.
+The copied `AGENTS.md` in each plan directory is curated long-term memory and the plan entrypoint. Preserve only durable decisions, gotchas, invariants, review learnings, language/ambiguity notes, ADR candidates, and pointers to canonical artifacts.
 
 ## Metadata Source
 

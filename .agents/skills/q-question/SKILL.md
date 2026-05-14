@@ -69,15 +69,19 @@ Then wait for input.
 1. **Create the brainstorm artifact before interviewing** at `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md`.
 
    - Use `~/dotfiles/spec_metadata.sh` timestamp/frontmatter.
-   - Start it with sections for `Problem framing`, `Investigation notes`, `Decision branches`, `Interview log`, and `Rationale to preserve for design`.
+   - Start it with sections for `Problem framing`, `Source context`, `Language / Domain Model`, `Alignment`, `Decision branches`, `Interview log`, `ADR candidates for design`, and `Rationale to preserve for design`.
    - Keep it structured. Do not append every human turn as another bullet in one growing list.
+   - Use `Source context` for the user prompt/ticket, code/docs/past thoughts checked, and what was found.
+   - Use `Language / Domain Model` opportunistically. Include `Canonical terms`, `Relationships`, `Flagged ambiguities`, and optional `Example scenario / dialogue`; write `None yet.` when no domain clarification is needed. This section follows the discipline of `grill-with-docs` `CONTEXT.md`, but stays inside the brainstorm artifact.
+   - Use `Alignment` for desired outcome, scope, non-goals, design principles, and tradeoffs to preserve. Do not use it to select an implementation approach.
    - Use subsections under `Interview log` grouped by decision topic. For each topic, record:
      - `Prompt` — the question/recommendation posed, in one line.
      - `User decision` — confirmed/rejected/adjusted guidance.
      - `Rationale` — why this matters for design/research.
      - `Next implication` — what branch/question this unlocks.
-   - Maintain `Rationale to preserve for design` as categorized bullets (`Desired UX`, `Runtime lifecycle`, `State/logs/cleanup`, `Temporal`, `SQLite`, `Non-goals/open questions`). Rewrite/merge bullets as understanding changes instead of appending duplicate chronology.
-   - Append to it after each investigation summary, brainstorm branch, and human-answer turn. Capture decisions, rejected branches, constraints, tradeoffs, and why the next question changed. Do not dump a raw transcript.
+   - Use `ADR candidates for design` for hard-to-reverse/surprising/tradeoff decisions that q-design should reconsider after research. Do not write ADRs in q-question.
+   - Maintain `Rationale to preserve for design` as categorized bullets that match the topic. Rewrite/merge bullets as understanding changes instead of appending duplicate chronology.
+   - Append/update it after each confirmed lead-engineer decision or clarification, plus investigation summaries and branch maps. Capture decisions, rejected branches, constraints, tradeoffs, and why the next question changed. Do not dump a raw transcript.
    - For review-directory follow-up plans and planning-review research workspaces, write the brainstorm artifact directly under that directory's `context/brainstorms/`.
 
 1. **Read ticket/PRDs and linked docs fully**.
@@ -105,8 +109,9 @@ Then wait for input.
 
    - Before interviewing the engineer, do lightweight context discovery using basic `rg`, `find`, `ls`, or targeted reads based on the ticket/PRD.
    - Use the results to validate terminology, identify likely entry points, and spot obvious implementation files, tests, docs, or configs.
-   - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
-   - Share a short "what I found" summary before moving into interview questions.
+   - If the prompt, ticket, docs, code, or engineer indicate prior related work, do a bounded search of relevant `thoughts/` plan dirs and read only promising artifacts such as `AGENTS.md`, `questions/*.md`, `design.md`, or `done.md`. Do not perform broad historical archaeology by default.
+   - If a question can be answered by exploring the codebase, docs, or relevant past plan artifacts, explore first instead of asking the engineer.
+   - Share a short "what I found" summary, then ask the engineer to confirm or adjust the synthesized understanding before moving into research-question finalization.
    - Append the findings and why they matter to the brainstorm artifact.
    - Do NOT try to map the whole area or deeply analyze the implementation at this stage.
 
@@ -128,8 +133,10 @@ Then wait for input.
    - Keep interview questions and recommendations extremely concise. Sacrifice grammar for concision.
    - For each human-judgment question, provide your recommended answer and why, then ask the engineer to confirm, reject, or adjust it.
    - Focus on desired outcome, goals, design principles, scope, non-goals, constraints, risks, success criteria, and tradeoffs.
+   - Align on how the work should proceed through QRSPI, but do not choose or recommend the implementation approach; q-research should inform q-design's tradeoffs.
+   - When the engineer uses fuzzy or conflicting language, soft-normalize it to QRSPI terms and ask only when the mismatch affects scope or semantics.
    - Let the engineer explicitly defer open factual or codebase questions to the research phase when appropriate.
-   - Append each answer's rationale, resulting decision, and next-question implication to the brainstorm artifact.
+   - Append each confirmed answer's rationale, resulting decision, and next-question implication to the brainstorm artifact. Do not record tentative chat as settled context.
 
    If confidence is below ~95%, continue the interview. Do not guess.
 
@@ -144,10 +151,14 @@ Then wait for input.
 - decisions already made
 - tradeoffs, risks, non-goals, or tensions that research should keep in view
 
-11. **If the interview surfaced durable constraints, decisions, or non-goals that future stages should not forget, update `[plan_dir]/AGENTS.md`** with concise bullets.
+11. **Update `[plan_dir]/AGENTS.md` as the plan entrypoint**.
 
+- Always add or refresh concise pointers to the canonical q-question artifacts:
+  - Brainstorm / alignment: `[plan_dir]/context/brainstorms/...`
+  - Research agenda: `[plan_dir]/questions/...`
+- Add durable highlights only when future stages could be harmed by missing them: confirmed constraints, non-goals, naming choices, domain ambiguities, tradeoffs, or ADR candidates.
 - Keep it curated and stable.
-- Do not copy the whole brainstorm summary into AGENTS.
+- Do not copy the whole brainstorm summary or domain model into AGENTS.
 
 12. **Write 3-7 research questions** to a new timestamped file under `[plan_dir]/questions/`. Questions must be:
 
@@ -182,10 +193,11 @@ prev_question_docs:
 
 ## Brainstorm Summary
 - [Validated desired outcome from investigation/brainstorm/interview]
-- [Important design details, constraints, or non-goals already established]
-- [Linear comments/images used as context, with paths like `context/question/linear/images/...` when applicable]
-- [Decisions already made and tradeoffs to preserve during research]
+- [Design principles, constraints, scope, and non-goals already established]
+- [Concise language/domain notes needed to understand what to look for; avoid solution hypotheses]
+- [Tradeoffs to preserve and ADR candidates for q-design, if any]
 - [Open tensions intentionally deferred to research]
+- [Linear comments/images used as context, with paths like `context/question/linear/images/...` when applicable]
 
 ## Context
 [1-3 sentence summary of validated user need. No solution proposal.]
@@ -231,6 +243,8 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking the engineer.
 - Always create and maintain `[plan_dir]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_[topic-name].md` during the brainstorm/interview before writing questions.
 - Keep brainstorm artifacts organized by decision topic, not chronological append-only bullets. Rewrite sections to stay readable as the interview evolves.
+- Include opportunistic `Language / Domain Model`, `Alignment`, and `ADR candidates for design` sections in the brainstorm artifact; write `None yet.` when they do not apply.
+- Update the brainstorm artifact after each confirmed lead-engineer decision or clarification, not after every tentative discussion turn.
 - Always start with a short creative brainstorm before converging on the final questions.
 - Always ask the lead engineer before proceeding to write the question doc.
 - Ask interview questions one at a time by default; use `/answer` only when batching independent questions is genuinely clearer.
@@ -239,7 +253,8 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Keep the interview structure flexible — it is not a fixed questionnaire.
 - The question phase should focus on the desired outcome, goals, design principles, and tradeoffs.
 - The first section of the question doc must be a concise `Brainstorm Summary` so downstream stages inherit the key design context.
-- The `Brainstorm Summary` should capture validated human guidance and relevant codebase context, not speculative agent solutions.
+- The `Brainstorm Summary` should capture validated human guidance, relevant codebase context, language/domain notes, and tradeoffs to preserve, not speculative agent solutions.
+- Keep research questions unbiased and fact-focused. The brainstorm can explain why we care; the questions should ask what the codebase/docs/tests actually do.
 - Some questions may be intentionally deferred to the research phase.
 - Do NOT write the question doc until the lead-engineer interview is complete.
 - Treat the user's first request as a hypothesis, not a spec.
