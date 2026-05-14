@@ -39,8 +39,15 @@ case ":$PATH:" in
 esac
 # pnpm end
 
+# fnm Homebrew, needed if fnm comes from brew
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
 # fnm
-eval "$(fnm env)"
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
 
 export GOPROXY=https://proxy.golang.org,direct
 
@@ -89,4 +96,6 @@ export PATH="$HOME/.opencode/bin:$PATH"
 # SSH into tailnet machines via docker
 home() { "$HOME/dotfiles/tailscale-docker/ssh-home.sh" "${1:-ruby}"; }
 work() { "$HOME/dotfiles/tailscale-docker/ssh-work.sh" "${1:-default}"; }
-export PATH="$HOME/go/bin:~/.npm-global/bin:$PATH"
+export PATH="$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
+
+eval "$(chestnut shell-init zsh)"
