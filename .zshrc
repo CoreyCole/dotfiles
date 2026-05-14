@@ -1,5 +1,5 @@
 export GPG_TTY=$(tty)
-export TERM=screen-256color
+# export TERM=screen-256color
 export XDG_CONFIG_HOME="$HOME/.config"
 
 # load machine-local secrets from an untracked file
@@ -23,9 +23,9 @@ alias yolo="gt submit --stack --no-verify"
 alias sync="cd $HOME/cn/chestnut-flake/monorepo && gt sync && cd db; just migrate up; cd .."
 alias cld="claude --dangerously-skip-permissions"
 
-
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
+DISABLE_AUTO_TITLE="true"
 plugins=(git sudo extract fzf zsh-autosuggestions zsh-completions zsh-syntax-highlighting)
 source $ZSH/oh-my-zsh.sh
 export EDITOR=nvim
