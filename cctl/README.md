@@ -1,5 +1,23 @@
 # cctl
 
+## `flights` command
+
+### `c flights check-email`
+
+Ingest unread Going deal emails into destination-organized markdown notes. Slice 1 wires the CLI and config defaults; later slices add Gmail fetch, parsing, note writing, and mark-read behavior.
+
+```bash
+c flights check-email --dry-run
+```
+
+Optional flags:
+- `--query` (default `is:unread from:going.com`)
+- `--max-results` (default `10`)
+- `--dry-run`
+- `--root` (default `~/.hermes/notes/flights`)
+- `--account` (default `contact.creativemode.ai@gmail.com`)
+- `--gog-bin` (default `gog`)
+
 ## `contrib` command
 
 Contributions are exported as CSV rows from a local repository checkout and branch history.
