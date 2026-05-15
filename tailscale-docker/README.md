@@ -99,6 +99,33 @@ docker compose restart personal
 docker compose restart work
 ```
 
+### Terminal glitches over SSH
+
+If the remote shell prints errors like:
+
+```text
+can't find terminal definition for xterm-ghostty
+```
+
+or interactive input looks corrupted, the remote machine does not have terminfo for your local terminal. The helper scripts pass through your local `TERM` by default, so Ghostty sessions connect as `xterm-ghostty` when the remote supports it.
+
+To force a safer terminal type for one connection:
+
+```bash
+SSH_TERM=xterm-256color work
+SSH_TERM=xterm-256color home
+```
+
+Inside tmux, this dotfiles config uses `tmux-256color` and updates the tmux server's SSH and locale environment on attach. If glyphs differ only inside an existing tmux session, reload the config and restart the tmux server so panes inherit the new terminal and UTF-8 locale settings:
+
+```bash
+tmux source-file ~/.tmux.conf
+tmux kill-server
+```
+
+Glyph rendering still depends on the font in the terminal you are physically looking at. SSH does not send fonts from the remote machine; it only sends characters. Use the same Nerd Font / symbol-capable font in your local terminal if prompt icons differ.
+
+
 ### Reset Tailscale state
 
 ```bash

@@ -92,5 +92,13 @@ if [ -z "$IP" ]; then
   exit 1
 fi
 
-echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy..."
+SSH_TERM="${SSH_TERM:-${TERM:-xterm-256color}}"
+
+if [ "${TERM:-}" != "$SSH_TERM" ]; then
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM..."
+else
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy..."
+fi
+
+export TERM="$SSH_TERM"
 exec ssh -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" "$REMOTE_USER@$IP"
