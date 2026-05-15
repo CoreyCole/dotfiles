@@ -284,15 +284,15 @@ Prefer the QRSPI stage skills over ad hoc chains. Use raw subagents to support a
 
 | Agent | Purpose |
 |-------|---------|
-| `codebase-locator` | Find relevant files, directories, tests, configs, docs, and related clusters |
-| `codebase-analyzer` | Read targeted files and trace actual code paths with precise file:line references |
+| `pi-codebase-locator` | Find relevant files, directories, tests, configs, docs, and related clusters with Pi-native tools |
+| `pi-codebase-analyzer` | Read targeted files and trace actual code paths with precise file:line references using Pi-native tools |
 
 Planning, alignment, and stage transitions happen in the main session.
 
 #### When to Delegate
 
-- **Need codebase discovery during a stage** → Use `codebase-locator`
-- **Need detailed implementation tracing** → Use `codebase-analyzer`
+- **Need codebase discovery during a stage** → Use `pi-codebase-locator`
+- **Need detailed implementation tracing** → Use `pi-codebase-analyzer`
 
 #### When NOT to Delegate
 

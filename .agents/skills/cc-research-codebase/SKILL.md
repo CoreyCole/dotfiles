@@ -36,12 +36,12 @@ Then wait for the user's research query.
 
 1. **Spawn parallel sub-agent tasks for comprehensive research:**
 
-   - Create multiple Task agents to research different aspects concurrently
+   - Create multiple Pi subagent tasks to research different aspects concurrently
 
    The key is to use these agents intelligently:
 
-   - Start with locator agents to find what exists
-   - Then use analyzer agents on the most promising findings
+   - Start with `pi-codebase-locator` agents to find what exists
+   - Then use `pi-codebase-analyzer` agents on the most promising findings
    - Run multiple agents in parallel when they're searching for different things
    - Each agent knows its job - just tell it what you're looking for
    - Don't write detailed prompts about HOW to search - the agents already know
@@ -61,7 +61,7 @@ Then wait for the user's research query.
 1. **Gather metadata for the research document:**
 
    - Generate all relevant metadata (`~/dotfiles/spec_metadata.sh`)
-	 - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01_13-55-22_research-topic.md`
+     - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01_13-55-22_research-topic.md`
    - Filename: `thoughts/[git_username]/research/YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md`
      - Format: `YYYY-MM-DD_HH-MM-SS_PRO-XXXX_description.md` where:
        - YYYY-MM-DD is today's date
@@ -77,7 +77,7 @@ Then wait for the user's research query.
    - Use the metadata gathered in step 4
    - Structure the document with YAML frontmatter followed by content:
      ```markdown
-		 ---
+         ---
      date: [Current date and time with timezone in ISO format]
      researcher: [Researcher name]
      git_commit: [Current commit hash]
@@ -88,7 +88,7 @@ Then wait for the user's research query.
      status: complete
      last_updated: [Current date in YYYY-MM-DD format]
      last_updated_by: [Researcher name]
-		 ---
+         ---
 
      # Research: [User's Question/Topic]
 
@@ -161,12 +161,13 @@ Then wait for the user's research query.
 
 - Always call `~/dotfiles/spec_metadata.sh` to gather the document path and metadata
   - Use the git username for the path e.g. if the git username is `CoreyCole` -> `thoughts/CoreyCole/research/2025-01-01_13-55-22_research-topic.md`
-- Always use parallel Task agents to maximize efficiency and minimize context usage
+- Always use parallel Pi subagents to maximize efficiency and minimize context usage
 - Always run fresh codebase research - never rely solely on existing research documents
 - The thoughts/ directory provides historical context to supplement live findings
 - Focus on finding concrete file paths and line numbers for developer reference
 - Research documents should be self-contained with all necessary context
 - Each sub-agent prompt should be specific and focused on read-only operations
+- Prefer `pi-codebase-locator` and `pi-codebase-analyzer` over project-local `codebase-locator` / `codebase-analyzer` agents so Pi does not pick up Claude-oriented project agent definitions
 - Consider cross-component connections and architectural patterns
 - Include temporal context (when the research was conducted)
 - Link to GitHub when possible for permanent references

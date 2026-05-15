@@ -39,7 +39,6 @@ Required shape:
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
-
 You are the second stage of the QRSPI pipeline. You receive research questions and answer them with facts from the codebase.
 
 ## When Invoked
@@ -112,19 +111,19 @@ Reply `go` to start this research. Any edits, objections, or discussion will mov
    - If the user prompt or question doc explicitly names files, docs, JSON, tickets, prior research docs, or `thoughts/` artifacts, read them in full yourself first.
    - Do not rely on partial excerpts for directly referenced artifacts.
 
-1. **Phase 1 — location pass. Spawn one or more parallel `codebase-locator` sub-agents across the research areas**:
+1. **Phase 1 — location pass. Spawn one or more parallel `pi-codebase-locator` sub-agents across the research areas**:
 
-   - Ask `codebase-locator` for concrete paths, likely entry points, the smallest useful next-read set, related tests/config/docs, and any directory clusters relevant to the question.
+   - Ask `pi-codebase-locator` for concrete paths, likely entry points, the smallest useful next-read set, related tests/config/docs, and any directory clusters relevant to the question.
    - Include the QRSPI subagent robustness contract below in every locator task.
-   - When a question explicitly asks about prior decisions, existing research, historical context, or documents in `thoughts/`, ask `codebase-locator` to search `thoughts/` too and correct any `thoughts/searchable/` paths back to editable paths.
-   - Write each locator result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
+   - When a question explicitly asks about prior decisions, existing research, historical context, or documents in `thoughts/`, ask `pi-codebase-locator` to search `thoughts/` too and correct any `thoughts/searchable/` paths back to editable paths.
+   - Pass each locator artifact path via the subagent tool's `output` parameter. Do not include an instruction like `Write your findings to ...` in the child task text.
 
-1. **Phase 2 — analysis pass. Run `codebase-analyzer` on the most promising files or flows surfaced by the locator results**:
+1. **Phase 2 — analysis pass. Run `pi-codebase-analyzer` on the most promising files or flows surfaced by the locator results**:
 
-   - Ask `codebase-analyzer` to trace entry points, data flow, important types, transformations, configuration, patterns, and error handling with exact file:line references.
+   - Ask `pi-codebase-analyzer` to trace entry points, data flow, important types, transformations, configuration, patterns, and error handling with exact file:line references.
    - Include the QRSPI subagent robustness contract below in every analyzer task.
    - Keep analyzer tasks narrow and factual.
-   - Write each analyzer result to a timestamped markdown artifact under `[plan_dir]/context/research/`.
+   - Pass each analyzer artifact path via the subagent tool's `output` parameter. Do not include an instruction like `Write your findings to ...` in the child task text.
 
 1. **Wait for all sub-agent results before continuing**.
 
@@ -138,9 +137,9 @@ Reply `go` to start this research. Any edits, objections, or discussion will mov
 Include this contract verbatim in locator and analyzer tasks:
 
 ```text
-You are running inside pi. Use only the tools available to your agent, especially bash/read when present. Do not output tool-call XML, JSON tool invocations, or proposed commands as your answer. Actually run bounded searches/reads and then return findings.
+You are running inside pi. Use only the tools available to your agent: `read`, `grep`, `find`, and `ls`. Do not output tool-call XML, JSON tool invocations, or proposed commands as your answer. Actually run bounded searches/reads and then return findings.
 
-Run commands from the provided cwd/repo_root. Use short explicit timeouts for broad searches. Never run find outside cwd/repo_root or $TMPDIR; prefer rg/rg --files scoped to cwd. If context is insufficient after bounded reads, report the gap instead of continuing broad discovery.
+Run from the provided cwd/repo_root. Keep broad searches bounded to cwd/repo_root or explicitly named directories. Never search outside cwd/repo_root or $TMPDIR. Use Pi's `grep` tool for content searches, `find` for path discovery, `ls` for nearby directory maps, and `read` for directly relevant files. If context is insufficient after bounded reads, report the gap instead of continuing broad discovery.
 
 Return a markdown report, not a transcript. Include concrete paths and exact file:line references wherever possible.
 
@@ -168,7 +167,7 @@ Required report shape:
 
 1. **Synthesize and verify in main context**.
 
-   - Read the key source files surfaced by `codebase-locator` and explained by `codebase-analyzer` yourself.
+   - Read the key source files surfaced by `pi-codebase-locator` and explained by `pi-codebase-analyzer` yourself.
    - Verify important claims against source files directly before writing them down.
    - Connect findings across components, not just within single files.
 
@@ -297,6 +296,6 @@ Always include the complete `thoughts/.../research/YYYY-MM-DD_HH-MM-SS_topic-nam
 - Every claim must have a file:line reference.
 - If a question can't be answered from code, say so clearly.
 - Keep answers factual and concise.
-- Within QRSPI, prefer `codebase-locator` for discovery and `codebase-analyzer` for detailed implementation tracing. Keep both narrowly scoped and factual.
+- Within QRSPI, prefer `pi-codebase-locator` for discovery and `pi-codebase-analyzer` for detailed implementation tracing. Keep both narrowly scoped and factual.
 - Multiple research docs are expected; each invocation produces one file.
 - Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
