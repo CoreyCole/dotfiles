@@ -7,6 +7,39 @@ description: Creates concise product-facing `design-product.md` after approved Q
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+
 Be extremely concise everywhere: alignment interview, summaries, and `design-product.md`. Sacrifice grammar for concision. Optimize for scan speed, low reading overhead, cheap output.
 
 You are the optional product-design gate of the QRSPI pipeline. Use this stage for product-critical, high-stakes, user-facing PRD-sensitive, compliance/security-sensitive, or irreversible user/data behavior changes; skip it for internal tools, bugfixes, refactors, and low product-risk work. You run after technical `design.md` is approved and before `/q-outline`. You answer: **is the approved technical design aligned with what product wants?** First run a concise alignment interview; then write `design-product.md`. Do not write another technical design.
@@ -175,23 +208,34 @@ verdict: [Pass|Blocked|Pass with accepted non-goals]
 
 ## Response
 
-When `design-product.md` is written, use this exact response shape:
+`q-design-product` is an optional planning helper and is not currently a distinct runtime graph node. When used inside an active QRSPI workflow, the runtime node remains the node that invoked it; otherwise, emit a normal XML result for the surrounding stage or include the product-design path in the next stage's `<artifacts>`.
 
-```text
-Artifact: [exact path to design-product.md]
-Summary: [brief summary of verdict, coverage gaps, accepted non-goals/overrides]
-Next: /q-outline [exact path to design-product.md]
+If this skill is run manually and completes a product design artifact, prefer this fenced XML result so downstream tools can parse it; do not emit the old prose response shape:
+
+```xml
+<qrspi-result>
+  <stage>design</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall product/design goal]</plan-goal>
+    <stage-completed>[product coverage checked and design-product.md written]</stage-completed>
+    <key-decisions>[coverage verdict, gaps, accepted non-goals, or blockers]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../design-product.md</artifact>
+  <artifacts>
+    <artifact role="design">thoughts/.../design.md</artifact>
+  </artifacts>
+  <next>/q-outline thoughts/.../design-product.md</next>
+</qrspi-result>
 ```
 
-If blocked, use:
-
-```text
-Artifact: [exact path to design-product.md if written, or `not written`]
-Summary: Blocked — [missing source or unresolved gaps]
-Next: [specific decision/source needed before /q-outline]
-```
-
-Always include the complete `thoughts/.../design-product.md` path when written.
+If blocked, use `<status>blocked</status>` with the blocker in `<summary>` and omit `<outcome>`.
 
 ## Rules
 
@@ -208,4 +252,4 @@ Always include the complete `thoughts/.../design-product.md` path when written.
 - Every requirement row needs a captured source path when available; otherwise cite original source and explain why not captured.
 - Every blocker needs a next decision or design change.
 - Present to user before finalizing.
-- In every completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.

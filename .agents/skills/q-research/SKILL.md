@@ -7,6 +7,39 @@ description: Answer research questions by exploring the codebase with pure facts
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+
 You are the second stage of the QRSPI pipeline. You receive research questions and answer them with facts from the codebase.
 
 ## When Invoked
@@ -222,17 +255,29 @@ Use `AGENTS.md` and the question doc to understand what to look for. Do not trea
 
 ## Response
 
-When the research doc is written, use this exact response shape:
+When the research doc is written, emit only this fenced XML result. Do not add prose outside the XML. If invoked as a planning-review helper, defer to `q-research-for-review` and use the helper node stage ID instead of `research`.
 
+```xml
+<qrspi-result>
+  <stage>research</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan/workflow goal]</plan-goal>
+    <stage-completed>[what this stage produced]</stage-completed>
+    <key-decisions>[decisions, risks, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../research/YYYY-MM-DD_HH-MM-SS_topic-name.md</artifact>
+  <next>/q-design thoughts/.../research/YYYY-MM-DD_HH-MM-SS_topic-name.md</next>
+</qrspi-result>
 ```
-Artifact: [exact path to research doc]
-Summary: [brief summary of findings and any surprises]
-Next: /q-design [exact path to research doc]
-```
 
-If the user wants more research, tell them to run `/q-research [exact path to plan_dir] [additional question prompt]`; this will open question-preview mode before any new research starts.
-
-If the question doc lives under `[parent_plan_dir]/reviews/*_[outline|plan]-review/questions/`, stop and route to `/skill:q-research-for-review [exact path to question doc]` instead. Planning-review research needs review category context and a different next step.
+Always include the complete `thoughts/.../research/YYYY-MM-DD_HH-MM-SS_topic-name.md` path.
 
 ## Rules
 
@@ -254,4 +299,4 @@ If the question doc lives under `[parent_plan_dir]/reviews/*_[outline|plan]-revi
 - Keep answers factual and concise.
 - Within QRSPI, prefer `codebase-locator` for discovery and `codebase-analyzer` for detailed implementation tracing. Keep both narrowly scoped and factual.
 - Multiple research docs are expected; each invocation produces one file.
-- Use `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.

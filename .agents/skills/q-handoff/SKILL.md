@@ -7,6 +7,38 @@ description: Create a handoff document to carry context forward within a QRSPI p
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
 **Handoff mode is stop-work mode.** Once this skill is invoked, do not continue implementation, debugging, refactoring, verification fixes, or artifact edits in the current session. Reads and status/inspection commands are allowed only to gather accurate context for the handoff. The priority is to pass the important context, risks, current state, and next-edit instructions to the next agent so that agent can resume code changes in a fresh session.
@@ -164,28 +196,42 @@ Before claiming the handoff is synced, verify the handoff was committed on the c
 
 ### 7. Tell the user
 
-Use this exact response shape:
+Emit only a fenced XML `<qrspi-result>` block when the handoff completes or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape.
 
+For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and use `/q-resume [handoff.md]` in normal chat context; do not emit a completed workflow-node result. If the runtime must stop, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, and omit `<outcome>`.
+
+For final implementation handoffs that should start implementation review, emit:
+
+```xml
+<qrspi-result>
+  <stage>implement</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <workspace>[absolute implementation workspace]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall workflow goal]</plan-goal>
+    <stage-completed>[implementation completed and final handoff written]</stage-completed>
+    <key-decisions>[verification evidence and why implementation review is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md</artifact>
+  <next>/q-review thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md</next>
+</qrspi-result>
 ```
-Implemented: [one concise line describing what was completed or checkpointed]
-Verification: [relevant verification evidence if known, or `not run` with a short reason]
-Artifact: [exact path to handoff file]
-Next: [/q-resume or /q-review] [exact path to handoff file] — [what happens next]
-```
 
-Line requirements:
+Line-quality requirements still apply inside `<summary>`:
 
-- `Implemented:` must be specific to the work captured in the handoff.
-- `Verification:` must include relevant verification evidence when known. If no verification applies for the stage, say `not run` and why.
-- `Next:` must include both the exact resume/review command and a short description of what happens next.
-- For checkpoint mode, mention the current stage checkpoint and the concrete work that remains next.
-- For `continue` mode from `question` through `plan`, mention the completed stage and the next stage that `/q-resume` should start.
-- For `continue` mode from `implement`, mention what was implemented, the verification evidence if known, and that review is next.
-- Do **not** use generic lines like `Implemented: stage complete`, `Implemented: checkpoint saved`, or `Implemented: implementation complete` without describing the actual work.
+- `<stage-completed>` must describe the actual work, not generic `stage complete`.
+- `<key-decisions>` must include verification evidence when known, or say why verification was not run.
+- Never abbreviate artifact paths.
 
 Next routing:
 
-- For `continue` mode from `implement`, use `/q-review`.
-- For all other handoffs, use `/q-resume`.
+- For `continue` mode from `implement`, use `/q-review` in XML `<next>`.
+- For all other handoffs, use `/q-resume` in XML `<next>`.
 
 Never abbreviate paths.

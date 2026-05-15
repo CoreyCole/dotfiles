@@ -36,6 +36,7 @@ If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next
 <qrspi-result>
   <stage>plan</stage>
   <status>complete</status>
+  <outcome>complete</outcome>
   <workspace>
 [empty; q-workspace creates/repairs this after plan review]
   </workspace>
@@ -45,7 +46,7 @@ If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next
     <invalidResultRetryLimit>[latest known invalidResultRetryLimit or 1]</invalidResultRetryLimit>
   </policy>
 
-<summary>
+  <summary>
     <plan-goal>[Overall plan/workflow goal.]</plan-goal>
     <stage-completed>[What this stage/session did; how it moves toward the goal.]</stage-completed>
     <key-decisions>[Direction, tradeoffs, risks, open questions, follow-up, or why next step is safe.]</key-decisions>
@@ -54,7 +55,7 @@ If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next
 [exact path to plan.md]
   </artifact>
   <next>
-[/q-review or /q-implement] [exact path to plan.md]
+[/q-review or /q-workspace] [exact path to plan.md]
   </next>
 </qrspi-result>
 ```
@@ -62,6 +63,38 @@ If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next
 # Plan — The Implementation
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the sixth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. Human alignment happened in question, design, and outline; product design may also exist for product-critical or high-stakes work. After this file is written, it gets an LLM planning review via `/q-review [plan.md]` before implementation starts.
 
@@ -276,7 +309,7 @@ No human review of the plan — alignment already happened in design, outline, a
 - Every slice must include a verify step — a command the implementing agent can run.
 - Every non-verification slice must include a dictated `### Commit Message` block after its verify step. The subject must be Conventional Commits 1.0.0 compliant (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc. with optional scope); the footer must include XML wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` with exact `<design>`, `<outline>`, and `<plan>` paths.
 - Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
-- The completion `Next:` must point to `/q-review [exact path to plan.md]` when `enablePlanReviews=true`, or `/q-workspace [exact path to plan.md]` when `enablePlanReviews=false`; final implementation review still always runs.
-- In every user-facing completion response, use the same three-line shape: `Artifact: ...`, `Summary: ...`, `Next: ...`.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
 ```
 ````

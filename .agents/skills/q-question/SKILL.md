@@ -7,6 +7,39 @@ description: Decompose a ticket or task into neutral research questions for the 
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+
 You are the first stage of the QRSPI pipeline. Convert an underspecified request into 3-7 specific, answerable research questions.
 
 ## Goal
@@ -219,12 +252,26 @@ prev_question_docs:
 
 ## Response
 
-When the question doc is written, use this exact response shape:
+When the question doc is written, emit only this fenced XML result. Do not add prose outside the XML.
 
-```
-Artifact: [exact path to question doc]
-Summary: [brief summary of the questions]
-Next: /q-research [exact path to question doc]
+```xml
+<qrspi-result>
+  <stage>question</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan/workflow goal]</plan-goal>
+    <stage-completed>[what this stage produced]</stage-completed>
+    <key-decisions>[decisions, risks, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-name.md</artifact>
+  <next>/q-research thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-name.md</next>
+</qrspi-result>
 ```
 
 Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-name.md` path.
@@ -261,4 +308,4 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Do NOT turn `q-question` into a mapping pass or deep analysis stage.
 - Use extreme concision for the brainstorm/interview conversation, not as a special style rule for the final research questions doc.
 - Keep it short: questions, not essays.
-- Use: `Artifact: ...`, `Summary: ...`, `Next: ...` in completion responses.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.

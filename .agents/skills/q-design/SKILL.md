@@ -7,6 +7,39 @@ description: Run a design brainstorm interview, then create a ~200-300 line desi
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+
 You are the third stage of the QRSPI pipeline. You answer the question **"where are we going?"** in a short design document (~200-300 lines). This forces alignment between human and agent before any code is written. This is the cheapest place to change direction.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why* (recommended approach, decision summaries, patterns). The outline says *how* we get there (signatures, types, vertical slices). The plan is the low-level implementation (full code, exact file paths). Put detailed decision records in timestamped files under `adrs/` so later stages load the approved direction first, while humans can still inspect the reasoning when needed. If you're writing type definitions, package structures, or detailed signatures — that belongs in the outline, not here.
@@ -191,24 +224,32 @@ Accepted
 
 ## Response
 
-When design.md is written, use this exact response shape:
+When `design.md` is written, emit only this fenced XML result. Do not add prose outside the XML. The graph runs automated design review next; `<next>` is display/debug only.
 
-```
-Artifact: [exact path to design.md]
-Summary: [brief summary of the recommended approach and key decisions; if ADRs were written, include their exact `adrs/...` paths here]
-Optional: /q-design-product [exact path to design.md]  # use when product-critical, high-stakes, user-facing, PRD-sensitive, compliance/security-sensitive, irreversible user/data behavior, demo impact, or stakeholder alignment matters
-Next: /q-outline [exact path to design.md]
+```xml
+<qrspi-result>
+  <stage>design</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan/workflow goal]</plan-goal>
+    <stage-completed>[what this stage produced]</stage-completed>
+    <key-decisions>[decisions, risks, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../design.md</artifact>
+  <artifacts>
+    <artifact role="adr">thoughts/.../adrs/YYYY-MM-DD_HH-MM-SS_decision.md</artifact>
+  </artifacts>
+  <next>/q-review thoughts/.../design.md</next>
+</qrspi-result>
 ```
 
-If there are open questions, include them below as:
-
-```
-Open questions:
-- [question]
-- [question]
-```
-
-Always include the complete `thoughts/.../design.md` path.
+If product coverage is warranted, mention `/q-design-product [design.md]` inside `<summary><key-decisions>`; do not replace the graph next command. Always include the complete `thoughts/.../design.md` path.
 
 ## Rules
 
@@ -224,4 +265,4 @@ Always include the complete `thoughts/.../design.md` path.
 - Prefer the simplified ADR body format: 1-3 sentences, optional sections only when valuable.
 - Present to user BEFORE finalizing.
 - Write for teammate alignment.
-- In every completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.

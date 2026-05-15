@@ -7,6 +7,39 @@ description: Create a structured outline (~2 pages) from approved `design.md` an
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
 
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+
 You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
@@ -202,19 +235,29 @@ Use normal markdown bullets for explicit exclusions.
 
 ## Response
 
-When outline.md is written, use this exact response shape:
+When `outline.md` is written, emit only this fenced XML result. Do not add prose outside the XML.
 
+```xml
+<qrspi-result>
+  <stage>outline</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan/workflow goal]</plan-goal>
+    <stage-completed>[what this stage produced]</stage-completed>
+    <key-decisions>[decisions, risks, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../outline.md</artifact>
+  <next>/q-review thoughts/.../outline.md</next>
+</qrspi-result>
 ```
 
-Artifact: [exact path to outline.md]
-Summary: [brief summary of slices and their test checkpoints]
-Next: /q-review [exact path to outline.md]
-
-```
-
-You may add one extra sentence noting that `/q-review` will review this outline together with `design.md` and `design-product.md` if present before `/q-plan`.
-
-**If the user responds with feedback** (slice reordering, missing pieces, scope changes), ask followup questions if helpful, do any additional research needed, update outline.md accordingly, then respond again with the same format above.
+Always include the complete `thoughts/.../outline.md` path.
 
 ## Rules
 
@@ -233,5 +276,5 @@ You may add one extra sentence noting that `/q-review` will review this outline 
 - Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
 - Standard mode must preserve `design-product.md` Critical Findings in slices, test checkpoints, or Out of Scope when `design-product.md` exists.
 - Present to the user BEFORE writing the final file. This is the last human review gate before LLM planning review.
-- In every user-facing completion response, use: `Artifact: ...`, `Summary: ...`, `Next: ...`.
+- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
 ```

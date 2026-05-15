@@ -6,6 +6,39 @@ description: Applies q-review-plan findings after follow-up research. Use after 
 # Address Planning Review Research
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
 > **Planning review skill:** `~/.agents/skills/q-review-plan/SKILL.md`
 
 Use this after a planning review created `needs_codebase_research` questions and `/skill:q-research-for-review` answered them. Read the review artifact and research doc, then update the parent planning documents directly.
@@ -83,43 +116,35 @@ Do not create a nested design/outline/plan under the planning review directory. 
 
 ## Response Shapes
 
+All response shapes must be only a fenced XML `<qrspi-result>` block. Use the exact helper stage ID provided by the runtime prompt: `address-review-research-design`, `address-review-research-outline`, or `address-review-research-plan`.
+
 If all researched findings are addressed:
 
-```text
-Artifact: [exact path to updated review.md]
-Summary: planning review research addressed in parent docs.
-Changes: [short summary of edits to design.md / design-product.md / outline.md / plan.md / AGENTS.md.]
-Findings: none remaining from this research pass.
-Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-implement exact-plan-path]
+```xml
+<qrspi-result>
+  <stage>address-review-research-design|address-review-research-outline|address-review-research-plan</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>true</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan goal]</plan-goal>
+    <stage-completed>[research findings addressed in parent planning docs]</stage-completed>
+    <key-decisions>[why returning to the parent review is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../reviews/.../review.md</artifact>
+  <artifacts>
+    <artifact role="research">thoughts/.../reviews/.../research/...md</artifact>
+    <artifact role="modified">thoughts/.../[design.md|outline.md|plan.md]</artifact>
+  </artifacts>
+  <next>/q-review thoughts/.../reviews/.../review.md</next>
+</qrspi-result>
 ```
 
-Choose the next command this way:
-
-- If `plan.md` does not exist, next is `/q-plan [exact outline.md path]`.
-- If `plan.md` exists but has not had a clean plan review after the doc changes, next is `/q-review [exact plan.md path]`.
-- If this addressed a plan-review and no findings remain, next is `/q-implement [exact plan.md path]`.
-
-If more codebase research is needed:
-
-```text
-Artifact: [exact path to updated review.md]
-Summary: planning review research partially addressed; another research pass is needed.
-Changes: [short summary of applied edits, or none.]
-Findings: [remaining research-needed findings with examples]
-Next: /q-research [exact path to new questions doc]
-```
-
-If human judgment is needed:
-
-```text
-Artifact: [exact path to updated review.md]
-Summary: planning review research surfaced human decisions before docs can be finalized.
-Changes: [short summary of applied edits, or none.]
-Findings: [decision-needed findings with examples]
-Next: awaiting /answer decisions
-```
-
-Then add a `Questions for /answer` section and immediately invoke `/answer` with `execute_command`.
+If more codebase research or human judgment is needed, use `<status>blocked</status>` or `<status>needs_human</status>` and summarize the unresolved findings. Do not create a nested design/outline/plan under the planning review directory.
 
 ## Rules
 

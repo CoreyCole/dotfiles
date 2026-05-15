@@ -6,6 +6,39 @@ description: LLM review for QRSPI planning artifacts before implementation. Use 
 # QRSPI Planning Review
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
 Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design/product-design interview. Findings should usually become direct edits to `design.md`, optional `design-product.md`, `outline.md`, or `plan.md`.
@@ -201,46 +234,65 @@ verdict: [correct|needs_attention]
 
 ## Response Shapes
 
-If all findings were fixed directly and the review is ready for the next stage:
+All response shapes must be only a fenced XML `<qrspi-result>` block. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-```text
-Artifact: [exact path to review.md]
-Summary: planning review complete. verdict: correct. Current plan: [one-sentence high-level design/plan summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including notable gaps or "aligned".]
-Changes: [short summary of edits to design.md / design-product.md / outline.md / plan.md / AGENTS.md, or none.]
-Findings: none.
-Next: [/q-plan exact-outline-path OR /q-review exact-plan-path OR /q-workspace exact-plan-path]
+If all findings were fixed directly and the reviewed artifact is ready for the next graph node:
+
+```xml
+<qrspi-result>
+  <stage>review-design|review-outline|review-plan</stage>
+  <status>complete</status>
+  <outcome>ready-for-outline|ready-for-human-review|ready-for-workspace</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>true</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan goal]</plan-goal>
+    <stage-completed>[what the plan review checked and changed]</stage-completed>
+    <key-decisions>[why the next graph step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../reviews/.../review.md</artifact>
+  <artifacts>
+    <artifact role="reviewed">thoughts/.../[design.md|outline.md|plan.md]</artifact>
+  </artifacts>
+  <next>[/q-outline design.md OR human-review-outline OR /q-workspace plan.md]</next>
+</qrspi-result>
 ```
 
-Choose the next command this way:
+Outcome mapping:
 
-- If `plan.md` does not exist, next is `/q-plan [exact outline.md path]`.
-- If `plan.md` was just created or edited and has not had a plan review pass yet, next is `/q-review [exact plan.md path]`.
-- If this was a `plan-review` and no findings remain, next is `/q-workspace [exact plan.md path]`.
+- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>`
+- `review-outline` ready for the outline human gate: `<outcome>ready-for-human-review</outcome>`
+- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>`
 
-If codebase research is needed:
+If codebase research is needed before the review can pass:
 
-```text
-Artifact: [exact path to review.md]
-Summary: planning review needs codebase research before all docs can be finalized. Current plan: [one-sentence high-level design/plan summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including notable gaps.]
-Changes: [short summary of direct doc edits already made, or none.]
-Findings: [concise finding summaries with classification and examples]
-Next: /skill:q-research-for-review [exact path to follow-up questions doc]
+```xml
+<qrspi-result>
+  <stage>review-design|review-outline|review-plan</stage>
+  <status>complete</status>
+  <outcome>needs-review-research</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>true</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan goal]</plan-goal>
+    <stage-completed>[review found code-answerable gaps and wrote neutral questions]</stage-completed>
+    <key-decisions>[what research must answer before review can pass]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../reviews/.../review.md</artifact>
+  <artifacts>
+    <artifact role="followup-questions">thoughts/.../reviews/.../questions/YYYY-MM-DD_HH-MM-SS_...md</artifact>
+  </artifacts>
+  <next>/skill:q-research-for-review thoughts/.../reviews/.../questions/YYYY-MM-DD_HH-MM-SS_...md</next>
+</qrspi-result>
 ```
 
-If human judgment is needed, first write `review.md`, then end with:
-
-```text
-Artifact: [exact path to review.md]
-Summary: planning review needs human decisions before all docs can be finalized. Current plan: [one-sentence high-level design/plan summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/research alignment, including decision-dependent gaps.]
-Changes: [short summary of direct doc edits already made, or none.]
-Findings: [concise decision-blocked findings with examples]
-Next: awaiting /answer decisions
-```
-
-Then add a `Questions for /answer` section and immediately invoke `/answer` with `execute_command`.
+If human judgment is required, use `<status>needs_human</status>` and omit `<outcome>`.
 
 ## Rules
 

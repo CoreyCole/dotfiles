@@ -6,6 +6,39 @@ description: Research QRSPI planning-review follow-up questions. Use when q-revi
 # Research for Planning Review
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
 > **Base research skill:** `~/.agents/skills/q-research/SKILL.md`
 > **Planning review skill:** `~/.agents/skills/q-review-plan/SKILL.md`
 
@@ -70,23 +103,31 @@ Use the normal `q-research` template, plus this required section before `Open Qu
 
 ## Response
 
-When the research doc is written, use this exact response shape:
+When this helper completes, emit only a fenced XML `<qrspi-result>` block. Use the exact helper stage ID provided by the runtime prompt, not a generic stage name.
 
-```text
-Artifact: [exact path to research doc]
-Summary: [brief summary of findings and which review findings are ready to address]
-Next: /skill:q-address-review-research [exact path to review.md] [exact path to research doc]
+```xml
+<qrspi-result>
+  <stage>research-for-review-design|research-for-review-outline|research-for-review-plan</stage>
+  <status>complete</status>
+  <outcome>complete</outcome>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>true</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall plan goal]</plan-goal>
+    <stage-completed>[what this helper researched or applied]</stage-completed>
+    <key-decisions>[remaining review implication or why returning to review is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../[research-or-review-artifact].md</artifact>
+  <artifacts>
+    <artifact role="review">thoughts/.../reviews/.../review.md</artifact>
+    <artifact role="questions">thoughts/.../reviews/.../questions/...md</artifact>
+  </artifacts>
+  <next>/skill:q-address-review-research [review.md] [research.md]</next>
+</qrspi-result>
 ```
-
-If another factual research pass is required before the docs can be addressed:
-
-```text
-Artifact: [exact path to research doc]
-Summary: review research found additional factual gaps.
-Next: /skill:q-research-for-review [exact path to new questions doc]
-```
-
-If human judgment is required before the docs can be addressed, write the research doc, then ask through `/answer` with a self-contained question tied to the review finding.
 
 ## Rules
 

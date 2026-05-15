@@ -30,12 +30,13 @@ When more than one artifact is relevant, keep `<artifact>` as the primary next-c
 
 Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
 
-Intermediate handoffs use `<stage>implement</stage>`, `<status>handoff</status>`, and `<next>/q-resume [handoff]</next>`. Final completion uses `<status>complete</status>` and `<next>/q-review [handoff]</next>`. For stage completion, emit only a fenced `xml` QRSPI footer; do not duplicate Implemented/Verification/Artifact/Next in prose.
+Runtime completion for the `implement` node happens only when implementation is ready for automated implementation review. Use `<status>complete</status>`, `<outcome>complete</outcome>`, the final implementation-complete handoff as `<artifact>`, and `<next>/q-review [handoff]</next>`. For non-final checkpoint handoffs, write the handoff artifact but do not present it as a completed workflow-node result unless intentionally stopping with `blocked`/`needs_human`.
 
 ```xml
 <qrspi-result>
   <stage>implement</stage>
-  <status>[handoff or complete]</status>
+  <status>complete</status>
+  <outcome>complete</outcome>
   <workspace>
 [absolute path to the implementation workspace created/repaired by q-workspace]
   </workspace>
@@ -47,14 +48,14 @@ Intermediate handoffs use `<stage>implement</stage>`, `<status>handoff</status>`
 
   <summary>
     <plan-goal>[Overall plan/workflow goal.]</plan-goal>
-    <stage-completed>[What this stage/session did; how it moves toward the goal.]</stage-completed>
-    <key-decisions>[Direction, tradeoffs, risks, open questions, follow-up, or why next step is safe.]</key-decisions>
+    <stage-completed>[Implementation completed and final handoff written.]</stage-completed>
+    <key-decisions>[Verification evidence and why implementation review is safe.]</key-decisions>
   </summary>
   <artifact>
-[exact path to handoff.md]
+[exact path to final implementation-complete handoff.md]
   </artifact>
   <next>
-[/q-resume or /q-review] [exact path to handoff.md]
+/q-review [exact path to final implementation-complete handoff.md]
   </next>
 </qrspi-result>
 ```
@@ -62,6 +63,38 @@ Intermediate handoffs use `<stage>implement</stage>`, `<status>handoff</status>`
 # Implement — Execute the Plan
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the seventh stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Each slice should leave the engineer with a concrete, reviewable/testable increment: code diff, behavior, verification command, and artifact/handoff evidence. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
 
@@ -176,9 +209,9 @@ This is why the checkboxes and handoffs exist. Keep them updated.
 
 ## Response
 
-After completing a slice, create the required `/q-handoff` artifact first, then emit only the fenced `xml` `<qrspi-result>` footer described above. Do not include separate `Implemented:`, `Verification:`, `Artifact:`, or `Next:` prose lines.
+After completing a slice, create the required `/q-handoff` artifact first. Do not include separate `Implemented:`, `Verification:`, `Artifact path:`, or `Next command:` prose lines.
 
-For non-final implementation slices, `<artifact>` must be the newly created implement handoff file and `<next>` must be `/q-resume [exact handoff path]`. For the final implementation slice, `<artifact>` must be the final completion handoff file and `<next>` must be `/q-review [exact handoff path]`. Put what changed, engineer-test/review instructions, verification commands/results, slice status, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
+For non-final implementation slices, write the handoff artifact and stop in normal chat context; do not emit a completed workflow-node XML result, because the runtime `implement` node should not advance until all slices are done. For the final implementation slice, emit the fenced XML footer described above with `<stage>implement</stage>`, `<status>complete</status>`, `<outcome>complete</outcome>`, the final completion handoff as `<artifact>`, and `<next>/q-review [exact handoff path]</next>`. Put what changed, engineer-test/review instructions, verification commands/results, slice status, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
 
 ## Rules
 

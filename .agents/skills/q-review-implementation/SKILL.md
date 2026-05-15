@@ -6,6 +6,39 @@ description: LLM review for completed QRSPI implementation code. Use after q-imp
 # QRSPI Implementation Review
 
 > **Pipeline overview:** `~/.agents/skills/qrspi-planning/SKILL.md`
+
+## Runtime XML contract
+
+Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+
+Required shape:
+
+```xml
+<qrspi-result>
+  <stage>[canonical node id]</stage>
+  <status>complete</status>
+  <outcome>[node-specific branch outcome]</outcome>
+  <workspace>[absolute implementation workspace when known]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall goal]</plan-goal>
+    <stage-completed>[specific work completed]</stage-completed>
+    <key-decisions>[decisions, risks, follow-up, or why next step is safe]</key-decisions>
+  </summary>
+  <artifact>thoughts/...</artifact>
+  <artifacts>
+    <artifact role="related">thoughts/...</artifact>
+  </artifacts>
+  <next>[display/debug command matching the graph]</next>
+</qrspi-result>
+```
+
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
 Review the completed implementation against the plan, codebase reality, and verification evidence. Straightforward code fixes can be made immediately as a final review-fix slice. Deeper issues become a new QRSPI plan rooted in the timestamped review directory so follow-up branches can stack on top of the implementation.
@@ -196,49 +229,61 @@ verdict: [correct|needs_attention]
 
 ## Response Shapes
 
-If no findings remain:
+All response shapes must be only a fenced XML `<qrspi-result>` block. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-```text
-Artifact: [exact path to review.md]
-Summary: implementation review complete. verdict: correct. Current implementation: [one-sentence high-level implementation summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including unproven areas or "aligned".]
-Changes: [straightforward fixes applied, branch/commit if any, or none.]
-Findings: none.
-Next: pipeline complete
+If no findings remain after any straightforward fixes, point the primary artifact at `done.md` and route to the final human implementation gate:
+
+```xml
+<qrspi-result>
+  <stage>review-implementation</stage>
+  <status>complete</status>
+  <outcome>ready-for-human-review</outcome>
+  <workspace>[absolute implementation workspace]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall implementation goal]</plan-goal>
+    <stage-completed>[what the implementation now does and what review checked/fixed]</stage-completed>
+    <key-decisions>[why final human review is safe; note any applied fix commit]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../done.md</artifact>
+  <artifacts>
+    <artifact role="review">thoughts/.../reviews/..._implementation-review/review.md</artifact>
+  </artifacts>
+  <next>human-review-implementation</next>
+</qrspi-result>
 ```
 
-If straightforward fixes were applied and deeper follow-up is needed:
+If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.md`, include a follow-up plan or questions artifact, and route back to QRSPI question in the review-dir context:
 
-```text
-Artifact: [exact path to review.md]
-Summary: implementation review complete. straightforward fixes applied; follow-up QRSPI plan created for deeper findings. Current implementation: [one-sentence high-level implementation summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including gaps driving follow-up.]
-Changes: [short summary of fixes, branch/commit if any.]
-Findings: [remaining needs_followup_qrspi findings with examples]
-Next: /q-research [exact path to follow-up questions doc]
+```xml
+<qrspi-result>
+  <stage>review-implementation</stage>
+  <status>complete</status>
+  <outcome>needs-followup</outcome>
+  <workspace>[absolute implementation workspace]</workspace>
+  <policy>
+    <autoMode>[current persisted policy]</autoMode>
+    <enablePlanReviews>[current persisted policy]</enablePlanReviews>
+    <invalidResultRetryLimit>[current persisted policy or 1]</invalidResultRetryLimit>
+  </policy>
+  <summary>
+    <plan-goal>[overall implementation goal]</plan-goal>
+    <stage-completed>[review found deeper follow-up and initialized review-dir QRSPI artifacts]</stage-completed>
+    <key-decisions>[what follow-up must research/design/implement]</key-decisions>
+  </summary>
+  <artifact>thoughts/.../reviews/..._implementation-review/review.md</artifact>
+  <artifacts>
+    <artifact role="followup-questions">thoughts/.../reviews/..._implementation-review/questions/YYYY-MM-DD_HH-MM-SS_...md</artifact>
+  </artifacts>
+  <next>/q-research thoughts/.../reviews/..._implementation-review/questions/YYYY-MM-DD_HH-MM-SS_...md</next>
+</qrspi-result>
 ```
 
-If only deeper follow-up is needed:
-
-```text
-Artifact: [exact path to review.md]
-Summary: implementation review complete. follow-up QRSPI plan created for deeper findings. Current implementation: [one-sentence high-level implementation summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including gaps driving follow-up.]
-Changes: none.
-Findings: [needs_followup_qrspi findings with examples]
-Next: /q-research [exact path to follow-up questions doc]
-```
-
-If straightforward fixes were attempted but verification still fails:
-
-```text
-Artifact: [exact path to review.md]
-Summary: implementation review needs attention. straightforward fix verification did not pass. Current implementation: [one-sentence high-level implementation summary].
-Alignment: [one sentence on PRD/ticket/brainstorm/design/plan alignment, including unverified or broken areas.]
-Changes: [short summary of attempted fixes.]
-Findings: [remaining failing findings with examples]
-Next: /q-review [exact implementation handoff path]
-```
+If straightforward fixes were attempted but verification still fails, use `<status>blocked</status>` or `<status>error</status>` with the review artifact and verification failure in `<summary>`.
 
 ## Rules
 
