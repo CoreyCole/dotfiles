@@ -96,7 +96,7 @@ if [ -z "$IP" ]; then
   exit 1
 fi
 
-SSH_TERM="${SSH_TERM:-xterm-256color}"
+SSH_TERM="${SSH_TERM:-${TERM:-xterm-256color}}"
 
 if [ "${TERM:-}" != "$SSH_TERM" ]; then
   echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM..."
