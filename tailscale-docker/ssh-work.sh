@@ -93,12 +93,23 @@ if [ -z "$IP" ]; then
 fi
 
 SSH_TERM="${SSH_TERM:-${TERM:-xterm-256color}}"
+SSH_LOGIN_TERM="${SSH_LOGIN_TERM:-xterm-256color}"
 
-if [ "${TERM:-}" != "$SSH_TERM" ]; then
-  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM..."
+case "$SSH_TERM" in
+  ""|*[!A-Za-z0-9_.-]*)
+    echo "Invalid SSH_TERM: $SSH_TERM"
+    exit 1
+    ;;
+esac
+
+if [ "$SSH_LOGIN_TERM" != "$SSH_TERM" ]; then
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with login TERM=$SSH_LOGIN_TERM, shell TERM=$SSH_TERM..."
 else
-  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy..."
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM..."
 fi
 
-export TERM="$SSH_TERM"
-exec ssh -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" "$REMOTE_USER@$IP"
+export TERM="$SSH_LOGIN_TERM"
+exec ssh -t \
+  -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" \
+  "$REMOTE_USER@$IP" \
+  "export TERM=$SSH_TERM; exec \"\${SHELL:-/bin/zsh}\" -l"

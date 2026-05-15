@@ -107,7 +107,7 @@ If the remote shell prints errors like:
 can't find terminal definition for xterm-ghostty
 ```
 
-or interactive input looks corrupted, the remote login environment does not have terminfo for your local terminal. The helper scripts pass through your local `TERM` by default, so Ghostty sessions connect as `xterm-ghostty`.
+or interactive input looks corrupted, the remote login environment does not have terminfo for your local terminal early enough during shell startup. The helper scripts start SSH login with `TERM=xterm-256color`, then switch the interactive shell to your local `TERM` by default, so Ghostty sessions still run as `xterm-ghostty` after nix-darwin's login environment has loaded.
 
 To use Ghostty's terminal type, the remote login environment must have `xterm-ghostty` in one of its active terminfo paths. This dotfiles repo installs `pkgs.ghostty.terminfo` through nix-darwin for macOS machines. After rebuilding nix-darwin on the target, test it with:
 
