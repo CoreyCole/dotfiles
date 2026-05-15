@@ -5,7 +5,7 @@ Run two isolated Tailscale clients in Docker so this machine can SSH into both:
 - your **personal** tailnet
 - your **work** tailnet
 
-Each container exposes a local SOCKS5 proxy, and the helper scripts SSH through that proxy.
+Each container exposes a local SOCKS5 proxy, and the helper scripts SSH through that proxy using `socat`.
 
 ## Files
 
@@ -74,7 +74,7 @@ home user@host
 ### Work tailnet
 
 ```bash
-work          # coreycole@coreys-macbook-pro-1
+work          # coreycole@coreys-macbook-pro-2-2
 work swarm    # swarm@swarms-macbook-pro-1
 work user@host
 ```

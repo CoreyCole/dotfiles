@@ -10,7 +10,7 @@ TARGET="${1:-default}"
 case "$TARGET" in
   default)
     REMOTE_USER="coreycole"
-    REMOTE_HOST="coreys-macbook-pro-1"
+    REMOTE_HOST="coreys-macbook-pro-2-2"
     ;;
   swarm)
     REMOTE_USER="swarm"
@@ -93,4 +93,4 @@ if [ -z "$IP" ]; then
 fi
 
 echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy..."
-exec ssh -o ProxyCommand="nc -X 5 -x 127.0.0.1:$SOCKS_PORT %h %p" "$REMOTE_USER@$IP"
+exec ssh -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" "$REMOTE_USER@$IP"

@@ -97,4 +97,4 @@ if [ -z "$IP" ]; then
 fi
 
 echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy..."
-exec ssh -o ProxyCommand="nc -X 5 -x 127.0.0.1:$SOCKS_PORT %h %p" "$REMOTE_USER@$IP"
+exec ssh -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" "$REMOTE_USER@$IP"
