@@ -1,6 +1,6 @@
 ---
-name: q-outline-milestone
-description: Create milestone-level QRSPI outline for nested project planning. Use after approved milestone design or when running /q-outline-milestone. Produces concise user-story-backed gap maps, architecture-spec inputs, proposed ticket lists, dependencies, and deferred ticket-level decisions.
+name: q-milestone-outline
+description: Create milestone-level QRSPI outline for nested project planning. Use after approved milestone design or when running /q-milestone-outline. Produces concise user-story-backed gap maps, architecture-spec inputs, proposed ticket lists, dependencies, and deferred ticket-level decisions.
 ---
 
 # Milestone Outline — What Tickets Should Exist?
@@ -14,7 +14,7 @@ Read:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-outline/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. milestone-plan `AGENTS.md`
 1. milestone-plan `design.md`
 1. relevant ADRs
@@ -57,7 +57,7 @@ Keep concise. Sacrifice grammar for concision. Link canonical docs; do not copy 
 
 ## Step 4: Gate expectations
 
-After `/q-review-milestone [outline.md]`, human approval is required before `/q-plan-milestone`.
+After `/q-milestone-review [outline.md]`, human approval is required before `/q-milestone-plan`.
 
 Record human approval as `review-human.md` in the automated outline review directory.
 
@@ -67,4 +67,4 @@ End completed stage responses with standard fenced XML `<qrspi-result>` from `qr
 
 - `<stage>outline</stage>`
 - `<artifact>` = `outline.md`
-- `<next>` = `/q-review-milestone [outline.md]`
+- `<next>` = `/q-milestone-review [outline.md]`

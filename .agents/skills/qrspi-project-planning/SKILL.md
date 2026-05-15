@@ -82,16 +82,16 @@ It may challenge child milestone outlines, but must not silently mutate them. Sc
 ## Standard milestone planning flow
 
 ```text
-/q-question-milestone [milestone-plan-dir]
-/q-research-milestone [question.md]
-/q-design-milestone [research.md]
-/q-review-milestone [design.md]
+/q-milestone-question [milestone-plan-dir]
+/q-milestone-research [question.md]
+/q-milestone-design [research.md]
+/q-milestone-review [design.md]
 # human approval: review-human.md beside automated design review
-/q-outline-milestone [design.md]
-/q-review-milestone [outline.md]
+/q-milestone-outline [design.md]
+/q-milestone-review [outline.md]
 # human approval: review-human.md beside automated outline review
-/q-plan-milestone [outline.md]
-/q-review-milestone [plan.md]
+/q-milestone-plan [outline.md]
+/q-milestone-review [plan.md]
 # execute ticket creation/status updates after reviewed plan
 ```
 
@@ -164,11 +164,11 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` for base QRSPI stage mechanics a
 
 Use milestone-specific skills for nested project planning:
 
-- `/q-question-milestone`
-- `/q-research-milestone`
-- `/q-design-milestone`
-- `/q-outline-milestone`
-- `/q-plan-milestone`
-- `/q-review-milestone`
+- `/q-milestone-question`
+- `/q-milestone-research`
+- `/q-milestone-design`
+- `/q-milestone-outline`
+- `/q-milestone-plan`
+- `/q-milestone-review`
 
 If a milestone skill does not load this doctrine, treat that as skill maintenance, not normal project-planning work.

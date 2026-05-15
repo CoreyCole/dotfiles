@@ -1,6 +1,6 @@
 ---
-name: q-question-milestone
-description: Create milestone-level QRSPI research questions for nested project planning. Use when starting a milestone-plan directory, planning what tickets should exist for a milestone, or running /q-question-milestone. Focuses on milestone ownership, current-state discovery, user stories, architecture inputs, and ticket-shaping questions.
+name: q-milestone-question
+description: Create milestone-level QRSPI research questions for nested project planning. Use when starting a milestone-plan directory, planning what tickets should exist for a milestone, or running /q-milestone-question. Focuses on milestone ownership, current-state discovery, user stories, architecture inputs, and ticket-shaping questions.
 ---
 
 # Milestone Question — What Must This Milestone Learn?
@@ -14,7 +14,7 @@ Read:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-question/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. project plan `AGENTS.md`
 1. milestone `milestone.md`, if present
 1. existing milestone-plan `AGENTS.md`, if present
@@ -88,4 +88,4 @@ End completed stage responses with the standard fenced XML `<qrspi-result>` from
 
 - `<stage>question</stage>`
 - `<artifact>` = question doc path
-- `<next>` = `/q-research-milestone [question-doc]`
+- `<next>` = `/q-milestone-research [question-doc]`

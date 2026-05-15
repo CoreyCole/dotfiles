@@ -1,6 +1,6 @@
 ---
-name: q-research-milestone
-description: Research a milestone-plan directory for nested QRSPI project planning. Use when answering milestone-level research questions, mapping current code state to requirements, or running /q-research-milestone. Produces factual current-state, source-doc, gap, dependency, and ticket-shaping research.
+name: q-milestone-research
+description: Research a milestone-plan directory for nested QRSPI project planning. Use when answering milestone-level research questions, mapping current code state to requirements, or running /q-milestone-research. Produces factual current-state, source-doc, gap, dependency, and ticket-shaping research.
 ---
 
 # Milestone Research — What Is True Now?
@@ -14,7 +14,7 @@ Read:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-research/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. milestone-plan `AGENTS.md`
 1. provided question doc
 1. project/milestone artifacts explicitly referenced by those files
@@ -71,4 +71,4 @@ End completed stage responses with standard fenced XML `<qrspi-result>` from `qr
 
 - `<stage>research</stage>`
 - `<artifact>` = research doc path
-- `<next>` = `/q-design-milestone [research-doc]`
+- `<next>` = `/q-milestone-design [research-doc]`

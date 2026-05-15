@@ -1,6 +1,6 @@
 ---
-name: q-review-milestone
-description: Review milestone-level QRSPI design, outline, or plan artifacts for nested project planning. Use when running /q-review-milestone on milestone design.md, outline.md, or plan.md. Checks artifact ownership, user-story traceability, current-state evidence, architecture-spec readiness, ticket boundaries, dependencies, and Linear ticket creation safety.
+name: q-milestone-review
+description: Review milestone-level QRSPI design, outline, or plan artifacts for nested project planning. Use when running /q-milestone-review on milestone design.md, outline.md, or plan.md. Checks artifact ownership, user-story traceability, current-state evidence, architecture-spec readiness, ticket boundaries, dependencies, and Linear ticket creation safety.
 ---
 
 # Milestone Review — Is This Ready for the Next Gate?
@@ -15,7 +15,7 @@ Read:
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-review/SKILL.md`
 1. `~/.agents/skills/q-review-plan/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. artifact under review
 1. prior milestone-plan artifacts needed to evaluate it
 1. milestone-plan `AGENTS.md`
@@ -39,7 +39,7 @@ Check:
 - ticket-shaping principles clear
 - implementation details not over-specified
 
-Next after clean automated review: human writes `review-human.md`, then `/q-outline-milestone [design.md]`.
+Next after clean automated review: human writes `review-human.md`, then `/q-milestone-outline [design.md]`.
 
 ### Outline review
 
@@ -54,7 +54,7 @@ Check:
 - ticket boundaries are neither too broad nor too narrow
 - taxonomy proposals require project/lead approval
 
-Next after clean automated review: human writes `review-human.md`, then `/q-plan-milestone [outline.md]`.
+Next after clean automated review: human writes `review-human.md`, then `/q-milestone-plan [outline.md]`.
 
 ### Plan review
 

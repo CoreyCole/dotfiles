@@ -80,16 +80,16 @@ May challenge child milestone outlines, but must not silently mutate them. Any s
 Default milestone path:
 
 ```text
-/q-question-milestone [milestone-plan-dir]
-/q-research-milestone [questions.md]
-/q-design-milestone [research.md]
-/q-review-milestone [design.md]
+/q-milestone-question [milestone-plan-dir]
+/q-milestone-research [questions.md]
+/q-milestone-design [research.md]
+/q-milestone-review [design.md]
 # human writes review-human.md in design review dir
-/q-outline-milestone [design.md]
-/q-review-milestone [outline.md]
+/q-milestone-outline [design.md]
+/q-milestone-review [outline.md]
 # human writes review-human.md in outline review dir
-/q-plan-milestone [outline.md]
-/q-review-milestone [plan.md]
+/q-milestone-plan [outline.md]
+/q-milestone-review [plan.md]
 # execute Linear ticket creation and status updates
 ```
 

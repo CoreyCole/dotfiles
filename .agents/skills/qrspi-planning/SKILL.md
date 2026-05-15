@@ -100,12 +100,12 @@ Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
 
 For epics/projects that use QRSPI to plan milestones and create future tickets, load `~/.agents/skills/qrspi-project-planning/SKILL.md`. Use milestone-specific skills instead of forcing normal `/q-outline` and `/q-plan` onto milestone meta-planning:
 
-- `/q-question-milestone`
-- `/q-research-milestone`
-- `/q-design-milestone`
-- `/q-outline-milestone`
-- `/q-plan-milestone`
-- `/q-review-milestone`
+- `/q-milestone-question`
+- `/q-milestone-research`
+- `/q-milestone-design`
+- `/q-milestone-outline`
+- `/q-milestone-plan`
+- `/q-milestone-review`
 
 # QRSPI Planning Pipeline
 

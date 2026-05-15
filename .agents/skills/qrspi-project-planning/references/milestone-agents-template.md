@@ -40,5 +40,5 @@ Run milestone-level QRSPI when this milestone starts. Do not create implementati
 - None yet. Add only stable decisions from milestone-level QRSPI.
 
 ## Suggested next command
-/q-question-milestone [project-plan-dir]/milestones/[NN-slug]/milestone-plan
+/q-milestone-question [project-plan-dir]/milestones/[NN-slug]/milestone-plan
 ```

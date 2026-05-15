@@ -1,6 +1,6 @@
 ---
-name: q-design-milestone
-description: Create milestone-level QRSPI design for nested project planning. Use when designing a milestone-plan after research or running /q-design-milestone. Defines milestone ownership, target user stories, current-to-target direction, architecture-input themes, dependencies, and ticket-shaping principles without creating implementation plans.
+name: q-milestone-design
+description: Create milestone-level QRSPI design for nested project planning. Use when designing a milestone-plan after research or running /q-milestone-design. Defines milestone ownership, target user stories, current-to-target direction, architecture-input themes, dependencies, and ticket-shaping principles without creating implementation plans.
 ---
 
 # Milestone Design — Where Is This Milestone Going?
@@ -14,7 +14,7 @@ Read:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-design/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. milestone-plan `AGENTS.md`
 1. all milestone-plan `questions/*.md`
 1. all milestone-plan `context/brainstorms/*.md`
@@ -72,4 +72,4 @@ End completed stage responses with standard fenced XML `<qrspi-result>` from `qr
 
 - `<stage>design</stage>`
 - `<artifact>` = `design.md`
-- `<next>` = `/q-review-milestone [design.md]`
+- `<next>` = `/q-milestone-review [design.md]`

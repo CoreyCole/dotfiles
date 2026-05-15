@@ -1,6 +1,6 @@
 ---
-name: q-plan-milestone
-description: Create milestone-level QRSPI execution plan for Linear ticket creation. Use after reviewed and human-approved milestone outline or when running /q-plan-milestone. Produces an operational plan, separate Linear ticket description documents, status/doc update steps, and routing for ticket-level QRSPI.
+name: q-milestone-plan
+description: Create milestone-level QRSPI execution plan for Linear ticket creation. Use after reviewed and human-approved milestone outline or when running /q-milestone-plan. Produces an operational plan, separate Linear ticket description documents, status/doc update steps, and routing for ticket-level QRSPI.
 ---
 
 # Milestone Plan — How Do We Create the Tickets?
@@ -14,7 +14,7 @@ Read:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`
 1. `~/.agents/skills/qrspi-project-planning/SKILL.md`
 1. `~/.agents/skills/q-plan/SKILL.md`
-1. `~/.agents/skills/q-question-milestone/references/milestone-planning-common.md`
+1. `~/.agents/skills/q-milestone-question/references/milestone-planning-common.md`
 1. milestone-plan `AGENTS.md`
 1. milestone-plan `outline.md`
 1. latest outline review and `review-human.md`
@@ -79,7 +79,7 @@ Required sections:
 
 ## Step 5: Post-review execution
 
-After `/q-review-milestone [plan.md]` succeeds and required human approval is recorded if project policy requires it, execute Linear creation. Then create ticket directories using `NN-pro-####-slug/` and routing-only `AGENTS.md` files.
+After `/q-milestone-review [plan.md]` succeeds and required human approval is recorded if project policy requires it, execute Linear creation. Then create ticket directories using `NN-pro-####-slug/` and routing-only `AGENTS.md` files.
 
 ## Response
 
@@ -88,4 +88,4 @@ End completed stage responses with standard fenced XML `<qrspi-result>` from `qr
 - `<stage>plan</stage>`
 - `<artifact>` = `plan.md`
 - `<artifacts>` = ticket description docs
-- `<next>` = `/q-review-milestone [plan.md]`
+- `<next>` = `/q-milestone-review [plan.md]`
