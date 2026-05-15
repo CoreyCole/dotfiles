@@ -110,9 +110,10 @@ Be concise. Sacrifice grammar for concision. Prefer tables and fragments over na
 
 - current code/system state with file refs
 - source-doc/requirement state with canonical links
-- target behavior as concise user stories, including engineer-as-user stories
+- approved product outcomes and user-visible success
+- target behavior as concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - gap map
-- architecture-spec inputs
+- architecture-spec inputs, including API/db/type surfaces only when boundary-relevant
 - proposed tickets mapped to user stories and gaps
 - deferred details for ticket-level QRSPI
 - cross-milestone dependencies
@@ -125,4 +126,4 @@ Summaries allowed, but cite canonical source paths. Do not copy full requirement
 
 ## Boundaries
 
-Milestone-level QRSPI may inspect code freely for accurate current state. Its outputs stay at ticket-shaping and architecture-input granularity. Ticket-level QRSPI owns exact implementation plans.
+Milestone-level QRSPI may inspect code freely for accurate current state. Research should give detailed high-level current-state context for future planners. Design/outline stay concise and human-reviewable: product outcomes, ticket shaping, and architecture-input granularity. Ticket-level QRSPI owns exact implementation plans.

@@ -83,6 +83,8 @@ After `/q-milestone-review [plan.md]` succeeds and required human approval is re
 
 ## Response
 
+
+Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:
 
 - `<stage>plan</stage>`

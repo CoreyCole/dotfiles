@@ -32,7 +32,7 @@ Check:
 
 - milestone ownership/non-goals clear
 - current-state/source-doc evidence sufficient for design
-- target behavior expressed as concise user stories
+- product outcomes/user-visible success clear and expressed as concise user stories
 - architecture-spec inputs identified at design granularity
 - cross-milestone dependencies surfaced
 - taxonomy changes proposed, not silently applied
@@ -45,10 +45,11 @@ Next after clean automated review: human writes `review-human.md`, then `/q-mile
 
 Check:
 
-- every proposed ticket maps to user stories and gaps
+- every proposed ticket maps to approved product outcomes or outcome-enabling user stories and gaps
+- outline stays high-level ticket shaping, not normal header-file implementation outline
 - current code/system state has evidence
 - requirement summaries cite canonical sources
-- architecture-spec inputs are sufficient for whole-system architecture ticket
+- architecture-spec inputs are sufficient for whole-system architecture ticket, with API/db/type surfaces only when boundary-relevant
 - dependencies have owner/status
 - deferred details really belong to ticket-level QRSPI
 - ticket boundaries are neither too broad nor too narrow
@@ -99,6 +100,8 @@ Include approver, date, decision, notes, applied/deferred edits, and pointer to 
 
 ## Response
 
+
+Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`.
 
 Use explicit review node IDs:

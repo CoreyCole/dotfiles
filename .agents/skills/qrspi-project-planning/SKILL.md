@@ -13,9 +13,11 @@ Project planning should uncover hidden complexity early, expose ambiguities befo
 
 Optimize for:
 
+- product outcomes surfaced early and preserved through ticket shaping
 - sequencing/gating before ticket creation
 - traceability from source docs and current code to proposed tickets
 - concise high-level outlines that surface product/architecture risk
+- detailed high-level current-state research for future planners
 - durable context without drowning future agents
 - human judgment at question/design/outline approval points
 
@@ -60,7 +62,7 @@ Owns milestone-level QRSPI:
 - proposed ticket list and ticket creation plan
 - automated and human review artifacts
 
-Milestone-level QRSPI answers: **what tickets should exist for this milestone?**
+Milestone-level QRSPI answers: **what product outcomes does this milestone own, and what tickets should exist to deliver them?**
 
 ### Ticket directory
 
@@ -115,19 +117,19 @@ Automated milestone review should improve artifacts, not just report issues.
 
 ## Milestone outline purpose
 
-Milestone `outline.md` is the critical sign-off artifact. It should be high-level enough for product/lead review, but concrete enough to reveal hidden complexity and shape future tickets.
+Milestone `outline.md` is the critical sign-off artifact. It is product-outcome ticket shaping, not normal QRSPI header-file outline. Keep it high-level enough for product/lead review, but concrete enough to reveal hidden complexity and shape future tickets.
 
 It must connect:
 
 ```text
 canonical sources + current code state
-  → concise user stories
+  → approved product outcomes / concise user stories
   → gaps / ambiguities / dependencies
   → architecture/spec inputs
   → proposed tickets
 ```
 
-Engineer enablement can be a user story. Keep stories concise; sacrifice grammar for concision.
+Product outcomes come first. Engineer enablement can be a user story only when it supports product outcomes or architecture/spec readiness. Keep stories concise; sacrifice grammar for concision.
 
 ## Milestone plan purpose
 

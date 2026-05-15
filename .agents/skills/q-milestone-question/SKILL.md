@@ -41,7 +41,9 @@ Resolve:
 
 - milestone owns / does not own
 - why this milestone exists
+- product outcomes and user-visible success
 - who the users are, including engineer-as-user cases
+- demo/review scenarios humans care about
 - what current-code accuracy is required
 - which source docs are canonical
 - expected architecture-spec inputs
@@ -60,10 +62,12 @@ Use `~/dotfiles/spec_metadata.sh` before writing.
 
 The question doc must ask for research that can support milestone design/outline:
 
+1. Product Outcome Hypotheses and user-visible success criteria to validate.
 1. Current code/system state relevant to this milestone.
 1. Requirement/source-doc state, with canonical paths.
+1. Current support for product outcomes: supported / partial / missing.
 1. Gap map candidates: current support / partial / missing.
-1. User stories to support, including engineer-as-user stories.
+1. User stories to support, including engineer-as-user stories only when outcome/architecture-enabling.
 1. Architecture-spec inputs and cross-cutting decisions.
 1. Proposed ticket boundary evidence.
 1. Cross-milestone dependencies.
@@ -84,6 +88,7 @@ Keep it short. Do not copy full requirements.
 
 ## Response
 
+Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with the standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:
 
 - `<stage>question</stage>`

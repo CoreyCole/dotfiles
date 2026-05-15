@@ -25,6 +25,8 @@ Research may inspect code freely to build an accurate current-state map. Stay fa
 
 Allowed:
 
+- detailed high-level current code/system state for future planners
+- current support for product outcome hypotheses
 - current capabilities
 - missing concepts
 - relevant services, tables, APIs, UI surfaces, jobs, tests
@@ -47,11 +49,13 @@ Write `research/YYYY-MM-DD_HH-MM-SS_[slug].md`.
 Required sections:
 
 1. Brainstorm / alignment summary.
+1. Product outcome hypotheses under evaluation.
 1. Evidence boundary.
-1. Current code/system state.
+1. Current code/system state at detailed high-level summary granularity.
 1. Requirement/source-doc state.
+1. Current support for product outcomes: outcome → supported / partial / missing / evidence.
 1. Gap map: requirement → supported / partial / missing.
-1. User-story implications, including engineer-as-user stories.
+1. User-story implications, including engineer-as-user stories only when outcome/architecture-enabling.
 1. Architecture-spec inputs.
 1. Proposed ticket-shaping implications.
 1. Cross-milestone dependencies.
@@ -67,6 +71,8 @@ If research reveals new code-answerable factual questions that materially affect
 
 ## Response
 
+
+Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:
 
 - `<stage>research</stage>`

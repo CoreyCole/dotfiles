@@ -30,7 +30,8 @@ Ask one question at a time. Use loaded research to avoid asking factual question
 Resolve:
 
 - milestone ownership and non-goals
-- target users and concise user stories, including engineer-as-user stories
+- product outcomes and user-visible success criteria
+- target users and concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - current-to-target direction
 - architecture-spec inputs needed by the whole-system architecture ticket
 - ticket-shaping principles
@@ -42,13 +43,14 @@ Resolve:
 
 Use `~/dotfiles/spec_metadata.sh` before writing.
 
-Write `design.md` in the milestone-plan directory. Keep concise; tables/fragments preferred.
+Write `design.md` in the milestone-plan directory. Max ~200 lines. Keep concise; tables/fragments preferred. Product outcomes belong here as approved direction.
 
 Required sections:
 
 1. Executive summary.
 1. Milestone ownership.
 1. Non-goals.
+1. Product outcomes / user-visible success.
 1. Current state summary.
 1. Target behavior as user stories.
 1. Current to target direction.
@@ -68,6 +70,8 @@ If approved design introduces durable invariants, update `milestone-plan/AGENTS.
 
 ## Response
 
+
+Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:
 
 - `<stage>design</stage>`
