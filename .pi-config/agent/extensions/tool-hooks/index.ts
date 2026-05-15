@@ -3,8 +3,8 @@ import {
   getAgentDir,
   type ExtensionAPI,
   type SessionStartEvent,
-} from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { loadToolHooksConfig, loadToolHooksConfigFromObject } from "./config";

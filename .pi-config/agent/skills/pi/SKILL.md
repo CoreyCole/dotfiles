@@ -69,7 +69,7 @@ When runtime behavior is needed, scaffold extension in auto-discovery location:
 Recommended starter:
 
 ```ts
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
 export default function (pi: ExtensionAPI) {

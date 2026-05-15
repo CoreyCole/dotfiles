@@ -11,7 +11,6 @@
   "packages": [
     "git:github.com/nicobailon/pi-subagents",
     "git:github.com/nicobailon/pi-mcp-adapter",
-    "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
     "git:git@github.com:CoreyCole/pi-deterministic-docs.git",
     "git:github.com/maxedapps/pi-docparser"
@@ -19,6 +18,7 @@
   "extensions": [
     "+extensions/answer.ts",
     "+extensions/execute-command.ts",
+    "+extensions/smart-sessions.ts",
     "+extensions/tool-hooks/index.ts"
   ],
   "subagents": {

@@ -1,4 +1,4 @@
-import type { ExtensionContext, ToolResultEvent } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext, ToolResultEvent } from "@earendil-works/pi-coding-agent";
 import { toClaudeToolName } from "./matchers";
 import type { ClaudeHookEventName, HookCommandPayload } from "./types";
 
