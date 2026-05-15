@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.73.0",
+  "lastChangelogVersion": "0.73.1",
   "compaction": {
     "enabled": false
   },
@@ -13,7 +13,8 @@
     "git:github.com/nicobailon/pi-mcp-adapter",
     "git:github.com/HazAT/pi-smart-sessions",
     "git:github.com/HazAT/pi-parallel",
-    "git:git@github.com:CoreyCole/pi-deterministic-docs.git"
+    "git:git@github.com:CoreyCole/pi-deterministic-docs.git",
+    "git:github.com/maxedapps/pi-docparser"
   ],
   "extensions": [
     "+extensions/answer.ts",

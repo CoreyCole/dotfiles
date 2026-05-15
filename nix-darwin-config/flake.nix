@@ -16,7 +16,12 @@
     nix-homebrew,
     determinate,
   }: let
-    configuration = {pkgs, ...}: {
+    configuration = {pkgs, ...}: let
+      ghosttyTerminfo = pkgs.runCommand "ghostty-terminfo" {nativeBuildInputs = [pkgs.ncurses];} ''
+        mkdir -p $out/share/terminfo
+        TERMINFO=$out/share/terminfo tic -x ${./ghostty.terminfo}
+      '';
+    in {
       # List packages installed in system profile. To search by name, run:
       # $ nix-env -qaP | grep wget
       environment.systemPackages = [
@@ -40,6 +45,7 @@
         pkgs.mergiraf
         pkgs.tailscale
         pkgs.lazygit
+        ghosttyTerminfo
 
         # Language Servers and Formatters
         # Lua
@@ -202,6 +208,7 @@
             "1password-cli"
             "arc"
             "finicky"
+            "libreoffice" # Office document conversion for pi-docparser/LiteParse
             "orbstack"
             "rectangle"
             "signal"
@@ -221,6 +228,8 @@
             "pspg"
             "pkgconf"
             "gstreamer" # now includes all gst-plugins-* packages
+            "ghostscript" # image/vector conversion support for pi-docparser/LiteParse
+            "imagemagick" # image-to-PDF conversion support for pi-docparser/LiteParse
             "opus" # libopus for opusenc/opusdec
             "snowflake-cli" # Snowflake CLI (snow) for querying Snowflake
             "gogcli" # Google Workspace CLI (gog) - Gmail, Sheets, Drive, Calendar, etc.
@@ -238,12 +247,14 @@
       modules = darwinModules;
     };
     darwinConfigurations."swarms-MacBook-Pro" = nix-darwin.lib.darwinSystem {
-      modules = darwinModules ++ [
-        ({lib, ...}: {
-          system.primaryUser = lib.mkForce "swarm";
-          nix-homebrew.user = lib.mkForce "swarm";
-        })
-      ];
+      modules =
+        darwinModules
+        ++ [
+          ({lib, ...}: {
+            system.primaryUser = lib.mkForce "swarm";
+            nix-homebrew.user = lib.mkForce "swarm";
+          })
+        ];
     };
   };
 }

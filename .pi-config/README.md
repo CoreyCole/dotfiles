@@ -139,6 +139,39 @@ If `parallel-cli` is missing, Pi tools like `parallel_search`, `parallel_extract
 spawn parallel-cli ENOENT
 ```
 
+## pi-docparser host dependencies
+
+`maxedapps/pi-docparser` is configured as a Pi package and provides the `document_parse` tool. It uses LiteParse locally, so some formats need host conversion tools in addition to the Pi package itself.
+
+Install the common dependencies for the document types you expect to parse:
+
+```bash
+# macOS
+brew install --cask libreoffice
+brew install imagemagick ghostscript
+
+# Ubuntu / Debian
+apt-get install libreoffice imagemagick ghostscript
+
+# Windows, using Chocolatey
+choco install libreoffice-fresh imagemagick.app ghostscript
+```
+
+Dependency purposes:
+
+- LibreOffice: many Office document and spreadsheet conversion paths (`.docx`, `.pptx`, `.xlsx`, etc.)
+- ImageMagick: image-to-PDF conversion paths
+- Ghostscript: some image/vector conversion paths
+
+If document parsing fails or you want a machine-specific preflight check, run inside Pi:
+
+```text
+/docparser:doctor
+/docparser:doctor @./path/to/document.docx
+```
+
+Upstream reference: <https://github.com/maxedapps/pi-docparser/tree/main#host-dependencies>
+
 ## pi-subagents parallel limits
 
 The `nicobailon/pi-subagents` package reads optional config from:
