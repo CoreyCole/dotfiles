@@ -48,7 +48,20 @@ Use Homebrew for:
 - packages that work better from Brew than nixpkgs on macOS
 - dependencies explicitly documented as Brew installs, such as some local conversion tools
 
-Example: `libreoffice`, `imagemagick`, and `ghostscript` are installed through Homebrew for pi-docparser/LiteParse host conversion support.
+Example: `imagemagick` and `ghostscript` are installed through Homebrew for pi-docparser/LiteParse image/vector conversion support.
+
+LibreOffice is also useful for Office document conversion paths, but it is intentionally not managed here while the current Homebrew casks are broken on this machine:
+
+- `libreoffice` currently reports incompatible macOS metadata
+- `libreoffice-still` currently fails cask evaluation with `wrong number of arguments`
+
+If needed, install LibreOffice manually from <https://www.libreoffice.org/download/>. The app bundle includes the CLI at:
+
+```text
+/Applications/LibreOffice.app/Contents/MacOS/soffice
+```
+
+The tracked root `.zshrc` adds `/Applications/LibreOffice.app/Contents/MacOS` to `PATH` on Darwin when that directory exists.
 
 ## Why keep `home.nix` separate?
 

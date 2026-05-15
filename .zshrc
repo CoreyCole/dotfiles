@@ -12,6 +12,10 @@ export PATH="$HOME/cn/chestnut-flake/monorepo/.claude/bin:$PATH"
 export PATH="/run/current-system/sw/bin:$PATH"
 export PATH="$HOME/.nix-profile/bin:$PATH"
 export PATH="$HOME/.nvim/bin:$PATH"
+
+if [[ "$OSTYPE" == darwin* && -d "/Applications/LibreOffice.app/Contents/MacOS" ]]; then
+  export PATH="/Applications/LibreOffice.app/Contents/MacOS:$PATH"
+fi
 # DB_LOCAL_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
 # DB_L_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
 
@@ -98,4 +102,6 @@ home() { "$HOME/dotfiles/tailscale-docker/ssh-home.sh" "${1:-ruby}"; }
 work() { "$HOME/dotfiles/tailscale-docker/ssh-work.sh" "${1:-default}"; }
 export PATH="$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
 
-eval "$(chestnut shell-init zsh)"
+if command -v chestnut >/dev/null 2>&1; then
+  eval "$(chestnut shell-init zsh)"
+fi

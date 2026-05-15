@@ -208,12 +208,9 @@
             "1password-cli"
             "arc"
             "finicky"
-            "libreoffice" # Office document conversion for pi-docparser/LiteParse
             "orbstack"
-            "rectangle"
             "signal"
             "slack"
-            "wezterm"
           ];
 
           # Command-line tools installed via Homebrew formulas

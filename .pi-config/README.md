@@ -150,6 +150,11 @@ Install the common dependencies for the document types you expect to parse:
 brew install --cask libreoffice
 brew install imagemagick ghostscript
 
+# If the current Homebrew LibreOffice cask is broken on your macOS version,
+# download the ARM DMG from https://www.libreoffice.org/download/.
+# The app includes /Applications/LibreOffice.app/Contents/MacOS/soffice;
+# this repo's .zshrc adds that directory to PATH on Darwin when present.
+
 # Ubuntu / Debian
 apt-get install libreoffice imagemagick ghostscript
 
@@ -159,7 +164,7 @@ choco install libreoffice-fresh imagemagick.app ghostscript
 
 Dependency purposes:
 
-- LibreOffice: many Office document and spreadsheet conversion paths (`.docx`, `.pptx`, `.xlsx`, etc.)
+- LibreOffice / LibreOffice Still: many Office document and spreadsheet conversion paths (`.docx`, `.pptx`, `.xlsx`, etc.)
 - ImageMagick: image-to-PDF conversion paths
 - Ghostscript: some image/vector conversion paths
 

@@ -18,7 +18,7 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -37,7 +37,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
@@ -198,7 +198,7 @@ Before claiming the handoff is synced, verify the handoff was committed on the c
 
 Emit only a fenced XML `<qrspi-result>` block when the handoff completes or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape.
 
-For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and use `/q-resume [handoff.md]` in normal chat context; do not emit a completed workflow-node result. If the runtime must stop, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, and omit `<outcome>`.
+For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and use `/q-resume [handoff.md]` in normal chat context; do not emit a completed workflow-node result. If the runtime must stop, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
 
 For final implementation handoffs that should start implementation review, emit:
 
@@ -225,6 +225,7 @@ For final implementation handoffs that should start implementation review, emit:
 
 Line-quality requirements still apply inside `<summary>`:
 
+- `<workspace>` must be present: absolute active plan/ticket directory for planning handoffs, absolute fresh implementation workspace for implementation handoffs.
 - `<stage-completed>` must describe the actual work, not generic `stage complete`.
 - `<key-decisions>` must include verification evidence when known, or say why verification was not run.
 - Never abbreviate artifact paths.

@@ -3,7 +3,6 @@ name: qrspi-planning
 description: High-level overview of the QRSPI planning pipeline — Question, Research, Design, optional Product Design, Outline, Plan, Implement, Review. Read this to understand stage flow, review loops, and artifact ownership before using individual stage skills.
 ---
 
-
 ## Runtime XML contract
 
 Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
@@ -15,7 +14,7 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -34,7 +33,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## QRSPI mode contract
 
@@ -63,14 +62,15 @@ When more than one artifact is relevant, keep `<artifact>` as the primary next-c
 
 Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
 
-Every primary QRSPI stage and review/helper that completes a workflow transition must end with a visible fenced `xml` QRSPI footer:
+Every primary QRSPI stage and review/helper that completes a workflow transition must end with a visible fenced `xml` QRSPI footer. Always include `<outcome>` for complete results and `<workspace>` immediately after `<outcome>`:
 
 ```xml
 <qrspi-result>
   <stage>design</stage>
   <status>complete</status>
+  <outcome>complete</outcome>
   <workspace>
-[absolute path to the q-workspace-created implementation workspace, when known]
+[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]
   </workspace>
   <policy>
     <autoMode>false</autoMode>
@@ -93,7 +93,7 @@ thoughts/.../design.md
 ```
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
-`<workspace>` appears immediately after `<status>` whenever the implementation workspace is known. `/q-workspace` creates or repairs that workspace after final plan review and includes its absolute path; later stages preserve it so `/q-implement` runs there.
+`<workspace>` always appears immediately after `<outcome>` for complete results. Before `/q-workspace`, it points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace and then changes `<workspace>` to that absolute implementation path; later stages preserve it so `/q-implement` runs there. Non-complete results that omit `<outcome>` still include `<workspace>` immediately after `<status>`.
 `<next>` is display/debug intent only; runtime validates and may rewrite it from latest persisted policy before starting another run.
 
 # QRSPI Planning Pipeline
