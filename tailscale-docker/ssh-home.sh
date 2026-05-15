@@ -3,7 +3,6 @@ set -euo pipefail
 
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICE="personal"
-HOSTNAME="mac-docker-personal"
 SOCKS_PORT=1055
 
 # resolve target from argument
@@ -79,13 +78,6 @@ ensure_logged_in() {
 
 ensure_running
 ensure_logged_in
-
-HEALTH=$(run_tailscale status 2>&1 | grep "$HOSTNAME" || true)
-if echo "$HEALTH" | grep -q "offline"; then
-  echo "Tailscale connection stale, restarting $SERVICE container..."
-  docker compose restart "$SERVICE" >/dev/null
-  sleep 5
-fi
 
 IP=$(run_tailscale ip -4 "$REMOTE_HOST" 2>/dev/null || true)
 
