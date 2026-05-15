@@ -96,6 +96,17 @@ Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
 `<workspace>` always appears immediately after `<outcome>` for complete results. Before `/q-workspace`, it points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace and then changes `<workspace>` to that absolute implementation path; later stages preserve it so `/q-implement` runs there. Non-complete results that omit `<outcome>` still include `<workspace>` immediately after `<status>`.
 `<next>` is display/debug intent only; runtime validates and may rewrite it from latest persisted policy before starting another run.
 
+## Nested project planning
+
+For epics/projects that use QRSPI to plan milestones and create future tickets, load `~/.agents/skills/qrspi-project-planning/SKILL.md`. Use milestone-specific skills instead of forcing normal `/q-outline` and `/q-plan` onto milestone meta-planning:
+
+- `/q-question-milestone`
+- `/q-research-milestone`
+- `/q-design-milestone`
+- `/q-outline-milestone`
+- `/q-plan-milestone`
+- `/q-review-milestone`
+
 # QRSPI Planning Pipeline
 
 A structured approach to non-trivial coding tasks. Each stage produces artifacts in a plan directory that grows over time. Separate context windows keep each stage focused and avoid the dumb zone.
