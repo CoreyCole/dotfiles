@@ -7,6 +7,8 @@
   "defaultModel": "gpt-5.5",
   "defaultThinkingLevel": "medium",
   "hideThinkingBlock": false,
+  "shellPath": "/home/ruby/dotfiles/.pi-config/agent/bin/pi-zsh",
+  "shellCommandPrefix": "eval \"$(grep -h '^alias ' ~/.zshrc ~/dotfiles/.zshrc 2>/dev/null)\"",
   "skills": [],
   "packages": [
     "git:github.com/nicobailon/pi-subagents",

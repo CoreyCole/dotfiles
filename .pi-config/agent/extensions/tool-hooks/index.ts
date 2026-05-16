@@ -1,10 +1,15 @@
 import {
   createBashToolDefinition,
+  createReadToolDefinition,
   getAgentDir,
   type ExtensionAPI,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import {
+  Container,
+  Text,
+  type Component,
+} from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { loadToolHooksConfig, loadToolHooksConfigFromObject } from "./config";
@@ -18,6 +23,149 @@ const GLOBAL_CONFIG_PATH = path.join(
 );
 const PROJECT_SETTINGS_PATH = path.join(".pi", "settings.json");
 const STOP_HOOK_LOOP_LIMIT = 3;
+
+type ThemeLike = {
+  fg(color: string, text: string): string;
+  bold(text: string): string;
+};
+
+function replaceTabs(text: string): string {
+  return text.replace(/\t/g, "   ");
+}
+
+function normalizeDisplayText(text: string): string {
+  return text.replace(/\r/g, "");
+}
+
+function textOutput(result: {
+  content?: Array<{ type: string; text?: string }>;
+}): string {
+  return (result.content ?? [])
+    .filter((content) => content.type === "text")
+    .map((content) => normalizeDisplayText(content.text ?? ""))
+    .join("\n");
+}
+
+function linesMessage(count: number, theme: ThemeLike): string {
+  return theme.fg("muted", `${count} lines...`);
+}
+
+function deterministicDocsSummary(result: any, theme: ThemeLike): string[] {
+  const loaded = result?.details?.deterministicDocs?.loaded;
+  if (!Array.isArray(loaded) || loaded.length === 0) return [];
+
+  return loaded
+    .map((entry) => entry?.path)
+    .filter((path): path is string => typeof path === "string" && path.length > 0)
+    .map((path) => `${theme.fg("success", "loaded:")} ${theme.fg("accent", path)}`);
+}
+
+function stripDeterministicDocsContext(result: any): any {
+  const autoContextContentBlocks =
+    result?.details?.deterministicDocs?.autoContextContentBlocks ?? 0;
+  if (autoContextContentBlocks <= 0) return result;
+
+  return {
+    ...result,
+    content: result.content?.slice(autoContextContentBlocks),
+  };
+}
+
+function invalidArgText(theme: ThemeLike): string {
+  return theme.fg("error", "[invalid arg]");
+}
+
+function str(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  return null;
+}
+
+function formatBashCall(args: any, theme: ThemeLike): string {
+  const command = str(args?.command);
+  const timeout = typeof args?.timeout === "number" ? args.timeout : undefined;
+  const timeoutSuffix = timeout
+    ? theme.fg("muted", ` (timeout ${timeout}s)`)
+    : "";
+  if (command === null) {
+    return `${theme.fg("toolTitle", theme.bold("$"))} ${invalidArgText(theme)}${timeoutSuffix}`;
+  }
+
+  const commandDisplay = command
+    ? replaceTabs(normalizeDisplayText(command))
+    : theme.fg("toolOutput", "...");
+  return `${theme.fg("toolTitle", theme.bold(`$ ${commandDisplay}`))}${timeoutSuffix}`;
+}
+
+class BashPreviewComponent implements Component {
+  constructor(
+    private result: any,
+    private theme: ThemeLike,
+  ) {}
+
+  set(result: any, theme: ThemeLike) {
+    this.result = result;
+    this.theme = theme;
+  }
+
+  invalidate() {}
+
+  render(_width: number): string[] {
+    const output = textOutput(this.result).trim();
+    if (!output) return [];
+
+    const lineCount = output.split("\n").length;
+    return ["", linesMessage(lineCount, this.theme)];
+  }
+}
+
+function trimTrailingEmptyLines(lines: string[]): string[] {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1] === "") end--;
+  return lines.slice(0, end);
+}
+
+class ReadPreviewComponent implements Component {
+  constructor(
+    private result: any,
+    private theme: ThemeLike,
+  ) {}
+
+  set(result: any, theme: ThemeLike) {
+    this.result = result;
+    this.theme = theme;
+  }
+
+  invalidate() {}
+
+  render(_width: number): string[] {
+    const visibleResult = stripDeterministicDocsContext(this.result);
+    const lines = trimTrailingEmptyLines(textOutput(visibleResult).split("\n"));
+    if (lines.length === 0) return [];
+
+    return ["", linesMessage(lines.length, this.theme)];
+  }
+}
+
+type ShellSettings = {
+  shellPath?: string;
+  shellCommandPrefix?: string;
+};
+
+function loadShellSettings(): ShellSettings {
+  const settingsPath = path.join(getAgentDir(), "settings.json");
+  if (!existsSync(settingsPath)) return {};
+
+  const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as ShellSettings;
+  return {
+    shellPath:
+      typeof settings.shellPath === "string" ? settings.shellPath : undefined,
+    shellCommandPrefix:
+      typeof settings.shellCommandPrefix === "string"
+        ? settings.shellCommandPrefix
+        : undefined,
+  };
+}
 
 function sessionStartSource(
   reason: SessionStartEvent["reason"],
@@ -82,7 +230,10 @@ export default function toolHooks(pi: ExtensionAPI) {
   let lastStopHookContinuation: string | undefined;
   let stopHookContinuationCount = 0;
 
-  const bashTool = createBashToolDefinition(process.cwd(), {
+  const shellSettings = loadShellSettings();
+  const bashTool = createBashToolDefinition(cwd, {
+    shellPath: shellSettings.shellPath,
+    commandPrefix: shellSettings.shellCommandPrefix,
     spawnHook: ({ command, cwd, env }) => ({
       command: claudeEnvFile
         ? `source ${shellQuote(claudeEnvFile)}\n${command}`
@@ -96,6 +247,68 @@ export default function toolHooks(pi: ExtensionAPI) {
     ...bashTool,
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       return bashTool.execute(toolCallId, params, signal, onUpdate, ctx);
+    },
+    renderCall(args, theme, context) {
+      const text =
+        context.lastComponent instanceof Text
+          ? context.lastComponent
+          : new Text("", 0, 0);
+      text.setText(formatBashCall(args, theme));
+      return text;
+    },
+    renderResult(result, options, theme, context) {
+      if (options.expanded) {
+        return (
+          bashTool.renderResult?.(result, options, theme, {
+            ...context,
+            lastComponent: undefined,
+          }) ?? new Container()
+        );
+      }
+
+      const component =
+        context.lastComponent instanceof BashPreviewComponent
+          ? context.lastComponent
+          : new BashPreviewComponent(result, theme);
+      component.set(result, theme);
+      return component;
+    },
+  });
+
+  const readTool = createReadToolDefinition(cwd);
+  pi.registerTool({
+    ...readTool,
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      return readTool.execute(toolCallId, params, signal, onUpdate, ctx);
+    },
+    renderCall(args, theme, context) {
+      return readTool.renderCall?.(args, theme, context) ?? new Text("", 0, 0);
+    },
+    renderResult(result, options, theme, context) {
+      if (options.expanded) {
+        const visibleResult = stripDeterministicDocsContext(result);
+        const base =
+          readTool.renderResult?.(visibleResult, options, theme, {
+            ...context,
+            lastComponent: undefined,
+          }) ?? new Container();
+        const summary = deterministicDocsSummary(result, theme).join("\n");
+        if (!summary) return base;
+
+        const baseLines = base
+          .render(200)
+          .map((line) => line.trimEnd())
+          .join("\n")
+          .trimEnd();
+        return new Text([summary, baseLines].filter(Boolean).join("\n"), 0, 0);
+      }
+
+      const component =
+        context.lastComponent instanceof ReadPreviewComponent
+          ? context.lastComponent
+          : new ReadPreviewComponent(result, theme);
+      component.set(result, theme);
+      return component;
     },
   });
 

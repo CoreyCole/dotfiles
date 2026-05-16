@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "-c" ]]; then
+  shift
+  command="${1:-}"
+  script="$(mktemp "${TMPDIR:-/tmp}/pi-zsh.XXXXXX")"
+  trap 'rm -f "$script"' EXIT
+  printf '%s\n' "$command" > "$script"
+  exec /usr/bin/zsh "$script"
+fi
+
+exec /usr/bin/zsh "$@"
