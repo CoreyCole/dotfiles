@@ -148,7 +148,7 @@ export default function (pi: ExtensionAPI) {
       });
       if (!named) {
         named = true;
-        pi.setSessionName(`[qrspi:${qrspi.stage}] → ${formatNextStage(qrspi.next)}`);
+        pi.setSessionName(`[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`);
       }
       return;
     }
