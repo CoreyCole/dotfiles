@@ -19,13 +19,7 @@ fi
 # DB_LOCAL_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
 # DB_L_CONNECT_STR="host=localhost port=15432 user=premium dbname=premium sslmode=disable"
 
-alias dev="cd $HOME/cn/chestnut-flake/monorepo && git stash && gt sync && git checkout develop; cd db; just migrate up; cd ..; just migrate"
-alias j="just"
-alias push="cd $HOME/cn/chestnut-flake/monorepo && bash hooks/pre-push"
-alias submit="gt submit --stack"
-alias yolo="gt submit --stack --no-verify"
-alias sync="cd $HOME/cn/chestnut-flake/monorepo && gt sync && cd db; just migrate up; cd .."
-alias cld="claude --dangerously-skip-permissions"
+source "$HOME/dotfiles/.zsh_aliases"
 
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
