@@ -257,14 +257,15 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <artifacts>
     <artifact role="reviewed">thoughts/.../[design.md|outline.md|plan.md]</artifact>
   </artifacts>
-  <next>[/q-outline design.md OR human-review-outline OR /q-workspace plan.md]</next>
+  <next>[/q-outline design.md OR /q-plan outline.md OR /q-workspace plan.md]</next>
 </qrspi-result>
 ```
 
 Outcome mapping:
 
 - `review-design` ready to continue: `<outcome>ready-for-outline</outcome>`
-- `review-outline` ready for the outline human gate: `<outcome>ready-for-human-review</outcome>`
+- `review-outline` ready for human approval in the current review chat: `<outcome>ready-for-human-review</outcome>` and `<next>/q-plan [outline.md]</next>`
+  - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the human-review gate; `<next>` is the next agent session/command after the human approves in chat or manually starts the next stage.
 - `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>`
 
 If codebase research is needed before the review can pass:
