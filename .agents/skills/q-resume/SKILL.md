@@ -40,6 +40,12 @@ When resuming implementation, use the runtime node being completed, not a synthe
   <workspace>
 [absolute path to the implementation workspace, when known]
   </workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the completed implementation branch]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[latest known autoMode]</autoMode>
     <enablePlanReviews>[latest known enablePlanReviews]</enablePlanReviews>
@@ -76,6 +82,12 @@ Required shape:
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
   <workspace>[absolute implementation workspace when known]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -94,7 +106,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are resuming work within a QRSPI planning pipeline. A previous session created a handoff document with context about where things stand. Your job is to load that context and continue working.
 
@@ -128,7 +140,7 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 Based on the handoff's **Status** and **Next** sections, continue where the previous session left off.
 
-**Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
+**Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. For tracked-edit Graphite slices, implement and verify on the current top branch, run `gt create`/`gt modify` for the slice, then write the handoff on that new/current slice branch and amend it into the same slice so the handoff records final branch metadata. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
 
 **Workspace rule for implementation resumes:** never resume implementation in a `git worktree`. Use the fresh filesystem copy created/repaired by `/q-workspace` and named for the plan directory or ticket slug. If the handoff does not identify an existing implementation workspace, stop and ask the user to run `/q-workspace [plan.md]`; do not create an ad-hoc copy from `/q-resume`. Run `git status --short` in that directory before branch or code changes. The workspace is the isolation boundary; branch creation is repo-specific, not automatic.
 
@@ -145,7 +157,7 @@ Do not present an analysis or ask for confirmation. Just continue working.
 
 ## Response Format
 
-When resuming work produces a user-facing QRSPI completion response, emit only the fenced `xml` `<qrspi-result>` footer described above. Do not duplicate artifact, summary, or next command in prose; encode the primary artifact, comprehensive summary, workspace, and next command in XML. Include `<workspace>` whenever the implementation workspace is known.
+When resuming work produces a user-facing QRSPI completion response, emit only the fenced `xml` `<qrspi-result>` footer described above. Do not duplicate artifact, summary, or next command in prose; encode the primary artifact, comprehensive summary, workspace, workspace branch metadata, and next command in XML. Include `<workspace>` whenever the implementation workspace is known. Include `<workspaceMetadata>` immediately after `<workspace>`; for implementation resumes after Graphite branch creation, populate `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` from the post-commit stack, and otherwise use empty elements for unknown values.
 
 For `implement` resumes, `<artifact>` should normally be the newly created handoff file, not just `plan.md`, because implementation always checkpoints via handoff after each verified slice.
 

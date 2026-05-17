@@ -80,13 +80,25 @@ Before creating or repairing a workspace:
 
 ## Create or repair workspace
 
-1. Run `just sync-thoughts` in the planning/source checkout after review edits.
+For new workspaces, write workspace metadata before copying so the copy starts clean at the post-sync commit:
+
 1. Choose a workspace path, normally a sibling directory named `[repo]-[plan timestamp]_[slug]`.
+1. Determine the selected base from the source checkout before writing metadata. For normal plans this is latest `origin/main`; for unmerged review-fix plans this is the parent stack top.
+1. Update `[plan_dir]/plan.md` `Implementation Workspace Prep` and `[plan_dir]/AGENTS.md` with:
+   - absolute workspace path
+   - selected base branch/commit used for the base decision
+   - whether parent stack was already merged into main
+   - for review-fixes plans, expected Graphite parent for first review-fix slice
+   - exact reason this base prevents lost work
+1. Run `just sync-thoughts` in the planning/source checkout.
+1. Re-read the source checkout HEAD after `just sync-thoughts`. For normal new workspaces, this post-sync HEAD is the actual copied workspace commit because it contains the workspace-prep metadata. State the exact post-sync HEAD in the XML summary.
 1. If no workspace exists:
-   - For `origin/main` base: copy the canonical main checkout after it is at latest `origin/main`.
-   - For unmerged parent stack base: copy the checkout that contains the parent top branch/commit, then checkout that branch/commit.
-1. If workspace exists and is safe: update it to the selected base only if doing so does not discard changes; otherwise stop.
-1. `rsync -a [source]/[plan_dir]/ [workspace]/[plan_dir]/`.
+   - For `origin/main` base: copy the canonical main checkout after it is clean and at the post-`just sync-thoughts` HEAD.
+   - For unmerged parent stack base: copy the checkout that contains the parent top branch/commit, then sync or rsync only the plan directory metadata without rebasing away the parent top.
+1. If workspace exists and is safe: update it to the selected/post-sync base only if doing so does not discard changes; otherwise stop.
+   - In `cn-agents-*` implementation copies, use `gt sync --no-interactive` to fast-forward trunk metadata; do not use `git pull`, `git merge`, or `git rebase`.
+   - Do not rsync changed plan docs into an existing `cn-agents-*` workspace before syncing it to the commit that already contains those docs, or Graphite may correctly refuse the sync due to conflicting unstaged changes.
+1. Use `rsync -a [source]/[plan_dir]/ [workspace]/[plan_dir]/` only after the workspace is at the correct base, or when repairing an existing safe workspace whose base intentionally differs from the source commit.
 1. In the workspace, verify:
 
 ```bash
@@ -96,19 +108,16 @@ git rev-parse HEAD
 test -f [plan_dir]/plan.md
 ```
 
-If this is an unmerged review-fixes plan, do not create an implementation branch unless needed to repair stack state. If you do create or find a review-fix branch, run `gt parent` and verify it points at the parent stack top branch.
+If this is an unmerged review-fixes plan, do not create an implementation branch unless needed to repair stack state. If you do create or find a review-fix branch, run `gt parent` and verify it points at the parent stack top.
 
 ## Update artifacts
 
-Update `[plan_dir]/plan.md` `Implementation Workspace Prep` and `[plan_dir]/AGENTS.md` with:
+The metadata update happens before copying for new workspaces. For repairs to an existing safe workspace, update artifacts, run `just sync-thoughts`, update/sync the workspace safely, then rsync `[plan_dir]/` only after the workspace base is correct.
 
-- absolute workspace path
-- `workspace_base` branch and commit
-- whether parent stack was already merged into main
-- for review-fixes plans, expected Graphite parent for first review-fix slice
-- exact reason this base prevents lost work
+Because a commit cannot reliably record its own hash inside tracked docs, distinguish:
 
-Run `just sync-thoughts`, then rsync `[plan_dir]/` into the workspace again.
+- selected base: branch/commit used for the safety decision before workspace metadata sync
+- actual workspace HEAD: post-sync commit copied or fast-forwarded into the workspace, reported exactly in the result XML
 
 ## Result XML
 

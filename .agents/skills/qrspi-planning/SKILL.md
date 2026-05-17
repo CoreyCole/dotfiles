@@ -15,6 +15,12 @@ Required shape:
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
   <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -33,7 +39,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## QRSPI mode contract
 
@@ -72,6 +78,12 @@ Every primary QRSPI stage and review/helper that completes a workflow transition
   <workspace>
 [absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]
   </workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>false</autoMode>
     <enablePlanReviews>true</enablePlanReviews>
@@ -94,6 +106,7 @@ thoughts/.../design.md
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
 `<workspace>` always appears immediately after `<outcome>` for complete results. Before `/q-workspace`, it points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace and then changes `<workspace>` to that absolute implementation path; later stages preserve it so `/q-implement` runs there. Non-complete results that omit `<outcome>` still include `<workspace>` immediately after `<status>`.
+`<workspaceMetadata>` always appears immediately after `<workspace>`. For implementation results in Graphite repos, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` after `gt create`/`gt modify`; for planning/non-Graphite contexts, include empty elements for unknown values and preserve `currentBranch` when known.
 `<next>` is display/debug intent only; runtime validates and may rewrite it from latest persisted policy before starting another run.
 
 ## Nested project planning

@@ -19,6 +19,12 @@ Required shape:
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
   <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -37,7 +43,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
@@ -75,7 +81,7 @@ Implementation handoffs must record the repository submission model and current 
 
 Implementation handoffs should be created only after the implementation agent has run the slice's `just check ...` command for the changed Go/templ files so formatting/lint issues are cleaned up before handoff. This lint cleanup requirement applies only to the implementation phase; do not run implementation lint/build cleanup during question, research, design, outline, or plan handoffs.
 
-Implementation handoffs must record branch/commit state, not define commit-message policy. For implementation stages, point the next agent back to `/q-resume [handoff]`; `/q-resume` loads `q-implement` for the current branch and commit rules. Record any commit command already run, current branch, commit hash, and whether the next slice has planned tracked edits. If the handoff is being written before `gt create` so it can be included in the slice commit, use `git_commit: pending-slice-commit` (or record the pre-slice base hash with a note) and do not amend solely to chase the final self-referential commit hash; the final branch-head hash is reported in the QRSPI XML footer.
+Implementation handoffs must record branch/commit state, not define commit-message policy. For implementation stages, point the next agent back to `/q-resume [handoff]`; `/q-resume` loads `q-implement` for the current branch and commit rules. For tracked-edit Graphite slices, the implementation agent should create/modify the slice branch first, then write the handoff on that branch so it can record final `currentBranch`, `parentBranch`, `stackBottomBranch`, and `trunkBranch`; the handoff is then staged and amended into the same slice with `gt modify --no-interactive`. Record any commit command already run, current branch, commit hash, and whether the next slice has planned tracked edits. Do not amend solely to chase the final self-referential commit hash inside the handoff; the final branch-head hash is reported in the QRSPI XML footer.
 
 ## When to use
 
@@ -96,7 +102,16 @@ Implementation handoffs must record branch/commit state, not define commit-messa
 
 ### 1. Gather metadata
 
-Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for the handoff filename timestamp and frontmatter fields (`date`, `researcher`, `branch`, `repository`). For `git_commit`, use the current hash for read-only/planning handoffs or already-committed implementation checkpoints. For implementation handoffs that will be staged into the not-yet-created slice commit, set `git_commit: pending-slice-commit`; do not try to embed the final hash of the same commit inside itself.
+Run `~/dotfiles/spec_metadata.sh` and use it as the source of truth for the handoff filename timestamp and frontmatter fields (`date`, `researcher`, `branch`, `repository`). For `git_commit`, use the current hash for read-only/planning handoffs or already-committed implementation checkpoints. For tracked-edit implementation handoffs, run this after `gt create`/`gt modify` so `branch` is the slice branch. If the handoff will be amended into the current slice, use the current pre-handoff branch hash and note that the branch is amended after handoff creation; do not try to embed the final hash of the same commit inside itself.
+
+For implementation-stage QRSPI XML, also gather workspace branch metadata after any `gt create` / `gt modify` is complete:
+
+- `currentBranch`: `git branch --show-current`
+- `parentBranch`: branch immediately below the just-created/current slice branch in `gt log short` (or `gt parent` when it reports the stack parent)
+- `stackBottomBranch`: lowest Graphite branch above trunk in `gt log short`
+- `trunkBranch`: trunk branch from the bottom of `gt log short`, usually `main`
+
+If Graphite is unavailable or this is a verification-only/no-branch checkpoint, preserve the current branch and use empty elements for unknown Graphite-only values.
 
 ### 2. Identify the plan directory
 
@@ -141,7 +156,7 @@ Use this template:
 date: [ISO datetime with timezone]
 researcher: [git_username]
 last_updated_by: [git_username]
-git_commit: [current commit hash, or `pending-slice-commit` when this handoff will be included in the not-yet-created implementation slice commit]
+git_commit: [current commit hash; for implementation handoffs amended into the current slice, use the pre-handoff branch hash and note the final hash is reported in XML]
 branch: [current branch]
 repository: [repository name]
 stage: [question|research|design|design-product|outline|plan|implement]
@@ -172,7 +187,7 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 [Relevant verification evidence when known, or `not run` with a short reason. For implementation handoffs, include the `just check ...` command run for changed Go/templ files, plus any slice-specific tests. Planning-stage handoffs do not need implementation lint/build cleanup.]
 
 ## Next
-[Specific instructions for the next session. For implementation handoffs, include whether the next slice has tracked edits, current branch/commit state, and that `/q-resume` should continue under `q-implement` rules. If `git_commit` is `pending-slice-commit`, say the final branch-head hash is in the prior QRSPI XML result / `git rev-parse --short HEAD`, not in the self-contained handoff. For implement-complete handoffs, tell the reviewer what to review first, which verification evidence already passed, and that final `cn-agents` integration uses `/cn-agents-merge` after review.]
+[Specific instructions for the next session. For implementation handoffs, include whether the next slice has tracked edits, current branch/commit state, and that `/q-resume` should continue under `q-implement` rules. If this handoff was amended into the current slice, say the handoff frontmatter hash is the pre-handoff branch hash and the final branch-head hash is in the prior QRSPI XML result / `git rev-parse --short HEAD`. For implement-complete handoffs, tell the reviewer what to review first, which verification evidence already passed, and that final `cn-agents` integration uses `/cn-agents-merge` after review.]
 ```
 
 ### 6. Sync
@@ -208,6 +223,12 @@ For final implementation handoffs that should start implementation review, emit:
   <status>complete</status>
   <outcome>complete</outcome>
   <workspace>[absolute implementation workspace]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the completed implementation branch]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -226,6 +247,7 @@ For final implementation handoffs that should start implementation review, emit:
 Line-quality requirements still apply inside `<summary>`:
 
 - `<workspace>` must be present: absolute active plan/ticket directory for planning handoffs, absolute fresh implementation workspace for implementation handoffs.
+- `<workspaceMetadata>` must be present. For implementation handoffs after Graphite branch creation, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch`; for non-Graphite/planning contexts, include empty elements except `currentBranch` when known.
 - `<stage-completed>` must describe the actual work, not generic `stage complete`.
 - `<key-decisions>` must include verification evidence when known, or say why verification was not run.
 - Never abbreviate artifact paths.

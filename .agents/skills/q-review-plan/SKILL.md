@@ -251,7 +251,7 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <summary>
     <plan-goal>[overall plan goal]</plan-goal>
     <stage-completed>[what the plan review checked and changed]</stage-completed>
-    <key-decisions>[why the next graph step is safe]</key-decisions>
+    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next agent must first summarize the reviewed design/outline for human approval, then if approved immediately start /q-plan without waiting for another nudge]</key-decisions>
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
@@ -266,6 +266,10 @@ Outcome mapping:
 - `review-design` ready to continue: `<outcome>ready-for-outline</outcome>`
 - `review-outline` ready for human approval in the current review chat: `<outcome>ready-for-human-review</outcome>` and `<next>/q-plan [outline.md]</next>`
   - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the human-review gate; `<next>` is the next agent session/command after the human approves in chat or manually starts the next stage.
+  - The `<summary><key-decisions>` for `review-outline` must instruct the next agent/runtime behavior:
+    1. First, summarize the reviewed `design.md` and `outline.md` for the human so they can approve or ask questions.
+    1. If the human approves, immediately begin `/q-plan [outline.md]`; do not require a second user nudge such as "go".
+  - If an agent receives the human approval message in the same chat after a `review-outline` result, it should treat that approval as authorization to proceed and start the `/q-plan` stage immediately.
 - `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>`
 
 If codebase research is needed before the review can pass:
