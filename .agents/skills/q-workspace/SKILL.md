@@ -84,6 +84,14 @@ For new workspaces, write workspace metadata before copying so the copy starts c
 
 1. Choose a workspace path, normally a sibling directory named `[repo]-[plan timestamp]_[slug]`.
 1. Determine the selected base from the source checkout before writing metadata. For normal plans this is latest `origin/main`; for unmerged review-fix plans this is the parent stack top.
+1. Ensure `[plan_dir]/AGENTS.md` exists before copying the workspace.
+   - If `[plan_dir]` is a nested plan directory (for example `reviews/*_implementation-review/`) and has no local `AGENTS.md`, create one by copying/adapting the nearest parent plan `AGENTS.md`.
+   - The nested `AGENTS.md` must clearly state that this directory is its own QRSPI workspace root and must reference the nested artifacts in that exact directory:
+     - `[plan_dir]/design.md` when present
+     - `[plan_dir]/design-product.md` when present
+     - `[plan_dir]/outline.md` when present
+     - `[plan_dir]/plan.md`
+   - Do not leave the nested plan relying only on the parent `AGENTS.md`; the scheduled plan-workspace sync uses the local marker to discover nested plan workspaces.
 1. Update `[plan_dir]/plan.md` `Implementation Workspace Prep` and `[plan_dir]/AGENTS.md` with:
    - absolute workspace path
    - selected base branch/commit used for the base decision
@@ -105,8 +113,11 @@ For new workspaces, write workspace metadata before copying so the copy starts c
 git status --short
 git branch --show-current
 git rev-parse HEAD
+test -f [plan_dir]/AGENTS.md
 test -f [plan_dir]/plan.md
 ```
+
+If this is a nested/review-fix plan, also verify the workspace copy's `[plan_dir]/AGENTS.md` references the nested plan artifacts, not only the parent plan artifacts.
 
 If this is an unmerged review-fixes plan, do not create an implementation branch unless needed to repair stack state. If you do create or find a review-fix branch, run `gt parent` and verify it points at the parent stack top.
 
