@@ -1,0 +1,4 @@
+{
+  "lastChangelogVersion": "0.73.1",
+  "packages": ["git:github.com/CoreyCole/pi-deterministic-docs"]
+}

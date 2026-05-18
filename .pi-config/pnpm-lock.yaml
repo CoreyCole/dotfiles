@@ -14,6 +14,9 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 0.74.0
         version: 0.74.0(ws@8.20.0)(zod@4.3.6)
+      '@earendil-works/pi-tui':
+        specifier: ^0.75.3
+        version: 0.75.3
 
 packages:
 
@@ -183,6 +186,10 @@ packages:
   '@earendil-works/pi-tui@0.74.0':
     resolution: {integrity: sha512-1aIfXZp7D/z+1VlZX8BZcs6pgO8rjmil7kwyhctNDsWvce3Yfl8GVgu4eq+I0Mjhr8Cj+ipBiv9CLIzdoyCOIQ==}
     engines: {node: '>=20.0.0'}
+
+  '@earendil-works/pi-tui@0.75.3':
+    resolution: {integrity: sha512-UbhtCsae+b3Y8/ZxtBPhiOrkD66gOHvJbfvLZwhBBsNtQuvUkZY5t9MQwmb8QcDYkFRnXHaq3FcEy1hjRSfj6w==}
+    engines: {node: '>=22.19.0'}
 
   '@google/genai@1.50.1':
     resolution: {integrity: sha512-YbkX7H9+1Pt8wOt7DDREy8XSoiL6fRDzZQRyaVBarFf8MR3zHGqVdvM4cLbDXqPhxqvegZShgfxb8kw9C7YhAQ==}
@@ -1488,6 +1495,13 @@ snapshots:
       get-east-asian-width: 1.6.0
       marked: 15.0.12
       mime-types: 3.0.2
+    optionalDependencies:
+      koffi: 2.16.2
+
+  '@earendil-works/pi-tui@0.75.3':
+    dependencies:
+      get-east-asian-width: 1.6.0
+      marked: 15.0.12
     optionalDependencies:
       koffi: 2.16.2
 
