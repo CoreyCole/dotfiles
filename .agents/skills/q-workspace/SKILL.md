@@ -52,10 +52,13 @@ Determine `workspace_base` before copying anything:
 
 | Case | Base |
 |---|---|
+| Normal parent plan that explicitly continues the current unmerged Graphite stack | current stack top branch/commit |
 | Normal parent plan and prior implementation stack is merged | latest `origin/main` (or repo trunk) |
 | Normal parent plan and no prior implementation stack exists | latest `origin/main` |
 | Review-fixes/follow-up plan under `[parent]/reviews/*_implementation-review/` and parent implementation top is merged into main | latest `origin/main`, which must contain the parent top commit |
 | Review-fixes/follow-up plan and parent implementation top is **not** merged | parent implementation stack top branch/commit |
+
+For normal parent plans, do not assume `origin/main`/trunk is safe just because the plan is not under an implementation-review directory. First determine whether the work intentionally builds on the current checkout's unmerged Graphite stack by checking the user request, `plan.md` workspace section, `AGENTS.md`, current branch name, `gt branch info`, `gt parent`, and PR/stack metadata. If yes, the workspace must be contiguous with that stack: submit/sync the source stack first, then base the target workspace on the current stack top branch/commit, not trunk.
 
 For review-fixes plans, find parent stack top from the parent plan's handoffs/review artifacts, `plan.md` workspace section, local branches, and Graphite metadata. Verify with Git:
 
@@ -66,7 +69,7 @@ git merge-base --is-ancestor <parent_top_commit> origin/main
 - exit 0: parent stack already merged; base on latest `origin/main`.
 - nonzero: parent stack unmerged; base on `<parent_top_branch>`/`<parent_top_commit>`.
 
-In Graphite repos, including `cn-agents`, if the parent stack is unmerged then the first review-fix slice branch created later by `/q-implement` must have `gt parent` equal to the parent stack's top branch. Do not fork review fixes from `main` in that case.
+In Graphite repos, including `cn-agents`, if the selected base is an unmerged stack top then the first slice branch created later by `/q-implement` must have `gt parent` equal to that stack top branch. This applies to both review-fix plans and normal continuation plans. Do not fork continuation or review-fix work from `main`/trunk when it depends on an unmerged stack.
 
 ## No-work-loss checks
 
@@ -77,6 +80,7 @@ Before creating or repairing a workspace:
 - Never delete or replace an existing workspace automatically.
 - Never use `git worktree`.
 - If the base branch/commit exists only in another copied workspace, copy from that workspace or fetch/cherry-pick only after proving the commit is reachable. Do not silently start from `main`.
+- For Graphite continuation work, run `gt stack submit --no-interactive` (or repo-approved submit equivalent) in the source checkout before preparing the target workspace so `gt get` can recover the exact stack top remotely.
 
 ## Create or repair workspace
 
@@ -102,8 +106,8 @@ For new workspaces, write workspace metadata before copying so the copy starts c
 1. Re-read the source checkout HEAD after `just sync-thoughts`. For normal new workspaces, this post-sync HEAD is the actual copied workspace commit because it contains the workspace-prep metadata. State the exact post-sync HEAD in the XML summary.
 1. If no workspace exists:
    - For `origin/main` base: copy the canonical main checkout after it is clean and at the post-`just sync-thoughts` HEAD.
-   - For unmerged parent stack base: copy the checkout that contains the parent top branch/commit, then sync or rsync only the plan directory metadata without rebasing away the parent top.
-1. If workspace exists and is safe: update it to the selected/post-sync base only if doing so does not discard changes; otherwise stop.
+   - For unmerged stack base: copy a checkout that has Graphite configured, then run `gt get --no-interactive <stack_top_branch>` in the target workspace when the branch is remote/submitted. If the branch is only local and cannot be submitted, copy the checkout that contains the stack top branch/commit, then checkout that branch/commit after proving reachability. Sync or rsync only the plan directory metadata without rebasing away the stack top.
+1. If workspace exists and is safe: update it to the selected/post-sync base only if doing so does not discard changes; otherwise stop. For Graphite continuation work, repair by running `gt get --no-interactive <stack_top_branch>` in the workspace, not by resetting to trunk.
    - In `cn-agents-*` implementation copies, use `gt sync --no-interactive` to fast-forward trunk metadata; do not use `git pull`, `git merge`, or `git rebase`.
    - Do not rsync changed plan docs into an existing `cn-agents-*` workspace before syncing it to the commit that already contains those docs, or Graphite may correctly refuse the sync due to conflicting unstaged changes.
 1. Use `rsync -a [source]/[plan_dir]/ [workspace]/[plan_dir]/` only after the workspace is at the correct base, or when repairing an existing safe workspace whose base intentionally differs from the source commit.
@@ -114,16 +118,25 @@ git status --short
 git branch --show-current
 git rev-parse HEAD
 test -f [plan_dir]/AGENTS.md
+gt parent  # Graphite repos when base is an unmerged stack
 test -f [plan_dir]/plan.md
 ```
 
 If this is a nested/review-fix plan, also verify the workspace copy's `[plan_dir]/AGENTS.md` references the nested plan artifacts, not only the parent plan artifacts.
 
-If this is an unmerged review-fixes plan, do not create an implementation branch unless needed to repair stack state. If you do create or find a review-fix branch, run `gt parent` and verify it points at the parent stack top.
+If the selected base is an unmerged stack, do not create an implementation branch unless needed to repair stack state. If you do create or find the first new slice branch, run `gt parent` and verify it points at the selected stack top branch.
 
 ## Update artifacts
 
 The metadata update happens before copying for new workspaces. For repairs to an existing safe workspace, update artifacts, run `just sync-thoughts`, update/sync the workspace safely, then rsync `[plan_dir]/` only after the workspace base is correct.
+
+Record:
+
+- absolute workspace path
+- `workspace_base` branch and commit
+- whether parent stack was already merged into main/trunk, or whether this is a normal continuation of an unmerged stack
+- for any unmerged-stack base, expected Graphite parent for the first new implementation/review-fix slice
+- exact reason this base prevents lost work and keeps workspaces/branches contiguous
 
 Because a commit cannot reliably record its own hash inside tracked docs, distinguish:
 
@@ -148,7 +161,7 @@ Emit only fenced XML:
   <summary>
     <plan-goal>[overall goal]</plan-goal>
     <stage-completed>[workspace created/repaired and plan synced]</stage-completed>
-    <key-decisions>Base: [branch@commit]. Reason: [merged into main OR unmerged parent stack, expected gt parent].</key-decisions>
+    <key-decisions>Base: [branch@commit]. Reason: [merged into main OR unmerged/continuation stack, expected gt parent].</key-decisions>
   </summary>
   <artifact>[plan_dir]/plan.md</artifact>
   <next>/q-implement [plan_dir]/plan.md</next>
@@ -160,4 +173,5 @@ Emit only fenced XML:
 - `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`.
 - The XML summary must state the chosen base branch/commit and why.
 - For review-fixes plans, never assume `main` is safe. Prove the parent implementation top is merged first.
+- For normal continuation plans, never assume trunk is safe. If the work builds on the current unmerged Graphite stack, submit/sync that stack and make the target workspace contiguous with the stack top via `gt get`.
 - Prefer stopping over risking lost work.
