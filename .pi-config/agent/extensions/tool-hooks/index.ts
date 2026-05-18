@@ -8,6 +8,7 @@ import {
 import {
   Container,
   Text,
+  truncateToWidth,
   type Component,
 } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
@@ -126,7 +127,7 @@ class BashPreviewComponent implements Component {
 
   invalidate() {}
 
-  render(_width: number): string[] {
+  render(width: number): string[] {
     const output = textOutput(this.result).trim();
     const lines = output ? output.split("\n") : [];
     const rendered = lines.length > 5
@@ -144,7 +145,7 @@ class BashPreviewComponent implements Component {
       );
     }
 
-    return rendered;
+    return rendered.map((line) => truncateToWidth(line, width));
   }
 }
 
@@ -167,13 +168,14 @@ class ReadPreviewComponent implements Component {
 
   invalidate() {}
 
-  render(_width: number): string[] {
+  render(width: number): string[] {
     const summary = deterministicDocsSummary(this.result, this.theme);
     const visibleResult = stripDeterministicDocsContext(this.result);
     const lines = trimTrailingEmptyLines(textOutput(visibleResult).split("\n"));
     if (lines.length === 0 && summary.length === 0) return [];
 
-    return ["", ...summary, ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : [])];
+    return ["", ...summary, ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : [])]
+      .map((line) => truncateToWidth(line, width));
   }
 }
 
