@@ -7,6 +7,8 @@ description: High-level overview of the QRSPI planning pipeline — Question, Re
 
 Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
+The user should not have to ask for this XML. Return it automatically whenever QRSPI stage work completes, hands off, blocks, or errors. When a user says “the correct response”, “now the response”, “what’s the response?”, “give me the result”, or asks for the QRSPI response/result after QRSPI stage work, they mean the protocol XML below. Return the `<qrspi-result>` XML, not a prose recap. A handoff markdown file is only an artifact referenced from XML; creating a handoff does not replace the required XML response.
+
 Required shape:
 
 ```xml
