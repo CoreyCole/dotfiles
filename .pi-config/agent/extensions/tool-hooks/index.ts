@@ -50,6 +50,10 @@ function linesMessage(count: number, theme: ThemeLike): string {
   return theme.fg("muted", `${count} lines...`);
 }
 
+function formatDuration(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 function deterministicDocsSummary(result: any, theme: ThemeLike): string[] {
   const loaded = result?.details?.deterministicDocs?.loaded;
   if (!Array.isArray(loaded) || loaded.length === 0) return [];
@@ -101,21 +105,46 @@ class BashPreviewComponent implements Component {
   constructor(
     private result: any,
     private theme: ThemeLike,
+    private isPartial: boolean,
+    private startedAt?: number,
+    private endedAt?: number,
   ) {}
 
-  set(result: any, theme: ThemeLike) {
+  set(
+    result: any,
+    theme: ThemeLike,
+    isPartial: boolean,
+    startedAt?: number,
+    endedAt?: number,
+  ) {
     this.result = result;
     this.theme = theme;
+    this.isPartial = isPartial;
+    this.startedAt = startedAt;
+    this.endedAt = endedAt;
   }
 
   invalidate() {}
 
   render(_width: number): string[] {
     const output = textOutput(this.result).trim();
-    if (!output) return [];
+    const lines = output ? output.split("\n") : [];
+    const rendered = lines.length > 5
+      ? ["", linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
+      : lines.length > 0
+        ? ["", ...lines]
+        : [];
 
-    const lineCount = output.split("\n").length;
-    return ["", linesMessage(lineCount, this.theme)];
+    if (this.startedAt !== undefined) {
+      const label = this.isPartial ? "Elapsed" : "Took";
+      const endTime = this.endedAt ?? Date.now();
+      rendered.push(
+        "",
+        this.theme.fg("muted", `${label} ${formatDuration(endTime - this.startedAt)}`),
+      );
+    }
+
+    return rendered;
   }
 }
 
@@ -139,11 +168,12 @@ class ReadPreviewComponent implements Component {
   invalidate() {}
 
   render(_width: number): string[] {
+    const summary = deterministicDocsSummary(this.result, this.theme);
     const visibleResult = stripDeterministicDocsContext(this.result);
     const lines = trimTrailingEmptyLines(textOutput(visibleResult).split("\n"));
-    if (lines.length === 0) return [];
+    if (lines.length === 0 && summary.length === 0) return [];
 
-    return ["", linesMessage(lines.length, this.theme)];
+    return ["", ...summary, ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : [])];
   }
 }
 
@@ -249,6 +279,15 @@ export default function toolHooks(pi: ExtensionAPI) {
       return bashTool.execute(toolCallId, params, signal, onUpdate, ctx);
     },
     renderCall(args, theme, context) {
+      const state = context.state as {
+        startedAt?: number;
+        endedAt?: number;
+      };
+      if (context.executionStarted && state.startedAt === undefined) {
+        state.startedAt = Date.now();
+        state.endedAt = undefined;
+      }
+
       const text =
         context.lastComponent instanceof Text
           ? context.lastComponent
@@ -257,6 +296,22 @@ export default function toolHooks(pi: ExtensionAPI) {
       return text;
     },
     renderResult(result, options, theme, context) {
+      const state = context.state as {
+        startedAt?: number;
+        endedAt?: number;
+        interval?: ReturnType<typeof setInterval>;
+      };
+      if (state.startedAt !== undefined && options.isPartial && !state.interval) {
+        state.interval = setInterval(() => context.invalidate(), 1000);
+      }
+      if (!options.isPartial || context.isError) {
+        state.endedAt ??= Date.now();
+        if (state.interval) {
+          clearInterval(state.interval);
+          state.interval = undefined;
+        }
+      }
+
       if (options.expanded) {
         return (
           bashTool.renderResult?.(result, options, theme, {
@@ -269,8 +324,20 @@ export default function toolHooks(pi: ExtensionAPI) {
       const component =
         context.lastComponent instanceof BashPreviewComponent
           ? context.lastComponent
-          : new BashPreviewComponent(result, theme);
-      component.set(result, theme);
+          : new BashPreviewComponent(
+              result,
+              theme,
+              Boolean(options.isPartial),
+              state.startedAt,
+              state.endedAt,
+            );
+      component.set(
+        result,
+        theme,
+        Boolean(options.isPartial),
+        state.startedAt,
+        state.endedAt,
+      );
       return component;
     },
   });
