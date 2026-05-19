@@ -1,6 +1,6 @@
 ---
 name: q-milestone-design
-description: Create milestone-level QRSPI design for nested project planning. Use when designing a milestone-plan after research or running /q-milestone-design. Defines milestone ownership, target user stories, current-to-target direction, architecture-input themes, dependencies, and ticket-shaping principles without creating implementation plans.
+description: Create milestone-level QRSPI design for nested project planning. Use when designing a milestone-plan after research or running /q-milestone-design. Defines milestone ownership, outcomes, current-to-target direction, gap map, architecture inputs, dependencies, and proposed ticket set without creating implementation plans.
 ---
 
 # Milestone Design — Where Is This Milestone Going?
@@ -33,8 +33,8 @@ Resolve:
 - product outcomes and user-visible success criteria
 - target users and concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - current-to-target direction
-- architecture-spec inputs needed by the whole-system architecture ticket
-- ticket-shaping principles
+- gap map and architecture-spec inputs needed by the whole-system architecture ticket
+- proposed ticket set, with each ticket mapped to outcomes/user stories/gaps/evidence
 - cross-milestone dependency handling
 - taxonomy change proposals, if any
 - what must be deferred to ticket-level QRSPI
@@ -43,7 +43,7 @@ Resolve:
 
 Use `~/dotfiles/spec_metadata.sh` before writing.
 
-Write `design.md` in the milestone-plan directory. Max ~200 lines. Keep concise; tables/fragments preferred. Product outcomes belong here as approved direction.
+Write `design.md` in the milestone-plan directory. Target ~200-300 lines. Keep concise; tables/fragments preferred. Product outcomes and proposed ticket boundaries belong here as approved direction.
 
 Required sections:
 
@@ -54,8 +54,9 @@ Required sections:
 1. Current state summary.
 1. Target behavior as user stories.
 1. Current to target direction.
+1. Gap map.
 1. Architecture-spec inputs.
-1. Ticket-shaping principles.
+1. Proposed ticket set with ticket → stories/gaps/evidence/dependencies.
 1. Cross-milestone dependencies.
 1. Taxonomy proposals.
 1. Deferred to ticket-level QRSPI.
@@ -69,7 +70,6 @@ Write ADRs only for accepted durable decisions that are hard to reverse or surpr
 If approved design introduces durable invariants, update `milestone-plan/AGENTS.md` with short pointers to `design.md` or ADRs. Do not duplicate design content.
 
 ## Response
-
 
 Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:

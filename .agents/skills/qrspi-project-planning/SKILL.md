@@ -16,10 +16,10 @@ Optimize for:
 - product outcomes surfaced early and preserved through ticket shaping
 - sequencing/gating before ticket creation
 - traceability from source docs and current code to proposed tickets
-- concise high-level outlines that surface product/architecture risk
+- concise milestone designs that surface product/architecture risk and proposed ticket boundaries
 - detailed high-level current-state research for future planners
 - durable context without drowning future agents
-- human judgment at question/design/outline approval points
+- human judgment at question/design approval points and before Linear mutation
 
 Do not optimize for parallelizing human judgment. Agents can research and draft, but lead/product approval owns direction.
 
@@ -54,12 +54,13 @@ Use `AGENTS.md` for this because it auto-loads. Keep it curated. Do not put live
 
 Owns milestone-level QRSPI:
 
-- question/research/design/outline/plan artifacts
+- question/research/design artifacts
 - current code/system state research
 - source-doc/requirement summaries with citations
 - target behavior user stories, including engineer-as-user stories
-- gap map and architecture/spec inputs
-- proposed ticket list and ticket creation plan
+- gap map and architecture/spec inputs inside `design.md`
+- proposed ticket list inside `design.md`
+- one-by-one ticket description refinement under `context/create-tickets/`
 - automated and human review artifacts
 
 Milestone-level QRSPI answers: **what product outcomes does this milestone own, and what tickets should exist to deliver them?**
@@ -77,9 +78,9 @@ Ticket-level QRSPI answers: **how do we complete this ticket?**
 
 ### Architecture/spec synthesis ticket
 
-A project may have a whole-system architecture/spec ticket. It consumes reviewed milestone outlines, explains target system and current state, then maps current to target through milestone outlines.
+A project may have a whole-system architecture/spec ticket. It consumes reviewed milestone designs, explains target system and current state, then maps current to target through milestone designs.
 
-It may challenge child milestone outlines, but must not silently mutate them. Scope/ticket-shape changes route back to the affected milestone outline review and human approval.
+It may challenge child milestone designs, but must not silently mutate them. Scope/ticket-shape changes route back to the affected milestone design review and human approval.
 
 ## Standard milestone planning flow
 
@@ -89,22 +90,18 @@ It may challenge child milestone outlines, but must not silently mutate them. Sc
 /q-milestone-design [research.md]
 /q-milestone-review [design.md]
 # human approval: review-human.md beside automated design review
-/q-milestone-outline [design.md]
-/q-milestone-review [outline.md]
-# human approval: review-human.md beside automated outline review
-/q-milestone-plan [outline.md]
-/q-milestone-review [plan.md]
-# execute ticket creation/status updates after reviewed plan
+/q-milestone-create-tickets [design.md]
+# skill presents/refines each ticket one by one, then asks before Linear mutation
 ```
 
 Human gates:
 
 - question alignment
 - design approval after automated design review
-- outline approval after automated outline review
-- Linear mutation approval when project policy requires it
+- per-ticket approval during create-tickets
+- explicit Linear mutation approval before creating/updating issues
 
-Automated milestone review should improve artifacts, not just report issues.
+Automated milestone review should improve the design, not just report issues.
 
 ## Source of truth rules
 
@@ -115,9 +112,9 @@ Automated milestone review should improve artifacts, not just report issues.
 - `AGENTS.md` files are durable memory, not dashboards.
 - `review-human.md` records human approval at gates.
 
-## Milestone outline purpose
+## Milestone design purpose
 
-Milestone `outline.md` is the critical sign-off artifact. It is product-outcome ticket shaping, not normal QRSPI header-file outline. Keep it high-level enough for product/lead review, but concrete enough to reveal hidden complexity and shape future tickets.
+Milestone `design.md` is the critical sign-off artifact. It is product-outcome ticket shaping, not normal QRSPI implementation design. Keep it high-level enough for product/lead review, but concrete enough to reveal hidden complexity and shape future tickets.
 
 It must connect:
 
@@ -131,11 +128,11 @@ canonical sources + current code state
 
 Product outcomes come first. Engineer enablement can be a user story only when it supports product outcomes or architecture/spec readiness. Keep stories concise; sacrifice grammar for concision.
 
-## Milestone plan purpose
+## Milestone create-tickets purpose
 
-Milestone `plan.md` is operational. It turns an approved/reviewed outline into ticket creation and status/routing updates.
+Milestone create-tickets turns a reviewed and human-approved design into Linear-ready ticket descriptions and then Linear issues.
 
-It should include Linear-ready ticket description docs, dependency/relations, status updates, and ticket directory creation steps after Linear IDs exist. It should not become a code implementation plan or whole-system architecture spec.
+It presents each proposed ticket one by one for human refinement. After all ticket drafts are approved, it asks for explicit mutation approval, creates Linear tickets, applies relations/default fields, updates status docs, and creates routing-only ticket directories after Linear IDs exist. It should not become a code implementation plan or whole-system architecture spec.
 
 ## Templates and contracts
 
@@ -144,8 +141,8 @@ Load these references only when creating or reviewing the matching artifact:
 - `references/project-status-template.md` — project status/dependency artifact skeleton
 - `references/milestone-agents-template.md` — milestone `AGENTS.md` skeleton
 - `references/human-review-template.md` — `review-human.md` skeleton
-- `references/milestone-outline-contract.md` — validity checklist for milestone outlines
-- `references/milestone-plan-contract.md` — validity checklist for milestone plans
+- `references/milestone-outline-contract.md` — legacy validity checklist for old milestone outlines
+- `references/milestone-plan-contract.md` — legacy validity checklist for old milestone plans
 
 ## Anti-patterns
 
@@ -153,6 +150,7 @@ Avoid:
 
 - creating implementation/spec tickets directly from the project plan
 - forcing normal `/q-outline` or `/q-plan` onto milestone meta-planning
+- reviving milestone `outline.md`/`plan.md` as required gates instead of using reviewed design + create-tickets
 - hiding live status in `AGENTS.md`
 - copying full PRDs/requirements into child dirs
 - treating clean LLM review as product/lead approval
@@ -169,8 +167,9 @@ Use milestone-specific skills for nested project planning:
 - `/q-milestone-question`
 - `/q-milestone-research`
 - `/q-milestone-design`
-- `/q-milestone-outline`
-- `/q-milestone-plan`
 - `/q-milestone-review`
+- `/q-milestone-create-tickets`
+
+Legacy skills `/q-milestone-outline` and `/q-milestone-plan` may exist for old artifacts, but new milestone planning should not use them.
 
 If a milestone skill does not load this doctrine, treat that as skill maintenance, not normal project-planning work.

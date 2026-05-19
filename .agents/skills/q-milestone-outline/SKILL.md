@@ -1,11 +1,19 @@
 ---
 name: q-milestone-outline
-description: Create milestone-level QRSPI outline for nested project planning. Use after approved milestone design or when running /q-milestone-outline. Produces concise user-story-backed gap maps, architecture-spec inputs, proposed ticket lists, dependencies, and deferred ticket-level decisions.
+description: Legacy milestone outline skill. Do not use for new milestone planning; use reviewed milestone design then q-milestone-create-tickets. Only use to finish old in-flight milestone flows that already have outline.md as their next required artifact.
 ---
 
-# Milestone Outline — What Tickets Should Exist?
+# Milestone Outline — Legacy Flow
 
-Use this as the Outline stage for milestone-level QRSPI. It converts approved milestone design into a reviewed product-outcome ticket-shaping outline and architecture-spec input artifact. This is not normal QRSPI header-file outline; include API/db/type/function surfaces only when needed to make ticket boundaries or architecture inputs obvious.
+New milestone planning should not use this skill. The simplified flow is:
+
+```text
+/q-milestone-design [research.md]
+/q-milestone-review [design.md]
+/q-milestone-create-tickets [design.md]
+```
+
+Use this legacy skill only to finish old in-flight milestone flows that already require `outline.md`.
 
 ## Step 1: Load baseline workflow
 
@@ -63,7 +71,6 @@ After `/q-milestone-review [outline.md]`, human approval is required before `/q-
 Record human approval as `review-human.md` in the automated outline review directory.
 
 ## Response
-
 
 Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:

@@ -45,6 +45,7 @@
         pkgs.mergiraf
         pkgs.tailscale
         pkgs.lazygit
+        pkgs.socat # Relay utility used by SSH ProxyCommand/SOCKS connections
         ghosttyTerminfo
 
         # Language Servers and Formatters

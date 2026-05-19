@@ -118,9 +118,10 @@ For epics/projects that use QRSPI to plan milestones and create future tickets, 
 - `/q-milestone-question`
 - `/q-milestone-research`
 - `/q-milestone-design`
-- `/q-milestone-outline`
-- `/q-milestone-plan`
 - `/q-milestone-review`
+- `/q-milestone-create-tickets`
+
+Legacy milestone skills `/q-milestone-outline` and `/q-milestone-plan` exist only to finish old in-flight milestone flows.
 
 # QRSPI Planning Pipeline
 

@@ -42,9 +42,8 @@ Example: `milestones/02-premium-growth-expression-variables/milestone-plan/`
 Owns milestone-level QRSPI:
 
 - research agenda and factual current-state/source-doc research
-- milestone design: ownership, user stories, target behavior, current to target direction
-- milestone outline: architecture-spec inputs, gap map, proposed ticket list
-- milestone plan: Linear ticket creation/status-update execution
+- milestone design: ownership, user stories, target behavior, current to target direction, architecture-spec inputs, gap map, proposed ticket list
+- create-tickets artifacts: per-ticket Linear descriptions, approval notes, Linear creation/status-update execution
 - automated and human review artifacts
 
 Does not own implementation slices for future tickets, detailed code edit instructions, or final project-wide architecture narrative.
@@ -70,10 +69,10 @@ Owns whole-system architecture synthesis:
 
 - target system explanation
 - current implemented system explanation
-- current to target path organized by reviewed milestone outlines
+- current to target path organized by reviewed milestone designs
 - cross-cutting technical decisions
 
-May challenge child milestone outlines, but must not silently mutate them. Any scope/ticket-shape change routes back to affected milestone-plan outline, automated review, and human approval.
+May challenge child milestone designs, but must not silently mutate them. Any scope/ticket-shape change routes back to affected milestone-plan design, automated review, and human approval.
 
 ## Milestone planning gates
 
@@ -85,20 +84,16 @@ Default milestone path:
 /q-milestone-design [research.md]
 /q-milestone-review [design.md]
 # human writes review-human.md in design review dir
-/q-milestone-outline [design.md]
-/q-milestone-review [outline.md]
-# human writes review-human.md in outline review dir
-/q-milestone-plan [outline.md]
-/q-milestone-review [plan.md]
-# execute Linear ticket creation and status updates
+/q-milestone-create-tickets [design.md]
+# refine each ticket one by one, then ask before Linear mutation
 ```
 
 Human gates:
 
 - question alignment
 - design after automated design review
-- outline after automated outline review
-- Linear mutation after reviewed plan when project policy requires it
+- per-ticket approval during create-tickets
+- explicit Linear mutation approval before creating/updating issues
 
 Planning reviews are agent-driven. Human approval gets recorded as `review-human.md` in the automated review directory.
 
@@ -106,7 +101,7 @@ Planning reviews are agent-driven. Human approval gets recorded as `review-human
 
 Be concise. Sacrifice grammar for concision. Prefer tables and fragments over narrative.
 
-## Required milestone outline concepts
+## Required milestone design concepts
 
 - current code/system state with file refs
 - source-doc/requirement state with canonical links
@@ -126,4 +121,4 @@ Summaries allowed, but cite canonical source paths. Do not copy full requirement
 
 ## Boundaries
 
-Milestone-level QRSPI may inspect code freely for accurate current state. Research should give detailed high-level current-state context for future planners. Design/outline stay concise and human-reviewable: product outcomes, ticket shaping, and architecture-input granularity. Ticket-level QRSPI owns exact implementation plans.
+Milestone-level QRSPI may inspect code freely for accurate current state. Research should give detailed high-level current-state context for future planners. Design stays concise and human-reviewable: product outcomes, ticket shaping, and architecture-input granularity. Ticket-level QRSPI owns exact implementation plans.

@@ -5,7 +5,7 @@ description: Research a milestone-plan directory for nested QRSPI project planni
 
 # Milestone Research — What Is True Now?
 
-Use this as the Research stage for milestone-level QRSPI. It mirrors `/q-research`, but the output supports milestone design, milestone outline, architecture-spec inputs, and proposed ticket boundaries.
+Use this as the Research stage for milestone-level QRSPI. It mirrors `/q-research`, but the output supports milestone design, architecture-spec inputs, gap mapping, and proposed ticket boundaries.
 
 ## Step 1: Load baseline workflow
 
@@ -70,7 +70,6 @@ Use concise tables where possible. Cite canonical docs; do not copy full require
 If research reveals new code-answerable factual questions that materially affect milestone design, write a follow-up question/research note and run another research pass before design.
 
 ## Response
-
 
 Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:

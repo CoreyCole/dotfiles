@@ -1,11 +1,19 @@
 ---
 name: q-milestone-plan
-description: Create milestone-level QRSPI execution plan for Linear ticket creation. Use after reviewed and human-approved milestone outline or when running /q-milestone-plan. Produces an operational plan, separate Linear ticket description documents, status/doc update steps, and routing for ticket-level QRSPI.
+description: Legacy milestone plan skill. Do not use for new milestone planning; use q-milestone-create-tickets after reviewed/human-approved design. Only use to finish old in-flight milestone flows that already have outline.md and require plan.md.
 ---
 
-# Milestone Plan — How Do We Create the Tickets?
+# Milestone Plan — Legacy Flow
 
-Use this as the Plan stage for milestone-level QRSPI. It plans ticket creation and status/doc updates from an approved milestone outline. It is not an engineering implementation plan.
+New milestone planning should not use this skill. The simplified flow is:
+
+```text
+/q-milestone-design [research.md]
+/q-milestone-review [design.md]
+/q-milestone-create-tickets [design.md]
+```
+
+Use this legacy skill only to finish old in-flight milestone flows that already have `outline.md` and require `plan.md`.
 
 ## Step 1: Load baseline workflow
 
@@ -48,16 +56,21 @@ milestone-plan/context/plan/linear-ticket-descriptions/
   tkt-02-short-slug.md
 ```
 
-Each description must be concise and Linear-ready:
+Each description must be concise and Linear-ready, using these sections in this order:
 
-- title
-- goal
-- user stories / gaps covered
-- source artifacts
-- expected output/evidence
-- dependencies / blocked-by / blocks
-- suggested next command after ticket exists
-- do-not-create-if guard when conditional
+1. Goal
+1. User stories
+1. Where we are today
+1. Gaps we need to fill
+1. Expected outcome
+1. Testing strategy
+   - Unit
+   - Integration
+   - E2E
+1. Dependencies / relations
+1. Docs
+
+Use Conventional Commit style for Linear issue titles, e.g. `feat(bonuses): add ordered first-five E-App policy selection` or `test(bonuses): verify E-App debug fast-forward flow`. Keep the title in the Linear issue title, not as a required body heading. Do not include suggested next commands, operator-only creation guards, or internal planning caveats in Linear ticket description docs. Suggested next commands belong in routing-only ticket `AGENTS.md` after the issue exists. If a ticket is conditional, capture that decision point in the milestone `plan.md` execution checklist or preconditions, not in the paste-ready Linear description.
 
 ## Step 4: Write `plan.md`
 
@@ -82,7 +95,6 @@ Required sections:
 After `/q-milestone-review [plan.md]` succeeds and required human approval is recorded if project policy requires it, execute Linear creation. Then create ticket directories using `NN-pro-####-slug/` and routing-only `AGENTS.md` files.
 
 ## Response
-
 
 Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`, using:
