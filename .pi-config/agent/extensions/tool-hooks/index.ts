@@ -61,8 +61,12 @@ function deterministicDocsSummary(result: any, theme: ThemeLike): string[] {
 
   return loaded
     .map((entry) => entry?.path)
-    .filter((path): path is string => typeof path === "string" && path.length > 0)
-    .map((path) => `${theme.fg("success", "loaded:")} ${theme.fg("accent", path)}`);
+    .filter(
+      (path): path is string => typeof path === "string" && path.length > 0,
+    )
+    .map(
+      (path) => `${theme.fg("success", "loaded:")} ${theme.fg("accent", path)}`,
+    );
 }
 
 function stripDeterministicDocsContext(result: any): any {
@@ -130,18 +134,22 @@ class BashPreviewComponent implements Component {
   render(width: number): string[] {
     const output = textOutput(this.result).trim();
     const lines = output ? output.split("\n") : [];
-    const rendered = lines.length > 5
-      ? ["", linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
-      : lines.length > 0
-        ? ["", ...lines]
-        : [];
+    const rendered =
+      lines.length > 5
+        ? ["", linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
+        : lines.length > 0
+          ? ["", ...lines]
+          : [];
 
     if (this.startedAt !== undefined) {
       const label = this.isPartial ? "Elapsed" : "Took";
       const endTime = this.endedAt ?? Date.now();
       rendered.push(
         "",
-        this.theme.fg("muted", `${label} ${formatDuration(endTime - this.startedAt)}`),
+        this.theme.fg(
+          "muted",
+          `${label} ${formatDuration(endTime - this.startedAt)}`,
+        ),
       );
     }
 
@@ -174,8 +182,11 @@ class ReadPreviewComponent implements Component {
     const lines = trimTrailingEmptyLines(textOutput(visibleResult).split("\n"));
     if (lines.length === 0 && summary.length === 0) return [];
 
-    return ["", ...summary, ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : [])]
-      .map((line) => truncateToWidth(line, width));
+    return [
+      "",
+      ...summary,
+      ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : []),
+    ].map((line) => truncateToWidth(line, width));
   }
 }
 
@@ -188,7 +199,9 @@ function loadShellSettings(): ShellSettings {
   const settingsPath = path.join(getAgentDir(), "settings.json");
   if (!existsSync(settingsPath)) return {};
 
-  const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as ShellSettings;
+  const settings = JSON.parse(
+    readFileSync(settingsPath, "utf8"),
+  ) as ShellSettings;
   return {
     shellPath:
       typeof settings.shellPath === "string" ? settings.shellPath : undefined,
@@ -249,9 +262,13 @@ function loadRules(cwd: string) {
   return [...globalRules, ...loadProjectRules(cwd)];
 }
 
-function getDisplayContent(message: { content: unknown; details?: unknown }): string {
+function getDisplayContent(message: {
+  content: unknown;
+  details?: unknown;
+}): string {
   const details = message.details as { displayContent?: unknown } | undefined;
-  if (typeof details?.displayContent === "string") return details.displayContent;
+  if (typeof details?.displayContent === "string")
+    return details.displayContent;
   return typeof message.content === "string" ? message.content : "";
 }
 
@@ -303,7 +320,11 @@ export default function toolHooks(pi: ExtensionAPI) {
         endedAt?: number;
         interval?: ReturnType<typeof setInterval>;
       };
-      if (state.startedAt !== undefined && options.isPartial && !state.interval) {
+      if (
+        state.startedAt !== undefined &&
+        options.isPartial &&
+        !state.interval
+      ) {
         state.interval = setInterval(() => context.invalidate(), 1000);
       }
       if (!options.isPartial || context.isError) {
@@ -344,6 +365,8 @@ export default function toolHooks(pi: ExtensionAPI) {
     },
   });
 
+  // Own read rendering so pi-deterministic-docs can patch read results without
+  // registering a conflicting read tool.
   const readTool = createReadToolDefinition(cwd);
   pi.registerTool({
     ...readTool,
