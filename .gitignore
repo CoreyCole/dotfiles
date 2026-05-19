@@ -44,3 +44,4 @@ sessions/
 .zshrc.local
 secrets.sh
 __pycache__/
+pi-crash.log
