@@ -21,6 +21,13 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `agent/git/`
 - Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
 
+## Pi Customization Rules
+
+- Do **not** patch installed Pi runtime files or package manager output: no edits under `node_modules/`, global npm/fnm installations, `dist/` files in installed packages, or other generated dependency caches.
+- For local behavior changes, extend Pi through tracked `.pi-config` resources: `agent/extensions/`, `agent/skills/`, `agent/settings.json`, `agent/mcp.json`, `AGENTS.md`, `SYSTEM.md`, or `APPEND_SYSTEM.md`.
+- When changing Pi behavior, use the `pi` skill and follow its extension-first guidance. Prefer `pi.registerCommand`, `pi.registerTool`, and `pi.on(...)` hooks over modifying Pi internals.
+- Use `context/pi-mono` as source-of-truth research for Pi APIs and behavior, but do not edit it for this dotfiles config unless the task is explicitly to prepare an upstream Pi change.
+
 ______________________________________________________________________
 
 ## Core Principles
