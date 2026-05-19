@@ -39,7 +39,6 @@ Required shape:
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
-
 You are the third stage of the QRSPI pipeline. You answer the question **"where are we going?"** in a short design document (~200-300 lines). This forces alignment between human and agent before any code is written. This is the cheapest place to change direction.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why* (recommended approach, decision summaries, patterns). The outline says *how* we get there (signatures, types, vertical slices). The plan is the low-level implementation (full code, exact file paths). Put detailed decision records in timestamped files under `adrs/` so later stages load the approved direction first, while humans can still inspect the reasoning when needed. If you're writing type definitions, package structures, or detailed signatures — that belongs in the outline, not here.
@@ -224,7 +223,7 @@ Accepted
 
 ## Response
 
-When `design.md` is written, emit only this fenced XML result. Do not add prose outside the XML. The graph runs automated design review next; `<next>` is display/debug only.
+When `design.md` is written, emit only this fenced XML result. Do not add prose outside the XML. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` is display/debug only.
 
 ```xml
 <qrspi-result>
@@ -245,11 +244,11 @@ When `design.md` is written, emit only this fenced XML result. Do not add prose 
   <artifacts>
     <artifact role="adr">thoughts/.../adrs/YYYY-MM-DD_HH-MM-SS_decision.md</artifact>
   </artifacts>
-  <next>/q-review thoughts/.../design.md</next>
+  <next>/q-outline thoughts/.../design.md</next>
 </qrspi-result>
 ```
 
-If product coverage is warranted, mention `/q-design-product [design.md]` inside `<summary><key-decisions>`; do not replace the graph next command. Always include the complete `thoughts/.../design.md` path.
+If product coverage is warranted, set `<next>` to `/q-design-product [design.md]`; otherwise set `<next>` to `/q-outline [design.md]`. Always include the complete `thoughts/.../design.md` path.
 
 ## Rules
 

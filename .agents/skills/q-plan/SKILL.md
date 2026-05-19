@@ -7,7 +7,7 @@ description: Expand the structured outline into a detailed implementation plan f
 
 - `autoMode=false`: stop at human gates; still emit valid `<qrspi-result>` and show validated advance button.
 - `autoMode=true`: continue through human gates automatically unless `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, or XML retry exhaustion.
-- `enablePlanReviews=true`: run planning `/q-review` after design, outline, and plan.
+- `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
 - Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.

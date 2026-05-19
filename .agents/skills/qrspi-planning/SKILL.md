@@ -47,7 +47,7 @@ Required shape:
 
 - `autoMode=false`: stop at human gates; still emit valid `<qrspi-result>` and show validated advance button.
 - `autoMode=true`: continue through human gates automatically unless `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, or XML retry exhaustion.
-- `enablePlanReviews=true`: run planning `/q-review` after design, outline, and plan.
+- `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research-derived direction in design/outline review, but research must loop to another `/q-research` pass when new code-answerable factual questions materially inform design.
 - Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.
@@ -101,7 +101,7 @@ Every primary QRSPI stage and review/helper that completes a workflow transition
 thoughts/.../design.md
   </artifact>
   <next>
-/q-review thoughts/.../design.md
+/q-outline thoughts/.../design.md
   </next>
 </qrspi-result>
 ```
@@ -199,7 +199,7 @@ Never overwrite the parent plan's `design.md`, `design-product.md`, `outline.md`
 ## Key Principles
 
 - **Do not outsource the thinking.** The engineer is a critical part of the human gates. The agent dumps; the human steers.
-- **LLM review edits artifacts.** Planning review should improve `design.md`, `design-product.md`, `outline.md`, and `plan.md` directly when fixes are clear. A passive report is not enough.
+- **LLM review edits artifacts.** Planning review runs after outline and plan, and should improve `design.md`, `design-product.md`, `outline.md`, and `plan.md` directly when fixes are clear. A passive report is not enough.
 - **Human-facing planning is compressed.** For `design.md`, `design-product.md`, and `outline.md` artifacts: be extremely concise. Sacrifice grammar for the sake of concision. In `/q-question`, apply that style to the brainstorm/interview turns, not to the final research questions doc.
 - **Separate context windows.** Question and Research run in fresh contexts. Research reads `AGENTS.md` and question docs for framing, stays blind to forward-looking plan artifacts, and answers questions with codebase facts.
 - **Instruction budget.** Keep each stage skill focused. Do not combine stages into one mega-prompt.
