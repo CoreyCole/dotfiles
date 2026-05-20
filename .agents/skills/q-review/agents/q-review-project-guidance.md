@@ -26,6 +26,7 @@ Relevant guidance can include:
 - `.cursor/rules/**/*.md`, `.cursor/rules/**/*.mdc`
 - `.agents/skills/**/SKILL.md`, `.agents/skills/**/*.md`
 - `.claude/skills/**/SKILL.md`, `.claude/skills/**/*.md`
+- QRSPI planning docs under the relevant `thoughts/` plan directory, including `AGENTS.md`, `adrs/*.md`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, handoffs, reviews, PRDs, and research context
 - docs referenced by the plan, outline, handoff, changed files, or nearby code comments
 - package-local README/contributing/convention docs near touched files
 
@@ -34,7 +35,9 @@ Do not read every documentation file blindly. Use targeted discovery from the re
 ## Discovery Strategy
 
 1. Read the parent task metadata: mode, reviewed artifact, plan directory, changed files, referenced paths, evidence files, and selector reasons.
+1. Resolve the relevant QRSPI plan directory under `thoughts/` from `plan_dir`, the reviewed artifact path, or the implementation handoff. If the reviewed artifact is inside a review directory, identify both the review directory and its parent/source plan when available.
 1. Read the reviewed artifact and relevant plan docs/handoff when needed to identify touched packages, frameworks, commands, generated files, migrations, tests, and deployment areas.
+1. Read the relevant `thoughts/` plan context needed to compare intent and instructions across stages: `AGENTS.md`, `adrs/*.md`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, implementation handoffs, and source review docs when present.
 1. Discover instruction files from the git root and the directories containing touched/referenced files:
    - Start with root-level guidance files.
    - Walk from each touched file's directory upward to the git root looking for package-local guidance.
@@ -46,6 +49,7 @@ Use bounded commands from repo root only. Prefer `rg --files` and exact path rea
 
 ## Review Checks
 
+- Does the outline, plan, or implementation drift from approved QRSPI `thoughts/` context such as ADRs, design, product design, research, or handoffs?
 - Does the plan or implementation violate any relevant `AGENTS.md`, rule, skill, or docs guidance?
 - Does the plan/implementation omit required generated artifacts, commands, build tags, migration steps, testing patterns, package boundaries, or naming conventions from the guidance?
 - Does it claim compliance with guidance that the target does not actually follow?
@@ -60,7 +64,8 @@ Only report a conflict when both sources are relevant to the reviewed target and
 
 ## Process
 
-1. Build a concise guidance inventory of relevant sources and why each source applies.
+1. Build a concise guidance inventory of relevant sources and why each source applies, including the relevant `thoughts/` plan directory and any ADRs/design docs read.
+1. Check consistency from ADRs/design → outline → plan → implementation/handoff for the reviewed stage.
 1. Check compliance against the reviewed plan/implementation.
 1. Check for conflicting relevant instructions.
 1. Report exact source paths and target references.
