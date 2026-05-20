@@ -23,7 +23,7 @@ function getBranchInfo(ctx: ExtensionContext): BranchInfo {
 	const leafId = ctx.sessionManager.getLeafId();
 	if (!leafId) return { count: 0, totalChars: 0, estimatedTokens: 0, contextPercent: null, summaries: [] };
 
-	const path = ctx.sessionManager.getBranch(leafId) as BranchEntry[];
+	const path = ctx.sessionManager.getBranch(leafId) as unknown as BranchEntry[];
 	const summaries: BranchInfo["summaries"] = [];
 	let totalChars = 0;
 	let branchIndex = 0;
@@ -181,9 +181,6 @@ export default function (pi: ExtensionAPI) {
 		updateBranchStatus(ctx);
 	});
 
-	pi.on("session_switch", (_event, ctx) => {
-		updateBranchStatus(ctx);
-	});
 
 	pi.on("agent_end", (_event, ctx) => {
 		// Re-check after each agent turn since context usage may have changed
@@ -229,7 +226,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const path = ctx.sessionManager.getBranch(leafId) as BranchEntry[];
+			const path = ctx.sessionManager.getBranch(leafId) as unknown as BranchEntry[];
 			if (path.length === 0) {
 				ctx.ui.notify("No conversation to branch from", "warning");
 				return;
@@ -279,7 +276,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const path = ctx.sessionManager.getBranch(leafId) as BranchEntry[];
+			const path = ctx.sessionManager.getBranch(leafId) as unknown as BranchEntry[];
 			if (path.length < 2) {
 				ctx.ui.notify("Not enough conversation to compress", "info");
 				return;
@@ -305,11 +302,12 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.notify("Generating summary...", "info");
 
 			// Generate a full summary of the conversation via LLM
-			const apiKey = await ctx.modelRegistry.getApiKey(model);
-			if (!apiKey) {
-				ctx.ui.notify(`No API key for ${model.provider}`, "error");
+			const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+			if (!auth.ok) {
+				ctx.ui.notify(auth.error, "error");
 				return;
 			}
+			const apiKey = auth.apiKey;
 
 			// Trim conversation to fit within model context window (leave room for prompt + response)
 			const contextWindow = model.contextWindow || 128000;
@@ -348,8 +346,8 @@ export default function (pi: ExtensionAPI) {
 				}
 
 				const summary = response.content
-					.filter((c: { type: string }) => c.type === "text")
-					.map((c: { type: string; text: string }) => c.text)
+					.filter((c): c is { type: "text"; text: string } => c.type === "text")
+					.map((c) => c.text)
 					.join("\n");
 
 				if (!summary) {
@@ -382,7 +380,7 @@ export default function (pi: ExtensionAPI) {
 					ctx.ui.notify("Compress cancelled", "info");
 				} else {
 					updateBranchStatus(ctx);
-					ctx.ui.notify("Started fresh session with conversation summary", "success");
+					ctx.ui.notify("Started fresh session with conversation summary", "info");
 				}
 			} catch (err) {
 				ctx.ui.notify(`Compress failed: ${err instanceof Error ? err.message : String(err)}`, "error");

@@ -31,8 +31,7 @@
  * naturally.
  */
 import { DynamicBorder, copyToClipboard, getMarkdownTheme, keyHint, type ExtensionAPI, type ExtensionContext, type Theme } from "@earendil-works/pi-coding-agent";
-import { StringEnum } from "@earendil-works/pi-ai";
-import { Type } from "@sinclair/typebox";
+import { Type } from "typebox";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -50,7 +49,7 @@ import {
 	Text,
 	TUI,
 	fuzzyMatch,
-	getEditorKeybindings,
+	getKeybindings,
 	matchesKey,
 	truncateToWidth,
 	visibleWidth,
@@ -93,17 +92,17 @@ interface TodoSettings {
 }
 
 const TodoParams = Type.Object({
-	action: StringEnum([
-		"list",
-		"list-all",
-		"get",
-		"create",
-		"update",
-		"append",
-		"delete",
-		"claim",
-		"release",
-	] as const),
+	action: Type.Union([
+		Type.Literal("list"),
+		Type.Literal("list-all"),
+		Type.Literal("get"),
+		Type.Literal("create"),
+		Type.Literal("update"),
+		Type.Literal("append"),
+		Type.Literal("delete"),
+		Type.Literal("claim"),
+		Type.Literal("release"),
+	]),
 	id: Type.Optional(
 		Type.String({ description: "Todo id (TODO-<hex> or raw hex filename)" }),
 	),
@@ -141,12 +140,12 @@ type TodoMenuAction =
 	| "view";
 
 type TodoToolDetails =
-	| { action: "list" | "list-all"; todos: TodoFrontMatter[]; currentSessionId?: string; error?: string }
+	| { action: "list" | "list-all"; todos: TodoFrontMatter[]; currentSessionId?: string }
 	| {
 			action: "get" | "create" | "update" | "append" | "delete" | "claim" | "release";
 			todo: TodoRecord;
-			error?: string;
-		};
+		}
+	| { action: TodoAction; error: string };
 
 function formatTodoId(id: string): string {
 	return `${TODO_ID_PREFIX}${id}`;
@@ -399,25 +398,25 @@ class TodoSelectorComponent extends Container implements Focusable {
 	}
 
 	handleInput(keyData: string): void {
-		const kb = getEditorKeybindings();
-		if (kb.matches(keyData, "selectUp")) {
+		const kb = getKeybindings();
+		if (kb.matches(keyData, "tui.select.up")) {
 			if (this.filteredTodos.length === 0) return;
 			this.selectedIndex = this.selectedIndex === 0 ? this.filteredTodos.length - 1 : this.selectedIndex - 1;
 			this.updateList();
 			return;
 		}
-		if (kb.matches(keyData, "selectDown")) {
+		if (kb.matches(keyData, "tui.select.down")) {
 			if (this.filteredTodos.length === 0) return;
 			this.selectedIndex = this.selectedIndex === this.filteredTodos.length - 1 ? 0 : this.selectedIndex + 1;
 			this.updateList();
 			return;
 		}
-		if (kb.matches(keyData, "selectConfirm")) {
+		if (kb.matches(keyData, "tui.select.confirm")) {
 			const selected = this.filteredTodos[this.selectedIndex];
 			if (selected) this.onSelectCallback(selected);
 			return;
 		}
-		if (kb.matches(keyData, "selectCancel")) {
+		if (kb.matches(keyData, "tui.select.cancel")) {
 			this.onCancelCallback();
 			return;
 		}
@@ -575,28 +574,28 @@ class TodoDetailOverlayComponent {
 	}
 
 	handleInput(keyData: string): void {
-		const kb = getEditorKeybindings();
-		if (kb.matches(keyData, "selectCancel")) {
+		const kb = getKeybindings();
+		if (kb.matches(keyData, "tui.select.cancel")) {
 			this.onAction("back");
 			return;
 		}
-		if (kb.matches(keyData, "selectConfirm")) {
+		if (kb.matches(keyData, "tui.select.confirm")) {
 			this.onAction("work");
 			return;
 		}
-		if (kb.matches(keyData, "selectUp")) {
+		if (kb.matches(keyData, "tui.select.up")) {
 			this.scrollBy(-1);
 			return;
 		}
-		if (kb.matches(keyData, "selectDown")) {
+		if (kb.matches(keyData, "tui.select.down")) {
 			this.scrollBy(1);
 			return;
 		}
-		if (kb.matches(keyData, "selectPageUp")) {
+		if (kb.matches(keyData, "tui.select.pageUp")) {
 			this.scrollBy(-this.viewHeight || -1);
 			return;
 		}
-		if (kb.matches(keyData, "selectPageDown")) {
+		if (kb.matches(keyData, "tui.select.pageDown")) {
 			this.scrollBy(this.viewHeight || 1);
 			return;
 		}
@@ -732,7 +731,7 @@ function getTodoSettingsPath(todosDir: string): string {
 
 function normalizeTodoSettings(raw: Partial<TodoSettings>): TodoSettings {
 	const gc = raw.gc ?? DEFAULT_TODO_SETTINGS.gc;
-	const gcDays = Number.isFinite(raw.gcDays) ? raw.gcDays : DEFAULT_TODO_SETTINGS.gcDays;
+	const gcDays = typeof raw.gcDays === "number" && Number.isFinite(raw.gcDays) ? raw.gcDays : DEFAULT_TODO_SETTINGS.gcDays;
 	return {
 		gc: Boolean(gc),
 		gcDays: Math.max(0, Math.floor(gcDays)),
@@ -1262,7 +1261,7 @@ function renderTodoDetail(theme: Theme, todo: TodoRecord, expanded: boolean): st
 }
 
 function appendExpandHint(theme: Theme, text: string): string {
-	return `${text}\n${theme.fg("dim", `(${keyHint("expandTools", "to expand")})`)}`;
+	return `${text}\n${theme.fg("dim", `(${keyHint("app.tools.expand", "to expand")})`)}`;
 }
 
 async function ensureTodoExists(filePath: string, id: string): Promise<TodoRecord | null> {
@@ -1741,7 +1740,7 @@ export default function todosExtension(pi: ExtensionAPI) {
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
 			}
 
-			if (details.error) {
+			if ("error" in details) {
 				return new Text(theme.fg("error", `Error: ${details.error}`), 0, 0);
 			}
 
@@ -1756,7 +1755,7 @@ export default function todosExtension(pi: ExtensionAPI) {
 				return new Text(text, 0, 0);
 			}
 
-			if (!details.todo) {
+			if (!("todo" in details)) {
 				const text = result.content[0];
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
 			}
@@ -2073,7 +2072,7 @@ export default function todosExtension(pi: ExtensionAPI) {
 
 			if (nextPrompt) {
 				ctx.ui.setEditorText(nextPrompt);
-				rootTui?.requestRender();
+				(rootTui as TUI | null)?.requestRender();
 			}
 		},
 	});

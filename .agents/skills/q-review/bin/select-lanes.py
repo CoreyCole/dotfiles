@@ -32,6 +32,7 @@ AGENTS_DIR = SKILL_DIR / "agents"
 LANE_ORDER = [
     "q-review-intent-fit",
     "q-review-correctness",
+    "q-review-project-guidance",
     "q-review-security-invariants",
     "q-review-tests-verification",
     "q-review-integration-ops",
@@ -922,9 +923,11 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
 
     if mode == "outline":
         add_lane("q-review-intent-fit", "default outline review lane")
+        add_lane("q-review-project-guidance", "default outline review lane")
         add_lane("q-review-tests-verification", "default outline review lane")
     else:
         add_lane("q-review-correctness", "default implementation review lane")
+        add_lane("q-review-project-guidance", "default implementation review lane")
         add_lane("q-review-tests-verification", "default implementation review lane")
 
     for rule in LANE_RULES:
@@ -946,6 +949,7 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
             "q-review-intent-fit",
             "q-review-correctness",
             "q-review-tests-verification",
+            "q-review-project-guidance",
             "q-review-integration-ops",
             "q-review-security-invariants",
             "q-review-maintainability",

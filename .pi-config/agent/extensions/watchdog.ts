@@ -300,7 +300,8 @@ export default function (pi: ExtensionAPI) {
       if (arg === "off") {
         enabled = false;
         updateStatusBar();
-        return "Watchdog disabled (🙈).";
+        ctx.ui.notify("Watchdog disabled (🙈).", "info");
+        return;
       }
 
       if (arg === "on") {
@@ -309,7 +310,8 @@ export default function (pi: ExtensionAPI) {
         lastActivityTimestamp = Date.now();
         updateStatusBar();
         startTimer(ctx);
-        return `Watchdog enabled (🐵 ${getIntervalMinutes()}m).`;
+        ctx.ui.notify(`Watchdog enabled (🐵 ${getIntervalMinutes()}m).`, "info");
+        return;
       }
 
       if (arg === "") {
@@ -320,9 +322,13 @@ export default function (pi: ExtensionAPI) {
           startTimer(ctx);
         }
         updateStatusBar();
-        return enabled
-          ? `Watchdog enabled (🐵 ${getIntervalMinutes()}m).`
-          : "Watchdog disabled (🙈).";
+        ctx.ui.notify(
+          enabled
+            ? `Watchdog enabled (🐵 ${getIntervalMinutes()}m).`
+            : "Watchdog disabled (🙈).",
+          "info",
+        );
+        return;
       }
 
       const minutes = parseInt(arg, 10);
@@ -333,10 +339,11 @@ export default function (pi: ExtensionAPI) {
         updateStatusBar();
         // Restart timer with new interval
         startTimer(ctx);
-        return `Watchdog set to ${minutes}m interval (🐵 ${minutes}m).`;
+        ctx.ui.notify(`Watchdog set to ${minutes}m interval (🐵 ${minutes}m).`, "info");
+        return;
       }
 
-      return `Unknown argument: "${arg}". Usage: /watchdog [off|on|<minutes>]`;
+      ctx.ui.notify(`Unknown argument: "${arg}". Usage: /watchdog [off|on|<minutes>]`, "warning");
     },
   });
 }

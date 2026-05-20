@@ -108,6 +108,7 @@ Later stages write `design.md`, optional `design-product.md`, `outline.md`, and 
    - `[plan_dir]/plan.md`
    - code files changed by implementation, using handoff sections, `git status`, `git diff`, `git show`, or the known branch range
    - verification evidence from the handoff
+   - relevant project guidance surfaced by the focused project-guidance lane, including root/package `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs referenced by the plan or changed files
 1. Read `design.md`, optional `design-product.md`, `outline.md`, `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, PRDs/tickets, and planning context as needed to clarify intent and alignment. The primary review target is code plus verification evidence.
 
 ## Focused Review Lanes
@@ -143,12 +144,12 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
 1. Create `review_dir` and write `review.md` there.
 1. Build understanding from the handoff, changed files, verification evidence, and relevant plan requirements.
 1. Summarize the implemented behavior at a high level and check alignment with PRDs, ticket text, question docs, `context/brainstorms/`, research findings, design/outline/plan, and approved plan-memory constraints.
-1. Review actual code for correctness, regressions, security, invariants, tests, operations, and maintainability.
+1. Review actual code for correctness, regressions, security, invariants, tests, operations, maintainability, and compliance with relevant project guidance (`AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs). Preserve conflicting relevant guidance as `IMPORTANT: needs human attention`; do not silently choose between conflicting instructions.
 1. Run focused lanes when useful; read every lane report; verify candidate findings yourself.
    - Treat a lane output as failed if it is empty, only contains raw tool-call markup/JSON such as `<tool_call>` or `{"cmd": ...}`, lacks the required lane report sections, or contains no evidence for its findings.
    - Rerun each failed lane once with the same task plus an explicit reminder to actually use tools and return only the markdown lane report.
    - If the rerun still fails, record the lane as unavailable in `review.md` and continue with your own targeted verification instead of trusting it.
-1. Classify findings into `straightforward_fix` and `needs_followup_qrspi`.
+1. Classify findings into `straightforward_fix` and `needs_followup_qrspi`. Treat conflicting relevant project guidance as `needs_followup_qrspi` unless it can be resolved by a clearly more-specific local instruction; label it `IMPORTANT: needs human attention` in `review.md` and seed neutral follow-up questions that ask which source is authoritative.
 1. Write the initial `review.md` before applying code fixes or creating follow-up docs.
 1. Apply all `straightforward_fix` findings directly when safe:
    - Create or reuse a final review-fix slice on top of the implementation stack when tracked source/test/doc files change.
@@ -210,7 +211,10 @@ verdict: [correct|needs_attention]
 - Resolution: [Applied fix and verification, or follow-up QRSPI questions.]
 
 ## Focused Review Lanes
-- [Lane summaries, or `Not used; review was small/localized.`]
+- [Lane summaries, including project-guidance lane results, or `Not used; review was small/localized.`]
+
+## Conflicting Guidance
+- IMPORTANT: needs human attention — [conflict summary with exact source refs and decision needed, or `None.`]
 
 ## Applied Straightforward Fixes
 - `[path]` — [what changed, branch/commit if applicable, verification]
@@ -295,6 +299,7 @@ If straightforward fixes were attempted but verification still fails, use `<stat
 - Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, optional `design-product.md`, `outline.md`, and `plan.md`.
 - Seed deeper follow-up with neutral research questions; do not copy review recommendations as settled solutions.
 - Do not ask whether to create the follow-up QRSPI plan; create it automatically for `needs_followup_qrspi` findings.
+- Surface conflicting relevant project guidance as `IMPORTANT: needs human attention` with exact source refs and the decision needed; do not apply code fixes based on one side of the conflict until it is resolved.
 - Prefer a short, verified review over speculative findings.
 - In both `review.md` and the user response, summarize the current implementation at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, design/outline/plan commitments, and verification evidence.
 - Always summarize the canonical review artifact and exact next command.

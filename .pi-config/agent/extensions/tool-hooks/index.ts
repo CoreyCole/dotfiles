@@ -337,7 +337,7 @@ export default function toolHooks(pi: ExtensionAPI) {
 
       if (options.expanded) {
         return (
-          bashTool.renderResult?.(result, options, theme, {
+          bashTool.renderResult?.(result as Parameters<NonNullable<typeof bashTool.renderResult>>[0], options, theme, {
             ...context,
             lastComponent: undefined,
           }) ?? new Container()

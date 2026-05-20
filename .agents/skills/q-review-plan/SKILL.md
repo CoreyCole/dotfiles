@@ -108,6 +108,7 @@ The review directory is a lightweight research workspace for planning-review fol
    - `[plan_dir]/plan.md` if present and in scope
    - relevant `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, `prds/*`, and `context/{design,design-product,outline,plan}/*`
    - code/files explicitly referenced by the planning docs, plus any files needed to verify claims
+   - relevant project guidance surfaced by the focused project-guidance lane, including root/package `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs referenced by the plan or touched files
 1. If no planning artifact exists, stop and ask for a valid plan directory or artifact path.
 
 ## Focused Review Lanes
@@ -147,14 +148,15 @@ Focused lane reports are advisory. Verify every candidate finding yourself befor
    - concrete file paths, interfaces, migrations, rollback, observability, and invariants
    - test checkpoints that actually prove each slice works and cover product E2E edge cases
    - plan steps that are too vague for a coding agent
-   - local codebase rules under `.agents/rules/` when the plan touches areas covered by repo-specific rules
+   - local codebase rules and project guidance under `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and relevant docs when the plan touches areas covered by repo-specific advice
+   - conflicting relevant guidance; preserve each conflict as `IMPORTANT: needs human attention` until a human chooses which source to follow
 1. Run focused lanes when useful, then read every focused-lane output artifact before synthesis.
    - Treat a lane output as failed if it is empty, only contains raw tool-call markup/JSON such as `<tool_call>` or `{"cmd": ...}`, lacks the required lane report sections, or contains no evidence for its findings.
    - Rerun each failed lane once with the same task plus an explicit reminder to actually use tools and return only the markdown lane report.
    - If the rerun still fails, record the lane as unavailable in `review.md` and continue with your own targeted verification instead of trusting it.
    - local codebase rules under `.agents/rules/`, especially Go utility-package rules (`pkg/pointers.To`, `pkg/collections.Set`, nullable `Ptr()`, `pkg/checked`) when the plan writes Go files
 1. Run focused lanes when useful, then synthesize and verify candidate findings.
-1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`. Only flag a missing `design-product.md` when the work is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior.
+1. Classify findings into `obvious_doc_fix`, `needs_codebase_research`, or `needs_human_judgment`. Treat conflicting relevant project guidance as `needs_human_judgment` and label it `IMPORTANT: needs human attention` in `review.md` and the user-facing question. Only flag a missing `design-product.md` when the work is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior.
 1. Apply all `obvious_doc_fix` edits directly to `design.md`, `design-product.md`, `outline.md`, and/or `plan.md`.
 1. For each `needs_codebase_research` finding, create `[review_dir]/questions/`, `[review_dir]/research/`, and `[review_dir]/context/research/`, then write neutral research questions under `[review_dir]/questions/`. Questions must link to `[review_dir]/review.md`, the affected parent docs, and exact file refs.
 1. For each `needs_human_judgment` finding, write a self-contained `Questions for /answer` item. Use `/answer`, then apply the answer to the docs when possible.
@@ -211,7 +213,10 @@ verdict: [correct|needs_attention]
 - Resolution: [Edited docs, research questions doc, or human decision needed.]
 
 ## Focused Review Lanes
-- [Lane summaries, or `Not used; review was small/localized.`]
+- [Lane summaries, including project-guidance lane results, or `Not used; review was small/localized.`]
+
+## Conflicting Guidance
+- IMPORTANT: needs human attention — [conflict summary with exact source refs and decision needed, or `None.`]
 
 ## Applied Doc Edits
 - `[path]` — [what changed]
@@ -306,7 +311,7 @@ If human judgment is required, use `<status>needs_human</status>` and omit `<out
 - Review `plan.md` after `/q-plan`; the old rule that the plan is never reviewed no longer applies.
 - Do not leave obvious documentation fixes as passive findings.
 - Do not ask the human about `needs_codebase_research` findings; create the research questions doc automatically.
-- Use `needs_human_judgment` only for genuine business/product decisions not settled by prior QRSPI artifacts.
+- Use `needs_human_judgment` only for genuine business/product decisions not settled by prior QRSPI artifacts, or for conflicting relevant project guidance that requires a human to choose the authoritative instruction.
 - Never edit implementation code in planning review.
 - Do not create a full nested QRSPI design/outline/plan for planning-review research follow-up. Use `q-address-review-research` to apply researched fixes back to the parent docs.
 - In both `review.md` and the user response, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
