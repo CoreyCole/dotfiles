@@ -201,12 +201,9 @@ ______________________________________________________________________
 
 This section applies to the main Pi agent, not subagents.
 
-### Self-Invoke Commands
+### Interactive Follow-up Commands
 
-You can execute slash commands yourself using the `execute_command` tool:
-
-- **Run `/answer`** after asking multiple questions — don't make the user invoke it
-- **Send follow-up prompts** to yourself
+When you need structured input after asking multiple questions, tell the user to run `/answer`. Do not claim you can self-invoke slash commands or send follow-up prompts unless an explicit tool for that is available in the current session.
 
 ### History & Archives
 

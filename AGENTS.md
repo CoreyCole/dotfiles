@@ -38,9 +38,8 @@ When editing `~/.pi/agent` / `.pi-config`, avoid loading duplicate extensions th
 Current intentional local ownership:
 
 - `.pi-config/agent/extensions/answer.ts`
-- `.pi-config/agent/extensions/execute-command.ts`
 
-These are explicitly loaded from `.pi-config/agent/settings.json`. Do **not** also load another `execute_command` or `answer` implementation from an imported config/package unless you are deliberately replacing the local version.
+Do **not** also load another `answer` implementation from an imported config/package unless you are deliberately replacing the local version.
 
 ## Pi config research ground truth
 

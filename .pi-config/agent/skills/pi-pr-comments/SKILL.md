@@ -111,11 +111,11 @@ Then ask the user to respond in a compact format, for example:
 3 skip
 ```
 
-After sending the batched triage prompt, use pi's execute-command flow to hand control back cleanly:
-- if you asked multiple triage questions or requested a structured batch response, call `execute_command` with `/answer`
-- reason example: `Collect batched PR comment triage decisions from the user before editing code.`
+After sending the batched triage prompt, hand control back cleanly:
+- if you asked multiple triage questions or requested a structured batch response, tell the user to run `/answer`
+- include why `/answer` is needed, for example: `Collect batched PR comment triage decisions from the user before editing code.`
 
-Use `/answer` only after you have already presented the batched choices to the user.
+Mention `/answer` only after you have already presented the batched choices to the user.
 
 ## Step 6: Record branch state before editing
 
