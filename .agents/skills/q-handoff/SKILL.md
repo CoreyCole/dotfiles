@@ -171,8 +171,8 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 # [Stage] Handoff
 
 ## Status
-[For implementation handoffs, use exactly this concise shape. No slice numbers.
-Done: [completed behavior/files/outcome]
+[For implementation handoffs, use exactly this concise shape. No slice numbers in prose.
+Done: [completed behavior/files/outcome] ([finished]/[total])
 Next: [next behavior/files/outcome; say `verify-only/no branch` only when true]
 State repo model only when needed: `cn-agents` workspace Graphite + `/cn-agents-merge`, or other Graphite stack.]
 
@@ -192,12 +192,12 @@ State repo model only when needed: `cn-agents` workspace Graphite + `/cn-agents-
 [Relevant verification evidence when known, or `not run` with a short reason. For implementation handoffs, include the `just check ...` command run for changed Go/templ files, plus any focused tests. Planning-stage handoffs do not need implementation lint/build cleanup.]
 
 ## Next
-[For implementation handoffs, keep this short. No slice numbers.
+[For implementation handoffs, keep this short. No slice numbers in prose.
 Resume: `/q-resume [this handoff]`
-Done: [completed work]
+Done: [completed work] ([finished]/[total])
 Next: [next work; say `verify-only/no branch` only when true]
 Branch: [branch@commit]
-For implement-complete handoffs: `Review: [area]. Verified: [commands].`]
+For implement-complete handoffs: `Review: [area]. Verified: [commands].` Include final progress suffix, e.g. `(5/5).`]
 ```
 
 ### 6. Sync
@@ -221,7 +221,7 @@ Before claiming the handoff is synced, verify the handoff was committed on the c
 
 ### 7. Tell the user
 
-Emit a fenced XML `<qrspi-result>` block followed by exactly one concise natural-language summary line or 1-3 short bullets when the handoff completes, checkpoints, or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape.
+Emit a fenced XML `<qrspi-result>` block followed by exactly one concise natural-language summary line or 1-3 short bullets when the handoff completes, checkpoints, or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape. For implementation handoffs, the natural-language `Done:` line must end with `([finished]/[total])`, where `finished` is the count of completed plan slices/checkpoints after this handoff and `total` is the total implementation slices/checkpoints in `plan.md`.
 
 Final response format is strict: XML first, then concise summary only. Do not include any prose before the XML. Do not add headings, artifact lists, verification blocks, next-command lines, or other prose after the concise summary; those details belong inside XML fields and the handoff artifact.
 

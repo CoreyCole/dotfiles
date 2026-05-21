@@ -5,7 +5,7 @@ description: Prepare or repair the QRSPI implementation workspace after `/q-revi
 
 # QRSPI Workspace Prep
 
-Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]`.
+Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]`. For implementation-review follow-up plans under `reviews/*_implementation-review/`, do **not** create a separate workspace; repair/sync the same original implementation workspace that was reviewed and stack follow-up work directly on top of the reviewed implementation head.
 
 ## Runtime XML contract
 
@@ -55,21 +55,19 @@ Determine `workspace_base` before copying anything:
 | Normal parent plan that explicitly continues the current unmerged Graphite stack | current stack top branch/commit |
 | Normal parent plan and prior implementation stack is merged | latest `origin/main` (or repo trunk) |
 | Normal parent plan and no prior implementation stack exists | latest `origin/main` |
-| Review-fixes/follow-up plan under `[parent]/reviews/*_implementation-review/` and parent implementation top is merged into main | latest `origin/main`, which must contain the parent top commit |
-| Review-fixes/follow-up plan and parent implementation top is **not** merged | parent implementation stack top branch/commit |
+| Review-fixes/follow-up plan under `[parent]/reviews/*_implementation-review/` | same original implementation workspace that was reviewed; base/current branch must be the reviewed implementation head or a descendant |
 
 For normal parent plans, do not assume `origin/main`/trunk is safe just because the plan is not under an implementation-review directory. First determine whether the work intentionally builds on the current checkout's unmerged Graphite stack by checking the user request, `plan.md` workspace section, `AGENTS.md`, current branch name, `gt branch info`, `gt parent`, and PR/stack metadata. If yes, the workspace must be contiguous with that stack: submit/sync the source stack first, then base the target workspace on the current stack top branch/commit, not trunk.
 
-For review-fixes plans, find parent stack top from the parent plan's handoffs/review artifacts, `plan.md` workspace section, local branches, and Graphite metadata. Verify with Git:
+For review-fixes plans, first find the original implementation workspace from the parent plan's handoffs/review XML/artifacts or `plan.md` workspace section. Reuse that exact workspace. Then find the reviewed implementation head from the implementation handoff/review artifacts, local branches, and Graphite metadata. Verify the workspace is currently at that reviewed head or a descendant:
 
 ```bash
-git merge-base --is-ancestor <parent_top_commit> origin/main
+git merge-base --is-ancestor <reviewed_head_commit> HEAD
 ```
 
-- exit 0: parent stack already merged; base on latest `origin/main`.
-- nonzero: parent stack unmerged; base on `<parent_top_branch>`/`<parent_top_commit>`.
+Review follow-up plans must stack on top of the implementation they reviewed even if that implementation has already merged to trunk. Do not fork review-plan branches from fresh `main`/trunk, and do not fast-forward the workspace past the reviewed head unless doing so preserves it as an ancestor. If the reviewed head is missing, stop and ask rather than creating a replacement workspace.
 
-In Graphite repos, including `cn-agents`, if the selected base is an unmerged stack top then the first slice branch created later by `/q-implement` must have `gt parent` equal to that stack top branch. This applies to both review-fix plans and normal continuation plans. Do not fork continuation or review-fix work from `main`/trunk when it depends on an unmerged stack.
+In Graphite repos, including `cn-agents`, the first review-plan slice branch created later by `/q-implement` must have `gt parent` equal to the reviewed implementation top branch (or the current descendant branch that already contains it). This applies to review-fix plans regardless of merge state. Normal continuation plans still use the selected unmerged stack top when they deliberately build on an existing stack.
 
 ## No-work-loss checks
 
@@ -84,10 +82,10 @@ Before creating or repairing a workspace:
 
 ## Create or repair workspace
 
-For new workspaces, write workspace metadata before copying so the copy starts clean at the post-sync commit:
+For normal new workspaces, write workspace metadata before copying so the copy starts clean at the post-sync commit. For implementation-review follow-up plans, skip new workspace creation and repair/sync the original implementation workspace only:
 
-1. Choose a workspace path, normally a sibling directory named `[repo]-[plan timestamp]_[slug]`.
-1. Determine the selected base from the source checkout before writing metadata. For normal plans this is latest `origin/main`; for unmerged review-fix plans this is the parent stack top.
+1. Choose a workspace path, normally a sibling directory named `[repo]-[plan timestamp]_[slug]`. For implementation-review follow-up plans, this must be the existing original implementation workspace path, not a new sibling copy.
+1. Determine the selected base from the source checkout before writing metadata. For normal plans this is latest `origin/main` unless deliberately continuing an unmerged stack. For implementation-review follow-up plans, the selected base is the reviewed implementation head in the original implementation workspace, or a current descendant that preserves that head as an ancestor.
 1. Ensure `[plan_dir]/AGENTS.md` exists before copying the workspace.
    - If `[plan_dir]` is a nested plan directory (for example `reviews/*_implementation-review/`) and has no local `AGENTS.md`, create one by copying/adapting the nearest parent plan `AGENTS.md`.
    - The nested `AGENTS.md` must clearly state that this directory is its own QRSPI workspace root and must reference the nested artifacts in that exact directory:
@@ -100,14 +98,15 @@ For new workspaces, write workspace metadata before copying so the copy starts c
    - absolute workspace path
    - selected base branch/commit used for the base decision
    - whether parent stack was already merged into main
-   - for review-fixes plans, expected Graphite parent for first review-fix slice
-   - exact reason this base prevents lost work
+   - for review-fixes plans, reviewed implementation head and expected Graphite parent for first review-plan slice
+   - exact reason this base preserves the reviewed implementation and prevents lost work
 1. Run `just sync-thoughts` in the planning/source checkout.
 1. Re-read the source checkout HEAD after `just sync-thoughts`. For normal new workspaces, this post-sync HEAD is the actual copied workspace commit because it contains the workspace-prep metadata. State the exact post-sync HEAD in the XML summary.
 1. If no workspace exists:
    - For `origin/main` base: copy the canonical main checkout after it is clean and at the post-`just sync-thoughts` HEAD.
+   - For implementation-review follow-up plans: stop and ask for the original implementation workspace that was reviewed. Do not create a new copy or substitute a fresh trunk checkout.
    - For unmerged stack base: copy a checkout that has Graphite configured, then run `gt get --no-interactive <stack_top_branch>` in the target workspace when the branch is remote/submitted. If the branch is only local and cannot be submitted, copy the checkout that contains the stack top branch/commit, then checkout that branch/commit after proving reachability. Sync or rsync only the plan directory metadata without rebasing away the stack top.
-1. If workspace exists and is safe: update it to the selected/post-sync base only if doing so does not discard changes; otherwise stop. For Graphite continuation work, repair by running `gt get --no-interactive <stack_top_branch>` in the workspace, not by resetting to trunk.
+1. If workspace exists and is safe: update it to the selected/post-sync base only if doing so does not discard changes or remove the reviewed implementation head from ancestry; otherwise stop. For Graphite continuation or implementation-review follow-up work, repair by running `gt get --no-interactive <reviewed_or_stack_top_branch>` in the same original workspace when needed, not by resetting to trunk and not by creating a second copy.
    - In `cn-agents-*` implementation copies, use `gt sync --no-interactive` to fast-forward trunk metadata; do not use `git pull`, `git merge`, or `git rebase`.
    - Do not rsync changed plan docs into an existing `cn-agents-*` workspace before syncing it to the commit that already contains those docs, or Graphite may correctly refuse the sync due to conflicting unstaged changes.
 1. Use `rsync -a [source]/[plan_dir]/ [workspace]/[plan_dir]/` only after the workspace is at the correct base, or when repairing an existing safe workspace whose base intentionally differs from the source commit.
@@ -135,7 +134,8 @@ Record:
 - absolute workspace path
 - `workspace_base` branch and commit
 - whether parent stack was already merged into main/trunk, or whether this is a normal continuation of an unmerged stack
-- for any unmerged-stack base, expected Graphite parent for the first new implementation/review-fix slice
+- for review-fix/follow-up plans, reviewed implementation head and expected Graphite parent for the first new review-plan slice
+- for any normal unmerged-stack base, expected Graphite parent for the first new implementation slice
 - exact reason this base prevents lost work and keeps workspaces/branches contiguous
 
 Because a commit cannot reliably record its own hash inside tracked docs, distinguish:
@@ -172,6 +172,6 @@ Emit only fenced XML:
 
 - `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`.
 - The XML summary must state the chosen base branch/commit and why.
-- For review-fixes plans, never assume `main` is safe. Prove the parent implementation top is merged first.
+- For review-fixes plans, never create a second workspace and never assume `main` is safe. Use the original implementation workspace that was reviewed, and prove the reviewed implementation head is still an ancestor of the workspace branch where follow-up slices will stack.
 - For normal continuation plans, never assume trunk is safe. If the work builds on the current unmerged Graphite stack, submit/sync that stack and make the target workspace contiguous with the stack top via `gt get`.
 - Prefer stopping over risking lost work.

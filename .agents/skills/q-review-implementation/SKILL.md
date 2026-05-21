@@ -41,7 +41,7 @@ Required shape:
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
-Review the completed implementation against the plan, codebase reality, and verification evidence. Straightforward code fixes can be made immediately as a final review-fix slice. Deeper issues become a new QRSPI plan rooted in the timestamped review directory so follow-up branches can stack on top of the implementation.
+Review the completed implementation against the plan, codebase reality, and verification evidence. Straightforward code fixes can be made immediately as a final review-fix slice. Deeper issues become a new QRSPI plan rooted in the timestamped review directory so follow-up branches stack on top of the exact implementation workspace/head that was reviewed. Do not create a separate workspace for implementation-review follow-up work.
 
 ## Finding Classification
 
@@ -93,7 +93,7 @@ When `needs_followup_qrspi` findings exist, the same `review_dir` is the follow-
 [review_dir]/questions/YYYY-MM-DD_HH-MM-SS_[plan-name]_implementation-review-followup-questions.md
 ```
 
-Later stages write `design.md`, optional `design-product.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-implement` then uses that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation stack.
+Later stages write `design.md`, optional `design-product.md`, `outline.md`, and `plan.md` inside `review_dir`, not in the parent plan. `/q-workspace` and `/q-implement` then use that review-dir `plan.md` to add follow-up slices on top of the already-reviewed implementation head in the same implementation workspace recorded by the parent implementation/review XML, even if the reviewed stack later merges to trunk.
 
 ## Load Context
 
@@ -264,7 +264,7 @@ If no findings remain after any straightforward fixes, point the primary artifac
 </qrspi-result>
 ```
 
-If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.md`, include a follow-up plan or questions artifact, and route back to QRSPI question in the review-dir context:
+If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.md`, include a follow-up plan or questions artifact, and route back to QRSPI question/research in the review-dir context. The `<workspace>` must remain the same original implementation workspace; downstream follow-up planning must not create a separate workspace:
 
 ```xml
 <qrspi-result>
@@ -299,9 +299,10 @@ If straightforward fixes were attempted but verification still fails, use `<stat
 - Apply only `straightforward_fix` code changes directly.
 - Treat direct code fixes as a final review-fix slice stacked on top of the implementation, not as parent planning-doc edits.
 - Never edit the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
-- Put all deeper implementation follow-up work in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, optional `design-product.md`, `outline.md`, and `plan.md`.
+- Put all deeper implementation follow-up planning artifacts in the timestamped `review_dir` as a fresh QRSPI plan with its own `design.md`, optional `design-product.md`, `outline.md`, and `plan.md`; do not create a fresh filesystem workspace for that follow-up. Implementation stays in the same original implementation workspace.
 - Seed deeper follow-up with neutral research questions; do not copy review recommendations as settled solutions.
 - Do not ask whether to create the follow-up QRSPI plan; create it automatically for `needs_followup_qrspi` findings.
+- Do not create or route agents toward a separate implementation workspace for follow-up work. Preserve the original implementation workspace and reviewed head in XML and handoffs so follow-up branches stack on top of the reviewed implementation.
 - Surface conflicting relevant project guidance as `IMPORTANT: needs human attention` with exact source refs and the decision needed; do not apply code fixes based on one side of the conflict until it is resolved.
 - Prefer a short, verified review over speculative findings.
 - In both `review.md` and the user response, summarize the current implementation at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, design/outline/plan commitments, and verification evidence.

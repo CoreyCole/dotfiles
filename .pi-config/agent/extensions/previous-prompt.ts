@@ -7,9 +7,73 @@ const WIDGET_OPTIONS = { placement: "belowEditor" } as const;
 const MAX_PROMPT_CHARS = 160;
 const MAX_PROMPT_LINES = 4;
 
+type QrspiResult = {
+	stage: string;
+	next: string;
+};
+
+function tagPattern(tagName: string): string {
+	return tagName.split("").map((char) => `${char}\\s*`).join("");
+}
+
+function extractXmlTag(text: string, tagName: string): string | undefined {
+	const tag = tagPattern(tagName);
+	const match = text.match(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "i"));
+	return match?.[1];
+}
+
+function normalizeXmlText(text: string): string {
+	return text
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&amp;/g, "&")
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.trim();
+}
+
+function normalizeNextText(text: string): string {
+	const lines = text
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (lines.length === 0) return "";
+	if (lines.length === 1) return lines[0].replace(/\s+/g, " ").trim();
+
+	const [first, ...rest] = lines;
+	if (first.startsWith("/") && rest.length > 0) {
+		return `${first.replace(/\s+/g, " ").trim()} ${rest.join("")}`.trim();
+	}
+	return lines.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function parseQrspiResult(text: string): QrspiResult | undefined {
+	if (!new RegExp(`<\\s*${tagPattern("qrspi-result")}`, "i").test(text)) return undefined;
+
+	const stage = normalizeXmlText(extractXmlTag(text, "stage") ?? "");
+	const next = normalizeNextText(normalizeXmlText(extractXmlTag(text, "next") ?? ""));
+	if (!stage || !next) return undefined;
+	return { stage, next };
+}
+
+function formatNextStage(next: string): string {
+	const match = next.match(/^\/(?:skill:)?(q-[^\s]+)/);
+	return match?.[1] ?? next.split(/\s+/, 1)[0] ?? "next";
+}
+
+function formatQrspiPrompt(text: string): string | undefined {
+	const qrspi = parseQrspiResult(text);
+	if (!qrspi) return undefined;
+	return `[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`;
+}
+
 function normalizePromptText(text: string): string | undefined {
 	const normalized = text.trim();
 	if (!normalized) return undefined;
+
+	const qrspiPrompt = formatQrspiPrompt(normalized);
+	if (qrspiPrompt) return qrspiPrompt;
+
 	if (normalized.length <= MAX_PROMPT_CHARS) return normalized;
 	return `${normalized.slice(0, MAX_PROMPT_CHARS - 1).trimEnd()}…`;
 }
