@@ -253,7 +253,13 @@ prev_question_docs:
 
 When the question doc is written, emit this fenced XML result, followed by the mandatory concise human summary.
 
-Post-XML natural summary format for this stage: list the research questions as concisely as possible. Caveman speak. Few words. Most important words only. Prefer `Questions: q1? q2? q3?` over sentences.
+Post-XML natural summary format for this stage: list research questions as concisely as possible, one question per line. Caveman speak. Few words. Most important words only. Use:
+
+```text
+Questions:
+- [few-word question?]
+- [few-word question?]
+```
 
 ```xml
 <qrspi-result>
@@ -310,4 +316,4 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Use extreme concision for the brainstorm/interview conversation, not as a special style rule for the final research questions doc.
 - Keep it short: questions, not essays.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
-- Post-XML summary for question stage: only concise question list. Caveman clear. No extra explanation.
+- Post-XML summary for question stage: only concise question list; one question per line. Caveman clear. No extra explanation.

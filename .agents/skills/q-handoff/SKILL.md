@@ -73,15 +73,17 @@ You are creating a handoff document to preserve your working context within a QR
 
 `review` is the post-implementation handoff target, not a core planning stage. Only when `implement` is fully complete should `continue` create a review-ready handoff and point to `/q-review`. Intermediate implementation checkpoints must stay on `/q-resume`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
 
+**Human handoff wording hard rule:** the lead engineer does not care about slice numbers. In all human-facing handoff prose, never write `slice 1`, `slice 2`, `next slice`, or similar. Use exactly `Done:` and `Next:`. Describe behavior/files/outcome only. If the plan checkbox has a slice number, translate it into what changed and what remains.
+
 Implementation handoffs must not create branches. If the next implementation work is verification-only (`Files: no additional source files expected`, final validation, grep/build-only, or no planned edits), record that it should run in the current implementation workspace/current top branch instead of creating a placeholder branch. GitHub/Graphite cannot create PRs for empty branches.
 
-Implementation handoffs must also preserve the fresh-directory rule: never use `git worktree`; `/q-implement` and `/q-resume` implementation work happens in a fresh filesystem copy named `[repo-name]_[plan-dir-basename]`, where `[plan-dir-basename]` is the final directory name of the active QRSPI plan directory. Record the current implementation directory when known, or instruct the next agent to create one with macOS `cp -ac source-dir clean-copy-dir` or Linux `cp -a --reflink=auto source-dir clean-copy-dir` before editing. The fresh workspace is the isolation boundary; do not assume a branch should exist.
+Implementation handoffs must preserve the fresh-directory rule, but keep it terse. Record one line only: `Workspace: [abs path]; Branch: [branch@commit]`. If unknown, write `Workspace: unknown; run /q-workspace first.` Never use `git worktree`.
 
-Implementation handoffs must record the repository submission model and current state, not redefine implementation policy. For `cn-agents`, write explicitly: implementation uses a fresh workspace plus Graphite slice branches; record the current branch/commit, whether the next work has tracked edits, and that final integration uses `/cn-agents-merge`. For other Graphite repos, record the current branch/commit and whether the next work has tracked edits. `/q-resume` loads `q-implement` for exact branch and commit rules.
+Implementation handoffs must record the repository submission model and current state, not redefine implementation policy. For `cn-agents`, write explicitly: implementation uses a fresh workspace plus Graphite branches; record current branch/commit, `Done: ...`, `Next: ...`, and final integration via `/cn-agents-merge`. For other Graphite repos, record current branch/commit plus `Done: ...` and `Next: ...`. `/q-resume` loads `q-implement` for exact branch and commit rules.
 
 Implementation handoffs should be created only after the implementation agent has run the completed work's `just check ...` command for the changed Go/templ files so formatting/lint issues are cleaned up before handoff. This lint cleanup requirement applies only to the implementation phase; do not run implementation lint/build cleanup during question, research, design, outline, or plan handoffs.
 
-Implementation handoffs must record branch/commit state, not define commit-message policy. For implementation stages, point the next agent back to `/q-resume [handoff]`; `/q-resume` loads `q-implement` for the current branch and commit rules. For tracked-edit Graphite work, the implementation agent should create/modify the branch first, then write the handoff on that branch so it can record final `currentBranch`, `parentBranch`, `stackBottomBranch`, and `trunkBranch`; the handoff is then staged and amended into the same commit with `gt modify --no-interactive`. Record any commit command already run, current branch, commit hash, what completed, what next work is, and whether next work has planned tracked edits. Do not amend solely to chase the final self-referential commit hash inside the handoff; the final branch-head hash is reported in the QRSPI XML footer.
+Implementation handoffs must record branch/commit state, not define commit-message policy. For implementation stages, point the next agent back to `/q-resume [handoff]`; `/q-resume` loads `q-implement` for the current branch and commit rules. For tracked-edit Graphite work, the implementation agent should create/modify the branch first, then write the handoff on that branch so it can record final `currentBranch`, `parentBranch`, `stackBottomBranch`, and `trunkBranch`; the handoff is then staged and amended into the same commit with `gt modify --no-interactive`. Record any commit command already run, current branch, commit hash, `Done: ...`, and `Next: ...`. Do not amend solely to chase the final self-referential commit hash inside the handoff; the final branch-head hash is reported in the QRSPI XML footer.
 
 ## When to use
 
@@ -169,10 +171,13 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 # [Stage] Handoff
 
 ## Status
-[What completed and what remains. For implementation handoffs, describe completed work by behavior/files/outcome, not by slice number. Describe next work by behavior/files/outcome, and state whether it has planned tracked edits or is verification-only/no-branch. Also state the repo submission model: `cn-agents` workspace Graphite branches + `/cn-agents-merge`, or other Graphite stacked branches.]
+[For implementation handoffs, use exactly this concise shape. No slice numbers.
+Done: [completed behavior/files/outcome]
+Next: [next behavior/files/outcome; say `verify-only/no branch` only when true]
+State repo model only when needed: `cn-agents` workspace Graphite + `/cn-agents-merge`, or other Graphite stack.]
 
-## Working Directory
-[For implementation handoffs: exact fresh implementation directory path if known, confirm it is not a git worktree, and record the current branch. If this is `cn-agents`, explicitly say tracked edit slices happen on Graphite slice branches in this workspace, not direct `main`; final integration is `/cn-agents-merge`. If unknown, instruct the next agent to use the `/q-plan`-created fresh copy named `[repo-name]_[plan-dir-basename]` before editing. For non-implementation handoffs: omit or say not applicable.]
+## Workspace
+[Implementation only, one line: `Workspace: [abs path]; Branch: [branch@commit]`. If workspace unknown: `Workspace: unknown; run /q-workspace first.` Omit for non-implementation handoffs.]
 
 ## Learnings
 [Important findings not fully captured in artifacts, with file:line references where relevant.]
@@ -187,7 +192,12 @@ next_stage: [next stage name, `review`, or null if in_progress or pipeline compl
 [Relevant verification evidence when known, or `not run` with a short reason. For implementation handoffs, include the `just check ...` command run for changed Go/templ files, plus any focused tests. Planning-stage handoffs do not need implementation lint/build cleanup.]
 
 ## Next
-[Specific instructions for the next session. For implementation handoffs, say what was completed and what concrete work is next; do not identify work by slice number. Include whether the next work has tracked edits, current branch/commit state, and that `/q-resume` should continue under `q-implement` rules. If this handoff was amended into the current branch, say the handoff frontmatter hash is the pre-handoff branch hash and the final branch-head hash is in the prior QRSPI XML result / `git rev-parse --short HEAD`. For implement-complete handoffs, tell the reviewer what to review first, which verification evidence already passed, and that final `cn-agents` integration uses `/cn-agents-merge` after review.]
+[For implementation handoffs, keep this short. No slice numbers.
+Resume: `/q-resume [this handoff]`
+Done: [completed work]
+Next: [next work; say `verify-only/no branch` only when true]
+Branch: [branch@commit]
+For implement-complete handoffs: `Review: [area]. Verified: [commands].`]
 ```
 
 ### 6. Sync
@@ -203,7 +213,7 @@ git status --short
 
 Hard rule: do **not** run `just sync-thoughts` from a Graphite slice branch when the handoff must be published to canonical hosted thoughts. The repo script only pulls/pushes on `main`; on slice branches it formats and commits thought changes locally, then skips pull/push, leaving the handoff stranded in the implementation copy.
 
-For `cn-agents`, implementation handoffs are normally created inside the fresh implementation workspace on the current Graphite branch and travel with that branch stack. Mention the current branch, what completed, what next work is, whether next work has tracked edits, and `/cn-agents-merge` as the final integration command after implementation/review. Do not require the workspace to be on `main` for implementation handoffs.
+For `cn-agents`, implementation handoffs are normally created inside the fresh implementation workspace on the current Graphite branch and travel with that branch stack. Mention current branch, `Done: ...`, `Next: ...`, and `/cn-agents-merge` as final integration after implementation/review. Do not require the workspace to be on `main` for implementation handoffs.
 
 For Graphite repos, if the copy is still on a slice branch, do not fake hosted sync success. Record the handoff as written locally and report that canonical thoughts sync is blocked until a `main` checkout can run `just sync-thoughts` or the handoff is copied to the canonical source checkout.
 

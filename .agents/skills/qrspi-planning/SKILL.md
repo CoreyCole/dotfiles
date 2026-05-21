@@ -80,12 +80,31 @@ Style is strict: caveman clear. Few words. Most important words only. Sacrifice 
 
 Stage-specific post-XML summary content:
 
-- `question`: list the research questions, as short as possible. Caveman speak. Example: `Questions: auth path? data shape? failure modes? tests?`
-- `research`: key findings + direct answers to research questions. Example: `Findings: auth in middleware; data from X; risk Y.`
-- `design`: summarize chosen design. Example: `Design: reuse X; add Y adapter; no schema change.`
-- `outline`: summarize design + outline shape. Example: `Design: X adapter. Outline: 3 slices — model, API, tests.`
+- `question`: one research question per line, as few words as possible. Caveman speak. Example:
+  ```text
+  Questions:
+  - Auth path?
+  - Data shape?
+  - Failure modes?
+  - Tests?
+  ```
+- `research`: key findings + direct answers, one answer per line when multiple. Example:
+  ```text
+  Findings:
+  - Auth in middleware.
+  - Data from X.
+  - Risk Y.
+  ```
+- `design`: key direction only. Example: `Design: reuse X; add Y adapter; no schema change.`
+- `outline`: as concise as possible; one line per slice/part. Example:
+  ```text
+  Outline:
+  - Model: add X.
+  - API: wire Y.
+  - Tests: cover Z.
+  ```
 - `plan`: summarize implementation plan and how each ADR is reflected. Example: `Plan: 4 parts. ADR-001 => adapter seam. ADR-002 => no migration.`
-- `review-design`, `review-outline`, `review-plan`, `review-implementation`: say only what review found and what it fixed. Example: `Found: stale API assumption. Fixed: outline uses current handler.`
+- `review-design`, `review-outline`, `review-plan`, `review-implementation`: say only what review found and what it fixed. Example: `Found: stale API assumption. Fixed: outline uses current handler.` Clean review: `Found: clean.`
 
 ## QRSPI result footer
 

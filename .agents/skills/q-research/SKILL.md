@@ -256,7 +256,13 @@ Use `AGENTS.md` and the question doc to understand what to look for. Do not trea
 
 When the research doc is written, emit this fenced XML result, followed by the mandatory concise human summary. If invoked as a planning-review helper, defer to `q-research-for-review` and use the helper node stage ID instead of `research`.
 
-Post-XML natural summary format for this stage: key findings + direct answers to research questions. Caveman speak. Few words. Most important words only. Prefer `Findings: X does Y; Z missing; risk A.` over sentences.
+Post-XML natural summary format for this stage: key findings + direct answers to research questions. If multiple key answers, one per line. Caveman speak. Few words. Most important words only. Use:
+
+```text
+Findings:
+- [answer/fact]
+- [answer/fact]
+```
 
 ```xml
 <qrspi-result>
@@ -301,4 +307,4 @@ Always include the complete `thoughts/.../research/YYYY-MM-DD_HH-MM-SS_topic-nam
 - Within QRSPI, prefer `pi-codebase-locator` for discovery and `pi-codebase-analyzer` for detailed implementation tracing. Keep both narrowly scoped and factual.
 - Multiple research docs are expected; each invocation produces one file.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
-- Post-XML summary for research stage: only key findings and question answers. Caveman clear. No detailed evidence; evidence lives in artifact/XML.
+- Post-XML summary for research stage: only key findings and question answers; one per line when multiple. Caveman clear. No detailed evidence; evidence lives in artifact/XML.

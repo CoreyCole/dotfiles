@@ -109,6 +109,7 @@ Later stages write `design.md`, optional `design-product.md`, `outline.md`, and 
    - code files changed by implementation, using handoff sections, `git status`, `git diff`, `git show`, or the known branch range
    - verification evidence from the handoff
    - relevant project guidance surfaced by the focused project-guidance lane, including root/package `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs referenced by the plan or changed files
+   - doc health findings surfaced by the focused docs-health lane, including docs that should be corrected, simplified, or made more concise
 1. Read `design.md`, optional `design-product.md`, `outline.md`, `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, PRDs/tickets, and planning context as needed to clarify intent and alignment. The primary review target is code plus verification evidence.
 
 ## Focused Review Lanes
@@ -144,7 +145,7 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
 1. Create `review_dir` and write `review.md` there.
 1. Build understanding from the handoff, changed files, verification evidence, and relevant plan requirements.
 1. Summarize the implemented behavior at a high level and check alignment with PRDs, ticket text, question docs, `context/brainstorms/`, research findings, design/outline/plan, and approved plan-memory constraints.
-1. Review actual code for correctness, regressions, security, invariants, tests, operations, maintainability, and compliance with relevant project guidance (`AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs). Preserve conflicting relevant guidance as `IMPORTANT: needs human attention`; do not silently choose between conflicting instructions.
+1. Review actual code for correctness, regressions, security, invariants, tests, operations, maintainability, doc health, and compliance with relevant project guidance (`AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs). Preserve conflicting relevant guidance as `IMPORTANT: needs human attention`; do not silently choose between conflicting instructions.
 1. Run focused lanes when useful; read every lane report; verify candidate findings yourself.
    - Treat a lane output as failed if it is empty, only contains raw tool-call markup/JSON such as `<tool_call>` or `{"cmd": ...}`, lacks the required lane report sections, or contains no evidence for its findings.
    - Rerun each failed lane once with the same task plus an explicit reminder to actually use tools and return only the markdown lane report.
@@ -235,7 +236,7 @@ verdict: [correct|needs_attention]
 
 All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-Post-XML natural summary format for implementation review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: no blockers. Fixed: none.`
+Post-XML natural summary format for implementation review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: clean.`
 
 If no findings remain after any straightforward fixes, point the primary artifact at `done.md` and route to the final human implementation gate:
 

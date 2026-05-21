@@ -236,7 +236,13 @@ Use normal markdown bullets for explicit exclusions.
 
 When `outline.md` is written, emit this fenced XML result, followed by the mandatory concise human summary.
 
-Post-XML natural summary format for this stage: summarize design + outline shape. Caveman speak. Few words. Most important words only. Prefer `Design: X. Outline: 3 slices — A, B, C.` over sentences.
+Post-XML natural summary format for this stage: as concise as possible; one line per slice/part. Caveman speak. Few words. Most important words only. Use:
+
+```text
+Outline:
+- [part]: [work]
+- [part]: [work]
+```
 
 ```xml
 <qrspi-result>
@@ -278,4 +284,4 @@ Always include the complete `thoughts/.../outline.md` path.
 - Standard mode must preserve `design-product.md` Critical Findings in slices, test checkpoints, or Out of Scope when `design-product.md` exists.
 - Present to the user BEFORE writing the final file. This is the last human review gate before LLM planning review.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
-- Post-XML summary for outline stage: design + slice outline only. Caveman clear. No implementation detail dump.
+- Post-XML summary for outline stage: one concise line per slice/part. Caveman clear. No implementation detail dump.

@@ -109,6 +109,7 @@ The review directory is a lightweight research workspace for planning-review fol
    - relevant `questions/*.md`, `context/brainstorms/*.md`, `research/*.md`, `prds/*`, and `context/{design,design-product,outline,plan}/*`
    - code/files explicitly referenced by the planning docs, plus any files needed to verify claims
    - relevant project guidance surfaced by the focused project-guidance lane, including root/package `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and docs referenced by the plan or touched files
+   - doc health findings surfaced by the focused docs-health lane, including docs that should be corrected, simplified, or made more concise
 1. If no planning artifact exists, stop and ask for a valid plan directory or artifact path.
 
 ## Focused Review Lanes
@@ -148,6 +149,7 @@ Focused lane reports are advisory. Verify every candidate finding yourself befor
    - concrete file paths, interfaces, migrations, rollback, observability, and invariants
    - test checkpoints that actually prove each slice works and cover product E2E edge cases
    - plan steps that are too vague for a coding agent
+   - docs that should be corrected, simplified, or made more concise
    - local codebase rules and project guidance under `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, local skills, and relevant docs when the plan touches areas covered by repo-specific advice
    - conflicting relevant guidance; preserve each conflict as `IMPORTANT: needs human attention` until a human chooses which source to follow
 1. Run focused lanes when useful, then read every focused-lane output artifact before synthesis.
@@ -241,7 +243,7 @@ verdict: [correct|needs_attention]
 
 All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If no issues: `Found: no blockers. Fixed: none.`
+Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: clean.`
 
 If all findings were fixed directly and the reviewed artifact is ready for the next graph node:
 

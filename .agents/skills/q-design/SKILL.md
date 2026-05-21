@@ -225,7 +225,7 @@ Accepted
 
 When `design.md` is written, emit this fenced XML result, followed by the mandatory concise human summary. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` is display/debug only.
 
-Post-XML natural summary format for this stage: summarize chosen design. Caveman speak. Few words. Most important words only. Prefer `Design: reuse X; add Y; avoid Z.` over sentences.
+Post-XML natural summary format for this stage: key direction only. Caveman speak. Few words. Most important words only. Prefer `Design: reuse X; add Y; avoid Z.` over sentences.
 
 ```xml
 <qrspi-result>
@@ -267,4 +267,4 @@ If product coverage is warranted, set `<next>` to `/q-design-product [design.md]
 - Present to user BEFORE finalizing.
 - Write for teammate alignment.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
-- Post-XML summary for design stage: only chosen design. Caveman clear. No rationale dump.
+- Post-XML summary for design stage: only key direction/chosen design. Caveman clear. No rationale dump.

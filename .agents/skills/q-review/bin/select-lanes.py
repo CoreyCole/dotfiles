@@ -33,6 +33,7 @@ LANE_ORDER = [
     "q-review-intent-fit",
     "q-review-correctness",
     "q-review-project-guidance",
+    "q-review-docs-health",
     "q-review-security-invariants",
     "q-review-tests-verification",
     "q-review-integration-ops",
@@ -322,6 +323,16 @@ LANE_RULES = [
         ),
         text_patterns=(
             p("error visibility language", r"\b(error visibility|error queue|issue page|status tooltip|integration UI failure|needs attention|failure surface)\b"),
+        ),
+    ),
+    LaneRule(
+        "q-review-docs-health",
+        path_patterns=(
+            p("documentation file", r"(^|/)(docs|documentation|README|CONTRIBUTING|RUNBOOK|adr|adrs)(/|$)|(^|/)(README|CONTRIBUTING|RUNBOOK|CHANGELOG)\.md$|\.mdx?$"),
+            p("local guidance docs", r"(^|/)(AGENTS\.md|CLAUDE\.md|\.agents/rules|\.cursor/rules)(/|$)"),
+        ),
+        text_patterns=(
+            p("documentation language", r"\b(docs?|documentation|README|runbook|ADR|AGENTS\.md|rules?|simplif(?:y|ied|ication)|concise|stale|outdated)\b"),
         ),
     ),
     LaneRule(
@@ -924,10 +935,12 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
     if mode == "outline":
         add_lane("q-review-intent-fit", "default outline review lane")
         add_lane("q-review-project-guidance", "default outline review lane")
+        add_lane("q-review-docs-health", "default outline review lane")
         add_lane("q-review-tests-verification", "default outline review lane")
     else:
         add_lane("q-review-correctness", "default implementation review lane")
         add_lane("q-review-project-guidance", "default implementation review lane")
+        add_lane("q-review-docs-health", "default implementation review lane")
         add_lane("q-review-tests-verification", "default implementation review lane")
 
     for rule in LANE_RULES:
@@ -950,6 +963,7 @@ def select_lanes(mode: str, evidence: list[Evidence], changed_files: list[str], 
             "q-review-correctness",
             "q-review-tests-verification",
             "q-review-project-guidance",
+            "q-review-docs-health",
             "q-review-integration-ops",
             "q-review-security-invariants",
             "q-review-maintainability",
