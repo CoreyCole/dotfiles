@@ -9,7 +9,7 @@ description: Creates concise product-facing `design-product.md` after approved Q
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -252,4 +252,4 @@ If blocked, use `<status>blocked</status>` with the blocker in `<summary>` and o
 - Every requirement row needs a captured source path when available; otherwise cite original source and explain why not captured.
 - Every blocker needs a next decision or design change.
 - Present to user before finalizing.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
+- Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.

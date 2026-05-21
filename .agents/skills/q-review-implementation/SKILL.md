@@ -9,7 +9,7 @@ description: LLM review for completed QRSPI implementation code. Use after q-imp
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -159,7 +159,7 @@ Use the selector's `subagent_tool_args` directly with the `subagent` tool. It di
    - Run the specific verification command for each fix.
    - Commit only files changed by these fixes when project workflow expects committed slices.
 1. For `needs_followup_qrspi` findings, initialize `review_dir` as a normal QRSPI plan:
-   - copy `AGENTS.md` from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
+   - copy `AGENTS.md` from `~/.agents/skills/qrspi-planning/_AGENTS.md` if missing
    - create `prds/`, `questions/`, `research/`, `adrs/`, `handoffs/`, `reviews/`, and `context/{brainstorms,question,research,design,design-product,outline,plan,implement}/`
    - write `prds/source-review.md` pointing to `review.md`
    - write neutral research questions under `questions/`
@@ -233,7 +233,9 @@ verdict: [correct|needs_attention]
 
 ## Response Shapes
 
-All response shapes must be only a fenced XML `<qrspi-result>` block. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
+All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
+
+Post-XML natural summary format for implementation review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: no blockers. Fixed: none.`
 
 If no findings remain after any straightforward fixes, point the primary artifact at `done.md` and route to the final human implementation gate:
 

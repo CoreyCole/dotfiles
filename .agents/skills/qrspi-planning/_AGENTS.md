@@ -1,5 +1,5 @@
 ---
-source: ~/.agents/skills/qrspi-planning/AGENTS.md
+source: ~/.agents/skills/qrspi-planning/_AGENTS.md
 copied_by: /q-question
 note: This is a template. The copy in each plan dir is living, curated memory. Keep it short and prune stale items.
 ---

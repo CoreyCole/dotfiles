@@ -9,7 +9,7 @@ description: Router for QRSPI LLM reviews. Use for reviewing design, product des
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -107,6 +107,7 @@ After resolving implementation review, read and follow:
 - Do not keep using this router after mode selection; load the focused skill and follow it.
 - Planning review edits planning documents directly when findings are clear, including `design-product.md` when present. After a successful `plan.md` review, the next stage is `/q-workspace [plan.md]`, not `/q-implement`.
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
-- The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, approved QRSPI constraints, and relevant project guidance in both `review.md` and the user response.
+- The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, approved QRSPI constraints, and relevant project guidance in `review.md`.
+- The post-XML user summary for any review must use `Found: ... Fixed: ...` only. Caveman clear. Few words. Most important words only.
 - The focused review must preserve any conflicting relevant guidance from docs, `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, or local skills as `IMPORTANT: needs human attention` with exact source refs and the human decision needed.
 - Always return the canonical review artifact path produced by the focused skill.

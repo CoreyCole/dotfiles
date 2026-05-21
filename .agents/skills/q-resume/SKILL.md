@@ -10,7 +10,7 @@ description: Resume work within a QRSPI planning pipeline from a handoff documen
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
-- Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.
+- Emit the QRSPI XML result as a fenced `xml` code block for every completed QRSPI stage result so it is syntax highlighted, then add only the mandatory concise human summary after it.
 
 ## QRSPI XML summary contract
 
@@ -28,7 +28,7 @@ For review stages, always include both: (1) what the entire implementation/plan 
 
 When more than one artifact is relevant, keep `<artifact>` as the primary next-command artifact and also include `<artifacts>` with every important artifact path, including review records, done summaries, handoffs, ADRs, and follow-up questions.
 
-Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
+Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
 When resuming implementation, use the runtime node being completed, not a synthetic `resume` stage. Final implementation completion uses `<stage>implement</stage>`, `<status>complete</status>`, `<outcome>complete</outcome>`, and `<next>/q-review [handoff]</next>`. For non-final checkpoints, write a handoff artifact and continue through `/q-resume` in normal chat context; do not emit a completed workflow-node result unless intentionally stopping with `blocked`/`needs_human`.
 
@@ -72,7 +72,7 @@ When resuming implementation, use the runtime node being completed, not a synthe
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -140,7 +140,7 @@ Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview), then load a
 
 Based on the handoff's **Status** and **Next** sections, continue where the previous session left off.
 
-**Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one slice, then create the next implement handoff via `/q-handoff` before stopping. For tracked-edit Graphite slices, implement and verify on the current top branch, run `gt create`/`gt modify` for the slice, then write the handoff on that new/current slice branch and amend it into the same slice so the handoff records final branch metadata. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final slice hands off to `/q-review`.
+**Implementation-stage rule:** when resuming an `implement` handoff, stay inside the handoff-driven loop. Complete at most one planned work chunk, then create the next implement handoff via `/q-handoff` before stopping. For tracked-edit Graphite work, implement and verify on the current top branch, run `gt create`/`gt modify`, then write the handoff on that new/current branch and amend it into the same commit so the handoff records final branch metadata. Handoff content should say what completed and what is next, not reference slice number. During implementation, the canonical continuation path is always the newly created handoff document, so successful implement responses should point to `/q-resume [new handoff path]` until the final work hands off to `/q-review`.
 
 **Workspace rule for implementation resumes:** never resume implementation in a `git worktree`. Use the fresh filesystem copy created/repaired by `/q-workspace` and named for the plan directory or ticket slug. If the handoff does not identify an existing implementation workspace, stop and ask the user to run `/q-workspace [plan.md]`; do not create an ad-hoc copy from `/q-resume`. Run `git status --short` in that directory before branch or code changes. The workspace is the isolation boundary; branch creation is repo-specific, not automatic.
 
@@ -157,7 +157,7 @@ Do not present an analysis or ask for confirmation. Just continue working.
 
 ## Response Format
 
-When resuming work produces a user-facing QRSPI completion response, emit only the fenced `xml` `<qrspi-result>` footer described above. Do not duplicate artifact, summary, or next command in prose; encode the primary artifact, comprehensive summary, workspace, workspace branch metadata, and next command in XML. Include `<workspace>` whenever the implementation workspace is known. Include `<workspaceMetadata>` immediately after `<workspace>`; for implementation resumes after Graphite branch creation, populate `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` from the post-commit stack, and otherwise use empty elements for unknown values.
+When resuming work produces a user-facing QRSPI completion response, emit the fenced `xml` `<qrspi-result>` footer followed by the mandatory concise human summary described above. Do not duplicate artifact lists or next command in prose; encode the primary artifact, comprehensive XML summary, workspace, workspace branch metadata, and next command in XML. Include `<workspace>` whenever the implementation workspace is known. Include `<workspaceMetadata>` immediately after `<workspace>`; for implementation resumes after Graphite branch creation, populate `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` from the post-commit stack, and otherwise use empty elements for unknown values.
 
 For `implement` resumes, `<artifact>` should normally be the newly created handoff file, not just `plan.md`, because implementation always checkpoints via handoff after each verified slice.
 

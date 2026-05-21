@@ -9,7 +9,7 @@ description: Decompose a ticket or task into neutral research questions for the 
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -38,7 +38,6 @@ Required shape:
 ```
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
-
 
 You are the first stage of the QRSPI pipeline. Convert an underspecified request into 3-7 specific, answerable research questions.
 
@@ -93,7 +92,7 @@ Then wait for input.
 
 1. **Ensure scaffolding exists**:
 
-   - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing
+   - Copy `AGENTS.md` into plan dir from `~/.agents/skills/qrspi-planning/_AGENTS.md` if missing
    - Ensure `[plan_dir]/prds/`, `[plan_dir]/questions/`, `[plan_dir]/research/`, `[plan_dir]/adrs/`, `[plan_dir]/handoffs/`, and `[plan_dir]/reviews/` exist
    - For normal top-level plans and implementation-review follow-up plans, also ensure `[plan_dir]/context/{brainstorms,question,research,design,design-product,outline,plan,implement}/` exists
    - For planning-review research workspaces, ensure `[plan_dir]/context/{brainstorms,research}/` exists for brainstorm notes and `/skill:q-research-for-review` locator/analyzer artifacts
@@ -252,7 +251,9 @@ prev_question_docs:
 
 ## Response
 
-When the question doc is written, emit only this fenced XML result. Do not add prose outside the XML.
+When the question doc is written, emit this fenced XML result, followed by the mandatory concise human summary.
+
+Post-XML natural summary format for this stage: list the research questions as concisely as possible. Caveman speak. Few words. Most important words only. Prefer `Questions: q1? q2? q3?` over sentences.
 
 ```xml
 <qrspi-result>
@@ -308,4 +309,5 @@ Always include the complete `thoughts/.../questions/YYYY-MM-DD_HH-MM-SS_topic-na
 - Do NOT turn `q-question` into a mapping pass or deep analysis stage.
 - Use extreme concision for the brainstorm/interview conversation, not as a special style rule for the final research questions doc.
 - Keep it short: questions, not essays.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
+- Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
+- Post-XML summary for question stage: only concise question list. Caveman clear. No extra explanation.

@@ -10,7 +10,7 @@ description: Expand the structured outline into a detailed implementation plan f
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
-- Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.
+- Emit the QRSPI XML result as a fenced `xml` code block for every completed QRSPI stage result so it is syntax highlighted, then add only the mandatory concise human summary after it.
 
 ## QRSPI XML summary contract
 
@@ -28,9 +28,11 @@ For review stages, always include both: (1) what the entire implementation/plan 
 
 When more than one artifact is relevant, keep `<artifact>` as the primary next-command artifact and also include `<artifacts>` with every important artifact path, including review records, done summaries, handoffs, ADRs, and follow-up questions.
 
-Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
+Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
-If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next>` is `/q-workspace [plan.md]`. For stage completion, emit only a fenced `xml` QRSPI footer; do not duplicate Artifact/Summary/Next in prose:
+Post-XML natural summary style: caveman clear. Few words. Most important words only. For `plan`, summarize implementation plan and how each ADR is reflected.
+
+If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next>` is `/q-workspace [plan.md]`. For stage completion, emit a fenced `xml` QRSPI footer followed by the mandatory concise human summary; do not duplicate Artifact/Next machine-control details in prose:
 
 ```xml
 <qrspi-result>
@@ -66,7 +68,7 @@ If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -290,7 +292,9 @@ ______________________________________________________________________
 
 ## Response
 
-When plan.md is written, emit only the fenced `xml` `<qrspi-result>` footer described above. Do not repeat artifact, summary, or next command in prose; put them in `<artifact>`, `<summary>`, and `<next>`.
+When plan.md is written, emit the fenced `xml` `<qrspi-result>` footer followed by the mandatory concise human summary described above. Do not repeat artifact lists or next command in prose; put them in `<artifact>` and `<next>`, with detailed state in XML `<summary>`.
+
+Post-XML natural summary format for this stage: summarize plan + ADR mapping. Caveman speak. Few words. Most important words only. Prefer `Plan: 4 slices — A/B/C/D. ADR-001 => adapter; ADR-002 => no DB.` over sentences.
 
 Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
@@ -309,7 +313,7 @@ No human review of the plan — alignment already happened in design, outline, a
 - Every slice must include a verify step — a command the implementing agent can run.
 - Every non-verification slice must include a dictated `### Commit Message` block after its verify step. The subject must be Conventional Commits 1.0.0 compliant (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc. with optional scope); the footer must include XML wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` with exact `<design>`, `<outline>`, and `<plan>` paths.
 - Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
+- Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
+- Post-XML summary for plan stage: plan + every ADR reflected in plan. Caveman clear. No tactical step dump.
 ```
 ````

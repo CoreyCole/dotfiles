@@ -9,7 +9,7 @@ description: Applies q-review-plan findings after follow-up research. Use after 
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -116,7 +116,7 @@ Do not create a nested design/outline/plan under the planning review directory. 
 
 ## Response Shapes
 
-All response shapes must be only a fenced XML `<qrspi-result>` block. Use the exact helper stage ID provided by the runtime prompt: `address-review-research-design`, `address-review-research-outline`, or `address-review-research-plan`.
+All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Use the exact helper stage ID provided by the runtime prompt: `address-review-research-design`, `address-review-research-outline`, or `address-review-research-plan`.
 
 If all researched findings are addressed:
 

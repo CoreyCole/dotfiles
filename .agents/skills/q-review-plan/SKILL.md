@@ -9,7 +9,7 @@ description: LLM review for QRSPI planning artifacts before implementation. Use 
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -239,7 +239,9 @@ verdict: [correct|needs_attention]
 
 ## Response Shapes
 
-All response shapes must be only a fenced XML `<qrspi-result>` block. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
+All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
+
+Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If no issues: `Found: no blockers. Fixed: none.`
 
 If all findings were fixed directly and the reviewed artifact is ready for the next graph node:
 
@@ -314,5 +316,5 @@ If human judgment is required, use `<status>needs_human</status>` and omit `<out
 - Use `needs_human_judgment` only for genuine business/product decisions not settled by prior QRSPI artifacts, or for conflicting relevant project guidance that requires a human to choose the authoritative instruction.
 - Never edit implementation code in planning review.
 - Do not create a full nested QRSPI design/outline/plan for planning-review research follow-up. Use `q-address-review-research` to apply researched fixes back to the parent docs.
-- In both `review.md` and the user response, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
-- Always summarize the canonical review artifact and exact next command.
+- In `review.md`, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
+- In the post-XML user summary, use only `Found: ... Fixed: ...`; do not summarize artifact paths or exact next command there.

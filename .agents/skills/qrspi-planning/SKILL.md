@@ -5,9 +5,9 @@ description: High-level overview of the QRSPI planning pipeline — Question, Re
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
-The user should not have to ask for this XML. Return it automatically whenever QRSPI stage work completes, hands off, blocks, or errors. When a user says “the correct response”, “now the response”, “what’s the response?”, “give me the result”, or asks for the QRSPI response/result after QRSPI stage work, they mean the protocol XML below. Return the `<qrspi-result>` XML, not a prose recap. A handoff markdown file is only an artifact referenced from XML; creating a handoff does not replace the required XML response.
+The user should not have to ask for this XML. Return it automatically whenever QRSPI stage work completes, hands off, blocks, or errors. When a user says “the correct response”, “now the response”, “what’s the response?”, “give me the result”, or asks for the QRSPI response/result after QRSPI stage work, they mean the protocol XML below plus the required post-XML concise summary. Return the `<qrspi-result>` XML first, not a prose recap in place of XML. A handoff markdown file is only an artifact referenced from XML; creating a handoff does not replace the required XML response.
 
 Required shape:
 
@@ -41,6 +41,8 @@ Required shape:
 </qrspi-result>
 ```
 
+Summary: [Ultra-concise human update. Sacrifice perfect grammar for concision.]
+
 `status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## QRSPI mode contract
@@ -50,7 +52,7 @@ Required shape:
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research-derived direction in design/outline review, but research must loop to another `/q-research` pass when new code-answerable factual questions materially inform design.
-- Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.
+- Emit the QRSPI XML result as a fenced `xml` code block for every completed QRSPI stage result so it is syntax highlighted, then add only the mandatory concise human summary after it.
 
 ## QRSPI XML summary contract
 
@@ -64,13 +66,34 @@ Keep each child element short: 1-2 concise lines max.
 
 For review stages, always include both: (1) what the entire implementation/plan now does as a whole, and (2) what this review session checked and changed. Do not write vague summaries like `review complete`, `implementation review result`, `done`, or `summary of findings` without the concrete details a human would need to ask informed questions.
 
+## Post-XML human summary contract
+
+After every fenced `<qrspi-result>` block, add exactly one mandatory concise human summary line or short bullet list.
+
+Style is strict: caveman clear. Few words. Most important words only. Sacrifice grammar hard for concision.
+
+- Put it after the XML, never before.
+- Keep it shorter than the XML `<summary>`; 1-3 short bullets or one `Summary:` sentence.
+- Prefer fragments over sentences when clearer.
+- Say only what human needs now.
+- Do not restate full artifact lists, branch metadata, or machine-control details already encoded in XML.
+
+Stage-specific post-XML summary content:
+
+- `question`: list the research questions, as short as possible. Caveman speak. Example: `Questions: auth path? data shape? failure modes? tests?`
+- `research`: key findings + direct answers to research questions. Example: `Findings: auth in middleware; data from X; risk Y.`
+- `design`: summarize chosen design. Example: `Design: reuse X; add Y adapter; no schema change.`
+- `outline`: summarize design + outline shape. Example: `Design: X adapter. Outline: 3 slices — model, API, tests.`
+- `plan`: summarize implementation plan and how each ADR is reflected. Example: `Plan: 4 parts. ADR-001 => adapter seam. ADR-002 => no migration.`
+- `review-design`, `review-outline`, `review-plan`, `review-implementation`: say only what review found and what it fixed. Example: `Found: stale API assumption. Fixed: outline uses current handler.`
+
 ## QRSPI result footer
 
 When more than one artifact is relevant, keep `<artifact>` as the primary next-command artifact and also include `<artifacts>` with every important artifact path, including review records, done summaries, handoffs, ADRs, and follow-up questions.
 
-Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
+Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
-Every primary QRSPI stage and review/helper that completes a workflow transition must end with a visible fenced `xml` QRSPI footer. Always include `<outcome>` for complete results and `<workspace>` immediately after `<outcome>`:
+Every primary QRSPI stage and review/helper that completes a workflow transition must include a visible fenced `xml` QRSPI result block. Always include `<outcome>` for complete results and `<workspace>` immediately after `<outcome>`:
 
 ```xml
 <qrspi-result>
@@ -105,6 +128,8 @@ thoughts/.../design.md
   </next>
 </qrspi-result>
 ```
+
+Summary: Design captured approved direction; next outline unless product gate needed.
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
 `<workspace>` always appears immediately after `<outcome>` for complete results. Before `/q-workspace`, it points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace and then changes `<workspace>` to that absolute implementation path; later stages preserve it so `/q-implement` runs there. Non-complete results that omit `<outcome>` still include `<workspace>` immediately after `<status>`.
@@ -362,4 +387,4 @@ Each stage skill contains the full process, templates, and rules for that step:
 - When looping back before implementation, update parent planning artifacts. When addressing implementation review follow-up, use the implementation review directory as the new plan dir.
 - When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for timestamps and frontmatter.
 - Stage completion XML should include the full path to the created artifact in `<artifact>` and the exact next `/q-*` command in `<next>`.
-- Preserve the stage completion XML after follow-ups: answer the follow-up if needed, then re-emit only the fenced `xml` `<qrspi-result>` footer with updated `<summary>`, `<artifact>`, and `<next>`.
+- Preserve the stage completion XML after follow-ups: answer the follow-up if needed, then re-emit the fenced `xml` `<qrspi-result>` with updated `<summary>`, `<artifact>`, and `<next>`, followed by the mandatory concise human summary.

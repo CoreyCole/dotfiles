@@ -9,7 +9,7 @@ description: Run a design brainstorm interview, then create a ~200-300 line desi
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -223,7 +223,9 @@ Accepted
 
 ## Response
 
-When `design.md` is written, emit only this fenced XML result. Do not add prose outside the XML. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` is display/debug only.
+When `design.md` is written, emit this fenced XML result, followed by the mandatory concise human summary. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` is display/debug only.
+
+Post-XML natural summary format for this stage: summarize chosen design. Caveman speak. Few words. Most important words only. Prefer `Design: reuse X; add Y; avoid Z.` over sentences.
 
 ```xml
 <qrspi-result>
@@ -264,4 +266,5 @@ If product coverage is warranted, set `<next>` to `/q-design-product [design.md]
 - Prefer the simplified ADR body format: 1-3 sentences, optional sections only when valuable.
 - Present to user BEFORE finalizing.
 - Write for teammate alignment.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
+- Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
+- Post-XML summary for design stage: only chosen design. Caveman clear. No rationale dump.

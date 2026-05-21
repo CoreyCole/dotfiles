@@ -10,7 +10,7 @@ description: Execute one implementation slice per invocation. Seventh stage of Q
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
-- Emit the QRSPI XML footer as a fenced `xml` code block at the end of every completed QRSPI stage result so it is syntax highlighted.
+- Emit the QRSPI XML result as a fenced `xml` code block for every completed QRSPI stage result so it is syntax highlighted, then add only the mandatory concise human summary after it.
 
 ## QRSPI XML summary contract
 
@@ -28,7 +28,7 @@ For review stages, always include both: (1) what the entire implementation/plan 
 
 When more than one artifact is relevant, keep `<artifact>` as the primary next-command artifact and also include `<artifacts>` with every important artifact path, including review records, done summaries, handoffs, ADRs, and follow-up questions.
 
-Do not duplicate the same artifact/summary/next information in prose outside the XML. For normal QRSPI stage completion, the final response may be only the fenced `xml` `<qrspi-result>` block; make the XML `<summary>` comprehensive enough for humans.
+Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
 Runtime completion for the `implement` node happens only when implementation is ready for automated implementation review. Use `<status>complete</status>`, `<outcome>complete</outcome>`, the final implementation-complete handoff as `<artifact>`, and `<next>/q-review [handoff]</next>`. For non-final checkpoint handoffs, write the handoff artifact but do not present it as a completed workflow-node result unless intentionally stopping with `blocked`/`needs_human`.
 
@@ -72,7 +72,7 @@ Runtime completion for the `implement` node happens only when implementation is 
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -110,7 +110,7 @@ Required shape:
 
 You are the seventh stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Each slice should leave the engineer with a concrete, reviewable/testable increment: code diff, behavior, verification command, and artifact/handoff evidence. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
 
-Implementation is always handoff-driven. After every successful slice, the authoritative artifact is the new handoff document for that slice, and the canonical next command is `/q-resume [that handoff path]` until implementation is complete.
+Implementation is always handoff-driven. After every successful planned work chunk, the authoritative artifact is the new handoff document, and the canonical next command is `/q-resume [that handoff path]` until implementation is complete. Handoff prose must say what completed and what is next; do not reference slice number.
 
 ## When Invoked
 
@@ -187,8 +187,8 @@ Then wait for input.
      j. Create the required implementation handoff **after branch creation** so it records the final branch names. Set handoff frontmatter `branch` to the new/current slice branch. For `git_commit`, use the current pre-handoff branch hash plus a note in the handoff that the branch is amended after handoff creation; the final branch-head hash belongs in the QRSPI XML response after the amend.
      k. Stage the handoff and amend the slice with `gt modify --no-interactive` (or `gt modify --no-interactive -m "$(cat /tmp/slice-commit-message.txt)"` if the message needs to be preserved/updated). Do **not** use `gt modify --commit` for post-create handoff/content fixes; `gt modify` amends by default and `--commit` creates an additional commit. Capture the final branch-head hash with `git rev-parse --short HEAD` for the response XML only. Do not amend solely to chase the final self-referential hash inside the handoff.
      l. Commit messages must follow Conventional Commits 1.0.0: `<type>[optional scope]: <description>` as the subject, optional explanatory body, then footer section. Include the QRSPI XML as a footer after a blank line, wrapped in `<qrspi-commit>` and containing `<workspace>`, `<slice number="N">`, and `<artifacts>` entries for exact `<design>`, `<outline>`, and `<plan>` paths. If the slice's `### Commit Message` block is missing, non-conventional, or lacks the XML footer, update `plan.md` before committing.
-     m. If additional edit slices remain unchecked after this slice, do **not** pre-create the next branch. The checkpoint handoff should tell the next `/q-resume` agent to implement the next edit slice on the current top branch and run `gt create <slug>_slice-(N+1)` only after that slice is implemented and verified. Do **not** mention `/q-review` yet.
-     n. If only verification-only slices remain, do not pre-create a branch for them. The checkpoint handoff should point to `/q-resume`; the resumed agent will run the verification-only slice in the current implementation workspace.
+     m. If additional edit work remains unchecked after this work, do **not** pre-create the next branch. The checkpoint handoff should say what completed and what concrete work is next, not reference slice number. It should tell the next `/q-resume` agent to implement the next work on the current top branch and run `gt create <slug>_slice-N` only after that work is implemented and verified. Do **not** mention `/q-review` yet.
+     n. If only verification-only work remains, do not pre-create a branch for it. The checkpoint handoff should point to `/q-resume`; the resumed agent will run the verification-only work in the current implementation workspace.
      o. If this was the last unchecked slice, do the final verification pass, create/modify the final slice branch first when tracked edits exist, then write a concise finished-implementation summary and review handoff via `/q-handoff continue`; stage that handoff and amend the final slice. For verification-only completion with no tracked changes, write the review handoff without a new branch/commit.
      p. Stop. Do **not** start the next slice in the same invocation.
 
@@ -224,7 +224,7 @@ This is why the checkboxes and handoffs exist. Keep them updated.
 
 After completing a slice, create the required `/q-handoff` artifact first. Do not include separate `Implemented:`, `Verification:`, `Artifact path:`, or `Next command:` prose lines.
 
-For non-final implementation slices, write the handoff artifact and stop in normal chat context; do not emit a completed workflow-node XML result, because the runtime `implement` node should not advance until all slices are done. For the final implementation slice, emit the fenced XML footer described above with `<stage>implement</stage>`, `<status>complete</status>`, `<outcome>complete</outcome>`, `<workspaceMetadata>` populated from the post-commit branch stack, the final completion handoff as `<artifact>`, and `<next>/q-review [exact handoff path]</next>`. Put what changed, engineer-test/review instructions, verification commands/results, slice status, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
+For non-final implementation work, write the handoff artifact and stop in normal chat context; do not emit a completed workflow-node XML result, because the runtime `implement` node should not advance until all planned work is done. Handoff content must say what completed and what is next; do not identify work by slice number. For final implementation work, emit the fenced XML footer described above followed by the mandatory concise human summary, with `<stage>implement</stage>`, `<status>complete</status>`, `<outcome>complete</outcome>`, `<workspaceMetadata>` populated from the post-commit branch stack, the final completion handoff as `<artifact>`, and `<next>/q-review [exact handoff path]</next>`. Put what changed, engineer-test/review instructions, verification commands/results, completed work, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
 
 ## Rules
 
@@ -239,12 +239,12 @@ For non-final implementation slices, write the handoff artifact and stop in norm
 - Commit after each successful slice that changed tracked files. Use a Conventional Commit subject (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc.), optional body, and QRSPI XML footer. The footer must be wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` containing exact `<design>`, `<outline>`, and `<plan>` paths. In `cn-agents` and other Graphite repos, prefer `gt create <slug>_slice-N -m "$(cat /tmp/slice-commit-message.txt)"` after implementation/verification/plan updates, then create the handoff on the new branch and `gt modify --no-interactive` to amend it into that slice. If already on the matching slice branch, use `gt modify --no-interactive -m "$(cat /tmp/slice-commit-message.txt)"` for code/doc changes, write the handoff, then `gt modify --no-interactive` again for the handoff. Remember: `gt modify` amends by default; `gt modify --commit` creates a new commit and is usually wrong for fixing the current slice.
 - Do not commit or branch for verification-only slices with no tracked changes.
 - For implementation-review follow-up plans under `reviews/*_implementation-review/`, do not create a new fresh copy; stack fixes in the original implementation copy. In Graphite repos, including `cn-agents`, branch names must make the stacked review plan clear: `gt create <slug>_review_plan_slice-N`. Each review-fix slice must give the engineer a small focused fix to review/test on top of the original implementation stack.
-- After each non-final edit slice commit, do not create the next slice branch. The next `/q-resume` agent owns the next slice context and will run `gt create <slug>_slice-(N+1)` or `gt create <slug>_review_plan_slice-(N+1)` only after implementing and verifying that next slice. If the next slice is verification-only, no branch is created.
-- After each successful tracked-edit slice, create/modify the Graphite slice branch first, then create the appropriate handoff via `/q-handoff`, stage it, and amend it into the same slice before stopping. This is mandatory. Verification-only/no-branch slices still write the handoff directly on the current branch without creating an empty branch.
+- After each non-final edit commit, do not create the next branch. The next `/q-resume` agent owns the next work context and will run `gt create <slug>_slice-N` or `gt create <slug>_review_plan_slice-N` only after implementing and verifying that next work. If the next work is verification-only, no branch is created. In handoffs, describe that next work by behavior/files/outcome, not by slice number.
+- After each successful tracked-edit work chunk, create/modify the Graphite branch first, then create the appropriate handoff via `/q-handoff`, stage it, and amend it into the same commit before stopping. This is mandatory. Verification-only/no-branch work still writes the handoff directly on the current branch without creating an empty branch. Handoffs must name completed work and next work, not slice number.
 - Do not prompt for review until all slices are complete.
-- For non-final slices, do not end with `plan.md` as the primary artifact and do not suggest `/q-implement [plan_dir]` as the canonical next step. The canonical next step is `/q-resume [new handoff path]`.
+- For non-final implementation work, do not end with `plan.md` as the primary artifact and do not suggest `/q-implement [plan_dir]` as the canonical next step. The canonical next step is `/q-resume [new handoff path]`. Handoff prose must describe completed work and next work, not slice number.
 - When implementation is complete, the completion handoff must target `/q-review` and summarize the finished implementation, not just the last slice.
-- End every successful slice response with only the required fenced `xml` `<qrspi-result>` footer; put implementation, verification, artifact, and next-step details in the XML `<summary>`, `<artifact>`, `<artifacts>`, and `<next>` elements.
+- End every successful workflow-node response with the required fenced `xml` `<qrspi-result>` footer followed by the mandatory concise human summary; put implementation, verification, artifact, and next-step details in the XML `<summary>`, `<artifact>`, `<artifacts>`, and `<next>` elements.
 - Include `<workspace>` immediately after `<outcome>` in complete implementation result XML (or immediately after `<status>` for non-complete results that omit `<outcome>`), using the absolute workspace path created/repaired by `/q-workspace`.
 - Include `<workspaceMetadata>` immediately after `<workspace>` in implementation result XML. For Graphite repos, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` after branch creation/modification. For verification-only or non-Graphite work, include empty elements for unknown values and preserve `currentBranch` when known.
 - Never push or open a pull request as part of this skill unless the user explicitly asks for it.

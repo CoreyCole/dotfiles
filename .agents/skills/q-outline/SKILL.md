@@ -9,7 +9,7 @@ description: Create a structured outline (~2 pages) from approved `design.md` an
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must end with only a fenced `xml` block containing `<qrspi-result>`. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -38,7 +38,6 @@ Required shape:
 ```
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
-
 
 You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
@@ -77,7 +76,7 @@ Use this mode when the user has a clear, bounded task and wants to skip earlier 
    - frontmatter fields (`date`, `researcher`, `git_commit`, `branch`, `repository`)
 1. Create a new plan directory under:
    - `thoughts/[git_username]/plans/[timestamp]_[plan-slug]/`
-1. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/AGENTS.md` if missing.
+1. Copy `AGENTS.md` into the plan dir from `~/.agents/skills/qrspi-planning/_AGENTS.md` if missing.
 1. Ensure `context/{question,research,design,design-product,outline,plan,implement}/` exists in the new plan directory.
 1. Treat user-provided task + referenced files as source material.
 1. Read all referenced files fully.
@@ -171,7 +170,7 @@ type ExampleResult struct {
 }
 
 func DoThing(ctx context.Context, input ExampleInput) (ExampleResult, error)
-````
+```
 
 ## Database Schema (if applicable)
 
@@ -231,11 +230,13 @@ Use normal markdown bullets for explicit exclusions.
 
 - [Things explicitly not included in this implementation]
 
-```
+````
 
 ## Response
 
-When `outline.md` is written, emit only this fenced XML result. Do not add prose outside the XML.
+When `outline.md` is written, emit this fenced XML result, followed by the mandatory concise human summary.
+
+Post-XML natural summary format for this stage: summarize design + outline shape. Caveman speak. Few words. Most important words only. Prefer `Design: X. Outline: 3 slices — A, B, C.` over sentences.
 
 ```xml
 <qrspi-result>
@@ -276,5 +277,5 @@ Always include the complete `thoughts/.../outline.md` path.
 - Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
 - Standard mode must preserve `design-product.md` Critical Findings in slices, test checkpoints, or Out of Scope when `design-product.md` exists.
 - Present to the user BEFORE writing the final file. This is the last human review gate before LLM planning review.
-- Completion responses must be only the fenced XML `<qrspi-result>` block required by the runtime contract.
-```
+- Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
+- Post-XML summary for outline stage: design + slice outline only. Caveman clear. No implementation detail dump.
