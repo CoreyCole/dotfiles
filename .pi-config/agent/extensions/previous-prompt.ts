@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const WIDGET_KEY = "previous-prompt";
-const WIDGET_LABEL = "Previous prompt";
+const WIDGET_PREFIX = "❓ ";
 const WIDGET_OPTIONS = { placement: "belowEditor" } as const;
 const MAX_PROMPT_CHARS = 160;
 const MAX_PROMPT_LINES = 4;
@@ -41,11 +41,12 @@ function updatePreviousPromptWidget(ctx: ExtensionContext, prompt: string | unde
 		(_tui, theme) => ({
 			render(width: number): string[] {
 				const safeWidth = Math.max(1, width);
-				const promptLines = truncatePromptLines(wrapTextWithAnsi(prompt, safeWidth), safeWidth);
-				return [
-					truncateToWidth(theme.fg("dim", WIDGET_LABEL), safeWidth),
-					...promptLines.map((line) => truncateToWidth(theme.fg("muted", line), safeWidth)),
-				];
+				const promptWidth = Math.max(1, safeWidth - WIDGET_PREFIX.length);
+				const promptLines = truncatePromptLines(wrapTextWithAnsi(prompt, promptWidth), promptWidth);
+				return promptLines.map((line, index) => {
+					const prefix = index === 0 ? WIDGET_PREFIX : " ".repeat(WIDGET_PREFIX.length);
+					return truncateToWidth(theme.fg("muted", `${prefix}${line}`), safeWidth);
+				});
 			},
 			invalidate() {},
 		}),
