@@ -30,7 +30,7 @@ When more than one artifact is relevant, keep `<artifact>` as the primary next-c
 
 Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
-Runtime completion for the `implement` node happens only when implementation is ready for automated implementation review. Use `<status>complete</status>`, `<outcome>complete</outcome>`, the final implementation-complete handoff as `<artifact>`, and `<next>/q-review [handoff]</next>`. For non-final checkpoint handoffs, write the handoff artifact but do not present it as a completed workflow-node result unless intentionally stopping with `blocked`/`needs_human`.
+Runtime completion for the `implement` node happens only when implementation is ready for automated implementation review. Use `<status>complete</status>`, `<outcome>complete</outcome>`, the final implementation-complete handoff as `<artifact>`, and `<next>/q-review [handoff]</next>`. For non-final checkpoint handoffs, still emit a fenced `<qrspi-result>` response, but use `<status>handoff</status>` with no `<outcome>` so the runtime does not advance; set `<artifact>` to the handoff and `<next>` to `/q-resume [handoff]`.
 
 ```xml
 <qrspi-result>
@@ -226,7 +226,9 @@ This is why the checkboxes and handoffs exist. Keep them updated.
 
 After completing planned work, create the required `/q-handoff` artifact first. Do not include separate `Implemented:`, `Verification:`, `Artifact path:`, or `Next command:` prose lines. In the handoff, use only `Done:` and `Next:` for the human summary; no slice numbers.
 
-For non-final implementation work, write the handoff artifact and stop in normal chat context; do not emit a completed workflow-node XML result, because the runtime `implement` node should not advance until all planned work is done. Handoff content must use `Done: ...` and `Next: ...`; do not identify work by slice number. For final implementation work, emit the fenced XML footer described above followed by the mandatory concise human summary, with `<stage>implement</stage>`, `<status>complete</status>`, `<outcome>complete</outcome>`, `<workspaceMetadata>` populated from the post-commit branch stack, the final completion handoff as `<artifact>`, and `<next>/q-review [exact handoff path]</next>`. Put what changed, engineer-test/review instructions, verification commands/results, completed work, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
+For non-final implementation work, write the handoff artifact and emit the fenced XML response with `<stage>implement</stage>`, `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the new handoff, and `<next>/q-resume [exact handoff path]</next>`. This records the checkpoint without advancing the runtime `implement` node. Handoff content must use `Done: ...` and `Next: ...`; do not identify work by slice number. For final implementation work, emit the fenced XML footer described above with `<status>complete</status>`, `<outcome>complete</outcome>`, `<workspaceMetadata>` populated from the post-commit branch stack, the final completion handoff as `<artifact>`, and `<next>/q-review [exact handoff path]</next>`. Put what changed, engineer-test/review instructions, verification commands/results, completed work, and next-step rationale in the XML `<summary>` and `<artifacts>` as needed.
+
+Final response format is strict for both checkpoint and complete implementation results: first a fenced `xml` block containing the `<qrspi-result>`, then exactly one concise natural-language summary line or 1-3 short bullets. Do not include any prose before the XML. Do not include separate `Implemented:`, `Verification:`, `Artifact path:`, `Next command:`, or other headings outside the XML.
 
 ## Rules
 

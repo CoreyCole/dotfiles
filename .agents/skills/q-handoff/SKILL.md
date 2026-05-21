@@ -9,7 +9,7 @@ description: Create a handoff document to carry context forward within a QRSPI p
 
 ## Runtime XML contract
 
-Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
+Every response that completes, checkpoints, blocks, or hands off a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by exactly one concise natural-language summary line or 1-3 short bullets. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
 
 Required shape:
 
@@ -221,9 +221,11 @@ Before claiming the handoff is synced, verify the handoff was committed on the c
 
 ### 7. Tell the user
 
-Emit a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary when the handoff completes or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape.
+Emit a fenced XML `<qrspi-result>` block followed by exactly one concise natural-language summary line or 1-3 short bullets when the handoff completes, checkpoints, or stops a runtime node. Preserve the current stage, policy, workspace, and primary handoff artifact. Do not emit the old prose `Implemented:` / `Verification:` / `Artifact path:` / `Next command:` shape.
 
-For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and use `/q-resume [handoff.md]` in normal chat context; do not emit a completed workflow-node result. If the runtime must stop, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
+Final response format is strict: XML first, then concise summary only. Do not include any prose before the XML. Do not add headings, artifact lists, verification blocks, next-command lines, or other prose after the concise summary; those details belong inside XML fields and the handoff artifact.
+
+For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and emit a non-advancing XML result with `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the handoff, and `<next>/q-resume [handoff.md]</next>`. If the runtime must stop for a problem, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
 
 For final implementation handoffs that should start implementation review, emit:
 
