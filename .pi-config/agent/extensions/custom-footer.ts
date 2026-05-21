@@ -22,6 +22,11 @@ function formatContextTokens(count: number): string {
 	return `${(count / 1000000).toFixed(1)}M`;
 }
 
+function formatContextBar(percent: number): string {
+	const filledBlocks = Math.max(0, Math.min(10, Math.round(percent / 10)));
+	return `|${"■".repeat(filledBlocks)}${"□".repeat(10 - filledBlocks)}|`;
+}
+
 function shortHomePath(cwd: string): string {
 	const home = process.env.HOME || process.env.USERPROFILE;
 	if (home && cwd.startsWith(home)) return `~${cwd.slice(home.length)}`;
@@ -107,7 +112,8 @@ function installFooter(ctx: ExtensionContext): void {
 				}
 
 				const contextTokenCount = contextTokens === null || contextTokens === undefined ? "?" : formatContextTokens(contextTokens);
-				const contextDisplay = `${contextPercent}% ${contextTokenCount}/${formatCompactTokens(contextWindow)}`;
+				const contextBar = contextUsage?.percent === null || contextUsage === undefined ? "|??????????|" : formatContextBar(contextPercentValue);
+				const contextDisplay = `${contextPercent}% ${contextBar} (${contextTokenCount}/${formatCompactTokens(contextWindow)})`;
 				const styledContext =
 					contextPercentValue > 90
 						? theme.fg("error", contextDisplay)
