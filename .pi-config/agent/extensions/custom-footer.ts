@@ -78,7 +78,7 @@ function totalUsage(ctx: ExtensionContext) {
 	return { input, output, cacheRead, cacheWrite, cost };
 }
 
-function installFooter(ctx: ExtensionContext): void {
+function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
 	if (!ctx.hasUI) return;
 
 	ctx.ui.setFooter((tui, theme, footerData) => {
@@ -125,12 +125,11 @@ function installFooter(ctx: ExtensionContext): void {
 				let leftStats = statsParts.join(" ");
 				if (visibleWidth(leftStats) > safeWidth) leftStats = truncateToWidth(leftStats, safeWidth, "...");
 
-				const rightStats = ctx.model?.id ?? "no-model";
+				const rightStats = `${ctx.model?.id ?? "no-model"} • ${pi.getThinkingLevel()}`;
 				const statsLine = renderPaddedLine(theme.fg("dim", leftStats), theme.fg("dim", rightStats), safeWidth);
 
 				const lines = [truncateToWidth(theme.fg("dim", cwd), safeWidth, theme.fg("dim", "..."))];
 				if (branch) lines.push(truncateToWidth(theme.fg("dim", `   ${branch}`), safeWidth, theme.fg("dim", "...")));
-				lines.push(statsLine);
 
 				const extensionStatuses = footerData.getExtensionStatuses();
 				if (extensionStatuses.size > 0) {
@@ -141,6 +140,7 @@ function installFooter(ctx: ExtensionContext): void {
 					lines.push(truncateToWidth(statusLine, safeWidth, theme.fg("dim", "...")));
 				}
 
+				lines.push(statsLine);
 				return lines;
 			},
 		};
@@ -149,6 +149,6 @@ function installFooter(ctx: ExtensionContext): void {
 
 export default function customFooterExtension(pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
-		installFooter(ctx);
+		installFooter(pi, ctx);
 	});
 }
