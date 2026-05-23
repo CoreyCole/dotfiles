@@ -28,6 +28,7 @@ function M.render()
         local special_dirs = {
             DOTFILES = vim.env.HOME .. "/dotfiles",
             CN = vim.env.HOME .. "/cn/chestnut-flake/monorepo",
+            VAMOS = vim.env.HOME .. "/cn/chestnut-flake/vamos",
             AGENTS = vim.env.HOME .. "/cn/chestnut-flake/cn-agents",
             DSUI = vim.env.HOME .. "/cn/chestnut-flake/cn-agents/pkg/datastarui",
             HOME = vim.env.HOME,
