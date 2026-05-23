@@ -70,8 +70,10 @@ You are creating a handoff document to preserve your working context within a QR
 | 5 | outline | `/q-outline` | `outline.md` |
 | 6 | plan | `/q-plan` | `plan.md` |
 | 7 | implement | `/q-implement` | code changes |
+| 8 | review-implementation | `/q-review` | `reviews/.../review.md` |
+| 9 | verify | `/q-verify` | `verify.md` |
 
-`review` is the post-implementation handoff target, not a core planning stage. Only when `implement` is fully complete should `continue` create a review-ready handoff and point to `/q-review`. Intermediate implementation checkpoints must stay on `/q-resume`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`.
+`review` is the post-implementation handoff target, not a core planning stage. Only when `implement` is fully complete should `continue` create a review-ready handoff and point to `/q-review`. Intermediate implementation checkpoints must stay on `/q-resume`. `/q-review` writes the canonical review artifact to `[plan_dir]/reviews/`; clean review routes to `/q-verify` before the final human implementation gate.
 
 **Human handoff wording hard rule:** the lead engineer does not care about slice numbers. In all human-facing handoff prose, never write `slice 1`, `slice 2`, `next slice`, or similar. Use exactly `Done:` and `Next:`. Describe behavior/files/outcome only. If the plan checkbox has a slice number, translate it into what changed and what remains.
 

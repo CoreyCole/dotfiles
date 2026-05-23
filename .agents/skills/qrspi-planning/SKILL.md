@@ -183,7 +183,10 @@ A structured approach to non-trivial coding tasks. Each stage produces artifacts
 | 6 | Plan | `/q-plan` | `plan.md` | LLM review via `/q-review [plan.md]` |
 | 7 | Workspace | `/q-workspace` | prepared implementation workspace + synced plan dir | Base/stack safety gate before implementation |
 | 8 | Implement | `/q-implement` | code changes + verified commits + review handoff | LLM code review via `/q-review [handoff.md]` |
-| 9 | Done | final `/q-review` | `done.md` | Terminal whole-plan completion summary |
+| 9 | Review | `/q-review` | implementation `review.md` | Routes clean review to `/q-verify`; deeper findings create follow-up QRSPI |
+| 10 | Verify | `/q-verify` | `verify.md` | Project-specific verification evidence before human approval |
+| 11 | Human Review | runtime human gate | approval decision | Final human implementation approval |
+| 12 | Done | runtime completion | `done.md` or final summary | Terminal whole-plan completion summary |
 
 `/q-review` is a router:
 
@@ -235,7 +238,7 @@ Planning-review research directories are lightweight research workspaces. They d
 Implementation review examines actual code and verification evidence.
 
 - `straightforward_fix` findings can be fixed immediately as a final review-fix slice stacked on top of the implementation.
-- When no findings remain, final implementation review creates or updates `[plan_dir]/done.md` with a whole-plan completion summary, review-session summary, verification evidence, and changelog sentence. Terminal XML should point its `<artifact>` at `done.md` and leave `<next>` empty.
+- When no findings remain, final implementation review writes the canonical implementation `review.md`, emits outcome `ready-for-human-review`, and routes to `/q-verify` before the final human implementation gate. It must not create stale terminal `done.md` before verification evidence exists.
 - Deeper findings become a full QRSPI follow-up plan inside the timestamped implementation review directory. That review directory gets its own `questions/`, `research/`, `design.md`, `design-product.md`, `outline.md`, `plan.md`, `handoffs/`, and nested `reviews/`. Later `/q-workspace` and `/q-implement` work from that review-dir plan stacks new branch slices on top of the exact reviewed implementation head **in the same implementation workspace**, even if the reviewed stack later merges to trunk. Do not create a separate workspace for implementation-review follow-up research/design/outline/plan/implement.
 
 Never overwrite the parent plan's `design.md`, `design-product.md`, `outline.md`, or `plan.md` for implementation-review follow-up work.
@@ -363,7 +366,7 @@ Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume
 - During implementation: intermediate handoffs resume with `/q-resume` in the same `/q-workspace`-recorded implementation workspace. The workspace is the unit of isolation; do not assume a branch exists or should be created. For Graphite edit slices, write the handoff before `gt create` so it is included in the slice commit; use `git_commit: pending-slice-commit` in that self-contained handoff and report the final branch-head hash only in the QRSPI XML result.
 - Repository commit policy must be preserved in plans/handoffs: monorepo usually means Graphite slice branches; `cn-agents` means fresh workspace plus Graphite slice branches for each tracked edit slice, then `/cn-agents-merge` at the end. Do not record a `cn-agents` expectation to stay on `main` for slice commits.
 - Implementation handoffs record the `/q-workspace` implementation directory; they must not instruct agents to create ad-hoc copies and must not point agents at `git worktree`.
-- After all implementation slices are complete: the completion handoff advances to `/q-review [handoff.md]` in implementation mode.
+- After all implementation slices are complete: the completion handoff advances to `/q-review [handoff.md]` in implementation mode. Clean implementation review advances to `/q-verify [review.md] [project-guide]`; successful verify advances to the final human implementation gate.
 
 ## Standard Context Loading
 

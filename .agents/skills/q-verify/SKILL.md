@@ -40,13 +40,13 @@ Every completed verify stage must emit fenced XML first, then one concise summar
     <artifact role="implementation-review">thoughts/.../reviews/.../review.md</artifact>
     <artifact role="verification-evidence">thoughts/...</artifact>
   </artifacts>
-  <next>/q-handoff continue</next>
+  <next>human-review-implementation</next>
 </qrspi-result>
 ```
 
 Post-XML summary format: `Verified: ... Fixed: ... Evidence: ...` If no fixes: `Verified: ... Fixed: none. Evidence: ...`
 
-If blocked by failing verification that cannot be safely fixed, use `<status>blocked</status>`, omit `<outcome>`, keep `<workspace>`/metadata, write `verify.md`, and set `<next>/q-resume [verify.md or handoff]</next>`.
+If blocked by failing verification that cannot be safely fixed, use `<status>blocked</status>`, omit `<outcome>`, keep `<workspace>`/metadata, write `verify.md`, and set `<next>/q-resume [verify.md or handoff]</next>`. On success, `<next>` should name the final human implementation gate (`human-review-implementation`); runtime transition remains graph-authoritative.
 
 ## Inputs
 
@@ -148,4 +148,4 @@ verification_guide: [path]
 - Verification evidence must be durable: prefer files under the plan dir or project-guide artifact locations.
 - If real browser/agent/worker services are required, use the guide's auth and service-management instructions. Do not invent credentials or hand-configure auth.
 - Keep final user summary short and evidence-focused.
-- Do not create a final implementation-review `done.md`; that belongs to implementation review/done flow.
+- Do not create a final implementation-review `done.md`; successful verify routes to `human-review-implementation`, and terminal completion/done artifacts belong only after final human approval.

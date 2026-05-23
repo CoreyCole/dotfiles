@@ -238,7 +238,7 @@ All response shapes must be a fenced XML `<qrspi-result>` block followed by the 
 
 Post-XML natural summary format for implementation review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: clean.`
 
-If no findings remain after any straightforward fixes, point the primary artifact at `done.md` and route to the final human implementation gate:
+If no findings remain after any straightforward fixes, keep the primary artifact as the implementation `review.md` and route to generic project verification before the final human implementation gate:
 
 ```xml
 <qrspi-result>
@@ -256,11 +256,11 @@ If no findings remain after any straightforward fixes, point the primary artifac
     <stage-completed>[what the implementation now does and what review checked/fixed]</stage-completed>
     <key-decisions>[why final human review is safe; note any applied fix commit]</key-decisions>
   </summary>
-  <artifact>thoughts/.../done.md</artifact>
+  <artifact>thoughts/.../reviews/..._implementation-review/review.md</artifact>
   <artifacts>
-    <artifact role="review">thoughts/.../reviews/..._implementation-review/review.md</artifact>
+    <artifact role="implementation-review">thoughts/.../reviews/..._implementation-review/review.md</artifact>
   </artifacts>
-  <next>human-review-implementation</next>
+  <next>/q-verify thoughts/.../reviews/..._implementation-review/review.md [project verification guide]</next>
 </qrspi-result>
 ```
 
