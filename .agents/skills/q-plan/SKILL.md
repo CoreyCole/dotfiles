@@ -26,9 +26,9 @@ For review stages, always include both: (1) what the entire implementation/plan 
 
 ## Immediate start and outline-review approval gate
 
-Every `/q-plan` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then loading the required artifacts. Do not answer “ready to proceed.” If the session is allowed to plan, write `plan.md` immediately.
+Every `/q-plan` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then loading the required artifacts. Do not answer “ready to proceed.” If the session is allowed to plan, read the relevant code files and write `plan.md` in the same session.
 
-The only normal pause is when `/q-plan` is started after a successful `review-outline` result. In that case, first summarize the reviewed `design.md` and `outline.md` in a concise human-facing approval prompt, then ask whether to write the plan. If the human response is approval such as `go`, `vamos`, `yes`, or equivalent, immediately proceed with the full `/q-plan` process in the same session. Do not require another nudge.
+The only normal pause is when `/q-plan` is started after a successful `review-outline` result. In that case, first summarize the reviewed `design.md` and `outline.md` in a concise human-facing approval prompt, then ask whether to write the plan. If the human response is approval such as `go`, `vamos`, `yes`, or equivalent, immediately proceed with the full `/q-plan` process in the same session: read all relevant code files first, then write `plan.md`. Do not require another nudge.
 
 ## QRSPI footer instructions
 
@@ -145,7 +145,7 @@ Then wait for input.
 
 1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, optional `design-product.md`, `outline.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, `context/design-product/` when present, `context/outline/`, and `context/plan/`, and any relevant files in `prds/`.
 
-   - If this `/q-plan` session follows `review-outline`, summarize the reviewed `design.md` and `outline.md` for human approval before writing `plan.md`. When the human says `go`, `vamos`, `yes`, or equivalent approval, immediately continue with step 2 in the same session.
+   - If this `/q-plan` session follows `review-outline`, summarize the reviewed `design.md` and `outline.md` for human approval before continuing. When the human says `go`, `vamos`, `yes`, or equivalent approval, immediately continue with step 2 in the same session: read the relevant code files first, then write the plan.
 
    - Missing `design-product.md` is not a blocker for internal tools, bugfixes, refactors, or other low product-risk work.
 
