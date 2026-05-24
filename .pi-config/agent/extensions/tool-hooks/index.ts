@@ -74,10 +74,6 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function subtleToolBorder(width: number, theme: ThemeLike): string {
-  return theme.fg("dim", "─".repeat(Math.max(1, width)));
-}
-
 function invalidArgText(theme: ThemeLike): string {
   return theme.fg("error", "[invalid arg]");
 }
@@ -94,19 +90,15 @@ function formatBashCall(
   status?: "success" | "error",
 ): string {
   const command = str(args?.command);
-  const timeout = typeof args?.timeout === "number" ? args.timeout : undefined;
-  const timeoutSuffix = timeout
-    ? theme.fg("muted", ` (timeout ${timeout}s)`)
-    : "";
   const statusPrefix = status === "success" ? "🟢 " : status === "error" ? "🔴 " : "";
   if (command === null) {
-    return `${statusPrefix}${theme.fg("toolTitle", theme.bold("$"))} ${invalidArgText(theme)}${timeoutSuffix}`;
+    return `${statusPrefix}${theme.fg("toolTitle", theme.bold(invalidArgText(theme)))}`;
   }
 
   const commandDisplay = command
     ? replaceTabs(normalizeDisplayText(command))
     : theme.fg("toolOutput", "...");
-  return `${statusPrefix}${theme.fg("toolTitle", theme.bold(`$ ${commandDisplay}`))}${timeoutSuffix}`;
+  return `${statusPrefix}${theme.fg("toolTitle", theme.bold(commandDisplay))}`;
 }
 
 class BashPreviewComponent implements Component {
@@ -116,6 +108,7 @@ class BashPreviewComponent implements Component {
     private isPartial: boolean,
     private startedAt?: number,
     private endedAt?: number,
+    private timeout?: number,
   ) {}
 
   set(
@@ -124,34 +117,37 @@ class BashPreviewComponent implements Component {
     isPartial: boolean,
     startedAt?: number,
     endedAt?: number,
+    timeout?: number,
   ) {
     this.result = result;
     this.theme = theme;
     this.isPartial = isPartial;
     this.startedAt = startedAt;
     this.endedAt = endedAt;
+    this.timeout = timeout;
   }
 
   invalidate() {}
 
   render(width: number): string[] {
-    const output = textOutput(this.result).trim();
-    const lines = output ? output.split("\n") : [];
-    const rendered =
+    const output = textOutput(this.result).trimEnd();
+    const lines = output ? trimTrailingEmptyLines(output.split("\n")) : [];
+    const outputBlock =
       lines.length > 5
-        ? ["", linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
-        : lines.length > 0
-          ? ["", ...lines]
-          : [];
+        ? [linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
+        : lines;
+    const rendered = outputBlock.length > 0
+      ? outputBlock.map((line) => `   ${line}`)
+      : [];
 
     if (this.startedAt !== undefined) {
       const label = this.isPartial ? "Elapsed" : "Took";
       const endTime = this.endedAt ?? Date.now();
+      const timeoutSuffix = this.timeout ? ` (timeout ${this.timeout}s)` : "";
       rendered.push(
-        "",
         this.theme.fg(
           "muted",
-          `${label} ${formatDuration(endTime - this.startedAt)}`,
+          `   ${label} ${formatDuration(endTime - this.startedAt)}${timeoutSuffix}`,
         ),
       );
     }
@@ -277,7 +273,9 @@ export default function toolHooks(pi: ExtensionAPI) {
       const state = context.state as {
         startedAt?: number;
         endedAt?: number;
+        timeout?: number;
       };
+      state.timeout = typeof args?.timeout === "number" ? args.timeout : undefined;
       if (context.executionStarted && state.startedAt === undefined) {
         state.startedAt = Date.now();
         state.endedAt = undefined;
@@ -301,6 +299,7 @@ export default function toolHooks(pi: ExtensionAPI) {
         startedAt?: number;
         endedAt?: number;
         interval?: ReturnType<typeof setInterval>;
+        timeout?: number;
       };
       if (
         state.startedAt !== undefined &&
@@ -342,6 +341,7 @@ export default function toolHooks(pi: ExtensionAPI) {
               Boolean(options.isPartial),
               state.startedAt,
               state.endedAt,
+              state.timeout,
             );
       component.set(
         displayResult,
@@ -349,6 +349,7 @@ export default function toolHooks(pi: ExtensionAPI) {
         Boolean(options.isPartial),
         state.startedAt,
         state.endedAt,
+        state.timeout,
       );
       return component;
     },
