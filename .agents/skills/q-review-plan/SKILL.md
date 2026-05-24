@@ -33,11 +33,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
@@ -275,20 +280,25 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <artifacts>
     <artifact role="reviewed">thoughts/.../[design.md|outline.md|plan.md]</artifact>
   </artifacts>
-  <next>[/q-outline design.md OR /q-plan outline.md OR /q-workspace plan.md]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[q-outline|q-plan|q-workspace]/SKILL.md.</step>
+    <step>Read thoughts/.../[design.md|outline.md|plan.md].</step>
+    <step>Start the next stage immediately unless this is review-outline; for review-outline, /q-plan must first summarize design/outline for human approval, then write plan after approval.</step>
+  </next>
 </qrspi-result>
 ```
 
 Outcome mapping:
 
-- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>/q-outline [design.md]</next>`. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-outline [design.md]`.
-- `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>/q-plan [outline.md]</next>`
-  - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the outline approval gate; `<next>` is the next agent session/command. That `/q-plan` session must summarize the reviewed outline/design and ask for approval before writing `plan.md`.
+- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>` steps for `qrspi-planning`, `q-outline`, `design.md`, and immediate `/q-outline` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-outline [design.md]`.
+- `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>` steps for `qrspi-planning`, `q-plan`, `outline.md`, and the approval-summary prompt before writing `plan.md`.
+  - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the outline approval gate; `<next>` is the ordered instruction list for the next agent. That `/q-plan` session must summarize the reviewed outline/design and ask for approval before writing `plan.md`.
   - The `<summary><key-decisions>` for `review-outline` must instruct the next agent/runtime behavior:
     1. First, summarize the reviewed `design.md` and `outline.md` for the human so they can approve or ask questions.
     1. If the human approves, immediately begin `/q-plan [outline.md]`; do not require a second user nudge such as "go".
   - If an agent receives a human approval message such as `go`, `vamos`, or `yes` after a `review-outline` result or after the `/q-plan` approval summary, it should treat that as authorization to write `plan.md` immediately.
-- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>` and `<next>/q-workspace [plan.md]</next>`. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
+- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>` and `<next>` steps for `qrspi-planning`, `q-workspace`, `plan.md`, and immediate `/q-workspace` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
 
 If codebase research is needed before the review can pass, the next research-for-review stage should start immediately; do not ask for permission:
 
@@ -318,7 +328,12 @@ If codebase research is needed before the review can pass, the next research-for
   <artifacts>
     <artifact role="followup-questions">thoughts/.../reviews/.../questions/YYYY-MM-DD_HH-MM-SS_...md</artifact>
   </artifacts>
-  <next>/skill:q-research-for-review thoughts/.../reviews/.../questions/YYYY-MM-DD_HH-MM-SS_...md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-research-for-review/SKILL.md.</step>
+    <step>Read thoughts/.../reviews/.../questions/YYYY-MM-DD_HH-MM-SS_...md.</step>
+    <step>Start q-research-for-review immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 

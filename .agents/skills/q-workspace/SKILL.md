@@ -35,11 +35,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## Load
 
@@ -173,7 +178,12 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
     <key-decisions>Base: [branch@commit]. Reason: [merged into main OR unmerged/continuation stack, expected gt parent]. Next stage should start immediately: /q-implement [plan_dir]/plan.md.</key-decisions>
   </summary>
   <artifact>[plan_dir]/plan.md</artifact>
-  <next>/q-implement [plan_dir]/plan.md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-implement/SKILL.md.</step>
+    <step>Read [plan_dir]/plan.md in the prepared workspace.</step>
+    <step>Start /q-implement immediately in the prepared workspace unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 

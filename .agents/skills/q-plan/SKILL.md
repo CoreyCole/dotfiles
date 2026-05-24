@@ -38,7 +38,7 @@ Do not duplicate artifact lists or machine-control details in prose outside the 
 
 Post-XML natural summary style: caveman clear. Few words. Most important words only. For `plan`, summarize implementation plan and how each ADR is reflected.
 
-If `enablePlanReviews=true`, `<next>` is `/q-review [plan.md]`; if false, `<next>` is `/q-workspace [plan.md]`. For stage completion, emit a fenced `xml` QRSPI footer followed by the mandatory concise human summary; do not duplicate Artifact/Next machine-control details in prose:
+If `enablePlanReviews=true`, `<next>` steps route to `/q-review [plan.md]`; if false, `<next>` steps route to `/q-workspace [plan.md]`. For stage completion, emit a fenced `xml` QRSPI footer followed by the mandatory concise human summary; do not duplicate Artifact/Next machine-control details in prose:
 
 ```xml
 <qrspi-result>
@@ -98,11 +98,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the sixth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. Human alignment happened in question, design, and outline; product design may also exist for product-critical or high-stakes work. After this file is written, it gets an LLM planning review via `/q-review [plan.md]` before implementation starts.
 

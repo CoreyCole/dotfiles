@@ -39,11 +39,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Resume/start the next stage immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage/resume skill, read the handoff or primary artifact, then resume/start immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 Every `/q-handoff` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then immediately writing the handoff. A later continuation session must read `qrspi-planning`, then the skill named by `<next>`, then start that stage immediately unless a safety/human gate blocks.
 
@@ -230,7 +235,7 @@ Emit a fenced XML `<qrspi-result>` block followed by exactly one concise natural
 
 Final response format is strict: XML first, then concise summary only. Do not include any prose before the XML. Do not add headings, artifact lists, verification blocks, next-command lines, or other prose after the concise summary; those details belong inside XML fields and the handoff artifact.
 
-For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and emit a non-advancing XML result with `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the handoff, and `<next>/q-resume [handoff.md]</next>`. The XML `<summary><key-decisions>` should say the next session must read `qrspi-planning`, read `/q-resume`, then resume immediately. If the runtime must stop for a problem, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
+For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and emit a non-advancing XML result with `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the handoff, and `<next>` steps to read `qrspi-planning`, read `q-resume`, read the handoff, then resume immediately. The XML `<summary><key-decisions>` should say the next session must read `qrspi-planning`, read `/q-resume`, then resume immediately. If the runtime must stop for a problem, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
 
 For final implementation handoffs that should start implementation review, emit:
 
@@ -257,7 +262,12 @@ For final implementation handoffs that should start implementation review, emit:
     <key-decisions>[verification evidence and why implementation review is safe]</key-decisions>
   </summary>
   <artifact>thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md</artifact>
-  <next>/q-review thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-review/SKILL.md.</step>
+    <step>Read thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md.</step>
+    <step>Start /q-review immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
