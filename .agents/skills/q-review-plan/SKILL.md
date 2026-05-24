@@ -250,7 +250,7 @@ verdict: [correct|needs_attention]
 
 All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. For successful `review-plan`, append `Next: start /q-workspace now.` If clean plan review: `Found: clean. Next: start /q-workspace now.` For successful `review-outline`, append `Next: /q-plan summarizes outline for approval.` Caveman clear. Few words. Most important words only.
+Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. For successful normal parent-plan `review-plan`, append `Next: start /q-workspace now.` For successful `review-plan` inside an implementation-review follow-up directory (`[parent]/reviews/*_implementation-review/`), append `Next: start /q-implement now.` If clean normal plan review: `Found: clean. Next: start /q-workspace now.` If clean review-dir plan review: `Found: clean. Next: start /q-implement now.` For successful `review-outline`, append `Next: /q-plan summarizes outline for approval.` Caveman clear. Few words. Most important words only.
 
 If all findings were fixed directly and the reviewed artifact is ready for the next graph node:
 
@@ -258,8 +258,8 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
 <qrspi-result>
   <stage>review-design|review-outline|review-plan</stage>
   <status>complete</status>
-  <outcome>ready-for-outline|ready-for-human-review|ready-for-workspace</outcome>
-  <workspace>[absolute active QRSPI plan directory before q-workspace]</workspace>
+  <outcome>ready-for-outline|ready-for-human-review|ready-for-workspace|ready-for-implement</outcome>
+  <workspace>[absolute active QRSPI plan directory before q-workspace; for implementation-review follow-up plan reviews, absolute original reviewed implementation workspace]</workspace>
   <workspaceMetadata>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
@@ -274,7 +274,7 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <summary>
     <plan-goal>[overall plan goal]</plan-goal>
     <stage-completed>[what the plan review checked and changed]</stage-completed>
-    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next /q-plan session must first summarize the reviewed design/outline for human approval, then if approved immediately write the plan; for review-plan, explicitly say: Next stage should start immediately: /q-workspace ...]</key-decisions>
+    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next /q-plan session must first summarize the reviewed design/outline for human approval, then if approved immediately write the plan; for normal parent-plan review-plan, explicitly say: Next stage should start immediately: /q-workspace ...; for implementation-review follow-up review-plan, explicitly say: Next stage should start immediately: /q-implement ... in the original reviewed implementation workspace]</key-decisions>
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
@@ -282,7 +282,7 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[q-outline|q-plan|q-workspace]/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[q-outline|q-plan|q-workspace|q-implement]/SKILL.md.</step>
     <step>Read thoughts/.../[design.md|outline.md|plan.md].</step>
     <step>Start the next stage immediately unless this is review-outline; for review-outline, /q-plan must first summarize design/outline for human approval, then write plan after approval.</step>
   </next>
@@ -298,7 +298,8 @@ Outcome mapping:
     1. First, summarize the reviewed `design.md` and `outline.md` for the human so they can approve or ask questions.
     1. If the human approves, immediately begin `/q-plan [outline.md]`; do not require a second user nudge such as "go".
   - If an agent receives a human approval message such as `go`, `vamos`, or `yes` after a `review-outline` result or after the `/q-plan` approval summary, it should treat that as authorization to write `plan.md` immediately.
-- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>` and `<next>` steps for `qrspi-planning`, `q-workspace`, `plan.md`, and immediate `/q-workspace` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
+- `review-plan` ready for normal workspace prep: for parent plans, use `<outcome>ready-for-workspace</outcome>` and `<next>` steps for `qrspi-planning`, `q-workspace`, `plan.md`, and immediate `/q-workspace` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
+- `review-plan` ready for implementation-review follow-up: if the reviewed `plan.md` is inside `[parent]/reviews/*_implementation-review/`, skip `/q-workspace`. Use `<outcome>ready-for-implement</outcome>`, set `<workspace>` to the original reviewed implementation workspace path (not the review plan directory), and put `<next>` steps for `qrspi-planning`, `q-implement`, `plan.md`, and immediate `/q-implement` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-implement [plan.md] in the original reviewed implementation workspace; stack review-fix branches on the reviewed head; do not create a fresh copy or reset to trunk.` Its post-XML summary must end with `Next: start /q-implement now.`
 
 If codebase research is needed before the review can pass, the next research-for-review stage should start immediately; do not ask for permission:
 
@@ -350,4 +351,4 @@ If human judgment is required, use `<status>needs_human</status>` and omit `<out
 - Never edit implementation code in planning review.
 - Do not create a full nested QRSPI design/outline/plan for planning-review research follow-up. Use `q-address-review-research` to apply researched fixes back to the parent docs.
 - In `review.md`, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
-- In the post-XML user summary, use `Found: ... Fixed: ...`; for successful `review-plan`, include `Next: start /q-workspace now.` Do not summarize artifact paths there.
+- In the post-XML user summary, use `Found: ... Fixed: ...`; for successful normal parent-plan `review-plan`, include `Next: start /q-workspace now.` For successful implementation-review follow-up `review-plan`, include `Next: start /q-implement now.` Do not summarize artifact paths there.

@@ -80,9 +80,14 @@ function tagPattern(tagName: string): string {
 }
 
 function extractXmlTag(text: string, tagName: string): string | undefined {
+  return extractXmlTags(text, tagName)[0];
+}
+
+function extractXmlTags(text: string, tagName: string): string[] {
   const tag = tagPattern(tagName);
-  const match = text.match(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "i"));
-  return match?.[1];
+  return [...text.matchAll(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "gi"))].map(
+    (match) => match[1],
+  );
 }
 
 function normalizeXmlText(text: string): string {
@@ -96,6 +101,17 @@ function normalizeXmlText(text: string): string {
 }
 
 function normalizeNextText(text: string): string {
+  const steps = extractXmlTags(text, "step")
+    .map((step) => normalizePlainNextText(normalizeXmlText(step)))
+    .filter(Boolean);
+  if (steps.length > 0) {
+    return pickNextStageStep(steps) ?? steps.join(" ");
+  }
+
+  return normalizePlainNextText(text);
+}
+
+function normalizePlainNextText(text: string): string {
   const lines = text
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -110,6 +126,11 @@ function normalizeNextText(text: string): string {
   return lines.join(" ").replace(/\s+/g, " ").trim();
 }
 
+function pickNextStageStep(steps: string[]): string | undefined {
+  return steps.find((step) => /\b(?:start|resume)\b[\s\S]*\/(?:skill:)?q-[^\s.]+/i.test(step))
+    ?? steps.find((step) => /\/(?:skill:)?q-[^\s.]+/i.test(step));
+}
+
 function parseQrspiResult(text: string): QrspiResult | undefined {
   if (!new RegExp(`<\\s*${tagPattern("qrspi-result")}`, "i").test(text)) return undefined;
 
@@ -120,7 +141,7 @@ function parseQrspiResult(text: string): QrspiResult | undefined {
 }
 
 function formatNextStage(next: string): string {
-  const match = next.match(/^\/(?:skill:)?(q-[^\s]+)/);
+  const match = next.match(/\/(?:skill:)?(q-[^\s.]+)/);
   return match?.[1] ?? next.split(/\s+/, 1)[0] ?? "next";
 }
 
@@ -133,7 +154,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("input", async (event, ctx) => {
     const qrspi = parseQrspiResult(event.text);
-    const classification = resolvePlanClassification(qrspi?.next ?? event.text, ctx.cwd);
+    const classification = resolvePlanClassification(qrspi ? `${qrspi.next}\n${event.text}` : event.text, ctx.cwd);
     if (classification) {
       const latest = getLatestPlanClassification(ctx);
       if (!latest || latest.planDir !== classification.planDir || latest.source !== classification.source) {
