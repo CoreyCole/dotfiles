@@ -5,6 +5,8 @@ description: Prepare or repair the QRSPI implementation workspace after `/q-revi
 
 # QRSPI Workspace Prep
 
+Every `/q-workspace` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then immediately creating or repairing the implementation workspace. Do not answer “ready to proceed.” Stop only for a safety check, missing input, dirty/lost-work risk, `needs_human`, `blocked`, or `error`.
+
 Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]`. For implementation-review follow-up plans under `reviews/*_implementation-review/`, do **not** create a separate workspace; repair/sync the same original implementation workspace that was reviewed and stack follow-up work directly on top of the reviewed implementation head.
 
 ## Runtime XML contract
@@ -42,6 +44,7 @@ Required shape:
 ## Load
 
 1. Read `~/.agents/skills/qrspi-planning/SKILL.md`.
+1. Read this `q-workspace` skill.
 1. Resolve `plan_dir` from the given `plan.md` or directory.
 1. Read `[plan_dir]/AGENTS.md`, `[plan_dir]/plan.md`, newest `[plan_dir]/reviews/*_plan-review/review.md`, and parent plan artifacts if `plan_dir` is under `reviews/*_implementation-review/`.
 1. Run `~/dotfiles/spec_metadata.sh` before writing/updating artifacts.
@@ -145,7 +148,7 @@ Because a commit cannot reliably record its own hash inside tracked docs, distin
 
 ## Result XML
 
-Emit only fenced XML:
+Emit fenced XML first, followed by the mandatory concise human summary. The summary must direct immediate implementation start:
 
 ```xml
 <qrspi-result>
@@ -153,6 +156,12 @@ Emit only fenced XML:
   <status>complete</status>
   <outcome>complete</outcome>
   <workspace>[absolute workspace path]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[selected stack parent/current Graphite parent, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch in prepared workspace]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>false</autoMode>
     <enablePlanReviews>true</enablePlanReviews>
@@ -161,7 +170,7 @@ Emit only fenced XML:
   <summary>
     <plan-goal>[overall goal]</plan-goal>
     <stage-completed>[workspace created/repaired and plan synced]</stage-completed>
-    <key-decisions>Base: [branch@commit]. Reason: [merged into main OR unmerged/continuation stack, expected gt parent].</key-decisions>
+    <key-decisions>Base: [branch@commit]. Reason: [merged into main OR unmerged/continuation stack, expected gt parent]. Next stage should start immediately: /q-implement [plan_dir]/plan.md.</key-decisions>
   </summary>
   <artifact>[plan_dir]/plan.md</artifact>
   <next>/q-implement [plan_dir]/plan.md</next>
@@ -170,7 +179,8 @@ Emit only fenced XML:
 
 ## Rules
 
-- `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`.
+- `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`; when invoked with a valid reviewed `plan.md`, start workspace creation/repair immediately.
+- The post-XML summary must say `Workspace: created/repaired. Next: start /q-implement now.` Never say “ready to proceed.”
 - The XML summary must state the chosen base branch/commit and why.
 - For review-fixes plans, never create a second workspace and never assume `main` is safe. Use the original implementation workspace that was reviewed, and prove the reviewed implementation head is still an ancestor of the workspace branch where follow-up slices will stack.
 - For normal continuation plans, never assume trunk is safe. If the work builds on the current unmerged Graphite stack, submit/sync that stack and make the target workspace contiguous with the stack top via `gt get`.

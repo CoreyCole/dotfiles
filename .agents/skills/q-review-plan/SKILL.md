@@ -41,6 +41,8 @@ Required shape:
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
+Every planning-review session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then `q-review`, then this focused skill, then immediately running the review. Do not answer “ready to proceed.”
+
 Review pre-implementation artifacts and make the planning docs better. This is an LLM review gate, not a passive report and not the human design/product-design interview. Findings should usually become direct edits to `design.md`, optional `design-product.md`, `outline.md`, or `plan.md`.
 
 ## Review Target
@@ -243,7 +245,7 @@ verdict: [correct|needs_attention]
 
 All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Do not emit the old prose `Artifact path` / `Summary text` / `Next command` shape.
 
-Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. Caveman clear. Few words. Most important words only. If clean: `Found: clean.`
+Post-XML natural summary format for planning review: `Found: ... Fixed: ...`. For successful `review-plan`, append `Next: start /q-workspace now.` If clean plan review: `Found: clean. Next: start /q-workspace now.` For successful `review-outline`, append `Next: /q-plan summarizes outline for approval.` Caveman clear. Few words. Most important words only.
 
 If all findings were fixed directly and the reviewed artifact is ready for the next graph node:
 
@@ -252,6 +254,13 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <stage>review-design|review-outline|review-plan</stage>
   <status>complete</status>
   <outcome>ready-for-outline|ready-for-human-review|ready-for-workspace</outcome>
+  <workspace>[absolute active QRSPI plan directory before q-workspace]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>true</enablePlanReviews>
@@ -260,7 +269,7 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <summary>
     <plan-goal>[overall plan goal]</plan-goal>
     <stage-completed>[what the plan review checked and changed]</stage-completed>
-    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next agent must first summarize the reviewed design/outline for human approval, then if approved immediately start /q-plan without waiting for another nudge]</key-decisions>
+    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next /q-plan session must first summarize the reviewed design/outline for human approval, then if approved immediately write the plan; for review-plan, explicitly say: Next stage should start immediately: /q-workspace ...]</key-decisions>
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
@@ -272,22 +281,29 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
 
 Outcome mapping:
 
-- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>`
-- `review-outline` ready for human approval in the current review chat: `<outcome>ready-for-human-review</outcome>` and `<next>/q-plan [outline.md]</next>`
-  - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the human-review gate; `<next>` is the next agent session/command after the human approves in chat or manually starts the next stage.
+- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>/q-outline [design.md]</next>`. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-outline [design.md]`.
+- `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>/q-plan [outline.md]</next>`
+  - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the outline approval gate; `<next>` is the next agent session/command. That `/q-plan` session must summarize the reviewed outline/design and ask for approval before writing `plan.md`.
   - The `<summary><key-decisions>` for `review-outline` must instruct the next agent/runtime behavior:
     1. First, summarize the reviewed `design.md` and `outline.md` for the human so they can approve or ask questions.
     1. If the human approves, immediately begin `/q-plan [outline.md]`; do not require a second user nudge such as "go".
-  - If an agent receives the human approval message in the same chat after a `review-outline` result, it should treat that approval as authorization to proceed and start the `/q-plan` stage immediately.
-- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>`
+  - If an agent receives a human approval message such as `go`, `vamos`, or `yes` after a `review-outline` result or after the `/q-plan` approval summary, it should treat that as authorization to write `plan.md` immediately.
+- `review-plan` ready for workspace prep: `<outcome>ready-for-workspace</outcome>` and `<next>/q-workspace [plan.md]</next>`. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
 
-If codebase research is needed before the review can pass:
+If codebase research is needed before the review can pass, the next research-for-review stage should start immediately; do not ask for permission:
 
 ```xml
 <qrspi-result>
   <stage>review-design|review-outline|review-plan</stage>
   <status>complete</status>
   <outcome>needs-review-research</outcome>
+  <workspace>[absolute active QRSPI plan directory]</workspace>
+  <workspaceMetadata>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch></stackBottomBranch>
+    <parentBranch></parentBranch>
+    <currentBranch>[current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>true</enablePlanReviews>
@@ -296,7 +312,7 @@ If codebase research is needed before the review can pass:
   <summary>
     <plan-goal>[overall plan goal]</plan-goal>
     <stage-completed>[review found code-answerable gaps and wrote neutral questions]</stage-completed>
-    <key-decisions>[what research must answer before review can pass]</key-decisions>
+    <key-decisions>[what research must answer before review can pass]. Next stage should start immediately: /skill:q-research-for-review ...</key-decisions>
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
@@ -319,4 +335,4 @@ If human judgment is required, use `<status>needs_human</status>` and omit `<out
 - Never edit implementation code in planning review.
 - Do not create a full nested QRSPI design/outline/plan for planning-review research follow-up. Use `q-address-review-research` to apply researched fixes back to the parent docs.
 - In `review.md`, summarize the current design/plan at a high level and state how it aligns with PRDs, tickets, brainstormed requirements, research findings, and approved constraints.
-- In the post-XML user summary, use only `Found: ... Fixed: ...`; do not summarize artifact paths or exact next command there.
+- In the post-XML user summary, use `Found: ... Fixed: ...`; for successful `review-plan`, include `Next: start /q-workspace now.` Do not summarize artifact paths there.

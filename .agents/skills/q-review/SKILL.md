@@ -39,6 +39,8 @@ Required shape:
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
+Every `/q-review` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this router, then the selected focused review skill. After route selection, immediately run that focused review. Do not answer “ready to proceed.”
+
 `/q-review` is the stable entry point for QRSPI LLM review. It does not contain the review workflow itself. It resolves whether code has been written, then loads exactly one focused review skill:
 
 - `~/.agents/skills/q-review-plan/SKILL.md` for pre-implementation planning review of `design.md`, optional `design-product.md`, `outline.md`, and `plan.md` when present.
@@ -105,11 +107,11 @@ After resolving implementation review, read and follow:
 
 - Do not run both review modes in one invocation.
 - Do not keep using this router after mode selection; load the focused skill and follow it.
-- Planning review edits planning documents directly when findings are clear, including `design-product.md` when present. After a successful `plan.md` review, the next stage is `/q-workspace [plan.md]`, not `/q-implement`.
+- Planning review edits planning documents directly when findings are clear, including `design-product.md` when present. After a successful `plan.md` review, the next stage is `/q-workspace [plan.md]`, not `/q-implement`; the XML and post-XML summary must say to start `/q-workspace` immediately, not “ready to proceed.”
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
 - The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, approved QRSPI constraints, and relevant project guidance in `review.md`.
 - The focused review must run/use the project-guidance lane for relevant `AGENTS.md`, `.agents/rules`, `.cursor/rules`, local skills, and nearby package docs based on the reviewed/changed code paths.
 - The focused review must run/use the docs-health lane to decide whether relevant docs can be corrected, simplified, or made more concise.
-- The post-XML user summary for any review must use `Found: ... Fixed: ...` only. If clean, use exactly `Found: clean.` Caveman clear. Few words. Most important words only.
+- The post-XML user summary for review normally uses `Found: ... Fixed: ...`. For successful `review-plan`, append `Next: start /q-workspace now.` If clean, use `Found: clean. Next: start /q-workspace now.` For successful `review-outline`, append `Next: /q-plan summarizes outline for approval.` Caveman clear. Few words. Most important words only.
 - The focused review must preserve any conflicting relevant guidance from docs, `AGENTS.md`, `.agents/rules/`, `.cursor/rules/`, or local skills as `IMPORTANT: needs human attention` with exact source refs and the human decision needed.
 - Always return the canonical review artifact path produced by the focused skill.

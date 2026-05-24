@@ -54,6 +54,14 @@ Summary: [Ultra-concise human update. Sacrifice perfect grammar for concision.]
 - Research never has its own human stop. Humans evaluate research-derived direction in design/outline review, but research must loop to another `/q-research` pass when new code-answerable factual questions materially inform design.
 - Emit the QRSPI XML result as a fenced `xml` code block for every completed QRSPI stage result so it is syntax highlighted, then add only the mandatory concise human summary after it.
 
+## Immediate continuation contract
+
+Every QRSPI stage session must start by reading this `qrspi-planning` skill, then reading the skill named by the active stage or by the prior result's `<next>`, then immediately executing that stage. Do not answer “ready to proceed” when the graph has a valid next stage. Start the next stage now unless a documented human gate, `needs_human`, `blocked`, `error`, invalid artifact, safety check, or missing required input stops execution.
+
+Only one normal post-result pause exists after planning begins: after `review-outline`, the next `/q-plan` session first summarizes the reviewed `design.md` and `outline.md` and asks the human to approve plan writing. If the human replies with approval such as `go`, `vamos`, `yes`, or equivalent, the `/q-plan` session must immediately write the plan in that same session; do not require a second nudge. Other human alignment happens inside the active stage before it emits a complete result, or via explicit `needs_human`; a completed result should route onward immediately.
+
+For all other complete results, including `review-plan` and `workspace`, `<summary><key-decisions>` must explicitly say that the next stage should start immediately and name it, e.g. `Next stage should start immediately: /q-workspace ...`. The post-XML human summary must not say “ready to proceed”; say `Next: start ... now.` when the next graph node should run immediately.
+
 ## QRSPI XML summary contract
 
 The `<summary>` element is used by humans to understand workflow state before asking follow-up questions or advancing. It must be structured, specific, self-contained, not a generic completion label. Use these child elements inside `<summary>`:
@@ -104,7 +112,7 @@ Stage-specific post-XML summary content:
   - Tests: cover Z.
   ```
 - `plan`: summarize implementation plan and how each ADR is reflected. Example: `Plan: 4 parts. ADR-001 => adapter seam. ADR-002 => no migration.`
-- `review-design`, `review-outline`, `review-plan`, `review-implementation`: say only what review found and what it fixed. Example: `Found: stale API assumption. Fixed: outline uses current handler.` Clean review: `Found: clean.`
+- `review-design`, `review-outline`, `review-plan`, `review-implementation`: say what review found and fixed. For `review-plan`, also include immediate workspace start. Example: `Found: stale API assumption. Fixed: plan uses current handler. Next: start /q-workspace now.` Clean plan review: `Found: clean. Next: start /q-workspace now.` For `review-outline`, do not start planning silently; say `Found: clean. Next: /q-plan summarizes outline for approval.`
 
 ## QRSPI result footer
 
@@ -362,7 +370,7 @@ Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume
 - After `design.md`: next is `/q-outline [design.md]`; optional product gate is `/q-design-product [design.md]` when product coverage is warranted.
 - After `design-product.md`: next is `/q-outline [design-product.md]`.
 - After `outline.md`: next is `/q-review [outline.md]`.
-- After `plan.md`: `/q-plan` runs `just sync-thoughts`, then next is `/q-review [plan.md]`. After successful plan review, run `/q-workspace [plan.md]`; it creates/repairs the implementation workspace, records the base branch/commit in XML and plan memory, and then next is `/q-implement [plan.md]`.
+- After `plan.md`: `/q-plan` runs `just sync-thoughts`, then next is `/q-review [plan.md]`. After successful plan review, immediately run `/q-workspace [plan.md]` in the next session; it creates/repairs the implementation workspace, records the base branch/commit in XML and plan memory, and then immediately run `/q-implement [plan.md]` unless safety checks block.
 - During implementation: intermediate handoffs resume with `/q-resume` in the same `/q-workspace`-recorded implementation workspace. The workspace is the unit of isolation; do not assume a branch exists or should be created. For Graphite edit slices, write the handoff before `gt create` so it is included in the slice commit; use `git_commit: pending-slice-commit` in that self-contained handoff and report the final branch-head hash only in the QRSPI XML result.
 - Repository commit policy must be preserved in plans/handoffs: monorepo usually means Graphite slice branches; `cn-agents` means fresh workspace plus Graphite slice branches for each tracked edit slice, then `/cn-agents-merge` at the end. Do not record a `cn-agents` expectation to stay on `main` for slice commits.
 - Implementation handoffs record the `/q-workspace` implementation directory; they must not instruct agents to create ad-hoc copies and must not point agents at `git worktree`.
@@ -370,10 +378,12 @@ Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume
 
 ## Standard Context Loading
 
-Every stage skill starts by:
+Every QRSPI stage skill and every QRSPI handoff/resume continuation starts by:
 
 1. Reading this pipeline overview.
+1. Reading the skill for the current/next stage named by the prior `<next>` command.
 1. Reading exactly the artifacts listed in that stage skill.
+1. Starting that stage immediately unless the immediate continuation contract names a human approval gate or a safety stop applies.
 
 Do not bulk-load the whole plan directory.
 
@@ -399,7 +409,7 @@ Each stage skill contains the full process, templates, and rules for that step:
 
 - When a stage needs fresh discovery, use that stage's preferred read-only discovery/analyzer flow and write artifacts under `context/[stage]/`.
 - Each stage reads artifacts from prior stages as directed by its skill. Do not skip stages for non-trivial work.
-- Question, Research, and Design are human gates. Product Design is an optional human gate when product coverage is needed. Outline and plan are LLM-reviewed gates before implementation.
+- Question, Design, and optional Product Design include human alignment before they emit `complete`; they do not create an extra post-result pause. Research has no human stop. The only normal post-result pause is after outline review, where `/q-plan` summarizes the reviewed outline/design for approval before writing the plan. Outline and plan are LLM-reviewed gates before implementation.
 - `/q-review [outline.md]` and `/q-review [plan.md]` should revise planning docs toward readiness, including `design-product.md` when present, not merely report issues.
 - `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete and verification passes.
 - `/q-implement` and implementation-stage `/q-resume` work must happen in the fresh filesystem copy created/repaired by `/q-workspace` and recorded in `<workspace>`. For implementation-review follow-up plans, this means the same original implementation workspace that was reviewed, not a new copy, and the reviewed head must remain an ancestor of the follow-up branch stack. Never use `git worktree`.

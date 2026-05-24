@@ -24,6 +24,12 @@ Keep each child element short: 1-2 concise lines max.
 
 For review stages, always include both: (1) what the entire implementation/plan now does as a whole, and (2) what this review session checked and changed. Do not write vague summaries like `review complete`, `implementation review result`, `done`, or `summary of findings` without the concrete details a human would need to ask informed questions.
 
+## Immediate start and outline-review approval gate
+
+Every `/q-plan` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then loading the required artifacts. Do not answer “ready to proceed.” If the session is allowed to plan, write `plan.md` immediately.
+
+The only normal pause is when `/q-plan` is started after a successful `review-outline` result. In that case, first summarize the reviewed `design.md` and `outline.md` in a concise human-facing approval prompt, then ask whether to write the plan. If the human response is approval such as `go`, `vamos`, `yes`, or equivalent, immediately proceed with the full `/q-plan` process in the same session. Do not require another nudge.
+
 ## QRSPI footer instructions
 
 When more than one artifact is relevant, keep `<artifact>` as the primary next-command artifact and also include `<artifacts>` with every important artifact path, including review records, done summaries, handoffs, ADRs, and follow-up questions.
@@ -102,8 +108,9 @@ You are the sixth stage of the QRSPI pipeline. You expand the structured outline
 
 ## When Invoked
 
-0. **Load context:**
+0. **Load context and begin immediately:**
    - Read `~/.agents/skills/qrspi-planning/SKILL.md` (pipeline overview)
+   - Read this `q-plan` skill
    - Read `[plan_dir]/AGENTS.md`
    - Read all files in `[plan_dir]/questions/`
    - Read `[plan_dir]/design.md`
@@ -133,8 +140,12 @@ Then wait for input.
 
 1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, optional `design-product.md`, `outline.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, `context/design-product/` when present, `context/outline/`, and `context/plan/`, and any relevant files in `prds/`.
 
+   - If this `/q-plan` session follows `review-outline`, summarize the reviewed `design.md` and `outline.md` for human approval before writing `plan.md`. When the human says `go`, `vamos`, `yes`, or equivalent approval, immediately continue with step 2 in the same session.
+
    - Missing `design-product.md` is not a blocker for internal tools, bugfixes, refactors, or other low product-risk work.
+
    - Stop if `design-product.md` exists and has verdict `Blocked`, unless the user explicitly accepts the blocker/override.
+
    - If the task is product-critical, high-stakes, user-facing with unclear PRD coverage, compliance/security sensitive, or changes irreversible user/data behavior, stop and ask whether to run `/q-design-product` before planning.
 
 1. **Read key files from the codebase** that the outline references — you need to see the actual code to write accurate implementation steps.
@@ -294,7 +305,7 @@ ______________________________________________________________________
 
 When plan.md is written, emit the fenced `xml` `<qrspi-result>` footer followed by the mandatory concise human summary described above. Do not repeat artifact lists or next command in prose; put them in `<artifact>` and `<next>`, with detailed state in XML `<summary>`.
 
-Post-XML natural summary format for this stage: summarize plan + ADR mapping. Caveman speak. Few words. Most important words only. Prefer `Plan: 4 slices — A/B/C/D. ADR-001 => adapter; ADR-002 => no DB.` over sentences.
+Post-XML natural summary format for this stage: summarize plan + ADR mapping, then name the immediate next stage. Caveman speak. Few words. Most important words only. Prefer `Plan: 4 slices — A/B/C/D. ADR-001 => adapter; ADR-002 => no DB. Next: start /q-review now.` over sentences.
 
 Always include the complete `thoughts/.../plan.md` path. Never abbreviate to just the directory.
 
@@ -314,6 +325,6 @@ No human review of the plan — alignment already happened in design, outline, a
 - Every non-verification slice must include a dictated `### Commit Message` block after its verify step. The subject must be Conventional Commits 1.0.0 compliant (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, etc. with optional scope); the footer must include XML wrapped in `<qrspi-commit>` with `<workspace>`, `<slice number="N">`, and `<artifacts>` with exact `<design>`, `<outline>`, and `<plan>` paths.
 - Do NOT leave TODOs or open questions in the final plan. If something is genuinely unresolved, stop and ask.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
-- Post-XML summary for plan stage: plan + every ADR reflected in plan. Caveman clear. No tactical step dump.
+- Post-XML summary for plan stage: plan + every ADR reflected in plan + immediate next stage. Caveman clear. No tactical step dump. Never say “ready to proceed”; say `Next: start /q-review now.` or `Next: start /q-workspace now.` depending on policy.
 ```
 ````
