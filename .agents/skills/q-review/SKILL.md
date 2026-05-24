@@ -18,7 +18,15 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan directory before q-workspace; omit after implementation workspace exists]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory; required after q-workspace]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace when known]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -35,9 +43,9 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
     <step>Read [primary artifact path from artifact element].</step>
-    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
@@ -113,7 +121,7 @@ After resolving implementation review, read and follow:
 - Do not run both review modes in one invocation.
 - Do not keep using this router after mode selection; load the focused skill and follow it.
 - Planning review edits planning documents directly when findings are clear, including `design-product.md` when present. After a successful normal parent-plan `plan.md` review, the next stage is `/q-workspace [plan.md]`, not `/q-implement`; the XML and post-XML summary must say to start `/q-workspace` immediately, not “ready to proceed.”
-- Exception: for `plan.md` reviews inside an implementation-review follow-up directory (`[parent]/reviews/*_implementation-review/`), do not route to `/q-workspace`. The reviewed implementation workspace already exists. The completion XML must route directly to `/q-implement [plan.md]`, set `<workspace>` to the original reviewed implementation workspace, and say implementation must stack new review-fix branches on top of the reviewed implementation head. Do not create a fresh copy, do not reset to trunk/main, and do not imply implementation should happen anywhere except the reviewed workspace.
+- Exception: for `plan.md` reviews inside an implementation-review follow-up directory (`[parent]/reviews/*_implementation-review/`), do not route to `/q-workspace`. The reviewed implementation workspace already exists. The completion XML must route directly to `/q-implement [plan.md]`, omit top-level `<workspace>`, set `<planWorkspace>` to the review-dir plan workspace, set `<implementationWorkspace>` to the original reviewed implementation workspace, and say implementation must stack new review-fix branches on top of the reviewed implementation head. Do not create a fresh copy, do not reset to trunk/main, and do not imply implementation should happen anywhere except the reviewed workspace.
 - Implementation review reviews code, applies only straightforward code fixes directly, and creates a review-directory QRSPI plan for deeper follow-up work.
 - The focused review must summarize the current design/implementation and its alignment with PRDs, tickets, brainstormed requirements, approved QRSPI constraints, and relevant project guidance in `review.md`.
 - The focused review must run/use the project-guidance lane for relevant `AGENTS.md`, `.agents/rules`, `.cursor/rules`, local skills, and nearby package docs based on the reviewed/changed code paths.

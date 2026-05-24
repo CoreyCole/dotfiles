@@ -18,7 +18,7 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace]</workspace>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -33,11 +33,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
@@ -260,7 +265,14 @@ Outline:
     <key-decisions>[decisions, risks, or why next step is safe]</key-decisions>
   </summary>
   <artifact>thoughts/.../outline.md</artifact>
-  <next>/q-review thoughts/.../outline.md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-review/SKILL.md.</step>
+    <step>Read thoughts/.../design.md.</step>
+    <step>Read thoughts/.../design-product.md if it exists.</step>
+    <step>Read thoughts/.../outline.md.</step>
+    <step>Start /q-review immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 

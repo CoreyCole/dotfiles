@@ -18,7 +18,7 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace]</workspace>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -33,11 +33,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Base research skill:** `~/.agents/skills/q-research/SKILL.md`
 > **Planning review skill:** `~/.agents/skills/q-review-plan/SKILL.md`
@@ -125,7 +130,13 @@ When this helper completes, emit a fenced XML `<qrspi-result>` block followed by
     <artifact role="review">thoughts/.../reviews/.../review.md</artifact>
     <artifact role="questions">thoughts/.../reviews/.../questions/...md</artifact>
   </artifacts>
-  <next>/skill:q-address-review-research [review.md] [research.md]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-address-review-research/SKILL.md.</step>
+    <step>Read [review.md].</step>
+    <step>Read [research.md].</step>
+    <step>Start /q-address-review-research immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 

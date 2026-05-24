@@ -18,7 +18,14 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace when known]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -33,11 +40,21 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-verify/SKILL.md.</step>
+    <step>Read [exact path to design.md].</step>
+    <step>Read [exact path to design-product.md if it exists].</step>
+    <step>Read [exact path to outline.md].</step>
+    <step>Read [exact path to plan.md].</step>
+    <step>Read the implementation review artifact above.</step>
+    <step>Read relevant repo/project verification docs and guidance for integration and E2E tests, including AGENTS.md, package docs, and docs/features or e2e docs touched by the implementation.</step>
+    <step>Start /q-verify immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. After `/q-workspace`, omit top-level `<workspace>` and record both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read QRSPI guidance, read q-verify, read design, read design-product if it exists, read outline, read plan, read the review artifact, read relevant repository verification docs/guidance for integration and E2E test context, then start verification immediately unless blocked. Runtime transitions are graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
@@ -245,7 +262,14 @@ If no findings remain after any straightforward fixes, keep the primary artifact
   <stage>review-implementation</stage>
   <status>complete</status>
   <outcome>ready-for-human-review</outcome>
-  <workspace>[absolute implementation workspace]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -260,18 +284,35 @@ If no findings remain after any straightforward fixes, keep the primary artifact
   <artifacts>
     <artifact role="implementation-review">thoughts/.../reviews/..._implementation-review/review.md</artifact>
   </artifacts>
-  <next>/q-verify thoughts/.../reviews/..._implementation-review/review.md [project verification guide]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-verify/SKILL.md.</step>
+    <step>Read thoughts/.../design.md.</step>
+    <step>Read thoughts/.../design-product.md if it exists.</step>
+    <step>Read thoughts/.../outline.md.</step>
+    <step>Read thoughts/.../plan.md.</step>
+    <step>Read thoughts/.../reviews/..._implementation-review/review.md.</step>
+    <step>Read relevant repo/project verification docs and guidance for integration and E2E tests, including AGENTS.md, package docs, and docs/features or e2e docs touched by the implementation.</step>
+    <step>Start /q-verify immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.md`, include a follow-up plan or questions artifact, and route back to QRSPI question/research in the review-dir context. The `<workspace>` must remain the same original implementation workspace; downstream follow-up planning must not create a separate workspace:
+If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.md`, include a follow-up plan or questions artifact, and route back to QRSPI question/research in the review-dir context. `<implementationWorkspace>` must remain the same original implementation workspace and `<planWorkspace>` must identify the review-dir plan workspace; downstream follow-up planning must not create a separate workspace:
 
 ```xml
 <qrspi-result>
   <stage>review-implementation</stage>
   <status>complete</status>
   <outcome>needs-followup</outcome>
-  <workspace>[absolute implementation workspace]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute review-dir QRSPI plan workspace]</planWorkspace>
+    <implementationWorkspace>[absolute original implementation workspace]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -286,7 +327,13 @@ If deeper follow-up QRSPI work is needed, keep the primary artifact as `review.m
   <artifacts>
     <artifact role="followup-questions">thoughts/.../reviews/..._implementation-review/questions/YYYY-MM-DD_HH-MM-SS_...md</artifact>
   </artifacts>
-  <next>/q-research thoughts/.../reviews/..._implementation-review/questions/YYYY-MM-DD_HH-MM-SS_...md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-research/SKILL.md.</step>
+    <step>Read thoughts/.../reviews/..._implementation-review/review.md.</step>
+    <step>Read thoughts/.../reviews/..._implementation-review/questions/YYYY-MM-DD_HH-MM-SS_...md.</step>
+    <step>Start /q-research in the review-dir context immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 

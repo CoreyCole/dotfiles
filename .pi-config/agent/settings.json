@@ -1,10 +1,11 @@
 {
-  "lastChangelogVersion": "0.75.3",
+  "lastChangelogVersion": "0.75.5",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs"
   ],
   "compaction": {
     "enabled": false
   },
-  "hideThinkingBlock": false
+  "hideThinkingBlock": false,
+  "theme": "corey-dark"
 }

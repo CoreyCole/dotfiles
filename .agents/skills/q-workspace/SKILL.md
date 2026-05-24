@@ -20,7 +20,14 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace when known]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -37,14 +44,14 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
     <step>Read [primary artifact path from artifact element].</step>
-    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `/q-workspace` is the first result where an implementation workspace exists, so omit top-level `<workspace>` and put both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## Load
 
@@ -103,7 +110,8 @@ For normal new workspaces, write workspace metadata before copying so the copy s
      - `[plan_dir]/plan.md`
    - Do not leave the nested plan relying only on the parent `AGENTS.md`; the scheduled plan-workspace sync uses the local marker to discover nested plan workspaces.
 1. Update `[plan_dir]/plan.md` `Implementation Workspace Prep` and `[plan_dir]/AGENTS.md` with:
-   - absolute workspace path
+   - absolute plan workspace path
+   - absolute implementation workspace path
    - selected base branch/commit used for the base decision
    - whether parent stack was already merged into main
    - for review-fixes plans, reviewed implementation head and expected Graphite parent for first review-plan slice
@@ -139,7 +147,8 @@ The metadata update happens before copying for new workspaces. For repairs to an
 
 Record:
 
-- absolute workspace path
+- absolute plan workspace path
+- absolute implementation workspace path
 - `workspace_base` branch and commit
 - whether parent stack was already merged into main/trunk, or whether this is a normal continuation of an unmerged stack
 - for review-fix/follow-up plans, reviewed implementation head and expected Graphite parent for the first new review-plan slice
@@ -160,8 +169,9 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
   <stage>workspace</stage>
   <status>complete</status>
   <outcome>complete</outcome>
-  <workspace>[absolute workspace path]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute prepared implementation workspace]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
     <parentBranch>[selected stack parent/current Graphite parent, or empty when not applicable]</parentBranch>
@@ -181,6 +191,9 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
     <step>Read ~/.agents/skills/q-implement/SKILL.md.</step>
+    <step>Read [plan_dir]/design.md in the prepared workspace.</step>
+    <step>Read [plan_dir]/design-product.md in the prepared workspace if it exists.</step>
+    <step>Read [plan_dir]/outline.md in the prepared workspace.</step>
     <step>Read [plan_dir]/plan.md in the prepared workspace.</step>
     <step>Start /q-implement immediately in the prepared workspace unless blocked by an explicit human/safety gate.</step>
   </next>
@@ -191,6 +204,7 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
 
 - `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`; when invoked with a valid reviewed `plan.md`, start workspace creation/repair immediately.
 - The post-XML summary must say `Workspace: created/repaired. Next: start /q-implement now.` Never say “ready to proceed.”
+- The XML must omit top-level `<workspace>` and include both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`.
 - The XML summary must state the chosen base branch/commit and why.
 - For review-fixes plans, never create a second workspace and never assume `main` is safe. Use the original implementation workspace that was reviewed, and prove the reviewed implementation head is still an ancestor of the workspace branch where follow-up slices will stack.
 - For normal continuation plans, never assume trunk is safe. If the work builds on the current unmerged Graphite stack, submit/sync that stack and make the target workspace contiguous with the stack top via `gt get`.

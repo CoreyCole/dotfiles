@@ -18,7 +18,15 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan directory before q-workspace; omit if implementation workspace already exists]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan directory; required when implementation workspace exists]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace when known]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -35,14 +43,14 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
     <step>Read [primary artifact path from artifact element].</step>
-    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Before `/q-workspace`, use top-level `<workspace>` for the active plan directory. If an implementation workspace already exists (implementation-review follow-up), omit top-level `<workspace>` and put both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 
@@ -259,8 +267,10 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <stage>review-design|review-outline|review-plan</stage>
   <status>complete</status>
   <outcome>ready-for-outline|ready-for-human-review|ready-for-workspace|ready-for-implement</outcome>
-  <workspace>[absolute active QRSPI plan directory before q-workspace; for implementation-review follow-up plan reviews, absolute original reviewed implementation workspace]</workspace>
+  <workspace>[absolute active QRSPI plan directory before q-workspace; omit for implementation-review follow-up plan reviews]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan directory; for implementation-review follow-up, the review-dir plan workspace]</planWorkspace>
+    <implementationWorkspace>[for implementation-review follow-up, absolute original reviewed implementation workspace; empty before q-workspace]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
     <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
@@ -278,14 +288,16 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
-    <artifact role="reviewed">thoughts/.../[design.md|outline.md|plan.md]</artifact>
+    <artifact role="reviewed">[exact path to reviewed design.md, outline.md, or plan.md]</artifact>
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[q-outline|q-plan|q-workspace|q-implement]/SKILL.md.</step>
-    <step>Read thoughts/.../[design.md|outline.md|plan.md].</step>
-    <step>For review-outline, also read thoughts/.../design.md when the previous step names outline.md.</step>
-    <step>Start the next stage immediately unless this is review-outline; for review-outline, /q-plan must first summarize design/outline for human approval, then read all relevant code files and write plan after approval.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage skill for this outcome]/SKILL.md.</step>
+    <step>Read [exact path to design.md].</step>
+    <step>Read [exact path to design-product.md if it exists].</step>
+    <step>Read [exact path to outline.md if it exists and is relevant to this outcome].</step>
+    <step>Read [exact path to plan.md if it exists and is relevant to this outcome].</step>
+    <step>Start the exact next stage immediately unless this is review-outline; for review-outline, /q-plan must first summarize design/outline for human approval, then read all relevant code files and write plan after approval.</step>
   </next>
 </qrspi-result>
 ```
@@ -293,14 +305,14 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
 Outcome mapping:
 
 - `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>` steps for `qrspi-planning`, `q-outline`, `design.md`, and immediate `/q-outline` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-outline [design.md]`.
-- `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>` steps for `qrspi-planning`, `q-plan`, `design.md`, `outline.md`, and the approval-summary prompt before reading code files and writing `plan.md`.
+- `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>` steps for `qrspi-planning`, `q-plan`, `design.md`, `design-product.md` if it exists, `outline.md`, and the approval-summary prompt before reading code files and writing `plan.md`.
   - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the outline approval gate; `<next>` is the ordered instruction list for the next agent. That `/q-plan` session must summarize the reviewed design/outline and ask for approval before reading relevant code files and writing `plan.md`.
   - The `<summary><key-decisions>` for `review-outline` must instruct the next agent/runtime behavior:
     1. First, summarize the reviewed `design.md` and `outline.md` for the human so they can approve or ask questions.
     1. If the human approves, immediately begin `/q-plan [outline.md]` in the same session by reading all relevant code files, then writing `plan.md`; do not require a second user nudge such as "go".
   - If an agent receives a human approval message such as `go`, `vamos`, or `yes` after a `review-outline` result or after the `/q-plan` approval summary, it should treat that as authorization to read all relevant code files and then write `plan.md` in the same session.
 - `review-plan` ready for normal workspace prep: for parent plans, use `<outcome>ready-for-workspace</outcome>` and `<next>` steps for `qrspi-planning`, `q-workspace`, `plan.md`, and immediate `/q-workspace` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-workspace [plan.md]`. Its post-XML summary must end with `Next: start /q-workspace now.`
-- `review-plan` ready for implementation-review follow-up: if the reviewed `plan.md` is inside `[parent]/reviews/*_implementation-review/`, skip `/q-workspace`. Use `<outcome>ready-for-implement</outcome>`, set `<workspace>` to the original reviewed implementation workspace path (not the review plan directory), and put `<next>` steps for `qrspi-planning`, `q-implement`, `plan.md`, and immediate `/q-implement` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-implement [plan.md] in the original reviewed implementation workspace; stack review-fix branches on the reviewed head; do not create a fresh copy or reset to trunk.` Its post-XML summary must end with `Next: start /q-implement now.`
+- `review-plan` ready for implementation-review follow-up: if the reviewed `plan.md` is inside `[parent]/reviews/*_implementation-review/`, skip `/q-workspace`. Use `<outcome>ready-for-implement</outcome>`, omit top-level `<workspace>`, set `<planWorkspace>` to the review-dir plan workspace, set `<implementationWorkspace>` to the original reviewed implementation workspace path, and put `<next>` steps for `qrspi-planning`, `q-implement`, `plan.md`, and immediate `/q-implement` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-implement [plan.md] in the original reviewed implementation workspace; stack review-fix branches on the reviewed head; do not create a fresh copy or reset to trunk.` Its post-XML summary must end with `Next: start /q-implement now.`
 
 If codebase research is needed before the review can pass, the next research-for-review stage should start immediately; do not ask for permission:
 

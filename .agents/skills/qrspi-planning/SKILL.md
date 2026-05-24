@@ -16,8 +16,10 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; omit after implementation workspace exists]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory; required after q-workspace]</planWorkspace>
+    <implementationWorkspace>[absolute fresh implementation workspace; required after q-workspace, empty before]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
     <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
@@ -39,16 +41,17 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
-    <step>Read [primary artifact path from artifact element].</step>
-    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
+    <step>Read [exact primary artifact path from artifact element].</step>
+    <step>Read [exact design-product.md path if it exists and the next stage uses design context].</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
 
 Summary: [Ultra-concise human update. Sacrifice perfect grammar for concision.]
 
-`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is an explicit ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Before `/q-workspace`, include top-level `<workspace>` immediately after `<outcome>` and set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run. Once `/q-workspace` creates or repairs an implementation workspace, omit top-level `<workspace>` and instead record both paths inside `<workspaceMetadata>` as `<planWorkspace>` and `<implementationWorkspace>`. `<workspaceMetadata>` records workspace identity plus branch context for humans and runtime handoff/debugging: `planWorkspace` is the plan/ticket directory, `implementationWorkspace` is the fresh implementation workspace after `/q-workspace`, `trunkBranch` is usually `main`, `stackBottomBranch` is the lowest Graphite branch above trunk, `parentBranch` is the branch immediately below the chunk of work just completed, and `currentBranch` is the branch created/updated for the chunk. Use empty elements when a value is unknowable. `<next>` is an explicit ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## QRSPI mode contract
 
@@ -65,7 +68,7 @@ Every QRSPI stage session must start by reading this `qrspi-planning` skill, the
 
 Only one normal post-result pause exists after planning begins: after `review-outline`, the next `/q-plan` session first summarizes the reviewed `design.md` and `outline.md` and asks the human to approve plan writing. If the human replies with approval such as `go`, `vamos`, `yes`, or equivalent, the `/q-plan` session must read all relevant code files named or implied by the reviewed design/outline, then write the plan in that same session; do not require a second nudge. Other human alignment happens inside the active stage before it emits a complete result, or via explicit `needs_human`; a completed result should route onward immediately.
 
-For all other complete results, including `review-plan` and `workspace`, `<summary><key-decisions>` must explicitly say that the next stage should start immediately and name it, e.g. `Next stage should start immediately: /q-workspace ...`. The `<next>` block must spell out ordered steps for the next agent: read `qrspi-planning`, read the named stage skill, read the artifact, then start the next stage immediately. The post-XML human summary must not say “ready to proceed”; say `Next: start ... now.` when the next graph node should run immediately.
+For all other complete results, including `review-plan` and `workspace`, `<summary><key-decisions>` must explicitly say that the next stage should start immediately and name it, e.g. `Next stage should start immediately: /q-workspace ...`. The `<next>` block must spell out ordered steps for the next agent: read `qrspi-planning`, read the named stage skill, read each required artifact in its own step, read `design-product.md` when it exists and design context is needed, then start the next stage immediately. Do not use ambiguous “or” alternatives inside emitted XML; choose the concrete next stage for the current outcome. The post-XML human summary must not say “ready to proceed”; say `Next: start ... now.` when the next graph node should run immediately.
 
 ## QRSPI XML summary contract
 
@@ -125,7 +128,7 @@ When more than one artifact is relevant, keep `<artifact>` as the primary next-c
 
 Do not duplicate artifact lists or machine-control details in prose outside the XML. For normal QRSPI stage completion, the response must be the fenced `xml` `<qrspi-result>` block followed by a mandatory concise human summary; make both summaries specific enough for humans.
 
-Every primary QRSPI stage and review/helper that completes a workflow transition must include a visible fenced `xml` QRSPI result block. Always include `<outcome>` for complete results and `<workspace>` immediately after `<outcome>`:
+Every primary QRSPI stage and review/helper that completes a workflow transition must include a visible fenced `xml` QRSPI result block. Always include `<outcome>` for complete results. Before `/q-workspace`, include `<workspace>` immediately after `<outcome>`; after an implementation workspace exists, omit top-level `<workspace>` and include both workspace paths inside `<workspaceMetadata>`:
 
 ```xml
 <qrspi-result>
@@ -133,9 +136,11 @@ Every primary QRSPI stage and review/helper that completes a workflow transition
   <status>complete</status>
   <outcome>complete</outcome>
   <workspace>
-[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]
+[absolute active QRSPI plan/ticket directory before q-workspace; omit after implementation workspace exists]
   </workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory; required after q-workspace]</planWorkspace>
+    <implementationWorkspace>[absolute fresh implementation workspace; required after q-workspace, empty before]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
     <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
@@ -167,9 +172,9 @@ thoughts/.../design.md
 Summary: Design captured approved direction; next outline unless product gate needed.
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
-`<workspace>` always appears immediately after `<outcome>` for complete results. Before `/q-workspace`, it points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace and then changes `<workspace>` to that absolute implementation path; later stages preserve it so `/q-implement` runs there. Non-complete results that omit `<outcome>` still include `<workspace>` immediately after `<status>`.
-`<workspaceMetadata>` always appears immediately after `<workspace>`. For implementation results in Graphite repos, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` after `gt create`/`gt modify`; for planning/non-Graphite contexts, include empty elements for unknown values and preserve `currentBranch` when known.
-`<next>` is an ordered instruction block for the next agent; runtime validates and may rewrite it from latest persisted policy before starting another run. Include only `<step>` children in execution order, ending with the immediate start instruction or the explicit outline-review approval prompt instruction. Do not include a separate `<command>` child; the final step names the next stage.
+Before `/q-workspace`, `<workspace>` appears immediately after `<outcome>` for complete results and points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace; from that result onward, do not emit top-level `<workspace>`. Instead, put `<planWorkspace>` and `<implementationWorkspace>` as the first children of `<workspaceMetadata>` and preserve both in later implementation, resume, review, and verify results. Non-complete results that omit `<outcome>` follow the same rule: use top-level `<workspace>` only before an implementation workspace exists; otherwise use metadata paths.
+`<workspaceMetadata>` always appears immediately after `<workspace>` before `/q-workspace`, or immediately after `<outcome>`/`<status>` after top-level `<workspace>` is omitted. For implementation results in Graphite repos, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch` after `gt create`/`gt modify`; for planning/non-Graphite contexts, include empty elements for unknown values and preserve `currentBranch` when known.
+`<next>` is an ordered instruction block for the next agent; runtime validates and may rewrite it from latest persisted policy before starting another run. Include only `<step>` children in execution order, ending with the immediate start instruction or the explicit outline-review approval prompt instruction. Do not include a separate `<command>` child; the final step names the next stage. Handoff/resume results must include separate read steps for `q-resume`, exact `design.md`, exact `outline.md`, exact `plan.md`, and exact handoff path before the start step.
 
 ## Nested project planning
 
@@ -420,11 +425,11 @@ Each stage skill contains the full process, templates, and rules for that step:
 - Question, Design, and optional Product Design include human alignment before they emit `complete`; they do not create an extra post-result pause. Research has no human stop. The only normal post-result pause is after outline review, where `/q-plan` summarizes the reviewed design/outline for approval before reading relevant code files and writing the plan. Outline and plan are LLM-reviewed gates before implementation.
 - `/q-review [outline.md]` and `/q-review [plan.md]` should revise planning docs toward readiness, including `design-product.md` when present, not merely report issues.
 - `/q-implement` uses `/q-resume` checkpoint handoffs for intermediate slices and only hands off to `/q-review` after all slices are complete and verification passes.
-- `/q-implement` and implementation-stage `/q-resume` work must happen in the fresh filesystem copy created/repaired by `/q-workspace` and recorded in `<workspace>`. For implementation-review follow-up plans, this means the same original implementation workspace that was reviewed, not a new copy, and the reviewed head must remain an ancestor of the follow-up branch stack. Never use `git worktree`.
+- `/q-implement` and implementation-stage `/q-resume` work must happen in the fresh filesystem copy created/repaired by `/q-workspace` and recorded in `<workspaceMetadata><implementationWorkspace>`. The paired `<planWorkspace>` records the plan/review directory whose artifacts drive the work. For implementation-review follow-up plans, this means the same original implementation workspace that was reviewed, not a new copy, and the reviewed head must remain an ancestor of the follow-up branch stack. Never use `git worktree`.
 - Branching is not automatic. Follow the target repo's submission model after entering the workspace: use Graphite slice branches in repos that use Graphite. `cn-agents` uses this model too: create a branch for each tracked edit slice in the workspace, and use `/cn-agents-merge` after implementation/review is complete. For review-fixes plans, do not create a second workspace; reuse the original implementation workspace and stack review-plan branches on top of the reviewed implementation head.
 - `/q-review` must run `just sync-thoughts` after modifying planning artifacts when the recipe exists. Final normal parent-plan review advances to `/q-workspace`, which syncs the reviewed plan directory into the chosen implementation workspace before `/q-implement`. Final implementation-review follow-up plan review skips `/q-workspace` and advances directly to `/q-implement` in the original reviewed implementation workspace.
 - Keep `plan.md` status checkboxes updated during implementation.
 - When looping back before implementation, update parent planning artifacts. When addressing implementation review follow-up, use the implementation review directory as the new plan dir, but keep using the same implementation workspace and reviewed head recorded by the parent implementation/review XML. Do not run a separate copied workspace for review follow-up work.
 - When a stage creates or updates an artifact, use `~/dotfiles/spec_metadata.sh` for timestamps and frontmatter.
-- Stage completion XML should include the full path to the created artifact in `<artifact>` and an ordered `<next>` block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact, then start the next stage immediately.
+- Stage completion XML should include the full path to the created artifact in `<artifact>` and an ordered `<next>` block containing only `<step>` children: read `qrspi-planning`, read the concrete next stage skill, read each required artifact in its own step, then start the next stage immediately. Do not emit slash-command text or bracketed alternatives in `<next>`; resolve to the exact next stage for this result. If both `design.md` and `design-product.md` exist and the next stage uses design context, include read steps for both. For `/q-handoff` and resume handoffs, the artifact reads are explicit separate steps: read exact `design.md`, exact `outline.md`, exact `plan.md`, exact handoff path.
 - Preserve the stage completion XML after follow-ups: answer the follow-up if needed, then re-emit the fenced `xml` `<qrspi-result>` with updated `<summary>`, `<artifact>`, and `<next>`, followed by the mandatory concise human summary.

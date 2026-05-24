@@ -1,6 +1,5 @@
 import {
   createBashToolDefinition,
-  createReadToolDefinition,
   getAgentDir,
   type ExtensionAPI,
   type SessionStartEvent,
@@ -35,7 +34,7 @@ function replaceTabs(text: string): string {
 }
 
 function normalizeDisplayText(text: string): string {
-  return text.replace(/\r/g, "");
+  return replaceTabs(text.replace(/\r/g, ""));
 }
 
 function textOutput(result: {
@@ -47,6 +46,26 @@ function textOutput(result: {
     .join("\n");
 }
 
+function normalizeToolResultText<
+  T extends { content?: Array<{ type: string; text?: string }> },
+>(result: T): T {
+  const content = result.content;
+  if (!content) return result;
+
+  let changed = false;
+  const normalizedContent = content.map((block) => {
+    if (block.type !== "text" || typeof block.text !== "string") return block;
+
+    const text = normalizeDisplayText(block.text);
+    if (text === block.text) return block;
+
+    changed = true;
+    return { ...block, text };
+  });
+
+  return changed ? ({ ...result, content: normalizedContent } as T) : result;
+}
+
 function linesMessage(count: number, theme: ThemeLike): string {
   return theme.fg("muted", `${count} lines...`);
 }
@@ -55,29 +74,8 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function deterministicDocsSummary(result: any, theme: ThemeLike): string[] {
-  const loaded = result?.details?.deterministicDocs?.loaded;
-  if (!Array.isArray(loaded) || loaded.length === 0) return [];
-
-  return loaded
-    .map((entry) => entry?.path)
-    .filter(
-      (path): path is string => typeof path === "string" && path.length > 0,
-    )
-    .map(
-      (path) => `${theme.fg("success", "loaded:")} ${theme.fg("accent", path)}`,
-    );
-}
-
-function stripDeterministicDocsContext(result: any): any {
-  const autoContextContentBlocks =
-    result?.details?.deterministicDocs?.autoContextContentBlocks ?? 0;
-  if (autoContextContentBlocks <= 0) return result;
-
-  return {
-    ...result,
-    content: result.content?.slice(autoContextContentBlocks),
-  };
+function subtleToolBorder(width: number, theme: ThemeLike): string {
+  return theme.fg("dim", "─".repeat(Math.max(1, width)));
 }
 
 function invalidArgText(theme: ThemeLike): string {
@@ -90,20 +88,25 @@ function str(value: unknown): string | null {
   return null;
 }
 
-function formatBashCall(args: any, theme: ThemeLike): string {
+function formatBashCall(
+  args: any,
+  theme: ThemeLike,
+  status?: "success" | "error",
+): string {
   const command = str(args?.command);
   const timeout = typeof args?.timeout === "number" ? args.timeout : undefined;
   const timeoutSuffix = timeout
     ? theme.fg("muted", ` (timeout ${timeout}s)`)
     : "";
+  const statusPrefix = status === "success" ? "🟢 " : status === "error" ? "🔴 " : "";
   if (command === null) {
-    return `${theme.fg("toolTitle", theme.bold("$"))} ${invalidArgText(theme)}${timeoutSuffix}`;
+    return `${statusPrefix}${theme.fg("toolTitle", theme.bold("$"))} ${invalidArgText(theme)}${timeoutSuffix}`;
   }
 
   const commandDisplay = command
     ? replaceTabs(normalizeDisplayText(command))
     : theme.fg("toolOutput", "...");
-  return `${theme.fg("toolTitle", theme.bold(`$ ${commandDisplay}`))}${timeoutSuffix}`;
+  return `${statusPrefix}${theme.fg("toolTitle", theme.bold(`$ ${commandDisplay}`))}${timeoutSuffix}`;
 }
 
 class BashPreviewComponent implements Component {
@@ -161,33 +164,6 @@ function trimTrailingEmptyLines(lines: string[]): string[] {
   let end = lines.length;
   while (end > 0 && lines[end - 1] === "") end--;
   return lines.slice(0, end);
-}
-
-class ReadPreviewComponent implements Component {
-  constructor(
-    private result: any,
-    private theme: ThemeLike,
-  ) {}
-
-  set(result: any, theme: ThemeLike) {
-    this.result = result;
-    this.theme = theme;
-  }
-
-  invalidate() {}
-
-  render(width: number): string[] {
-    const summary = deterministicDocsSummary(this.result, this.theme);
-    const visibleResult = stripDeterministicDocsContext(this.result);
-    const lines = trimTrailingEmptyLines(textOutput(visibleResult).split("\n"));
-    if (lines.length === 0 && summary.length === 0) return [];
-
-    return [
-      "",
-      ...summary,
-      ...(lines.length > 0 ? [linesMessage(lines.length, this.theme)] : []),
-    ].map((line) => truncateToWidth(line, width));
-  }
 }
 
 type ShellSettings = {
@@ -307,14 +283,20 @@ export default function toolHooks(pi: ExtensionAPI) {
         state.endedAt = undefined;
       }
 
+      const status = context.isPartial
+        ? undefined
+        : context.isError
+          ? "error"
+          : "success";
       const text =
         context.lastComponent instanceof Text
           ? context.lastComponent
           : new Text("", 0, 0);
-      text.setText(formatBashCall(args, theme));
+      text.setText(formatBashCall(args, theme, status));
       return text;
     },
     renderResult(result, options, theme, context) {
+      const displayResult = normalizeToolResultText(result);
       const state = context.state as {
         startedAt?: number;
         endedAt?: number;
@@ -337,10 +319,17 @@ export default function toolHooks(pi: ExtensionAPI) {
 
       if (options.expanded) {
         return (
-          bashTool.renderResult?.(result as Parameters<NonNullable<typeof bashTool.renderResult>>[0], options, theme, {
-            ...context,
-            lastComponent: undefined,
-          }) ?? new Container()
+          bashTool.renderResult?.(
+            displayResult as Parameters<
+              NonNullable<typeof bashTool.renderResult>
+            >[0],
+            options,
+            theme,
+            {
+              ...context,
+              lastComponent: undefined,
+            },
+          ) ?? new Container()
         );
       }
 
@@ -348,14 +337,14 @@ export default function toolHooks(pi: ExtensionAPI) {
         context.lastComponent instanceof BashPreviewComponent
           ? context.lastComponent
           : new BashPreviewComponent(
-              result,
+              displayResult,
               theme,
               Boolean(options.isPartial),
               state.startedAt,
               state.endedAt,
             );
       component.set(
-        result,
+        displayResult,
         theme,
         Boolean(options.isPartial),
         state.startedAt,
@@ -365,44 +354,6 @@ export default function toolHooks(pi: ExtensionAPI) {
     },
   });
 
-  // Own read rendering so pi-deterministic-docs can patch read results without
-  // registering a conflicting read tool.
-  const readTool = createReadToolDefinition(cwd);
-  pi.registerTool({
-    ...readTool,
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      return readTool.execute(toolCallId, params, signal, onUpdate, ctx);
-    },
-    renderCall(args, theme, context) {
-      return readTool.renderCall?.(args, theme, context) ?? new Text("", 0, 0);
-    },
-    renderResult(result, options, theme, context) {
-      if (options.expanded) {
-        const visibleResult = stripDeterministicDocsContext(result);
-        const base =
-          readTool.renderResult?.(visibleResult, options, theme, {
-            ...context,
-            lastComponent: undefined,
-          }) ?? new Container();
-        const summary = deterministicDocsSummary(result, theme).join("\n");
-        if (!summary) return base;
-
-        const baseLines = base
-          .render(200)
-          .map((line) => line.trimEnd())
-          .join("\n")
-          .trimEnd();
-        return new Text([summary, baseLines].filter(Boolean).join("\n"), 0, 0);
-      }
-
-      const component =
-        context.lastComponent instanceof ReadPreviewComponent
-          ? context.lastComponent
-          : new ReadPreviewComponent(result, theme);
-      component.set(result, theme);
-      return component;
-    },
-  });
 
   pi.registerMessageRenderer(
     "tool-hooks-session-start",

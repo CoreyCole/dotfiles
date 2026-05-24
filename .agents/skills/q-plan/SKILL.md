@@ -46,7 +46,7 @@ If `enablePlanReviews=true`, `<next>` steps route to `/q-review [plan.md]`; if f
   <status>complete</status>
   <outcome>complete</outcome>
   <workspace>
-[empty; q-workspace creates/repairs this after plan review]
+[absolute active QRSPI plan/ticket directory; q-workspace creates implementation workspace later]
   </workspace>
   <policy>
     <autoMode>[latest known autoMode]</autoMode>
@@ -63,7 +63,13 @@ If `enablePlanReviews=true`, `<next>` steps route to `/q-review [plan.md]`; if f
 [exact path to plan.md]
   </artifact>
   <next>
-[/q-review or /q-workspace] [exact path to plan.md]
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage skill selected by policy]/SKILL.md.</step>
+    <step>Read [exact path to design.md].</step>
+    <step>Read [exact path to design-product.md if it exists].</step>
+    <step>Read [exact path to outline.md].</step>
+    <step>Read [exact path to plan.md].</step>
+    <step>Start the concrete next stage selected by policy immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
@@ -83,7 +89,15 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace]</workspace>
+  <workspaceMetadata>
+    <planWorkspace>[empty before q-workspace; after q-workspace use metadata paths instead of top-level workspace]</planWorkspace>
+    <implementationWorkspace>[empty before q-workspace]</implementationWorkspace>
+    <trunkBranch>[trunk branch name, usually main]</trunkBranch>
+    <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
+    <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
+    <currentBranch>[current branch after gt create/gt modify, or current git branch]</currentBranch>
+  </workspaceMetadata>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -100,9 +114,12 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
-    <step>Read [primary artifact path from artifact element].</step>
-    <step>Start [next stage] immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage skill]/SKILL.md.</step>
+    <step>Read [exact path to design.md].</step>
+    <step>Read [exact path to design-product.md if it exists].</step>
+    <step>Read [exact path to outline.md].</step>
+    <step>Read [exact path to plan.md].</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
@@ -323,7 +340,7 @@ No human review of the plan — alignment already happened in design, outline, a
 - Include `Implementation Workspace Prep` in every plan, but do not create the workspace in `/q-plan`; `/q-workspace` creates or repairs it after the plan review and records the final base branch/commit.
 - Include the repository submission model in every implementation plan: `cn-agents` = fresh workspace plus Graphite slice branches for tracked edit slices, then `/cn-agents-merge`; Graphite repos = stacked slice branches for tracked edit slices.
 - Run `just sync-thoughts` after writing `plan.md`.
-- Include `<workspace>` immediately after `<status>` in every QRSPI result footer when a workspace is known; for `/q-plan`, it may be empty because `/q-workspace` is responsible for final workspace creation.
+- Include `<workspace>` immediately after `<outcome>` in `/q-plan` QRSPI result footers, using the absolute active QRSPI plan/ticket directory. `/q-workspace` is responsible for final implementation workspace creation and will switch later XML to `<workspaceMetadata><planWorkspace>...` plus `<implementationWorkspace>...`.
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.
 - If `design-product.md` exists, preserve its Critical Findings in concrete implementation steps, verification, or explicit Out of Scope notes.
 - Every slice must include a verify step — a command the implementing agent can run.

@@ -18,8 +18,9 @@ Every completed verify stage must emit fenced XML first, then one concise summar
   <stage>verify</stage>
   <status>complete</status>
   <outcome>ready-for-human-review</outcome>
-  <workspace>[absolute implementation workspace]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace]</implementationWorkspace>
     <trunkBranch>[trunk]</trunkBranch>
     <stackBottomBranch>[bottom branch]</stackBottomBranch>
     <parentBranch>[parent branch]</parentBranch>
@@ -40,13 +41,18 @@ Every completed verify stage must emit fenced XML first, then one concise summar
     <artifact role="implementation-review">thoughts/.../reviews/.../review.md</artifact>
     <artifact role="verification-evidence">thoughts/...</artifact>
   </artifacts>
-  <next>human-review-implementation</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read verify.md.</step>
+    <step>Read the implementation review artifact.</step>
+    <step>Present final implementation evidence for human review.</step>
+  </next>
 </qrspi-result>
 ```
 
 Post-XML summary format: `Verified: ... Fixed: ... Evidence: ...` If no fixes: `Verified: ... Fixed: none. Evidence: ...`
 
-If blocked by failing verification that cannot be safely fixed, use `<status>blocked</status>`, omit `<outcome>`, keep `<workspace>`/metadata, write `verify.md`, and set `<next>/q-resume [verify.md or handoff]</next>`. On success, `<next>` should name the final human implementation gate (`human-review-implementation`); runtime transition remains graph-authoritative.
+If blocked by failing verification that cannot be safely fixed, use `<status>blocked</status>`, omit `<outcome>`, keep `<workspaceMetadata>` with both workspace paths, write `verify.md`, and set `<next>` steps to read `qrspi-planning`, read `q-resume`, read `verify.md` or handoff, then start `/q-resume`. On success, `<next>` should use ordered `<step>` children that present final implementation evidence for human review; runtime transition remains graph-authoritative.
 
 ## Inputs
 
@@ -78,6 +84,7 @@ The project guide is authoritative for project-specific commands, E2E tools, scr
    - fix does not weaken intended behavior, delete assertions, hide failures, or bypass real verification
 1. For unclear product/UX changes, broad architecture changes, flaky infra, credential issues, or risky production behavior changes: do not guess; record blocker in `verify.md` and return blocked/needs_human as appropriate.
 1. Re-run the smallest verification that proves each fix, then required final verification if practical.
+1. Before marking verification complete, prompt the user to manually test any running UI/workspace described by the project guide. Include the exact URL from the project CLI/server output and concise flows to inspect. Do not proceed to a complete `verify.md` until the user confirms manual testing passed; if the user cannot test or reports a problem, record `needs_human` or `blocked` with their findings.
 1. Write `[plan_dir]/verify.md`.
 1. Update `[plan_dir]/AGENTS.md` only for durable gotchas future sessions must load before handoffs.
 

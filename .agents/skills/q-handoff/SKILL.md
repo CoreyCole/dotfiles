@@ -18,8 +18,10 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; absolute fresh implementation workspace after q-workspace]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace; omit after implementation workspace exists]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory; required after q-workspace]</planWorkspace>
+    <implementationWorkspace>[absolute fresh implementation workspace; required after q-workspace, empty before]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk, or empty when not applicable]</stackBottomBranch>
     <parentBranch>[Graphite parent branch below the just-finished branch/chunk, or empty when not applicable]</parentBranch>
@@ -41,14 +43,17 @@ Required shape:
   </artifacts>
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
-    <step>Read ~/.agents/skills/[next-stage]/SKILL.md.</step>
-    <step>Read [primary artifact path from artifact element].</step>
-    <step>Resume/start the next stage immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Read ~/.agents/skills/q-resume/SKILL.md.</step>
+    <step>Read [path-to-design.md].</step>
+    <step>Read [path-to-outline.md].</step>
+    <step>Read [path-to-plan.md].</step>
+    <step>Read [path-to-handoff.md].</step>
+    <step>Start /q-resume immediately unless blocked by an explicit human/safety gate.</step>
   </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<workspace>` is always required: before `/q-workspace`, set it to the absolute active QRSPI plan/ticket directory where the next planning stage should run; after `/q-workspace`, set it to the absolute fresh implementation workspace. `<workspaceMetadata>` records branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage/resume skill, read the handoff or primary artifact, then resume/start immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Before `/q-workspace`, top-level `<workspace>` is the absolute active QRSPI plan/ticket directory. After `/q-workspace`, omit top-level `<workspace>` and record both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<workspaceMetadata>` records workspace identity plus branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when a value is unknowable. For resume handoffs, `<next>` is an ordered instruction block: read `qrspi-planning`, read `q-resume`, read `design.md`, read `outline.md`, read `plan.md`, read the handoff, then start `/q-resume` immediately unless blocked. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 Every `/q-handoff` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then immediately writing the handoff. A later continuation session must read `qrspi-planning`, then the skill named by `<next>`, then start that stage immediately unless a safety/human gate blocks.
 
@@ -235,7 +240,7 @@ Emit a fenced XML `<qrspi-result>` block followed by exactly one concise natural
 
 Final response format is strict: XML first, then concise summary only. Do not include any prose before the XML. Do not add headings, artifact lists, verification blocks, next-command lines, or other prose after the concise summary; those details belong inside XML fields and the handoff artifact.
 
-For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and emit a non-advancing XML result with `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the handoff, and `<next>` steps to read `qrspi-planning`, read `q-resume`, read the handoff, then resume immediately. The XML `<summary><key-decisions>` should say the next session must read `qrspi-planning`, read `/q-resume`, then resume immediately. If the runtime must stop for a problem, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include `<workspace>` immediately after `<status>`.
+For checkpoint handoffs that should not advance the runtime graph, write the handoff artifact and emit a non-advancing XML result with `<status>handoff</status>`, no `<outcome>`, `<artifact>` set to the handoff, and `<next>` steps to read `qrspi-planning`, read `q-resume`, read the exact `design.md`, read the exact `outline.md`, read the exact `plan.md`, read the exact handoff path, then resume immediately. The XML `<summary><key-decisions>` should say the next session must read `qrspi-planning`, read `/q-resume`, load design/outline/plan/handoff, then resume immediately. If the runtime must stop for a problem, use a supported lifecycle status such as `needs_human`, `blocked`, or `error`, omit `<outcome>`, and still include workspace identity: top-level `<workspace>` immediately after `<status>` before `/q-workspace`, or `<workspaceMetadata>` with both workspace paths after `/q-workspace`.
 
 For final implementation handoffs that should start implementation review, emit:
 
@@ -244,8 +249,9 @@ For final implementation handoffs that should start implementation review, emit:
   <stage>implement</stage>
   <status>complete</status>
   <outcome>complete</outcome>
-  <workspace>[absolute implementation workspace]</workspace>
   <workspaceMetadata>
+    <planWorkspace>[absolute active QRSPI plan/ticket directory]</planWorkspace>
+    <implementationWorkspace>[absolute implementation workspace]</implementationWorkspace>
     <trunkBranch>[trunk branch name, usually main]</trunkBranch>
     <stackBottomBranch>[bottom Graphite branch above trunk]</stackBottomBranch>
     <parentBranch>[Graphite parent branch below the completed implementation branch]</parentBranch>
@@ -265,6 +271,9 @@ For final implementation handoffs that should start implementation review, emit:
   <next>
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
     <step>Read ~/.agents/skills/q-review/SKILL.md.</step>
+    <step>Read thoughts/.../design.md.</step>
+    <step>Read thoughts/.../outline.md.</step>
+    <step>Read thoughts/.../plan.md.</step>
     <step>Read thoughts/.../handoffs/YYYY-MM-DD_HH-MM-SS_implementation-complete.md.</step>
     <step>Start /q-review immediately unless blocked by an explicit human/safety gate.</step>
   </next>
@@ -273,7 +282,8 @@ For final implementation handoffs that should start implementation review, emit:
 
 Line-quality requirements still apply inside `<summary>`:
 
-- `<workspace>` must be present: absolute active plan/ticket directory for planning handoffs, absolute fresh implementation workspace for implementation handoffs.
+- Before `/q-workspace`, top-level `<workspace>` must be present and point at the absolute active plan/ticket directory.
+- After `/q-workspace`, top-level `<workspace>` must be omitted; `<workspaceMetadata>` must include both `<planWorkspace>` and `<implementationWorkspace>` before branch metadata.
 - `<workspaceMetadata>` must be present. For implementation handoffs after Graphite branch creation, fill `trunkBranch`, `stackBottomBranch`, `parentBranch`, and `currentBranch`; for non-Graphite/planning contexts, include empty elements except `currentBranch` when known.
 - `<stage-completed>` must describe the actual work, not generic `stage complete`.
 - `<key-decisions>` must include verification evidence when known, or say why verification was not run.
@@ -282,6 +292,6 @@ Line-quality requirements still apply inside `<summary>`:
 Next routing:
 
 - For `continue` mode from `implement`, use `/q-review` in XML `<next>` and make `<summary><key-decisions>` say `Next stage should start immediately: /q-review ...`.
-- For all other handoffs, use `/q-resume` in XML `<next>` and make `<summary><key-decisions>` say the next session should read `qrspi-planning`, then `/q-resume`, then start the resumed stage immediately.
+- For all other handoffs, use `/q-resume` in XML `<next>` and make `<summary><key-decisions>` say the next session should read `qrspi-planning`, then `/q-resume`, then exact `design.md`, exact `outline.md`, exact `plan.md`, exact handoff path, then start the resumed stage immediately.
 
 Never abbreviate paths.

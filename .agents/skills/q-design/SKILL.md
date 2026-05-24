@@ -18,7 +18,7 @@ Required shape:
   <stage>[canonical node id]</stage>
   <status>complete</status>
   <outcome>[node-specific branch outcome]</outcome>
-  <workspace>[absolute implementation workspace when known]</workspace>
+  <workspace>[absolute active QRSPI plan/ticket directory before q-workspace]</workspace>
   <policy>
     <autoMode>[current persisted policy]</autoMode>
     <enablePlanReviews>[current persisted policy]</enablePlanReviews>
@@ -33,11 +33,16 @@ Required shape:
   <artifacts>
     <artifact role="related">thoughts/...</artifact>
   </artifacts>
-  <next>[display/debug command matching the graph]</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/[concrete next-stage]/SKILL.md.</step>
+    <step>Read [primary artifact path from artifact element].</step>
+    <step>Start the concrete next stage immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is display/debug only; runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the third stage of the QRSPI pipeline. You answer the question **"where are we going?"** in a short design document (~200-300 lines). This forces alignment between human and agent before any code is written. This is the cheapest place to change direction.
 
@@ -223,7 +228,7 @@ Accepted
 
 ## Response
 
-When `design.md` is written, emit this fenced XML result, followed by the mandatory concise human summary. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` is display/debug only.
+When `design.md` is written, emit this fenced XML result, followed by the mandatory concise human summary. Design does not run automated `/q-review`; it advances to `/q-outline` unless product coverage warrants `/q-design-product`. `<next>` must be ordered `<step>` children.
 
 Post-XML natural summary format for this stage: key direction only. Caveman speak. Few words. Most important words only. Prefer `Design: reuse X; add Y; avoid Z.` over sentences.
 
@@ -246,11 +251,16 @@ Post-XML natural summary format for this stage: key direction only. Caveman spea
   <artifacts>
     <artifact role="adr">thoughts/.../adrs/YYYY-MM-DD_HH-MM-SS_decision.md</artifact>
   </artifacts>
-  <next>/q-outline thoughts/.../design.md</next>
+  <next>
+    <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
+    <step>Read ~/.agents/skills/q-outline/SKILL.md.</step>
+    <step>Read thoughts/.../design.md.</step>
+    <step>Start /q-outline immediately unless blocked by an explicit human/safety gate.</step>
+  </next>
 </qrspi-result>
 ```
 
-If product coverage is warranted, set `<next>` to `/q-design-product [design.md]`; otherwise set `<next>` to `/q-outline [design.md]`. Always include the complete `thoughts/.../design.md` path.
+If product coverage is warranted, set `<next>` steps to read `qrspi-planning`, read `q-design-product`, read `[design.md]`, then start `/q-design-product`. If product coverage is not warranted, set `<next>` steps to read `qrspi-planning`, read `q-outline`, read `[design.md]`, read `[design-product.md if it exists]`, then start `/q-outline`. Always include the complete `thoughts/.../design.md` path.
 
 ## Rules
 
