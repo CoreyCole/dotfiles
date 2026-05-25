@@ -165,7 +165,13 @@ function patchAssistantMessageSpacing() {
   };
 
   proto.render = function render(width: number): string[] {
-    return trimLeadingBlankLines(proto[ORIGINAL_ASSISTANT_RENDER].call(this, width) as string[]);
+    const lines = trimTrailingBlankLines(trimLeadingBlankLines(proto[ORIGINAL_ASSISTANT_RENDER].call(this, width) as string[]));
+    const content = this.lastMessage?.content;
+    const hasThinking = Array.isArray(content) && content.some((block) => block?.type === "thinking" && typeof block.thinking === "string" && block.thinking.trim());
+    const hasText = Array.isArray(content) && content.some((block) => block?.type === "text" && typeof block.text === "string" && block.text.trim());
+    if (!hasThinking || hasText || hasBorder(lines)) return lines;
+    const indented = lines.map((line) => stripAnsi(line).trim() === "" ? line : `  ${line}`);
+    return truncateLines([...indented, subtleBorder(width)], width);
   };
 }
 
