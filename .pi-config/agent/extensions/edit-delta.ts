@@ -3,7 +3,8 @@ import { createEditToolDefinition } from "/home/ruby/.local/share/mise/installs/
 // @ts-ignore: Use the active pi runtime's bundled TUI package.
 import { Container, Text } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { resolve } from "node:path";
 
 // Match lazygit's delta pager flags so Pi edit diffs use the same visual style.
 const DELTA_ARGS = [
@@ -32,6 +33,14 @@ type ParsedDiffLine = {
   lineNum?: number;
   content: string;
 };
+
+type LastEdit = {
+  path: string;
+  cwd: string;
+  line: number;
+};
+
+let lastEdit: LastEdit | undefined;
 
 function parseDisplayDiffLine(line: string): ParsedDiffLine | undefined {
   const match = line.match(/^([+\- ])(\s*\d*)\s(.*)$/);
@@ -106,7 +115,54 @@ function errorText(result: EditResult): string | undefined {
   return text || undefined;
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function editPath(input: unknown): string | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const value = (input as { path?: unknown; file_path?: unknown }).path ?? (input as { file_path?: unknown }).file_path;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function editLine(details: unknown): number {
+  if (!details || typeof details !== "object") return 1;
+  const value = (details as { firstChangedLine?: unknown }).firstChangedLine;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
+}
+
+function openLastEditInTmux(): boolean {
+  const targetPane = process.env.TMUX_PANE;
+  if (!lastEdit || !process.env.TMUX || !targetPane) return false;
+
+  const filePath = resolve(lastEdit.cwd, lastEdit.path);
+  const tmux = spawn("tmux", ["split-window", "-bh", "-t", targetPane, "-c", lastEdit.cwd, `nvim +${lastEdit.line} -- ${shellQuote(filePath)}`], {
+    detached: true,
+    stdio: "ignore",
+  });
+  tmux.on("error", () => undefined);
+  tmux.unref();
+  return true;
+}
+
 export default function (pi: ExtensionAPI) {
+  pi.registerShortcut("ctrl+alt+e", {
+    description: "Open latest edit in a left tmux nvim split",
+    handler: async (ctx) => {
+      if (!openLastEditInTmux()) {
+        ctx.ui.notify("No recent edit available to open", "error");
+      }
+    },
+  });
+
+  pi.on("tool_result", (event, ctx) => {
+    if (event.toolName !== "edit" || event.isError) return;
+
+    const path = editPath(event.input);
+    if (!path) return;
+    lastEdit = { path, cwd: ctx.cwd, line: editLine(event.details) };
+  });
+
   const edit = createEditToolDefinition(process.cwd());
   const originalRenderResult = edit.renderResult?.bind(edit);
 
