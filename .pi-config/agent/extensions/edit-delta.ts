@@ -1,10 +1,9 @@
 // @ts-ignore: Use the active pi runtime module, not a local config dependency copy.
-import { createEditToolDefinition, CustomEditor } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
+import { createEditToolDefinition } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
 // @ts-ignore: Use the active pi runtime's bundled TUI package.
 import { Container, Text } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { spawn, spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // Match lazygit's delta pager flags so Pi edit diffs use the same visual style.
 const DELTA_ARGS = [
@@ -33,16 +32,6 @@ type ParsedDiffLine = {
   lineNum?: number;
   content: string;
 };
-
-type LastEdit = {
-  path: string;
-  cwd: string;
-  line: number;
-};
-
-const ORIGINAL_ON_ACTION = Symbol.for("corey.editDeltaOriginalOnAction");
-let lastToolName: string | undefined;
-let lastEdit: LastEdit | undefined;
 
 function parseDisplayDiffLine(line: string): ParsedDiffLine | undefined {
   const match = line.match(/^([+\- ])(\s*\d*)\s(.*)$/);
@@ -117,67 +106,7 @@ function errorText(result: EditResult): string | undefined {
   return text || undefined;
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function editPath(input: unknown): string | undefined {
-  if (!input || typeof input !== "object") return undefined;
-  const value = (input as { path?: unknown; file_path?: unknown }).path ?? (input as { file_path?: unknown }).file_path;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function editLine(details: unknown): number {
-  if (!details || typeof details !== "object") return 1;
-  const value = (details as { firstChangedLine?: unknown }).firstChangedLine;
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
-}
-
-// Ctrl+O opens the most recent edit in a tmux split instead of toggling tool output.
-function openLastEditInTmux(): boolean {
-  if (lastToolName !== "edit" || !lastEdit || !process.env.TMUX) return false;
-
-  const filePath = resolve(lastEdit.cwd, lastEdit.path);
-  const command = `nvim +${lastEdit.line} -- ${shellQuote(filePath)}`;
-  const tmux = spawn("tmux", ["split-window", "-h", "-b", "-c", lastEdit.cwd, command], {
-    detached: true,
-    stdio: "ignore",
-  });
-  tmux.on("error", () => undefined);
-  tmux.unref();
-  return true;
-}
-
-function patchCtrlOForLatestEdit() {
-  const proto = CustomEditor.prototype as {
-    [ORIGINAL_ON_ACTION]?: (action: string, handler: () => void) => void;
-    onAction: (action: string, handler: () => void) => void;
-  };
-  proto[ORIGINAL_ON_ACTION] ??= proto.onAction;
-
-  proto.onAction = function onAction(action: string, handler: () => void) {
-    if (action !== "app.tools.expand") {
-      return proto[ORIGINAL_ON_ACTION]?.call(this, action, handler);
-    }
-
-    return proto[ORIGINAL_ON_ACTION]?.call(this, action, function wrappedToolExpand(this: unknown) {
-      if (openLastEditInTmux()) return;
-      return handler.call(this);
-    });
-  };
-}
-
 export default function (pi: ExtensionAPI) {
-  patchCtrlOForLatestEdit();
-
-  pi.on("tool_result", (event, ctx) => {
-    lastToolName = event.toolName;
-    if (event.toolName !== "edit" || event.isError) return;
-
-    const path = editPath(event.input);
-    if (!path) return;
-    lastEdit = { path, cwd: ctx.cwd, line: editLine(event.details) };
-  });
   const edit = createEditToolDefinition(process.cwd());
   const originalRenderResult = edit.renderResult?.bind(edit);
 
