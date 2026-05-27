@@ -83,6 +83,10 @@ function extractXmlTag(text: string, tagName: string): string | undefined {
   return extractXmlTags(text, tagName)[0];
 }
 
+function extractLatestXmlTag(text: string, tagName: string): string | undefined {
+  return extractXmlTags(text, tagName).at(-1);
+}
+
 function extractXmlTags(text: string, tagName: string): string[] {
   const tag = tagPattern(tagName);
   return [...text.matchAll(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "gi"))].map(
@@ -101,14 +105,15 @@ function normalizeXmlText(text: string): string {
 }
 
 function normalizeNextText(text: string): string {
-  const steps = extractXmlTags(text, "step")
+  const decoded = normalizeXmlText(text);
+  const steps = extractXmlTags(decoded, "step")
     .map((step) => normalizePlainNextText(normalizeXmlText(step)))
     .filter(Boolean);
   if (steps.length > 0) {
     return pickNextStageStep(steps) ?? steps.join(" ");
   }
 
-  return normalizePlainNextText(text);
+  return normalizePlainNextText(decoded);
 }
 
 function normalizePlainNextText(text: string): string {
@@ -132,10 +137,11 @@ function pickNextStageStep(steps: string[]): string | undefined {
 }
 
 function parseQrspiResult(text: string): QrspiResult | undefined {
-  if (!new RegExp(`<\\s*${tagPattern("qrspi-result")}`, "i").test(text)) return undefined;
+  const result = extractLatestXmlTag(text, "qrspi-result");
+  if (!result) return undefined;
 
-  const stage = normalizeXmlText(extractXmlTag(text, "stage") ?? "");
-  const next = normalizeNextText(normalizeXmlText(extractXmlTag(text, "next") ?? ""));
+  const stage = normalizeXmlText(extractXmlTag(result, "stage") ?? "");
+  const next = normalizeNextText(extractXmlTag(result, "next") ?? "");
   if (!stage || !next) return undefined;
   return { stage, next };
 }

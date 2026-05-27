@@ -84,6 +84,7 @@ The project guide is authoritative for project-specific commands, E2E tools, scr
    - fix does not weaken intended behavior, delete assertions, hide failures, or bypass real verification
 1. For unclear product/UX changes, broad architecture changes, flaky infra, credential issues, or risky production behavior changes: do not guess; record blocker in `verify.md` and return blocked/needs_human as appropriate.
 1. Re-run the smallest verification that proves each fix, then required final verification if practical.
+1. Commit every fix applied during verify before requesting human manual testing. Use the repository's normal commit/stack workflow, include regenerated outputs, and keep the workspace clean except explicitly unrelated pre-existing changes. Do not ask the human to test uncommitted verification fixes.
 1. Before marking verification complete, prompt the user to manually test any running UI/workspace described by the project guide. Include the exact URL from the project CLI/server output and concise flows to inspect. Do not proceed to a complete `verify.md` until the user confirms manual testing passed; if the user cannot test or reports a problem, record `needs_human` or `blocked` with their findings.
 1. Write `[plan_dir]/verify.md`.
 1. Update `[plan_dir]/AGENTS.md` only for durable gotchas future sessions must load before handoffs.
@@ -154,5 +155,6 @@ verification_guide: [path]
 - `q-verify` runs after implementation review, before final human implementation approval.
 - Verification evidence must be durable: prefer files under the plan dir or project-guide artifact locations.
 - If real browser/agent/worker services are required, use the guide's auth and service-management instructions. Do not invent credentials or hand-configure auth.
+- Commit verify-stage fixes before human testing so the running/manual-tested workspace corresponds to committed code.
 - Keep final user summary short and evidence-focused.
 - Do not create a final implementation-review `done.md`; successful verify routes to `human-review-implementation`, and terminal completion/done artifacts belong only after final human approval.
