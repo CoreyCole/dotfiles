@@ -132,8 +132,8 @@ function normalizePlainNextText(text: string): string {
 }
 
 function pickNextStageStep(steps: string[]): string | undefined {
-  return steps.find((step) => /\b(?:start|resume)\b[\s\S]*\/(?:skill:)?q-[^\s.]+/i.test(step))
-    ?? steps.find((step) => /\/(?:skill:)?q-[^\s.]+/i.test(step));
+  return steps.find((step) => /\b(?:start|resume)\b[\s\S]*\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step))
+    ?? steps.find((step) => /\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step));
 }
 
 function parseQrspiResult(text: string): QrspiResult | undefined {
@@ -147,8 +147,12 @@ function parseQrspiResult(text: string): QrspiResult | undefined {
 }
 
 function formatNextStage(next: string): string {
-  const match = next.match(/\/(?:skill:)?(q-[^\s.]+)/);
-  return match?.[1] ?? next.split(/\s+/, 1)[0] ?? "next";
+  const normalized = normalizeNextText(next);
+  const match = normalized.match(/\/(?:skill:)?(q-[a-z0-9-]+)\b/i) ?? normalized.match(/\b(q-[a-z0-9-]+)\b/i);
+  if (match) return match[1];
+
+  const tagStripped = normalizePlainNextText(normalized.replace(/<\/?[^>]+>/g, " "));
+  return tagStripped.split(/\s+/, 1)[0] || "next";
 }
 
 export default function (pi: ExtensionAPI) {
