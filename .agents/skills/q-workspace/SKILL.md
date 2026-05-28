@@ -7,7 +7,7 @@ description: Prepare or repair the QRSPI implementation workspace after `/q-revi
 
 Every `/q-workspace` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then immediately creating or repairing the implementation workspace. Do not answer “ready to proceed.” Stop only for a safety check, missing input, dirty/lost-work risk, `needs_human`, `blocked`, or `error`.
 
-Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]`. For implementation-review follow-up plans under `reviews/*_implementation-review/`, do **not** create a separate workspace; repair/sync the same original implementation workspace that was reviewed and stack follow-up work directly on top of the reviewed implementation head.
+Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]` only when an implementation workspace does not already exist. For implementation-review follow-up plans under `reviews/*_implementation-review/`, nested review plans already inside a prepared implementation workspace, or explicit human instruction to implement in the current workspace, do **not** create a separate workspace; use the existing implementation workspace and route directly to `/q-implement`.
 
 ## Runtime XML contract
 
@@ -202,7 +202,7 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
 
 ## Rules
 
-- `/q-workspace` is mandatory after successful `/q-review [plan.md]` and before `/q-implement`; when invoked with a valid reviewed `plan.md`, start workspace creation/repair immediately.
+- `/q-workspace` is mandatory after successful normal parent-plan `/q-review [plan.md]` and before `/q-implement` only when no implementation workspace exists yet; when invoked with a valid reviewed normal parent `plan.md`, start workspace creation/repair immediately. If the reviewed plan is a same-workspace review-dir follow-up, stop and route to `/q-implement` in the existing workspace instead of creating another copy.
 - The post-XML summary must say `Workspace: created/repaired. Next: start /q-implement now.` Never say “ready to proceed.”
 - The XML must omit top-level `<workspace>` and include both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`.
 - The XML summary must state the chosen base branch/commit and why.

@@ -61,7 +61,7 @@ Load only what is needed:
 1. `~/.agents/skills/qrspi-planning/SKILL.md`.
 1. Plan dir `AGENTS.md`, `design.md`, optional `design-product.md`, `outline.md`, `plan.md`, ADRs.
 1. Final implementation handoff and implementation review artifact.
-1. Project verification guide path supplied by workflow/user. If absent, look for exactly one obvious guide in repo docs such as `docs/qrspi-verify.md` or package docs. If none, block and ask for the guide path.
+1. Project verification guide path supplied by workflow/user. If absent, first look for `docs/verify.md` and read it as the standard project verification entrypoint. If `docs/verify.md` is absent, look for exactly one obvious guide in repo docs such as `docs/qrspi-verify.md` or package docs. If none, block and ask for the guide path.
 1. Files referenced by the guide and failing evidence.
 
 The project guide is authoritative for project-specific commands, E2E tools, screenshot policy, canonical UI baseline, fixture setup, and artifact locations. This skill must not hardcode project names, commands, or paths.
@@ -69,6 +69,7 @@ The project guide is authoritative for project-specific commands, E2E tools, scr
 ## Process
 
 1. Confirm current directory is the implementation workspace recorded by `/q-workspace` or handoff.
+1. Read `docs/verify.md` when present, then read any detailed project guides it links for the touched surface.
 1. Read the project verification guide and extract:
    - required commands
    - required E2E/user stories

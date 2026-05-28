@@ -83,10 +83,6 @@ function extractXmlTag(text: string, tagName: string): string | undefined {
   return extractXmlTags(text, tagName)[0];
 }
 
-function extractLatestXmlTag(text: string, tagName: string): string | undefined {
-  return extractXmlTags(text, tagName).at(-1);
-}
-
 function extractXmlTags(text: string, tagName: string): string[] {
   const tag = tagPattern(tagName);
   return [...text.matchAll(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "gi"))].map(
@@ -137,7 +133,7 @@ function pickNextStageStep(steps: string[]): string | undefined {
 }
 
 function parseQrspiResult(text: string): QrspiResult | undefined {
-  const result = extractLatestXmlTag(text, "qrspi-result");
+  const result = extractXmlTag(text, "qrspi-result");
   if (!result) return undefined;
 
   const stage = normalizeXmlText(extractXmlTag(result, "stage") ?? "");

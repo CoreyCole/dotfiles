@@ -59,7 +59,7 @@ Every `/q-handoff` session starts by reading `~/.agents/skills/qrspi-planning/SK
 
 You are creating a handoff document to preserve your working context within a QRSPI planning pipeline. This handoff will be used by a future session to continue working on the same stage, or to pick up at the next stage.
 
-**Handoff mode is stop-work mode.** Once this skill is invoked, do not continue implementation, debugging, refactoring, verification fixes, or artifact edits in the current session. Reads and status/inspection commands are allowed only to gather accurate context for the handoff. The priority is to pass the important context, risks, current state, and next-edit instructions to the next agent so that agent can resume code changes in a fresh session.
+**Handoff mode is stop-work mode.** Once this skill is invoked, do not continue implementation, debugging, refactoring, verification fixes, or artifact edits in the current session. Reads and status/inspection commands are allowed only to gather accurate context for the handoff. The priority is to pass the important context, risks, current state, next-edit instructions, and durable lessons learned to the next agent so that agent can resume code changes in a fresh session and avoid repeating known mistakes.
 
 ## When Invoked
 
@@ -148,15 +148,23 @@ If unknown, ask the user.
 - checkpoint: set `status: in_progress`
   - Use this for any non-final implementation checkpoint so the next step remains `/q-resume`.
 
-### 4. Refresh long-term memory only if essential
+### 4. Capture key learnings and refresh long-term memory only if essential
 
-Prefer recording new context in the handoff. Update `[plan_dir]/AGENTS.md` only if this stage uncovered durable context that future agents should remember before reading any handoff, such as:
+Every handoff must include a footer section named `## Key Learnings and Notes to Future Agents`. Before writing, deliberately identify anything from this session that future agents should know when working in this project or with QRSPI in general:
+
+- what went wrong, broke, surprised you, or cost time
+- project-specific gotchas, invariants, command quirks, or workflow traps
+- QRSPI process learnings, XML/routing issues, handoff/resume pitfalls, or review/verify lessons
+- decisions or rejected paths that are easy to accidentally revisit
+- verification gaps, flaky checks, environment constraints, or manual-test caveats
+
+Prefer recording new context in the handoff footer. Update `[plan_dir]/AGENTS.md` only if this stage uncovered durable context that future agents should remember before reading any handoff, such as:
 
 - approved decisions or scope boundaries
 - important tradeoffs or rejected paths
 - non-obvious invariants, gotchas, or review learnings
 
-Keep it curated. Do **not** dump transient notes or duplicate the full artifact.
+Keep both curated. Do **not** dump transient notes or duplicate the full artifact. If there are no meaningful learnings, write `None.` under the footer rather than omitting it.
 
 ### 5. Write the handoff
 
@@ -213,6 +221,9 @@ Done: [completed work] ([finished]/[total])
 Next: [next work; say `verify-only/no branch` only when true]
 Branch: [branch@commit]
 For implement-complete handoffs: `Review: [area]. Verified: [commands].` Include final progress suffix, e.g. `(5/5).`]
+
+## Key Learnings and Notes to Future Agents
+[Footer. Required for every handoff. Capture anything learned or anything that went wrong that future agents should know for this project or QRSPI generally. Include concise bullets with file:line references, commands, exact symptoms, and corrected behavior when useful. If none, write `None.`]
 ```
 
 ### 6. Sync
