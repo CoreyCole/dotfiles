@@ -255,12 +255,12 @@ Post-XML natural summary format for this stage: key direction only. Caveman spea
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
     <step>Read ~/.agents/skills/q-outline/SKILL.md.</step>
     <step>Read thoughts/.../design.md.</step>
-    <step>Start /q-outline immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Start /q-outline immediately; first summarize design decisions for human approval, then write outline.md after approval.</step>
   </next>
 </qrspi-result>
 ```
 
-If product coverage is warranted, set `<next>` steps to read `qrspi-planning`, read `q-design-product`, read `[design.md]`, then start `/q-design-product`. If product coverage is not warranted, set `<next>` steps to read `qrspi-planning`, read `q-outline`, read `[design.md]`, read `[design-product.md if it exists]`, then start `/q-outline`. Always include the complete `thoughts/.../design.md` path.
+If product coverage is warranted, set `<next>` steps to read `qrspi-planning`, read `q-design-product`, read `[design.md]`, then start `/q-design-product`. If product coverage is not warranted, set `<next>` steps to read `qrspi-planning`, read `q-outline`, read `[design.md]`, read `[design-product.md if it exists]`, then start `/q-outline`; `/q-outline` must first summarize key design decisions for human approval, then write `outline.md` after `go`/`vamos`/`yes`/equivalent approval. Always include the complete `thoughts/.../design.md` path.
 
 ## Rules
 

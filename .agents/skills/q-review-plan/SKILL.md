@@ -284,7 +284,7 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
   <summary>
     <plan-goal>[overall plan goal]</plan-goal>
     <stage-completed>[what the plan review checked and changed]</stage-completed>
-    <key-decisions>[why the next graph step is safe; for review-outline, explicitly say the next /q-plan session must first summarize the reviewed design/outline for human approval, then if approved read all relevant code files before writing the plan; for normal parent-plan review-plan, explicitly say: Next stage should start immediately: /q-workspace ...; for review-plan-dir/same-workspace review-plan, explicitly say: Next stage should start immediately: /q-implement ... in the current/original implementation workspace]</key-decisions>
+    <key-decisions>[why the next graph step is safe; for review-design, explicitly say the next /q-outline session must first summarize design decisions for human approval, then if approved write outline.md; for review-outline, explicitly say the next /q-plan session must first summarize the reviewed design/outline for human approval, then if approved read all relevant code files before writing the plan; for normal parent-plan review-plan, explicitly say: Next stage should start immediately: /q-workspace ...; for review-plan-dir/same-workspace review-plan, explicitly say: Next stage should start immediately: /q-implement ... in the current/original implementation workspace]</key-decisions>
   </summary>
   <artifact>thoughts/.../reviews/.../review.md</artifact>
   <artifacts>
@@ -297,14 +297,16 @@ If all findings were fixed directly and the reviewed artifact is ready for the n
     <step>Read [exact path to design-product.md if it exists].</step>
     <step>Read [exact path to outline.md if it exists and is relevant to this outcome].</step>
     <step>Read [exact path to plan.md if it exists and is relevant to this outcome].</step>
-    <step>Start the exact next stage immediately unless this is review-outline; for review-outline, /q-plan must first summarize design/outline for human approval, then read all relevant code files and write plan after approval.</step>
+    <step>Start the exact next stage immediately unless this is review-design or review-outline; for review-design, /q-outline must first summarize design decisions for human approval, then write outline.md after approval; for review-outline, /q-plan must first summarize design/outline for human approval, then read all relevant code files and write plan after approval.</step>
   </next>
 </qrspi-result>
 ```
 
 Outcome mapping:
 
-- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>` steps for `qrspi-planning`, `q-outline`, `design.md`, and immediate `/q-outline` start. Its `<summary><key-decisions>` must say `Next stage should start immediately: /q-outline [design.md]`.
+- `review-design` ready to continue: `<outcome>ready-for-outline</outcome>` and `<next>` steps for `qrspi-planning`, `q-outline`, `design.md`, optional `design-product.md`, and the design-decision approval prompt before writing `outline.md`.
+  - Its `<summary><key-decisions>` must say the next `/q-outline` session starts immediately, first summarizes key design decisions for the human, then writes `outline.md` after `go`/`vamos`/`yes`/equivalent approval.
+  - If an agent receives a human approval message such as `go`, `vamos`, or `yes` after a `review-design` result or after the `/q-outline` design-decision summary, it should treat that as authorization to write `outline.md` in the same session.
 - `review-outline` ready for the `/q-plan` approval prompt: `<outcome>ready-for-human-review</outcome>` and `<next>` steps for `qrspi-planning`, `q-plan`, `design.md`, `design-product.md` if it exists, `outline.md`, and the approval-summary prompt before reading code files and writing `plan.md`.
   - Do not emit `<next>human-review-outline</next>`. The `ready-for-human-review` outcome sets workflow state to the outline approval gate; `<next>` is the ordered instruction list for the next agent. That `/q-plan` session must summarize the reviewed design/outline and ask for approval before reading relevant code files and writing `plan.md`.
   - The `<summary><key-decisions>` for `review-outline` must instruct the next agent/runtime behavior:

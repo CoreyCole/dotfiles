@@ -66,7 +66,12 @@ Summary: [Ultra-concise human update. Sacrifice perfect grammar for concision.]
 
 Every QRSPI stage session must start by reading this `qrspi-planning` skill, then reading the skill named by the active stage or by the prior result's `<next>`, then immediately executing that stage. Do not answer “ready to proceed” when the graph has a valid next stage. Start the next stage now unless a documented human gate, `needs_human`, `blocked`, `error`, invalid artifact, safety check, or missing required input stops execution.
 
-Only one normal post-result pause exists after planning begins: after `review-outline`, the next `/q-plan` session first summarizes the reviewed `design.md` and `outline.md` and asks the human to approve plan writing. If the human replies with approval such as `go`, `vamos`, `yes`, or equivalent, the `/q-plan` session must read all relevant code files named or implied by the reviewed design/outline, then write the plan in that same session; do not require a second nudge. Other human alignment happens inside the active stage before it emits a complete result, or via explicit `needs_human`; a completed result should route onward immediately.
+Two normal post-result pauses exist after planning begins:
+
+1. Before `/q-outline` writes `outline.md`, the `/q-outline` session first summarizes the key decisions from `design.md`, optional `design-product.md`, and ADRs, then asks the human to approve outline writing. If the human replies with approval such as `go`, `vamos`, `yes`, `approved`, or equivalent, the `/q-outline` session must write the outline in that same session; do not require a second nudge.
+1. After `review-outline`, the next `/q-plan` session first summarizes the reviewed `design.md` and `outline.md` and asks the human to approve plan writing. If the human replies with approval such as `go`, `vamos`, `yes`, `approved`, or equivalent, the `/q-plan` session must read all relevant code files named or implied by the reviewed design/outline, then write the plan in that same session; do not require a second nudge.
+
+Other human alignment happens inside the active stage before it emits a complete result, or via explicit `needs_human`; a completed result should route onward immediately.
 
 For all other complete results, including `review-plan` and `workspace`, `<summary><key-decisions>` must explicitly say that the next stage should start immediately and name it, e.g. `Next stage should start immediately: /q-workspace ...`. The `<next>` block must spell out ordered steps for the next agent: read `qrspi-planning`, read the named stage skill, read each required artifact in its own step, read `design-product.md` when it exists and design context is needed, then start the next stage immediately. Do not use ambiguous “or” alternatives inside emitted XML; choose the concrete next stage for the current outcome. The post-XML human summary must not say “ready to proceed”; say `Next: start ... now.` when the next graph node should run immediately.
 
@@ -164,12 +169,12 @@ thoughts/.../design.md
     <step>Read ~/.agents/skills/qrspi-planning/SKILL.md.</step>
     <step>Read ~/.agents/skills/q-outline/SKILL.md.</step>
     <step>Read thoughts/.../design.md.</step>
-    <step>Start /q-outline immediately unless blocked by an explicit human/safety gate.</step>
+    <step>Start /q-outline immediately; first summarize design decisions for human approval, then write outline.md after approval.</step>
   </next>
 </qrspi-result>
 ```
 
-Summary: Design captured approved direction; next outline unless product gate needed.
+Summary: Design captured approved direction; next /q-outline summarizes decisions for approval before writing outline.
 
 Statuses: `complete`, `handoff`, `needs_human`, `blocked`, `done`, `error`.
 Before `/q-workspace`, `<workspace>` appears immediately after `<outcome>` for complete results and points at the absolute active QRSPI plan/ticket directory. `/q-workspace` creates or repairs the fresh implementation workspace; from that result onward, do not emit top-level `<workspace>`. Instead, put `<planWorkspace>` and `<implementationWorkspace>` as the first children of `<workspaceMetadata>` and preserve both in later implementation, resume, review, and verify results. Non-complete results that omit `<outcome>` follow the same rule: use top-level `<workspace>` only before an implementation workspace exists; otherwise use metadata paths.
@@ -380,8 +385,8 @@ Use its output for:
 
 Use `/q-handoff` to checkpoint progress within or between stages. Use `/q-resume` to pick up where you left off.
 
-- After `design.md`: next is `/q-outline [design.md]`; optional product gate is `/q-design-product [design.md]` when product coverage is warranted.
-- After `design-product.md`: next is `/q-outline [design-product.md]`.
+- After `design.md`: next is `/q-outline [design.md]`; `/q-outline` first summarizes key design decisions for human approval, then writes `outline.md` after `go`/`vamos`/`yes`/equivalent approval. Optional product gate is `/q-design-product [design.md]` when product coverage is warranted.
+- After `design-product.md`: next is `/q-outline [design-product.md]`; `/q-outline` first summarizes design/product decisions for human approval, then writes `outline.md` after approval.
 - After `outline.md`: next is `/q-review [outline.md]`.
 - After `plan.md`: `/q-plan` runs `just sync-thoughts`, then next is `/q-review [plan.md]`. After successful normal parent-plan review, immediately run `/q-workspace [plan.md]` in the next session; it creates/repairs the implementation workspace, records the base branch/commit in XML and plan memory, and then immediately run `/q-implement [plan.md]` unless safety checks block. Exception: if `plan.md` is inside an implementation-review follow-up directory (`[parent]/reviews/*_implementation-review/`), any nested review directory that is already in a prepared implementation workspace, or the human explicitly says to implement in the current workspace, successful plan review must route directly to `/q-implement [plan.md]` in the existing implementation workspace; do not create a new workspace or reset to trunk.
 - During implementation: intermediate handoffs resume with `/q-resume` in the same `/q-workspace`-recorded implementation workspace. The workspace is the unit of isolation; do not assume a branch exists or should be created. For Graphite edit slices, write the handoff before `gt create` so it is included in the slice commit; use `git_commit: pending-slice-commit` in that self-contained handoff and report the final branch-head hash only in the QRSPI XML result.

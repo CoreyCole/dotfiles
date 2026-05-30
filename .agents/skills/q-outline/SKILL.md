@@ -44,7 +44,7 @@ Required shape:
 
 `status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
-You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
+You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. Before writing `outline.md`, summarize the key design decisions for human alignment and wait for approval. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
 **Design vs. Outline vs. Plan:** The design says *what* we're building and *why*. The outline says *how* — type definitions, package structures, interface signatures, database schemas, API surfaces, vertical slices with test checkpoints. The plan expands the outline into full implementation code. If the design is the architecture review, the outline is the sprint planning. The plan is the coding agent's instructions.
 
@@ -68,7 +68,7 @@ This skill supports two modes.
    - Read all files in `[plan_dir]/context/design-product/` if any
    - Read all files in `[plan_dir]/context/outline/` if any
    - Read all files in `[plan_dir]/prds/`
-1. **If a plan directory path, design doc path, or product-design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory and all outline artifacts must be written there.
+1. **If a plan directory path, design doc path, or product-design doc path was provided**, resolve the plan directory from it, load the artifacts above, then begin with the design-decision alignment prompt unless this same `/q-outline` session already received explicit approval. If the path is under `[parent_plan_dir]/reviews/*/`, that timestamped review directory is the plan directory and all outline artifacts must be written there.
 
 ### Mode 2: Direct outline mode (simple tasks)
 
@@ -115,6 +115,10 @@ Then wait for input.
    - Stop if `design-product.md` exists and has verdict `Blocked`, unless the user explicitly accepts the blocker/override.
    - If `design-product.md` is missing but product/PRD coverage is clearly needed, ask whether to run `/q-design-product [design.md]` first; otherwise proceed from `design.md`.
    - For review-directory follow-up plans, preserve the parent plan as historical context only. Do not overwrite or append to the parent plan's `outline.md`; write the follow-up outline to `[parent_plan_dir]/reviews/*/outline.md`.
+1. **Summarize design decisions for human alignment before outlining.** Present a concise summary of the key decisions from `design.md`, optional `design-product.md`, and ADRs. Include the selected direction, important constraints, out-of-scope boundaries, product/design caveats, and any decisions the outline will preserve. Ask the human to approve before writing `outline.md`.
+   - If the user replies with approval such as `go`, `vamos`, `yes`, `approved`, or equivalent, continue in the same session and write the outline; do not require a second nudge.
+   - If the user asks questions or changes direction, answer/iterate and update design artifacts first when needed, then ask for approval again.
+   - If the session already contains this alignment summary plus explicit approval, do not repeat the prompt; proceed.
 1. **If current-state validation is still needed, run `codebase-locator`** with a narrow task and, if needed, `codebase-analyzer` on the surfaced files or flows. Write the resulting timestamped artifact(s) under `[plan_dir]/context/outline/`.
 1. **Define the structural foundation** — types, interfaces, schemas, package structures.
 1. **Break the approved approach into vertical slices.** Each slice must be independently testable.
@@ -294,6 +298,7 @@ Always include the complete `thoughts/.../outline.md` path.
 - Every slice must have a test checkpoint. If you can't describe how to test it, the slice is too big or too vague.
 - Output artifact style: be extremely concise. Sacrifice grammar for the sake of concision.
 - Standard mode must preserve `design-product.md` Critical Findings in slices, test checkpoints, or Out of Scope when `design-product.md` exists.
+- Before outlining in standard mode, summarize key decisions from `design.md`/ADRs/product design and wait for human approval (`go`, `vamos`, `yes`, `approved`, or equivalent) before writing `outline.md`.
 - Present to the user BEFORE writing the final file. This is the last human review gate before LLM planning review.
 - Completion responses must be the fenced XML `<qrspi-result>` block required by the runtime contract, followed by the mandatory concise human summary.
 - Post-XML summary for outline stage: one concise line per slice/part. Caveman clear. No implementation detail dump.
