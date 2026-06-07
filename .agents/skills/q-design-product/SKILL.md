@@ -42,7 +42,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 Be extremely concise everywhere: alignment interview, summaries, and `design-product.md`. Sacrifice grammar for concision. Optimize for scan speed, low reading overhead, cheap output.
 

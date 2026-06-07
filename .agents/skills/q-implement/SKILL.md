@@ -5,8 +5,13 @@ description: Execute one implementation slice per invocation. Seventh stage of Q
 
 ## QRSPI mode contract
 
-- `autoMode=false`: stop at human gates; still emit valid `<qrspi-result>` and show validated advance button.
-- `autoMode=true`: continue through human gates automatically unless `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, or XML retry exhaustion.
+QRSPI has a canonical advancement mode plus separate review/retry policy:
+
+- `advanceMode=discuss`: do not advance after valid XML. Keep chatting in the current session; show the validated next action and explicit continue/start button. Not default.
+- `advanceMode=guided`: default. Auto-continue graph-safe non-human edges; stop at explicit human gates. Current `autoMode=false` behavior.
+- `advanceMode=autopilot`: auto-continue graph-safe non-human edges and auto-approve only human gates marked auto-approvable. Current `autoMode=true` behavior.
+- Legacy compatibility: until runtime persists `advanceMode`, map `autoMode=false` to `guided` and `autoMode=true` to `autopilot`. `discuss` needs a distinct runtime policy value.
+- All modes still stop on `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, XML retry exhaustion, or explicit safety gate.
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
@@ -117,7 +122,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. After `/q-workspace`, omit top-level `<workspace>` and keep both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<workspaceMetadata>` records workspace identity plus branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is an ordered instruction block containing only `<step>` children. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. After `/q-workspace`, omit top-level `<workspace>` and keep both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<workspaceMetadata>` records workspace identity plus branch context for humans and runtime handoff/debugging: `trunkBranch` is usually `main`; `stackBottomBranch` is the lowest Graphite branch above trunk; `parentBranch` is the branch immediately below the chunk of work just completed; `currentBranch` is the branch created/updated for the chunk. Use empty elements when not in a Graphite repo or the value is unknowable. `<next>` is an ordered instruction block containing only `<step>` children. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 You are the seventh stage of the QRSPI pipeline. You execute exactly one unchecked slice per invocation, update status checkboxes, create a handoff after every verified slice, and then stop. Each slice should leave the engineer with a concrete, reviewable/testable increment: code diff, behavior, verification command, and artifact/handoff evidence. Only after **all slices are complete** may the final handoff send implementation to `/q-review`, which writes the canonical implementation review artifact to `[plan_dir]/reviews/`. Never prompt for review after an intermediate slice. The plan and the handoffs are your roadmap and your recovery mechanism when the context window resets.
 

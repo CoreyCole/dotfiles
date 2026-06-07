@@ -42,7 +42,19 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Optional `<project>` and `<relatedProjects><project>...</project></relatedProjects>` carry primary/related project participation metadata only; they do not change singular workspace execution rules. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+## Project participation metadata
+
+For cross-project plans, preserve machine-readable frontmatter and XML project metadata:
+
+- `project`: singular primary project owner.
+- `related_projects`: zero/many supporting project IDs.
+- `<project>` in `<qrspi-result>` mirrors frontmatter `project`.
+- `<relatedProjects><project>...</project></relatedProjects>` mirrors frontmatter `related_projects`.
+- Related projects are plan participation metadata only. They do not imply multiple execution cwd values.
+- `workspaceMetadata.planWorkspace` and `workspaceMetadata.implementationWorkspace` remain singular.
+- Metadata authority for discovery is `plan.md`, then `outline.md`, then `design.md`, then `AGENTS.md`; do not merge conflicting related project lists across files.
 
 You are the fifth stage of the QRSPI pipeline. You answer the question **"how do we get there?"** in a structured outline that is the "C header file" for the implementation — signatures, types, phases, and test checkpoints. No full implementations. Standard mode starts from approved `design.md`; load `design-product.md` when present. Before writing `outline.md`, summarize the key design decisions for human alignment and wait for approval. After the outline is written, `/q-review` is the formal LLM planning review gate before `/q-plan`.
 
@@ -158,6 +170,8 @@ repository: [repository name]
 stage: outline
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+project: "[primary project id if known]"
+related_projects: []
 ---
 
 # Outline: [Feature Name]

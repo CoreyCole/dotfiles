@@ -42,7 +42,19 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Optional `<project>` and `<relatedProjects><project>...</project></relatedProjects>` carry primary/related project participation metadata only; they do not change singular workspace execution rules. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+## Project participation metadata
+
+For cross-project plans, preserve machine-readable frontmatter and XML project metadata:
+
+- `project`: singular primary project owner.
+- `related_projects`: zero/many supporting project IDs.
+- `<project>` in `<qrspi-result>` mirrors frontmatter `project`.
+- `<relatedProjects><project>...</project></relatedProjects>` mirrors frontmatter `related_projects`.
+- Related projects are plan participation metadata only. They do not imply multiple execution cwd values.
+- `workspaceMetadata.planWorkspace` and `workspaceMetadata.implementationWorkspace` remain singular.
+- Include project ownership/participation tradeoffs in ADR thinking when relevant.
 
 You are the third stage of the QRSPI pipeline. You answer the question **"where are we going?"** in a short design document (~200-300 lines). This forces alignment between human and agent before any code is written. This is the cheapest place to change direction.
 
@@ -143,6 +155,8 @@ repository: [repository name]
 stage: design
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+project: "[primary project id if known]"
+related_projects: []
 related_adrs:
   - "thoughts/[git_username]/plans/[timestamp]_[plan-name]/adrs/YYYY-MM-DD_HH-MM-SS_decision-slug.md"
 brainstorm_docs:

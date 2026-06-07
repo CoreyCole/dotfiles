@@ -42,7 +42,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Planning review skill:** `~/.agents/skills/q-review-plan/SKILL.md`
 
@@ -121,13 +121,13 @@ Do not create a nested design/outline/plan under the planning review directory. 
 
 ## Response Shapes
 
-All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Use the exact helper stage ID provided by the runtime prompt: `address-review-research-design`, `address-review-research-outline`, or `address-review-research-plan`.
+All response shapes must be a fenced XML `<qrspi-result>` block followed by the mandatory concise human summary. Use the exact helper stage ID provided by the runtime prompt: `address-review-research-outline` or `address-review-research-plan`.
 
 If all researched findings are addressed:
 
 ```xml
 <qrspi-result>
-  <stage>address-review-research-design|address-review-research-outline|address-review-research-plan</stage>
+  <stage>address-review-research-outline|address-review-research-plan</stage>
   <status>complete</status>
   <outcome>complete</outcome>
   <policy>

@@ -75,8 +75,8 @@ Include approver, date, decision, notes, applied/deferred edits, and pointer to 
 Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outcome>`, `<workspace>`, `<policy>`, `<summary>`, `<artifact>`, and `<next>`.
 End completed stage responses with standard fenced XML `<qrspi-result>` from `qrspi-planning`.
 
-Use explicit review node ID:
+Use explicit milestone review node ID:
 
-- `<stage>review-design</stage>`
+- `<stage>milestone-review</stage>`
 
 Set `<artifact>` to `reviews/.../review.md` and `<next>` to human approval, then `/q-milestone-create-tickets [design.md]`.

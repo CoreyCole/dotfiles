@@ -5,8 +5,13 @@ description: Expand the structured outline into a detailed implementation plan f
 
 ## QRSPI mode contract
 
-- `autoMode=false`: stop at human gates; still emit valid `<qrspi-result>` and show validated advance button.
-- `autoMode=true`: continue through human gates automatically unless `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, or XML retry exhaustion.
+QRSPI has a canonical advancement mode plus separate review/retry policy:
+
+- `advanceMode=discuss`: do not advance after valid XML. Keep chatting in the current session; show the validated next action and explicit continue/start button. Not default.
+- `advanceMode=guided`: default. Auto-continue graph-safe non-human edges; stop at explicit human gates. Current `autoMode=false` behavior.
+- `advanceMode=autopilot`: auto-continue graph-safe non-human edges and auto-approve only human gates marked auto-approvable. Current `autoMode=true` behavior.
+- Legacy compatibility: until runtime persists `advanceMode`, map `autoMode=false` to `guided` and `autoMode=true` to `autopilot`. `discuss` needs a distinct runtime policy value.
+- All modes still stop on `needs_human`, `blocked`, `error`, invalid artifact, disallowed transition, run failure, XML retry exhaustion, or explicit safety gate.
 - `enablePlanReviews=true`: run planning `/q-review` after outline and plan. Do not run `/q-review` immediately after design; design advances to `/q-outline` (or optional `/q-design-product`).
 - `enablePlanReviews=false`: skip planning `/q-review`; final implementation `/q-review` always runs.
 - Research never has its own human stop. Humans evaluate research in design/outline review.
@@ -24,11 +29,9 @@ Keep each child element short: 1-2 concise lines max.
 
 For review stages, always include both: (1) what the entire implementation/plan now does as a whole, and (2) what this review session checked and changed. Do not write vague summaries like `review complete`, `implementation review result`, `done`, or `summary of findings` without the concrete details a human would need to ask informed questions.
 
-## Immediate start and outline-review approval gate
+## Immediate start
 
-Every `/q-plan` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then loading the required artifacts. Do not answer “ready to proceed.” If the session is allowed to plan, read the relevant code files and write `plan.md` in the same session.
-
-The only normal pause is when `/q-plan` is started after a successful `review-outline` result. In that case, first summarize the reviewed `design.md` and `outline.md` in a concise human-facing approval prompt, then ask whether to write the plan. If the human response is approval such as `go`, `vamos`, `yes`, or equivalent, immediately proceed with the full `/q-plan` process in the same session: read all relevant code files first, then write `plan.md`. Do not require another nudge.
+Every `/q-plan` session starts by reading `~/.agents/skills/qrspi-planning/SKILL.md`, then this skill, then loading the required artifacts. Do not answer “ready to proceed.” Read the relevant code files and write `plan.md` in the same session. Human approval for design/outline direction happens in `/q-outline`, before `outline.md` is written; do not add another approval prompt in `/q-plan`.
 
 ## QRSPI footer instructions
 
@@ -124,7 +127,19 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Optional `<project>` and `<relatedProjects><project>...</project></relatedProjects>` carry primary/related project participation metadata only; they do not change singular workspace execution rules. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+## Project participation metadata
+
+For cross-project plans, preserve machine-readable frontmatter and XML project metadata:
+
+- `project`: singular primary project owner.
+- `related_projects`: zero/many supporting project IDs.
+- `<project>` in `<qrspi-result>` mirrors frontmatter `project`.
+- `<relatedProjects><project>...</project></relatedProjects>` mirrors frontmatter `related_projects`.
+- Related projects are plan participation metadata only. They do not imply multiple execution cwd values.
+- `workspaceMetadata.planWorkspace` and `workspaceMetadata.implementationWorkspace` remain singular.
+- Plan frontmatter must preserve `project` and `related_projects`; implementation plans must state how related-project work is handled until multi-project workspaces are first-class.
 
 You are the sixth stage of the QRSPI pipeline. You expand the structured outline into a detailed, tactical implementation plan. This is a machine document — instructions for the coding agent. Human alignment happened in question, design, and outline; product design may also exist for product-critical or high-stakes work. After this file is written, it gets an LLM planning review via `/q-review [plan.md]` before implementation starts.
 
@@ -161,8 +176,6 @@ Then wait for input.
 ## Process
 
 1. **Verify artifacts are loaded** from step 0: `[plan_dir]/AGENTS.md`, all `questions/*.md`, `design.md`, optional `design-product.md`, `outline.md`, all `research/*.md`, relevant context artifacts in `context/research/`, `context/design/`, `context/design-product/` when present, `context/outline/`, and `context/plan/`, and any relevant files in `prds/`.
-
-   - If this `/q-plan` session follows `review-outline`, summarize the reviewed `design.md` and `outline.md` for human approval before continuing. When the human says `go`, `vamos`, `yes`, or equivalent approval, immediately continue with step 2 in the same session: read the relevant code files first, then write the plan.
 
    - Missing `design-product.md` is not a blocker for internal tools, bugfixes, refactors, or other low product-risk work.
 
@@ -249,6 +262,8 @@ repository: [repository name]
 stage: plan
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+project: "[primary project id if known]"
+related_projects: []
 ---
 
 # Implementation Plan: [Feature Name]

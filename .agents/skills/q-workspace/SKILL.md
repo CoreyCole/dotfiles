@@ -9,6 +9,8 @@ Every `/q-workspace` session starts by reading `~/.agents/skills/qrspi-planning/
 
 Create/repair the implementation workspace after final planning review. This is the gate between `/q-review [plan.md]` and `/q-implement [plan.md]` only when an implementation workspace does not already exist. For implementation-review follow-up plans under `reviews/*_implementation-review/`, nested review plans already inside a prepared implementation workspace, or explicit human instruction to implement in the current workspace, do **not** create a separate workspace; use the existing implementation workspace and route directly to `/q-implement`.
 
+`/q-review` should normally make this skip decision before `/q-workspace` is invoked. If `/q-workspace` is accidentally invoked with a review-dir or same-workspace follow-up plan, stop immediately and emit/return routing guidance to `/q-implement`; do not run base selection, do not copy, do not reset to trunk, and do not repair the workspace unless the user explicitly asks for workspace repair.
+
 ## Runtime XML contract
 
 Every response that completes a QRSPI workflow node must include a fenced `xml` block containing `<qrspi-result>`, followed by a mandatory concise human summary. Do not use prose-only `Artifact` / `Summary` / `Next` completion responses.
@@ -51,7 +53,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `/q-workspace` is the first result where an implementation workspace exists, so omit top-level `<workspace>` and put both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `/q-workspace` is the first result where an implementation workspace exists, so omit top-level `<workspace>` and put both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read `qrspi-planning`, read the next stage skill, read the appropriate artifact, then start the next stage immediately unless a named human/safety gate blocks. Runtime transitions remain graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 ## Load
 
@@ -202,7 +204,7 @@ Emit fenced XML first, followed by the mandatory concise human summary. The summ
 
 ## Rules
 
-- `/q-workspace` is mandatory after successful normal parent-plan `/q-review [plan.md]` and before `/q-implement` only when no implementation workspace exists yet; when invoked with a valid reviewed normal parent `plan.md`, start workspace creation/repair immediately. If the reviewed plan is a same-workspace review-dir follow-up, stop and route to `/q-implement` in the existing workspace instead of creating another copy.
+- `/q-workspace` is mandatory after successful normal parent-plan `/q-review [plan.md]` and before `/q-implement` only when no implementation workspace exists yet; when invoked with a valid reviewed normal parent `plan.md`, start workspace creation/repair immediately. If the reviewed plan is a same-workspace review-dir follow-up, stop before base selection/copy/repair and route to `/q-implement` in the existing workspace instead of creating another copy.
 - The post-XML summary must say `Workspace: created/repaired. Next: start /q-implement now.` Never say “ready to proceed.”
 - The XML must omit top-level `<workspace>` and include both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`.
 - The XML summary must state the chosen base branch/commit and why.

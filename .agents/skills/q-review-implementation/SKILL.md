@@ -54,7 +54,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. After `/q-workspace`, omit top-level `<workspace>` and record both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read QRSPI guidance, read q-verify, read design, read design-product if it exists, read outline, read plan, read the review artifact, read relevant repository verification docs/guidance for integration and E2E test context, then start verification immediately unless blocked. Runtime transitions are graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. After `/q-workspace`, omit top-level `<workspace>` and record both `<planWorkspace>` and `<implementationWorkspace>` inside `<workspaceMetadata>`. `<next>` is an ordered instruction block for the next agent: read QRSPI guidance, read q-verify, read design, read design-product if it exists, read outline, read plan, read the review artifact, read relevant repository verification docs/guidance for integration and E2E test context, then start verification immediately unless blocked. Runtime transitions are graph-authoritative and may validate/rewrite the steps. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Review rubric:** `~/.pi/agent/skills/review-rubric/SKILL.md`
 

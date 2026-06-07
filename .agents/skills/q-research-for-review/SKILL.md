@@ -42,7 +42,7 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
 
 > **Base research skill:** `~/.agents/skills/q-research/SKILL.md`
 > **Planning review skill:** `~/.agents/skills/q-review-plan/SKILL.md`
@@ -112,7 +112,7 @@ When this helper completes, emit a fenced XML `<qrspi-result>` block followed by
 
 ```xml
 <qrspi-result>
-  <stage>research-for-review-design|research-for-review-outline|research-for-review-plan</stage>
+  <stage>research-for-review-outline|research-for-review-plan</stage>
   <status>complete</status>
   <outcome>complete</outcome>
   <policy>

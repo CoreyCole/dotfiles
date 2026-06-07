@@ -42,7 +42,19 @@ Required shape:
 </qrspi-result>
 ```
 
-`status` is lifecycle. `outcome` selects the graph branch. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-design`, `review-outline`, `review-plan`, or `review-implementation`), never `review`.
+`status` is lifecycle. `outcome` selects the graph branch. Optional `<project>` and `<relatedProjects><project>...</project></relatedProjects>` carry primary/related project participation metadata only; they do not change singular workspace execution rules. `<next>` is an ordered instruction block containing only `<step>` children: read `qrspi-planning`, read the next stage skill, read the artifact(s) needed by that stage, then start the next stage immediately unless blocked by an explicit human/safety gate. Runtime transitions are graph-authoritative. Complete results must include `<outcome>`. Review stages must use explicit node IDs (`review-outline`, `review-plan`, or `review-implementation`), never `review`.
+
+## Project participation metadata
+
+For cross-project plans, capture and preserve machine-readable project intent:
+
+- `project`: singular primary project owner.
+- `related_projects`: zero/many supporting project IDs.
+- `<project>` in `<qrspi-result>` mirrors frontmatter `project`.
+- `<relatedProjects><project>...</project></relatedProjects>` mirrors frontmatter `related_projects`.
+- Related projects are plan participation metadata only. They do not imply multiple execution cwd values.
+- `workspaceMetadata.planWorkspace` and `workspaceMetadata.implementationWorkspace` remain singular.
+- During the interview, ask for primary vs related project intent when the user mentions cross-repo work.
 
 You are the first stage of the QRSPI pipeline. Convert an underspecified request into 3-7 specific, answerable research questions.
 
@@ -220,6 +232,8 @@ repository: [repository name]
 stage: question
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
+project: "[primary project id if known]"
+related_projects: []
 question_doc: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/questions/YYYY-MM-DD_HH-MM-SS_topic-name.md"
 brainstorm_doc: "thoughts/[git_username]/plans/[timestamp]_[plan-name]/context/brainstorms/YYYY-MM-DD_HH-MM-SS_topic-name.md"
 prev_question_docs:
