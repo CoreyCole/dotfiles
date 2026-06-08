@@ -21,6 +21,16 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `agent/git/`
 - Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
 
+## Dependencies and Extension Imports
+
+- This package uses pnpm. Run dependency commands from `.pi-config/` with `pnpm`.
+- Import Pi runtime APIs and TUI components by package name so extensions work across machines:
+
+```ts
+import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+```
+
 ## Pi Customization Rules
 
 - Do **not** patch installed Pi runtime files or package manager output: no edits under `node_modules/`, global npm/fnm installations, `dist/` files in installed packages, or other generated dependency caches.

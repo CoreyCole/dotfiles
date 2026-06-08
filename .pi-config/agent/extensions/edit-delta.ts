@@ -1,8 +1,5 @@
-// @ts-ignore: Use the active pi runtime module, not a local config dependency copy.
-import { createEditToolDefinition } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
-// @ts-ignore: Use the active pi runtime's bundled TUI package.
-import { Container, Text } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.js";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createEditToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Container, Text } from "@earendil-works/pi-tui";
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 

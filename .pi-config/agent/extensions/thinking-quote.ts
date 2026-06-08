@@ -1,8 +1,5 @@
-// @ts-ignore: Patch the active pi runtime module instead of the local config dependency copy.
-import { AssistantMessageComponent, getMarkdownTheme } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-// @ts-ignore: Use the TUI module instance owned by the active pi runtime.
-import { Container, Markdown, Spacer, Text, truncateToWidth, wrapTextWithAnsi } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.js";
+import { AssistantMessageComponent, getMarkdownTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Container, Markdown, Spacer, Text, truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const OSC133_ZONE_START = "\x1b]133;A\x07";
 const OSC133_ZONE_END = "\x1b]133;B\x07";

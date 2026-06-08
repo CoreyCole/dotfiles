@@ -1,7 +1,5 @@
-// @ts-ignore: Patch the active pi runtime module instead of the local config dependency copy.
-import { AssistantMessageComponent, ToolExecutionComponent, UserMessageComponent } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth } from "/home/ruby/.local/share/mise/installs/node/25.8.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.js";
+import { AssistantMessageComponent, ToolExecutionComponent, UserMessageComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 
 const ORIGINAL_UPDATE_DISPLAY = Symbol.for("corey.toolBorderOriginalUpdateDisplay");
 const ORIGINAL_RENDER = Symbol.for("corey.toolBorderOriginalRender");

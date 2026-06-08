@@ -50,3 +50,14 @@ When planning or implementing Pi config changes in this repo:
 - do not rely only on memory or upstream examples when the local `context/pi-mono` clone can answer the question
 
 This is especially important for extension hooks, resource loading, AGENTS.md behavior, and other config/runtime integration changes.
+
+## Pi config dependencies and imports
+
+The `.pi-config` package uses pnpm. When installing, updating, or removing dependencies for Pi config, run commands from `.pi-config/` with `pnpm`.
+
+Pi extensions should import Pi APIs and TUI components by package name so the config works across machines:
+
+```ts
+import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+```
