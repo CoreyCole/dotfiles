@@ -1,5 +1,6 @@
 import { complete, type Model, type Api } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import YAML from "yaml";
 
 const skillPattern = /^\/skill:(\S+)\s*([\s\S]*)/;
 const planRootPattern =
@@ -17,9 +18,24 @@ type PlanClassification = {
   source: "prompt-path" | "cwd";
 };
 
+type QrspiNextStep = {
+  action: string;
+  param: string;
+};
+
 type QrspiResult = {
   stage: string;
-  next: string;
+  nextStage?: string;
+  nextSteps: QrspiNextStep[];
+};
+
+type QrspiResultDocument = {
+  qrspi_result?: {
+    stage?: unknown;
+    next?: {
+      steps?: unknown;
+    };
+  };
 };
 
 async function pickCheapModel(ctx: {
@@ -129,18 +145,6 @@ function normalizeXmlText(text: string): string {
     .trim();
 }
 
-function normalizeNextText(text: string): string {
-  const decoded = normalizeXmlText(text);
-  const steps = extractXmlTags(decoded, "step")
-    .map((step) => normalizePlainNextText(normalizeXmlText(step)))
-    .filter(Boolean);
-  if (steps.length > 0) {
-    return pickNextStageStep(steps) ?? steps.join(" ");
-  }
-
-  return normalizePlainNextText(decoded);
-}
-
 function normalizePlainNextText(text: string): string {
   const lines = text
     .split(/\r?\n/)
@@ -164,27 +168,97 @@ function pickNextStageStep(steps: string[]): string | undefined {
   );
 }
 
-function parseQrspiResult(text: string): QrspiResult | undefined {
+function normalizeXmlNextText(text: string): string {
+  const decoded = normalizeXmlText(text);
+  const steps = extractXmlTags(decoded, "step")
+    .map((step) => normalizePlainNextText(normalizeXmlText(step)))
+    .filter(Boolean);
+  if (steps.length > 0) {
+    return pickNextStageStep(steps) ?? steps.join(" ");
+  }
+
+  return normalizePlainNextText(decoded);
+}
+
+function nextStepFromText(text: string): QrspiNextStep {
+  const match =
+    text.match(/\/(?:skill:)?(q-[a-z0-9-]+)\b/i) ??
+    text.match(/\b(q-[a-z0-9-]+)\b/i);
+  return {
+    action: match ? "start_stage" : "next",
+    param: match?.[1] ?? text,
+  };
+}
+
+function parseXmlQrspiResult(text: string): QrspiResult | undefined {
   const result = extractXmlTag(text, "qrspi-result");
   if (!result) return undefined;
 
   const stage = normalizeXmlText(extractXmlTag(result, "stage") ?? "");
-  const next = normalizeNextText(extractXmlTag(result, "next") ?? "");
+  const next = normalizeXmlNextText(extractXmlTag(result, "next") ?? "");
   if (!stage || !next) return undefined;
-  return { stage, next };
+
+  const nextStep = nextStepFromText(next);
+  return {
+    stage,
+    nextStage: nextStep.action === "start_stage" ? nextStep.param : undefined,
+    nextSteps: [nextStep],
+  };
 }
 
-function formatNextStage(next: string): string {
-  const normalized = normalizeNextText(next);
-  const match =
-    normalized.match(/\/(?:skill:)?(q-[a-z0-9-]+)\b/i) ??
-    normalized.match(/\b(q-[a-z0-9-]+)\b/i);
-  if (match) return match[1];
+function extractYamlBlocks(text: string): string[] {
+  return [...text.matchAll(/```(?:yaml|yml)\s*\n([\s\S]*?)\n?```/gi)]
+    .map((match) => match[1]?.trim() ?? "")
+    .filter(Boolean);
+}
 
-  const tagStripped = normalizePlainNextText(
-    normalized.replace(/<\/?[^>]+>/g, " "),
+function normalizeNextSteps(steps: unknown): QrspiNextStep[] {
+  if (!Array.isArray(steps)) return [];
+  return steps
+    .map((step) => {
+      if (!step || typeof step !== "object") return undefined;
+      const raw = step as { action?: unknown; param?: unknown };
+      const action = typeof raw.action === "string" ? raw.action.trim() : "";
+      const param = typeof raw.param === "string" ? raw.param.trim() : "";
+      return action && param ? { action, param } : undefined;
+    })
+    .filter((step): step is QrspiNextStep => !!step);
+}
+
+function parseYamlQrspiResult(text: string): QrspiResult | undefined {
+  for (const block of extractYamlBlocks(text)) {
+    let parsed: QrspiResultDocument;
+    try {
+      parsed = YAML.parse(block) as QrspiResultDocument;
+    } catch {
+      continue;
+    }
+
+    const result = parsed?.qrspi_result;
+    const stage = typeof result?.stage === "string" ? result.stage.trim() : "";
+    if (!stage) continue;
+
+    const nextSteps = normalizeNextSteps(result?.next?.steps);
+    if (nextSteps.length === 0) continue;
+
+    const nextStage = nextSteps.find(
+      (step) => step.action === "start_stage",
+    )?.param;
+    return { stage, nextStage, nextSteps };
+  }
+  return undefined;
+}
+
+function parseQrspiResult(text: string): QrspiResult | undefined {
+  return parseYamlQrspiResult(text) ?? parseXmlQrspiResult(text);
+}
+
+function formatNextStage(qrspi: QrspiResult): string {
+  return (
+    qrspi.nextStage ||
+    qrspi.nextSteps.find((step) => /^q-[a-z0-9-]+$/i.test(step.param))?.param ||
+    "next"
   );
-  return tagStripped.split(/\s+/, 1)[0] || "next";
 }
 
 export default function (pi: ExtensionAPI) {
@@ -196,10 +270,10 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("input", async (event, ctx) => {
     const qrspi = parseQrspiResult(event.text);
-    const classification = resolvePlanClassification(
-      qrspi ? `${qrspi.next}\n${event.text}` : event.text,
-      ctx.cwd,
-    );
+    const qrspiText = qrspi
+      ? `${qrspi.nextSteps.map((step) => step.param).join("\n")}\n${event.text}`
+      : event.text;
+    const classification = resolvePlanClassification(qrspiText, ctx.cwd);
     if (classification) {
       const latest = getLatestPlanClassification(ctx);
       if (
@@ -219,7 +293,7 @@ export default function (pi: ExtensionAPI) {
       if (!named) {
         named = true;
         pi.setSessionName(
-          `[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`,
+          `[qrspi:${formatNextStage(qrspi)}] <- ${qrspi.stage}`,
         );
       }
       return;

@@ -4,6 +4,7 @@ import type {
   SessionMessageEntry,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import YAML from "yaml";
 
 const WIDGET_KEY = "previous-prompt";
 const WIDGET_PREFIX = "❓ ";
@@ -13,7 +14,16 @@ const MAX_PROMPT_LINES = 4;
 
 type QrspiResult = {
   stage: string;
-  next: string;
+  nextStage: string;
+};
+
+type QrspiResultDocument = {
+  qrspi_result?: {
+    stage?: unknown;
+    next?: {
+      steps?: unknown;
+    };
+  };
 };
 
 function tagPattern(tagName: string): string {
@@ -59,7 +69,39 @@ function normalizeNextText(text: string): string {
   return lines.join(" ").replace(/\s+/g, " ").trim();
 }
 
-function parseQrspiResult(text: string): QrspiResult | undefined {
+function parseYamlQrspiResult(text: string): QrspiResult | undefined {
+  for (const match of text.matchAll(/```(?:yaml|yml)\s*\n([\s\S]*?)\n?```/gi)) {
+    let parsed: QrspiResultDocument;
+    try {
+      parsed = YAML.parse(match[1] ?? "") as QrspiResultDocument;
+    } catch {
+      continue;
+    }
+
+    const result = parsed?.qrspi_result;
+    const stage = typeof result?.stage === "string" ? result.stage.trim() : "";
+    const steps = Array.isArray(result?.next?.steps) ? result.next.steps : [];
+    const nextStage = steps.find((step: unknown) => {
+      if (!step || typeof step !== "object") return false;
+      const raw = step as { action?: unknown; param?: unknown };
+      return (
+        raw.action === "start_stage" &&
+        typeof raw.param === "string" &&
+        raw.param.trim() !== ""
+      );
+    }) as { param: string } | undefined;
+
+    if (stage && nextStage) return { stage, nextStage: nextStage.param.trim() };
+  }
+  return undefined;
+}
+
+function formatXmlNextStage(next: string): string {
+  const match = next.match(/^\/(?:skill:)?(q-[^\s]+)/);
+  return match?.[1] ?? next.split(/\s+/, 1)[0] ?? "next";
+}
+
+function parseXmlQrspiResult(text: string): QrspiResult | undefined {
   if (!new RegExp(`<\\s*${tagPattern("qrspi-result")}`, "i").test(text))
     return undefined;
 
@@ -68,18 +110,17 @@ function parseQrspiResult(text: string): QrspiResult | undefined {
     normalizeXmlText(extractXmlTag(text, "next") ?? ""),
   );
   if (!stage || !next) return undefined;
-  return { stage, next };
+  return { stage, nextStage: formatXmlNextStage(next) };
 }
 
-function formatNextStage(next: string): string {
-  const match = next.match(/^\/(?:skill:)?(q-[^\s]+)/);
-  return match?.[1] ?? next.split(/\s+/, 1)[0] ?? "next";
+function parseQrspiResult(text: string): QrspiResult | undefined {
+  return parseYamlQrspiResult(text) ?? parseXmlQrspiResult(text);
 }
 
 function formatQrspiPrompt(text: string): string | undefined {
   const qrspi = parseQrspiResult(text);
   if (!qrspi) return undefined;
-  return `[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`;
+  return `[qrspi:${qrspi.nextStage}] <- ${qrspi.stage}`;
 }
 
 function formatSkillPrompt(text: string): string | undefined {
