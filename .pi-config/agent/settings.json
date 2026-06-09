@@ -7,5 +7,6 @@
     "enabled": false
   },
   "hideThinkingBlock": false,
-  "theme": "corey-dark"
+  "theme": "corey-dark",
+  "defaultThinkingLevel": "low"
 }

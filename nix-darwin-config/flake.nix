@@ -139,7 +139,63 @@
       # Configure nixpkgs overlays
       nixpkgs.config.allowUnfree = true;
       nixpkgs.overlays = [
-        (self: super: {
+        (self: super: let
+          sqlcVersion = "1.31.1";
+          sqlcAsset =
+            if super.stdenv.isDarwin && super.stdenv.hostPlatform.isAarch64
+            then {
+              name = "sqlc_${sqlcVersion}_darwin_arm64.tar.gz";
+              hash = "sha256-IWAhWMmesfK64Zemar+xlB0enlCyMSW7GTNJxrGsxx4=";
+            }
+            else if super.stdenv.isDarwin && super.stdenv.hostPlatform.isx86_64
+            then {
+              name = "sqlc_${sqlcVersion}_darwin_amd64.tar.gz";
+              hash = "sha256-xa92dy43hdIWY6YmlwVrOD8HYpl5sb0luThy5z29UZs=";
+            }
+            else if super.stdenv.isLinux && super.stdenv.hostPlatform.isAarch64
+            then {
+              name = "sqlc_${sqlcVersion}_linux_arm64.tar.gz";
+              hash = "sha256-t8riR3QNDFGh5ldHnlstIeb+9Cj1lmgqAbxVv0q4oj0=";
+            }
+            else if super.stdenv.isLinux && super.stdenv.hostPlatform.isx86_64
+            then {
+              name = "sqlc_${sqlcVersion}_linux_amd64.tar.gz";
+              hash = "sha256-SXrk/N+mTFsMMR/+TCvZkeQ5keguU2d5LteLwtyic1Q=";
+            }
+            else throw "unsupported system for sqlc";
+        in {
+          sqlc = super.stdenv.mkDerivation {
+            pname = "sqlc";
+            version = sqlcVersion;
+
+            src = super.fetchurl {
+              url = "https://github.com/sqlc-dev/sqlc/releases/download/v${sqlcVersion}/${sqlcAsset.name}";
+              hash = sqlcAsset.hash;
+            };
+
+            sourceRoot = ".";
+            dontConfigure = true;
+            dontBuild = true;
+
+            unpackPhase = ''
+              tar -xzf "$src"
+            '';
+
+            installPhase = ''
+              runHook preInstall
+              install -Dm755 sqlc "$out/bin/sqlc"
+              runHook postInstall
+            '';
+
+            meta = with super.lib; {
+              description = "Compiler from SQL to type-safe code";
+              homepage = "https://sqlc.dev";
+              license = licenses.mit;
+              platforms = platforms.darwin ++ platforms.linux;
+              mainProgram = "sqlc";
+            };
+          };
+
           sqls = super.sqls.overrideAttrs {
             version = "7c572b8b1e58b30a357403a3959ba5752cae5350";
             src = self.fetchFromGitHub {
