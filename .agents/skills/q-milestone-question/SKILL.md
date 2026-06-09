@@ -39,8 +39,10 @@ Ask one question at a time unless the user asks for a batch. Explore docs/code f
 
 Resolve:
 
+- whether this milestone is a vertical product path/bonus plan/scenario; if not, why a horizontal/enabling milestone is unavoidable
 - milestone owns / does not own
 - why this milestone exists
+- smallest credible testable/demoable outcome
 - product outcomes and user-visible success
 - who the users are, including engineer-as-user cases
 - demo/review scenarios humans care about
@@ -62,6 +64,7 @@ Use `~/dotfiles/spec_metadata.sh` before writing.
 
 The question doc must ask for research that can support milestone design/outline:
 
+1. Vertical slice hypothesis: named bonus plan/scenario/user path, smallest testable/demoable outcome, and why this sequence comes before broader variants.
 1. Product Outcome Hypotheses and user-visible success criteria to validate.
 1. Current code/system state relevant to this milestone.
 1. Requirement/source-doc state, with canonical paths.

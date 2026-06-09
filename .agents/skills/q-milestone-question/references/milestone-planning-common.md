@@ -13,7 +13,7 @@ Example: `thoughts/.../plans/2026-05-14_..._v2-bonuses-end-state-linear-organiza
 Owns cross-milestone project truth:
 
 - project goal and success criteria
-- milestone taxonomy and sequencing
+- milestone taxonomy and sequencing, normally vertical by product path/bonus plan/scenario rather than horizontal by system layer/capability
 - canonical milestone-planning status/dependency table
 - cross-milestone decisions and approved taxonomy changes
 - pointers to canonical PRDs/source docs
@@ -74,6 +74,24 @@ Owns whole-system architecture synthesis:
 
 May challenge child milestone designs, but must not silently mutate them. Any scope/ticket-shape change routes back to affected milestone-plan design, automated review, and human approval.
 
+## Vertical milestone rule
+
+Default to vertical milestone planning. A milestone should usually prove one end-to-end product path: one bonus plan, one demo scenario, one user workflow, or one production-readiness increment. Sequence from simplest credible path to broader variants.
+
+Good milestone boundaries:
+
+- deliverable/testable/demoable by themselves
+- tied to a named plan/scenario/user outcome
+- include only the DB/API/UI/workflow/reporting pieces needed for that path
+- expose cross-cutting platform gaps as dependencies, not as broad horizontal milestones by default
+
+Smells requiring human review:
+
+- "all DB", "all API", "all frontend", "all reporting", "all overrides", "all load testing"
+- tickets grouped by implementation layer instead of user-visible proof
+- no single scenario that can be manually verified at milestone end
+- architecture/spec tickets trying to replace vertical scenario learning
+
 ## Milestone planning gates
 
 Default milestone path:
@@ -109,7 +127,7 @@ Be concise. Sacrifice grammar for concision. Prefer tables and fragments over na
 - target behavior as concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - gap map
 - architecture-spec inputs, including API/db/type surfaces only when boundary-relevant
-- proposed tickets mapped to user stories and gaps
+- proposed tickets mapped to user stories and gaps, organized as vertical slices where possible
 - deferred details for ticket-level QRSPI
 - cross-milestone dependencies
 - taxonomy change proposals
@@ -122,3 +140,5 @@ Summaries allowed, but cite canonical source paths. Do not copy full requirement
 ## Boundaries
 
 Milestone-level QRSPI may inspect code freely for accurate current state. Research should give detailed high-level current-state context for future planners. Design stays concise and human-reviewable: product outcomes, ticket shaping, and architecture-input granularity. Ticket-level QRSPI owns exact implementation plans.
+
+When a horizontal capability is truly required, name the vertical scenario it unlocks and keep the scope to the minimum reusable seam needed for that scenario plus near-term successors.

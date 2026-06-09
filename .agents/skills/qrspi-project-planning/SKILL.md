@@ -13,6 +13,8 @@ Project planning should uncover hidden complexity early, expose ambiguities befo
 
 Optimize for:
 
+- vertical milestone slices: one demonstrable product path/bonus plan/scenario at a time
+- fastest credible testable/demoable path before generalized capability layering
 - product outcomes surfaced early and preserved through ticket shaping
 - sequencing/gating before ticket creation
 - traceability from source docs and current code to proposed tickets
@@ -30,7 +32,7 @@ Do not optimize for parallelizing human judgment. Agents can research and draft,
 Owns cross-milestone truth:
 
 - project goal and success criteria
-- milestone taxonomy and sequencing
+- milestone taxonomy and sequencing, preferably vertical by bonus plan/scenario/user path rather than horizontal system layer/capability area
 - canonical milestone-planning status/dependency artifact
 - cross-milestone decisions and approved taxonomy changes
 - pointers to canonical PRDs/source docs
@@ -84,6 +86,8 @@ It may challenge child milestone designs, but must not silently mutate them. Sco
 
 ## Standard milestone planning flow
 
+Before running a milestone flow, check whether the milestone is vertical. A good milestone should usually deliver or de-risk one end-to-end product path: one bonus plan, one demo scenario, one customer workflow, or one production-readiness increment. Avoid planning a milestone as "all database", "all API", "all frontend", "all reporting", "all overrides", or another horizontal layer unless it is purely enabling and explicitly blocks multiple vertical slices.
+
 ```text
 /q-milestone-question [milestone-plan-dir]
 /q-milestone-research [question.md]
@@ -115,6 +119,8 @@ Automated milestone review should improve the design, not just report issues.
 ## Milestone design purpose
 
 Milestone `design.md` is the critical sign-off artifact. It is product-outcome ticket shaping, not normal QRSPI implementation design. Keep it high-level enough for product/lead review, but concrete enough to reveal hidden complexity and shape future tickets.
+
+Milestone design must prefer vertical sequencing. Start from the smallest meaningful testable/demoable path and shape tickets around what is required to make that path work end-to-end. Only add horizontal/platform tickets when they are necessary to unlock that path or prevent rework in the next vertical slice.
 
 It must connect:
 
@@ -148,6 +154,7 @@ Load these references only when creating or reviewing the matching artifact:
 
 Avoid:
 
+- horizontal milestone taxonomies such as "DB first, then API, then frontend", "all reporting", "all overrides", or "all load testing" when a vertical bonus-plan/demo path can prove value sooner
 - creating implementation/spec tickets directly from the project plan
 - forcing normal `/q-outline` or `/q-plan` onto milestone meta-planning
 - reviving milestone `outline.md`/`plan.md` as required gates instead of using reviewed design + create-tickets

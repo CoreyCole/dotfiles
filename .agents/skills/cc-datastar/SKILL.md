@@ -73,7 +73,7 @@ Every page opens a single long-lived SSE stream via `data-init="@get('/stream')"
 
 ```html
 <div id="main" data-init="@get('/page/stream')">
-    <button data-on-click="@post('/page/action')">Do something</button>
+    <button data-on:click="@post('/page/action')">Do something</button>
 </div>
 ```
 
@@ -113,6 +113,37 @@ Never trust user input in Datastar expressions — they execute JavaScript. Alwa
 1. **Overcomplicating with signals** — More than a few boolean toggles means you're doing it wrong.
 
 ______________________________________________________________________
+
+## Datastar Attribute Syntax (v1.x)
+
+Use colon-qualified attributes for Datastar modifiers and events:
+
+```html
+<button data-on:click="$open = !$open"
+        data-attr:aria-expanded="$open ? 'true' : 'false'">
+  Toggle
+</button>
+
+<body data-on:keydown__window="evt.key === 'ArrowRight' ? $slide++ : null">
+```
+
+Do **not** use old/hyphenated event or attribute forms:
+
+```html
+<!-- Wrong in Datastar v1.x -->
+<button data-on-click="$open = true" data-attr-disabled="$busy"></button>
+
+<!-- Correct -->
+<button data-on:click="$open = true" data-attr:disabled="$busy"></button>
+```
+
+For specific key bindings, bind `keydown`/`keyup` with modifiers such as `__window`, then inspect `evt.key` in the expression. Example:
+
+```html
+<body data-signals="{slide: 0, total: 6}"
+      data-on:keydown__window="evt.key === 'ArrowRight' ? $slide = Math.min($total - 1, $slide + 1) : evt.key === 'ArrowLeft' ? $slide = Math.max(0, $slide - 1) : null">
+</body>
+```
 
 ## Patterns (How to Do It Right)
 
@@ -177,7 +208,7 @@ templ MyForm() {
             <option value="a">Option A</option>
         </select>
         <textarea name="description" data-ignore-morph placeholder="Description"/>
-        <button data-on-click="el.classList.add('loading'); @post('/submit', {contentType: 'form'})">
+        <button data-on:click="el.classList.add('loading'); @post('/submit', {contentType: 'form'})">
             Submit
             <span>Submitting...</span>
         </button>
@@ -190,7 +221,7 @@ templ MyForm() {
 Manually add loading class on click. The SSE morph removes it (server-rendered state doesn't include the class):
 
 ```html
-<button data-on-click="el.classList.add('loading'); @post('/action', {contentType: 'form'})">
+<button data-on:click="el.classList.add('loading'); @post('/action', {contentType: 'form'})">
     Do something
     <span>Working...</span>
 </button>
@@ -198,8 +229,27 @@ Manually add loading class on click. The SSE morph removes it (server-rendered s
 
 ### Loading Indicators (Non-CQRS)
 
+Use `data-indicator` to create the boolean fetching/loading signal you reference in the UI. The indicator must be on the same element that owns the Datastar action. For reliable button disabling, put `data-indicator` and `data-on:click` on the button itself. If you need form fields, keep the button inside the parent `<form>` and call `@post(..., {contentType: 'form'})` from the button; Datastar will read the closest form.
+
 ```html
-<button data-indicator="_loading" data-on-click="@post('/action')">
+<form>
+    <input name="id" value="123" type="hidden"/>
+    <button
+        type="button"
+        data-indicator="fetching"
+        data-on:click="@post('/action', {contentType: 'form'})"
+        data-attr:disabled="$fetching"
+    >
+        <span data-show="!$fetching">Do something</span>
+        <span data-show="$fetching">Working...</span>
+    </button>
+</form>
+```
+
+For private UI-only indicators, use an underscore-prefixed signal:
+
+```html
+<button data-indicator="_loading" data-on:click="@post('/action')" data-attr:disabled="$_loading">
     Do something
     <span data-show="$_loading">Loading...</span>
 </button>
@@ -208,11 +258,11 @@ Manually add loading class on click. The SSE morph removes it (server-rendered s
 ### Accessibility
 
 ```html
-<button data-on-click="$menuOpen = !$menuOpen"
-        data-attr-aria-expanded="$menuOpen ? 'true' : 'false'">
+<button data-on:click="$menuOpen = !$menuOpen"
+        data-attr:aria-expanded="$menuOpen ? 'true' : 'false'">
     Toggle Menu
 </button>
-<div data-show="$menuOpen" data-attr-aria-hidden="$menuOpen ? 'false' : 'true'">
+<div data-show="$menuOpen" data-attr:aria-hidden="$menuOpen ? 'false' : 'true'">
     Menu content
 </div>
 ```
@@ -225,11 +275,11 @@ ______________________________________________________________________
 
 - `data-signals` — Initialize signals (JSON object)
 - `data-bind` — Two-way bind form input to signal
-- `data-on-[event]` — Event handler (`data-on-click`, `data-on-change`, `data-on-submit`)
+- `data-on:[event]` — Event handler (`data-on:click`, `data-on:change`, `data-on:submit`). Do not use hyphen event syntax like `data-on-click`.
 - `data-text` — Set text content from expression
 - `data-show` — Show/hide element from expression
 - `data-class` — Add/remove CSS classes from expression
-- `data-attr-[name]` — Set HTML attribute from expression
+- `data-attr:[name]` — Set HTML attribute from expression. Do not use hyphen attribute syntax like `data-attr-disabled`.
 - `data-indicator` — Signal set to true during fetch requests
 - `data-init` — Run action on initialization (used for CQRS stream)
 - `data-ignore-morph` — Exclude element from morphing

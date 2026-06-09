@@ -29,12 +29,13 @@ Ask one question at a time. Use loaded research to avoid asking factual question
 
 Resolve:
 
+- vertical milestone shape: named bonus plan/scenario/user path, smallest testable/demoable path, and why it is sequenced now
 - milestone ownership and non-goals
 - product outcomes and user-visible success criteria
 - target users and concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - current-to-target direction
 - gap map and architecture-spec inputs needed by the whole-system architecture ticket
-- proposed ticket set, with each ticket mapped to outcomes/user stories/gaps/evidence
+- proposed ticket set, with each ticket mapped to outcomes/user stories/gaps/evidence and ordered to preserve end-to-end verifiability
 - cross-milestone dependency handling
 - taxonomy change proposals, if any
 - what must be deferred to ticket-level QRSPI
@@ -48,6 +49,7 @@ Write `design.md` in the milestone-plan directory. Target ~200-300 lines. Keep c
 Required sections:
 
 1. Executive summary.
+1. Vertical slice / sequencing rationale.
 1. Milestone ownership.
 1. Non-goals.
 1. Product outcomes / user-visible success.
@@ -56,7 +58,7 @@ Required sections:
 1. Current to target direction.
 1. Gap map.
 1. Architecture-spec inputs.
-1. Proposed ticket set with ticket → stories/gaps/evidence/dependencies.
+1. Proposed ticket set with ticket → stories/gaps/evidence/dependencies; preserve vertical ordering and mark any unavoidable horizontal/enabling tickets with the vertical path they unlock.
 1. Cross-milestone dependencies.
 1. Taxonomy proposals.
 1. Deferred to ticket-level QRSPI.

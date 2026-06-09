@@ -28,12 +28,15 @@ For new milestone planning, review `design.md` only. If given legacy `outline.md
 
 Check:
 
+- milestone is vertically shaped around a named bonus plan/scenario/user path, or explicitly justifies why an enabling horizontal milestone is unavoidable
+- smallest credible testable/demoable outcome is clear
 - milestone ownership/non-goals clear
 - current-state/source-doc evidence sufficient for design
 - product outcomes/user-visible success clear and expressed as concise user stories
 - gap map identifies user-visible and architecture/spec gaps
 - architecture-spec inputs identified at design granularity
 - proposed tickets each map to approved outcomes/user stories and gaps
+- proposed tickets preserve end-to-end verifiability; horizontal/enabling tickets name the vertical path they unlock
 - expected evidence for each ticket is concrete enough to seed Linear descriptions
 - dependencies have owner/status and blocking order is clear
 - deferred details really belong to ticket-level QRSPI

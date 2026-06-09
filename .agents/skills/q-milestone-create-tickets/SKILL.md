@@ -7,7 +7,7 @@ description: Create Linear tickets from a reviewed milestone design. Use after m
 
 Use this after `/q-milestone-review [design.md]` and human design approval. This replaces the old milestone `outline -> review -> plan -> review` flow.
 
-Goal: convert the reviewed milestone design into a small set of well-shaped Linear tickets, with human refinement one ticket at a time. After the final ticket is approved, create the Linear tickets immediately; the one-by-one approvals are the mutation approval.
+Goal: convert the reviewed milestone design into a small set of well-shaped Linear tickets, with human refinement one ticket at a time. Tickets should preserve vertical delivery: each ticket should either move the named bonus plan/scenario closer to end-to-end verification or be a narrowly scoped enabler for that path. After the final ticket is approved, create the Linear tickets immediately; the one-by-one approvals are the mutation approval.
 
 ## Step 1: Load baseline workflow
 
@@ -30,6 +30,7 @@ Stop if design review or human approval is missing.
 From reviewed `design.md`, identify each proposed ticket and summarize in the standard ticket format:
 
 - title in Conventional Commit style, e.g. `feat(bonuses): add ordered first-five E-App policy selection`
+- vertical path: named bonus plan/scenario/user path this ticket advances
 - goal
 - user stories
 - where we are today
@@ -67,6 +68,7 @@ Ticket description docs must be exactly the Markdown body that goes into Linear:
 
 Each description must be concise and Linear-ready, using these sections in this order:
 
+1. Vertical path
 1. Goal
 1. User stories
 1. Where we are today
