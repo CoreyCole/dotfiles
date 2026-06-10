@@ -30,7 +30,7 @@ Stop if design review or human approval is missing.
 From reviewed `design.md`, identify each proposed ticket and summarize in the standard ticket format:
 
 - title in Conventional Commit style, e.g. `feat(bonuses): add ordered first-five E-App policy selection`
-- vertical path: named bonus plan/scenario/user path this ticket advances
+- vertical path: named bonus plan/scenario/user path this ticket advances; do not put process jargon like "Vertical" in ticket or milestone titles
 - goal
 - user stories
 - where we are today
@@ -63,6 +63,8 @@ After a ticket is approved, update the proposed ticket description docs created 
 ```text
 milestone-plan/context/create-tickets/linear-ticket-descriptions/tkt-01-short-slug.md
 ```
+
+These approved Linear bodies are supporting create-ticket artifacts, so they may live under `context/create-tickets/`. Actual ticket deliverables created later must live at the ticket directory root and be linked from ticket `index.md`.
 
 Ticket description docs must be exactly the Markdown body that goes into Linear: no frontmatter, no metadata-only title heading, no suggested next command, no agent-only notes. The Linear issue title lives outside the body, in the create command/status artifact.
 
@@ -101,8 +103,9 @@ After all ticket drafts are approved one by one:
 1. Update project Linear log.
 1. Update milestone planning status artifact.
 1. Update milestone `AGENTS.md` and optional `milestone.md`.
-1. Create ticket directories only after Linear IDs exist using `NN-pro-####-slug/`.
+1. Create ticket directories only after Linear IDs exist using `pro-####-slug/`; do not add numeric ordering prefixes.
 1. Write routing-only ticket `AGENTS.md` files.
+1. Write a ticket-root `index.md` that links the Linear issue, approved description doc, canonical docs, and next QRSPI command.
 1. Comment on each created ticket with a fenced QRSPI XML result. The XML `<workspace>` must be that ticket directory, `<artifact>` must point to the approved ticket description doc, and `<next>` must be `/q-question [ticket-dir]`.
 1. Run `just sync-thoughts` when available.
 

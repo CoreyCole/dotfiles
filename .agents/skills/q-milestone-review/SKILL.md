@@ -29,6 +29,7 @@ For new milestone planning, review `design.md` only. If given legacy `outline.md
 Check:
 
 - milestone is vertically shaped around a named bonus plan/scenario/user path, or explicitly justifies why an enabling horizontal milestone is unavoidable
+- milestone name uses product/domain language and does not include process jargon like "Vertical"
 - smallest credible testable/demoable outcome is clear
 - milestone ownership/non-goals clear
 - current-state/source-doc evidence sufficient for design

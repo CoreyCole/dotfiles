@@ -39,7 +39,7 @@ Ask one question at a time unless the user asks for a batch. Explore docs/code f
 
 Resolve:
 
-- whether this milestone is a vertical product path/bonus plan/scenario; if not, why a horizontal/enabling milestone is unavoidable
+- whether this milestone is a vertical product path/bonus plan/scenario; if not, why a horizontal/enabling milestone is unavoidable; milestone names should use product/domain language, not "Vertical"
 - milestone owns / does not own
 - why this milestone exists
 - smallest credible testable/demoable outcome

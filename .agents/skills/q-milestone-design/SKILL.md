@@ -29,7 +29,7 @@ Ask one question at a time. Use loaded research to avoid asking factual question
 
 Resolve:
 
-- vertical milestone shape: named bonus plan/scenario/user path, smallest testable/demoable path, and why it is sequenced now
+- vertical milestone shape: named bonus plan/scenario/user path, smallest testable/demoable path, and why it is sequenced now; milestone name should use product/domain language, not "Vertical"
 - milestone ownership and non-goals
 - product outcomes and user-visible success criteria
 - target users and concise user stories, including engineer-as-user stories only when outcome/architecture-enabling

@@ -41,7 +41,7 @@ Do not duplicate artifact lists or machine-control details in prose outside the 
 
 Post-XML natural summary style: caveman clear. Few words. Most important words only. For `plan`, summarize implementation plan and how each ADR is reflected.
 
-If `enablePlanReviews=true`, `<next>` steps route to `/q-review [plan.md]`; if false, `<next>` steps route to `/q-workspace [plan.md]`. For stage completion, emit a fenced `xml` QRSPI footer followed by the mandatory concise human summary; do not duplicate Artifact/Next machine-control details in prose:
+If `enablePlanReviews=true`, `<next>` steps route to `/q-review [plan.md]`. If false, `<next>` steps normally route to `/q-workspace [plan.md]`; for thoughts-only project-planning/spec plans, route directly to `/q-implement [plan.md]` in the current checkout because no copied implementation workspace is needed. For stage completion, emit a fenced `xml` QRSPI footer followed by the mandatory concise human summary; do not duplicate Artifact/Next machine-control details in prose:
 
 ```xml
 <qrspi-result>
@@ -188,17 +188,24 @@ Then wait for input.
    - If the plan will edit Go files, read relevant codebase rules before writing implementation steps: `.agents/rules/go-style.md` when present and package-local `AGENTS.md`/`CLAUDE.md`. Make the plan use shared helpers (`pkg/pointers.To`, `pkg/collections.Set`, nullable `Ptr()`, `pkg/checked`) instead of hand-rolled equivalents.
    - If the current file graph, entry points, or nearby patterns are still unclear, run `codebase-locator` and, if needed, `codebase-analyzer`, then write timestamped artifact(s) under `[plan_dir]/context/plan/` before finalizing the plan.
 
+1. **Decide execution mode before expanding slices:**
+
+   - Use `execution_mode: thoughts-only` when every planned tracked edit is under `thoughts/` or external planning systems such as Linear comments/links. This is the default for project planning, milestone planning, architecture/spec synthesis docs, living specs, status artifacts, and ticket-memory updates. Thoughts-only plans do **not** use `/q-workspace`, copied implementation directories, Graphite slice branches, or per-slice commit-message blocks; `/q-implement` edits in the current checkout and runs `just sync-thoughts`.
+   - Use normal implementation mode only when the plan edits production source files, tests, migrations, app docs outside the planning tree, or other repository files that need source-code review branches.
+
 1. **Expand each slice** from the outline into detailed implementation steps:
 
    - Full file paths for every change
-   - Actual code to write (function bodies, not just signatures)
-   - Test code
+   - Actual content or precise edits to write
+   - Test/verification steps
    - Commands to verify each slice
-   - A dictated commit message for the slice, using the exact format below
+   - For normal implementation mode only: a dictated commit message for each tracked-edit slice, using the exact format below
 
-   Each non-verification slice must include a `### Commit Message` section. Verification-only/no-change slices must say `No commit: verification-only slice.` The commit subject must follow Conventional Commits 1.0.0: `<type>[optional scope]: <description>`. The subject description should still mention the implementation workspace/slice when useful, but the required machine-readable slice metadata belongs in the QRSPI XML footer. The commit footer must include XML wrapped in `<qrspi-commit>` with the workspace name, slice number/name, and paths to `design.md`, `outline.md`, and `plan.md`.
+   In normal implementation mode, each non-verification slice must include a `### Commit Message` section. Verification-only/no-change slices must say `No commit: verification-only slice.` The commit subject must follow Conventional Commits 1.0.0: `<type>[optional scope]: <description>`. The subject description should still mention the implementation workspace/slice when useful, but the required machine-readable slice metadata belongs in the QRSPI XML footer. The commit footer must include XML wrapped in `<qrspi-commit>` with the workspace name, slice number/name, and paths to `design.md`, `outline.md`, and `plan.md`.
 
-   Also state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that `/q-workspace` selects the workspace base, then `/q-implement` or `/q-resume` implements/verifies each tracked edit slice first and only then runs `gt create ..._slice-N` or `..._review_plan_slice-N` with the final conventional commit message. Graphite commits per slice, and `/cn-agents-merge` after implementation/review is complete. Do not say `cn-agents` commits slices directly to `main` or pre-creates the next slice branch before editing. For other Graphite repos, slices with tracked edits use the same end-of-slice Graphite branch creation rule. The workspace model is always used; branching is repo-specific.
+   In thoughts-only mode, each slice should say `No Graphite commit: thoughts-only slice; sync through just sync-thoughts.` Do not add workspace names or `<qrspi-commit>` footers.
+
+   For normal implementation mode, state the repository submission model in the implementation plan. For `cn-agents`, say explicitly that `/q-workspace` selects the workspace base, then `/q-implement` or `/q-resume` implements/verifies each tracked edit slice first and only then runs `gt create ..._slice-N` or `..._review_plan_slice-N` with the final conventional commit message. Graphite commits per slice, and `/cn-agents-merge` after implementation/review is complete. Do not say `cn-agents` commits slices directly to `main` or pre-creates the next slice branch before editing. For other Graphite repos, slices with tracked edits use the same end-of-slice Graphite branch creation rule.
 
    Use this exact commit-message shape:
 
@@ -218,9 +225,18 @@ Then wait for input.
 
 1. **Add status checkboxes** at the top — these are the context recovery mechanism. When the implementing agent's context window resets, it reloads this file and the checkboxes tell it where to pick up.
 
-1. **Add an `Implementation Workspace Prep` section before the first slice.** This section documents that `/q-workspace` creates or repairs the filesystem copy after the final `/q-review [plan.md]` succeeds.
+1. **Add execution prep before the first slice.**
 
-   The section must include these invariants:
+   For `execution_mode: thoughts-only`, add a `## Thoughts-only Execution` section instead of `Implementation Workspace Prep`. It must state:
+
+   - All planned edits live under `thoughts/` and/or external planning systems such as Linear comments/links.
+   - No `/q-workspace`, copied implementation directory, git worktree, or Graphite slice branch is used.
+   - `/q-implement` runs in the current checkout, updates the first unchecked thoughts-only slice, verifies it, updates checkboxes, writes handoff/review artifacts when needed, and runs `just sync-thoughts`.
+   - If implementation discovers production source-code edits are required, stop and update the plan to normal implementation mode before editing source files.
+
+   For normal implementation mode, add an `Implementation Workspace Prep` section before the first slice. This section documents that `/q-workspace` creates or repairs the filesystem copy after the final `/q-review [plan.md]` succeeds.
+
+   The normal implementation section must include these invariants:
 
    - Implementation happens in a fresh filesystem copy, never a git worktree.
    - `/q-workspace`, not `/q-plan`, chooses the final workspace base after plan-review edits are complete.
@@ -245,7 +261,7 @@ Then wait for input.
 
 1. **Run `just sync-thoughts` in the planning/source checkout** after writing `plan.md`. If it fails, stop with status `blocked` or `error`; do not advance to review with unsynced planning artifacts.
 
-1. **Do not create the implementation workspace in `/q-plan`.** Workspace creation/repair is the separate `/q-workspace` stage after final `/q-review [plan.md]`, because review edits can change the plan and review-fixes plans may need to stack on an unmerged parent implementation branch.
+1. **Do not create an implementation workspace in `/q-plan`.** Normal implementation workspace creation/repair is the separate `/q-workspace` stage after final `/q-review [plan.md]`, because review edits can change the plan and review-fixes plans may need to stack on an unmerged parent implementation branch. Thoughts-only plans skip `/q-workspace` entirely and continue in the current checkout after plan review.
 
 ## Output Template
 
@@ -260,6 +276,7 @@ git_commit: [current commit hash]
 branch: [current branch]
 repository: [repository name]
 stage: plan
+execution_mode: "thoughts-only | implementation"
 ticket: "[ticket reference if any]"
 plan_dir: "thoughts/[git_username]/plans/[timestamp]_[plan-name]"
 project: "[primary project id if known]"
@@ -274,7 +291,17 @@ related_projects: []
 - [ ] Slice 3: [Name]
 ...
 
+## Thoughts-only Execution
+
+Use this section when `execution_mode: thoughts-only`.
+
+All planned edits live under `thoughts/` and/or external planning systems. Do not run `/q-workspace`, create a copied implementation directory, use a git worktree, or create Graphite slice branches. `/q-implement` runs in the current checkout, updates thoughts artifacts, verifies each checkpoint, and runs `just sync-thoughts`.
+
+If production source-code edits become necessary, stop and update this plan to normal implementation mode before editing source files.
+
 ## Implementation Workspace Prep
+
+Use this section only when `execution_mode: implementation`.
 
 `/q-workspace` will create or repair the fresh filesystem copy for `/q-implement` after `/q-review [plan.md]` succeeds.
 
@@ -352,8 +379,10 @@ No human review of the plan — alignment already happened in design, outline, a
 
 - This plan is for the coding agent, not the human. Be explicit. Include full code, exact file paths, exact commands.
 - Status checkboxes at the top are mandatory — they are the context recovery mechanism for `/q-implement`.
-- Include `Implementation Workspace Prep` in every plan, but do not create the workspace in `/q-plan`; `/q-workspace` creates or repairs it after the plan review and records the final base branch/commit.
-- Include the repository submission model in every implementation plan: `cn-agents` = fresh workspace plus Graphite slice branches for tracked edit slices, then `/cn-agents-merge`; Graphite repos = stacked slice branches for tracked edit slices.
+- Include `execution_mode` in plan frontmatter.
+- For thoughts-only project-planning/spec plans, include `Thoughts-only Execution`, omit `Implementation Workspace Prep`, and route after plan review directly to `/q-implement` in the current checkout.
+- For normal implementation plans, include `Implementation Workspace Prep`, but do not create the workspace in `/q-plan`; `/q-workspace` creates or repairs it after the plan review and records the final base branch/commit.
+- Include the repository submission model only in normal implementation plans: `cn-agents` = fresh workspace plus Graphite slice branches for tracked edit slices, then `/cn-agents-merge`; Graphite repos = stacked slice branches for tracked edit slices.
 - Run `just sync-thoughts` after writing `plan.md`.
 - Include `<workspace>` immediately after `<outcome>` in `/q-plan` QRSPI result footers, using the absolute active QRSPI plan/ticket directory. `/q-workspace` is responsible for final implementation workspace creation and will switch later XML to `<workspaceMetadata><planWorkspace>...` plus `<implementationWorkspace>...`.
 - Follow the slice order from the outline exactly. Do not reorganize into horizontal layers.

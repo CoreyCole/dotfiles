@@ -92,7 +92,7 @@ Required sections:
 
 ## Step 5: Post-review execution
 
-After `/q-milestone-review [plan.md]` succeeds and required human approval is recorded if project policy requires it, execute Linear creation. Then create ticket directories using `NN-pro-####-slug/` and routing-only `AGENTS.md` files.
+After `/q-milestone-review [plan.md]` succeeds and required human approval is recorded if project policy requires it, execute Linear creation. Then create ticket directories using `pro-####-slug/` and routing-only `AGENTS.md` files. Do not add numeric ordering prefixes; ticket order belongs in status/index docs.
 
 ## Response
 
