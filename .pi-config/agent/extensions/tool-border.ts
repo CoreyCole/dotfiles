@@ -1,10 +1,21 @@
-import { AssistantMessageComponent, ToolExecutionComponent, UserMessageComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  AssistantMessageComponent,
+  ToolExecutionComponent,
+  UserMessageComponent,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
-const ORIGINAL_UPDATE_DISPLAY = Symbol.for("corey.toolBorderOriginalUpdateDisplay");
+const ORIGINAL_UPDATE_DISPLAY = Symbol.for(
+  "corey.toolBorderOriginalUpdateDisplay",
+);
 const ORIGINAL_RENDER = Symbol.for("corey.toolBorderOriginalRender");
-const ORIGINAL_ASSISTANT_RENDER = Symbol.for("corey.toolBorderOriginalAssistantRender");
-const ORIGINAL_ASSISTANT_UPDATE_CONTENT = Symbol.for("corey.toolBorderOriginalAssistantUpdateContent");
+const ORIGINAL_ASSISTANT_RENDER = Symbol.for(
+  "corey.toolBorderOriginalAssistantRender",
+);
+const ORIGINAL_ASSISTANT_UPDATE_CONTENT = Symbol.for(
+  "corey.toolBorderOriginalAssistantUpdateContent",
+);
 const ORIGINAL_USER_RENDER = Symbol.for("corey.toolBorderOriginalUserRender");
 
 type TextBlock = { type: string; text?: string };
@@ -40,22 +51,38 @@ function displayPath(filePath: string, cwd: string | undefined): string {
   const base = cwd || process.cwd();
   const normalizedCwd = base.endsWith("/") ? base.slice(0, -1) : base;
   if (filePath === normalizedCwd) return ".";
-  if (filePath.startsWith(`${normalizedCwd}/`)) return filePath.slice(normalizedCwd.length + 1);
+  if (filePath.startsWith(`${normalizedCwd}/`))
+    return filePath.slice(normalizedCwd.length + 1);
   return filePath;
 }
 
-function deterministicDocsSummary(result: ToolResult | undefined, width: number, cwd: string | undefined): string[] {
+function deterministicDocsSummary(
+  result: ToolResult | undefined,
+  width: number,
+  cwd: string | undefined,
+): string[] {
   const loaded = result?.details?.deterministicDocs?.loaded;
   if (!Array.isArray(loaded) || loaded.length === 0) return [];
 
   return loaded
     .map((entry) => entry?.path)
-    .filter((path): path is string => typeof path === "string" && path.length > 0)
-    .map((path) => truncateToWidth(` 📖 \x1b[90mload\x1b[39m \x1b[36m${displayPath(path, cwd)}\x1b[39m`, width, "..."));
+    .filter(
+      (path): path is string => typeof path === "string" && path.length > 0,
+    )
+    .map((path) =>
+      truncateToWidth(
+        ` 📖 \x1b[90mload\x1b[39m \x1b[36m${displayPath(path, cwd)}\x1b[39m`,
+        width,
+        "...",
+      ),
+    );
 }
 
-function visibleReadResult(result: ToolResult | undefined): ToolResult | undefined {
-  const hiddenBlocks = result?.details?.deterministicDocs?.autoContextContentBlocks;
+function visibleReadResult(
+  result: ToolResult | undefined,
+): ToolResult | undefined {
+  const hiddenBlocks =
+    result?.details?.deterministicDocs?.autoContextContentBlocks;
   if (typeof hiddenBlocks !== "number" || hiddenBlocks <= 0) return result;
 
   return {
@@ -112,6 +139,56 @@ function truncateLines(lines: string[], width: number): string[] {
   return lines.map((line) => truncateToWidth(trimLineEnd(line), width));
 }
 
+function textOutputLineCount(result: ToolResult | undefined): number {
+  const text = result?.content
+    ?.filter((block) => block.type === "text" && typeof block.text === "string")
+    .map((block) => block.text?.trimEnd())
+    .filter(Boolean)
+    .join("\n");
+  if (!text) return 0;
+  return text.split("\n").length;
+}
+
+function restoreBashCollapsedHint(
+  lines: string[],
+  result: ToolResult | undefined,
+): string[] {
+  const lineCount = textOutputLineCount(result);
+  const skipped = lineCount - 5;
+  if (skipped <= 0) return lines;
+
+  const timingIndex = lines.findIndex((line) =>
+    /\b(?:Took|Elapsed)\b/.test(stripAnsi(line)),
+  );
+  const outputEnd = timingIndex === -1 ? lines.length : timingIndex;
+  const outputIndent =
+    lines
+      .slice(Math.max(0, outputEnd - 5), outputEnd)
+      .map((line) => stripAnsi(line).match(/^\s*/)?.[0] ?? "")
+      .find((indent) => indent.length > 0) ?? "";
+  const hint = `${outputIndent}\x1b[90m... (${skipped} earlier lines, to expand)\x1b[39m`;
+  const existingHint = lines.findIndex((line) =>
+    stripAnsi(line).includes("earlier lines"),
+  );
+  if (existingHint !== -1) {
+    const next = [...lines];
+    next[existingHint] = hint;
+    return next;
+  }
+
+  const next = lines.filter(
+    (line) => !/^\s*\d+ lines\.\.\.\s*$/.test(stripAnsi(line)),
+  );
+  const filteredTimingIndex = next.findIndex((line) =>
+    /\b(?:Took|Elapsed)\b/.test(stripAnsi(line)),
+  );
+  const filteredOutputEnd =
+    filteredTimingIndex === -1 ? next.length : filteredTimingIndex;
+  const insertAt = Math.max(1, filteredOutputEnd - 5);
+  next.splice(insertAt, 0, hint);
+  return next;
+}
+
 function patchToolExecutionBorder() {
   const proto = ToolExecutionComponent.prototype as any;
   proto[ORIGINAL_UPDATE_DISPLAY] ??= proto.updateDisplay;
@@ -139,9 +216,12 @@ function patchToolExecutionBorder() {
       lines = prefixFirstContentLine(lines, " ✏️ ");
     } else if (this.toolName === "read") {
       lines = prefixFirstContentLine(lines, " 📖 ");
+    } else if (this.toolName === "bash" && !this.expanded) {
+      lines = restoreBashCollapsedHint(lines, this.result);
     }
 
-    if (hasBorder(lines)) return truncateLines(trimLeadingBlankLines(lines), width);
+    if (hasBorder(lines))
+      return truncateLines(trimLeadingBlankLines(lines), width);
 
     const content = trimTrailingBlankLines(trimLeadingBlankLines(lines));
     const docs = deterministicDocsSummary(this.result, width, this.cwd);
@@ -163,12 +243,32 @@ function patchAssistantMessageSpacing() {
   };
 
   proto.render = function render(width: number): string[] {
-    const lines = trimTrailingBlankLines(trimLeadingBlankLines(proto[ORIGINAL_ASSISTANT_RENDER].call(this, width) as string[]));
+    const lines = trimTrailingBlankLines(
+      trimLeadingBlankLines(
+        proto[ORIGINAL_ASSISTANT_RENDER].call(this, width) as string[],
+      ),
+    );
     const content = this.lastMessage?.content;
-    const hasThinking = Array.isArray(content) && content.some((block) => block?.type === "thinking" && typeof block.thinking === "string" && block.thinking.trim());
-    const hasText = Array.isArray(content) && content.some((block) => block?.type === "text" && typeof block.text === "string" && block.text.trim());
+    const hasThinking =
+      Array.isArray(content) &&
+      content.some(
+        (block) =>
+          block?.type === "thinking" &&
+          typeof block.thinking === "string" &&
+          block.thinking.trim(),
+      );
+    const hasText =
+      Array.isArray(content) &&
+      content.some(
+        (block) =>
+          block?.type === "text" &&
+          typeof block.text === "string" &&
+          block.text.trim(),
+      );
     if (!hasThinking || hasText || hasBorder(lines)) return lines;
-    const indented = lines.map((line) => stripAnsi(line).trim() === "" ? line : `  ${line}`);
+    const indented = lines.map((line) =>
+      stripAnsi(line).trim() === "" ? line : `  ${line}`,
+    );
     return truncateLines([...indented, subtleBorder(width)], width);
   };
 }
@@ -179,7 +279,8 @@ function patchUserMessageSpacing() {
 
   proto.render = function render(width: number): string[] {
     const lines = proto[ORIGINAL_USER_RENDER].call(this, width) as string[];
-    if (lines.length === 0 || stripAnsi(lines[lines.length - 1]).trim() === "") return lines;
+    if (lines.length === 0 || stripAnsi(lines[lines.length - 1]).trim() === "")
+      return lines;
     return [...lines, ""];
   };
 }
