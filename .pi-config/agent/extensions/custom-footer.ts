@@ -40,8 +40,19 @@ function getCwd(ctx: ExtensionContext): string {
   return shortHomePath(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
 }
 
+function workspaceSlug(cwd: string): string | undefined {
+  const normalized = cwd.replace(/[/\\]+$/, "");
+  const slug = normalized.split(/[/\\]/).pop()?.trim();
+  return slug || undefined;
+}
+
 function getSessionLabel(ctx: ExtensionContext): string | undefined {
-  return ctx.sessionManager.getSessionName?.();
+  const name = ctx.sessionManager.getSessionName?.();
+  if (!name) return undefined;
+  if (!/^\[qrspi:[^\]]+\]\s*<-/.test(name)) return name;
+
+  const slug = workspaceSlug(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
+  return slug ? `${slug} • ${name}` : name;
 }
 
 function renderPaddedLine(left: string, right: string, width: number): string {

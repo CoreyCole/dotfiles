@@ -71,7 +71,7 @@ function deterministicDocsSummary(
     )
     .map((path) =>
       truncateToWidth(
-        ` 📖 \x1b[90mload\x1b[39m \x1b[36m${displayPath(path, cwd)}\x1b[39m`,
+        ` 🧠\x1b[36m${displayPath(path, cwd)}\x1b[39m`,
         width,
         "...",
       ),
@@ -103,7 +103,11 @@ function hasBorder(lines: string[]): boolean {
   return lines.some(isBorderLine);
 }
 
-function prefixFirstContentLine(lines: string[], prefix: string): string[] {
+function iconizeFirstContentLine(
+  lines: string[],
+  icon: string,
+  toolName: "read" | "edit" | "write",
+): string[] {
   const index = lines.findIndex((line) => {
     const text = stripAnsi(line).trim();
     return text !== "" && !/^─+$/.test(text) && !text.startsWith("loaded:");
@@ -112,11 +116,27 @@ function prefixFirstContentLine(lines: string[], prefix: string): string[] {
 
   const next = [...lines];
   const line = next[index];
-  const match = line.match(/^((?:\x1b\[[0-9;]*m)*)\s*/);
+  const match = line.match(/^((?:\x1b\[[0-9;]*m)*\s*)/);
   const start = match?.[0] ?? "";
-  const colors = match?.[1] ?? "";
-  next[index] = `${colors}${prefix}${line.slice(start.length)}`;
+  const ansi = "(?:\\x1b\\[[0-9;]*m)*";
+  const toolPrefix = new RegExp(`^${ansi}${toolName}${ansi}\\s*`);
+  const content = line.slice(start.length).replace(toolPrefix, "");
+  if (content.trim() === "" && next[index + 1]) {
+    next[index] = `${start}${icon}${next[index + 1].trimStart()}`;
+    next.splice(index + 1, 1);
+    return next;
+  }
+
+  next[index] = `${start}${icon}${content}`;
   return next;
+}
+
+function firstContentLine(lines: string[]): string[] {
+  const line = lines.find((candidate) => {
+    const text = stripAnsi(candidate).trim();
+    return text !== "" && !/^─+$/.test(text);
+  });
+  return line ? [line] : [];
 }
 
 function trimLeadingBlankLines(lines: string[]): string[] {
@@ -213,9 +233,11 @@ function patchToolExecutionBorder() {
     if (lines.length === 0) return lines;
 
     if (this.toolName === "edit") {
-      lines = prefixFirstContentLine(lines, " ✏️ ");
+      lines = iconizeFirstContentLine(lines, "✏️", "edit");
+    } else if (this.toolName === "write") {
+      lines = iconizeFirstContentLine(lines, "✏️", "write");
     } else if (this.toolName === "read") {
-      lines = prefixFirstContentLine(lines, " 📖 ");
+      lines = firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
     } else if (this.toolName === "bash" && !this.expanded) {
       lines = restoreBashCollapsedHint(lines, this.result);
     }
