@@ -103,40 +103,89 @@ function hasBorder(lines: string[]): boolean {
   return lines.some(isBorderLine);
 }
 
+function firstContentLineIndex(lines: string[]): number {
+  return lines.findIndex((line) => {
+    const text = stripAnsi(line).trim();
+    return text !== "" && !/^─+$/.test(text) && !text.startsWith("loaded:");
+  });
+}
+
 function iconizeFirstContentLine(
   lines: string[],
   icon: string,
   toolName: "read" | "edit" | "write",
 ): string[] {
-  const index = lines.findIndex((line) => {
-    const text = stripAnsi(line).trim();
-    return text !== "" && !/^─+$/.test(text) && !text.startsWith("loaded:");
-  });
+  const index = firstContentLineIndex(lines);
+  if (index === -1) return lines;
+
+  const next = [...lines];
+  const line = next[index];
+  const match = line.match(/^((?:\x1b\[[0-9;]*m)*\s*)/);
+  const rawStart = match?.[0] ?? "";
+  const displayStart = /\s/.test(stripAnsi(rawStart))
+    ? rawStart
+    : `${rawStart} `;
+  const ansi = "(?:\\x1b\\[[0-9;]*m)*";
+  const toolPrefix = new RegExp(`^${ansi}${toolName}${ansi}\\s*`);
+  const content = line.slice(rawStart.length).replace(toolPrefix, "");
+  if (content.trim() === "") {
+    const pathIndex = next.findIndex((candidate, candidateIndex) => {
+      if (candidateIndex <= index) return false;
+      const text = stripAnsi(candidate).trim();
+      return text !== "" && !/^─+$/.test(text) && !text.startsWith("loaded:");
+    });
+    if (pathIndex !== -1) {
+      next[index] = `${displayStart}${icon}${next[pathIndex].trimStart()}`;
+      next.splice(index + 1, pathIndex - index);
+      return next;
+    }
+  }
+
+  next[index] = `${displayStart}${icon}${content}`;
+  return next;
+}
+
+function toolPathLine(
+  args:
+    | { path?: unknown; file_path?: unknown; offset?: unknown; limit?: unknown }
+    | undefined,
+  cwd: string | undefined,
+  icon: string,
+): string | undefined {
+  const rawPath =
+    typeof args?.file_path === "string"
+      ? args.file_path
+      : typeof args?.path === "string"
+        ? args.path
+        : undefined;
+  if (!rawPath) return undefined;
+
+  let suffix = "";
+  if (typeof args?.offset === "number" || typeof args?.limit === "number") {
+    const start = typeof args.offset === "number" ? args.offset : 1;
+    const end =
+      typeof args.limit === "number" ? start + args.limit - 1 : undefined;
+    suffix = `:${start}${end === undefined ? "" : `-${end}`}`;
+  }
+  return ` ${icon}${displayPath(rawPath, cwd)}${suffix}`;
+}
+
+function setBashStatusIcon(lines: string[], icon: string): string[] {
+  const index = firstContentLineIndex(lines);
   if (index === -1) return lines;
 
   const next = [...lines];
   const line = next[index];
   const match = line.match(/^((?:\x1b\[[0-9;]*m)*\s*)/);
   const start = match?.[0] ?? "";
-  const ansi = "(?:\\x1b\\[[0-9;]*m)*";
-  const toolPrefix = new RegExp(`^${ansi}${toolName}${ansi}\\s*`);
-  const content = line.slice(start.length).replace(toolPrefix, "");
-  if (content.trim() === "" && next[index + 1]) {
-    next[index] = `${start}${icon}${next[index + 1].trimStart()}`;
-    next.splice(index + 1, 1);
-    return next;
-  }
-
-  next[index] = `${start}${icon}${content}`;
+  const content = line.slice(start.length).replace(/^[🟢🟡🔴]\s*/, "");
+  next[index] = `${start}${icon} ${content}`;
   return next;
 }
 
 function firstContentLine(lines: string[]): string[] {
-  const line = lines.find((candidate) => {
-    const text = stripAnsi(candidate).trim();
-    return text !== "" && !/^─+$/.test(text);
-  });
-  return line ? [line] : [];
+  const index = firstContentLineIndex(lines);
+  return index === -1 ? [] : [lines[index]];
 }
 
 function trimLeadingBlankLines(lines: string[]): string[] {
@@ -233,13 +282,20 @@ function patchToolExecutionBorder() {
     if (lines.length === 0) return lines;
 
     if (this.toolName === "edit") {
-      lines = iconizeFirstContentLine(lines, "✏️", "edit");
+      lines = toolPathLine(this.args, this.cwd, "✏️")
+        ? [toolPathLine(this.args, this.cwd, "✏️")!]
+        : iconizeFirstContentLine(lines, "✏️", "edit");
     } else if (this.toolName === "write") {
-      lines = iconizeFirstContentLine(lines, "✏️", "write");
+      lines = toolPathLine(this.args, this.cwd, "✏️")
+        ? [toolPathLine(this.args, this.cwd, "✏️")!]
+        : iconizeFirstContentLine(lines, "✏️", "write");
     } else if (this.toolName === "read") {
-      lines = firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
-    } else if (this.toolName === "bash" && !this.expanded) {
-      lines = restoreBashCollapsedHint(lines, this.result);
+      lines = toolPathLine(this.args, this.cwd, "📖")
+        ? [toolPathLine(this.args, this.cwd, "📖")!]
+        : firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
+    } else if (this.toolName === "bash") {
+      if (this.isPartial) lines = setBashStatusIcon(lines, "🟡");
+      if (!this.expanded) lines = restoreBashCollapsedHint(lines, this.result);
     }
 
     if (hasBorder(lines))

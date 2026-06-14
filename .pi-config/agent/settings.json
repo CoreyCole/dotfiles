@@ -1,8 +1,7 @@
 {
   "lastChangelogVersion": "0.75.5",
-  "packages": [
-    "git:github.com/CoreyCole/pi-deterministic-docs"
-  ],
+  "packages": ["git:github.com/CoreyCole/pi-deterministic-docs"],
+  "skills": ["~/dotfiles/context/vamos/.pi/skills"],
   "compaction": {
     "enabled": false
   },
