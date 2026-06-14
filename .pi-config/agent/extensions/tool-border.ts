@@ -4,7 +4,12 @@ import {
   UserMessageComponent,
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import {
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
+import { TOOL_DISPLAY } from "./tool-display-style.ts";
 
 const ORIGINAL_UPDATE_DISPLAY = Symbol.for(
   "corey.toolBorderOriginalUpdateDisplay",
@@ -30,7 +35,7 @@ type ToolResult = {
 };
 
 function subtleBorder(width: number): string {
-  return `\x1b[90m${"─".repeat(Math.max(1, width))}\x1b[39m`;
+  return TOOL_DISPLAY.border("─".repeat(Math.max(1, width)));
 }
 
 const LOAD_PATH_ANCHORS = ["thoughts", "chestnut-flake"];
@@ -56,6 +61,24 @@ function displayPath(filePath: string, cwd: string | undefined): string {
   return filePath;
 }
 
+function pathDisplayLines(
+  path: string,
+  cwd: string | undefined,
+  icon: string,
+  width: number,
+): string[] {
+  const prefix = ` ${icon} `;
+  const pathWidth = Math.max(1, width - visibleWidth(prefix));
+  const wrappedPath = wrapTextWithAnsi(
+    TOOL_DISPLAY.path(displayPath(path, cwd)),
+    pathWidth,
+  );
+  const continuationPrefix = " ".repeat(visibleWidth(prefix));
+  return wrappedPath.map((line, index) =>
+    index === 0 ? `${prefix}${line}` : `${continuationPrefix}${line}`,
+  );
+}
+
 function deterministicDocsSummary(
   result: ToolResult | undefined,
   width: number,
@@ -69,13 +92,7 @@ function deterministicDocsSummary(
     .filter(
       (path): path is string => typeof path === "string" && path.length > 0,
     )
-    .map((path) =>
-      truncateToWidth(
-        ` 🧠\x1b[36m${displayPath(path, cwd)}\x1b[39m`,
-        width,
-        "...",
-      ),
-    );
+    .flatMap((path) => pathDisplayLines(path, cwd, "🧠", width));
 }
 
 function visibleReadResult(
@@ -145,19 +162,25 @@ function iconizeFirstContentLine(
   return next;
 }
 
-function toolPathLine(
+function rawToolPath(
+  args:
+    | { path?: unknown; file_path?: unknown; offset?: unknown; limit?: unknown }
+    | undefined,
+): string | undefined {
+  return typeof args?.file_path === "string"
+    ? args.file_path
+    : typeof args?.path === "string"
+      ? args.path
+      : undefined;
+}
+
+function toolPathDisplay(
   args:
     | { path?: unknown; file_path?: unknown; offset?: unknown; limit?: unknown }
     | undefined,
   cwd: string | undefined,
-  icon: string,
 ): string | undefined {
-  const rawPath =
-    typeof args?.file_path === "string"
-      ? args.file_path
-      : typeof args?.path === "string"
-        ? args.path
-        : undefined;
+  const rawPath = rawToolPath(args);
   if (!rawPath) return undefined;
 
   let suffix = "";
@@ -167,7 +190,39 @@ function toolPathLine(
       typeof args.limit === "number" ? start + args.limit - 1 : undefined;
     suffix = `:${start}${end === undefined ? "" : `-${end}`}`;
   }
-  return ` ${icon}${displayPath(rawPath, cwd)}${suffix}`;
+  return `${displayPath(rawPath, cwd)}${suffix}`;
+}
+
+function toolPathLines(
+  args:
+    | { path?: unknown; file_path?: unknown; offset?: unknown; limit?: unknown }
+    | undefined,
+  cwd: string | undefined,
+  icon: string,
+  width: number,
+): string[] | undefined {
+  const path = toolPathDisplay(args, cwd);
+  if (!path) return undefined;
+
+  return pathDisplayLines(path, undefined, icon, width);
+}
+
+function replaceFirstContentLineBlock(
+  lines: string[],
+  replacements: string[],
+): string[] {
+  const index = firstContentLineIndex(lines);
+  if (index === -1) return [...replacements, ...lines];
+
+  const next = [...lines];
+  let deleteCount = 1;
+  for (let i = index + 1; i < next.length; i++) {
+    const text = stripAnsi(next[i]).trim();
+    if (text === "" || /^─+$/.test(text) || /^[+-]/.test(text)) break;
+    deleteCount++;
+  }
+  next.splice(index, deleteCount, ...replacements);
+  return next;
 }
 
 function setBashStatusIcon(lines: string[], icon: string): string[] {
@@ -204,8 +259,17 @@ function trimLineEnd(line: string): string {
   return line.replace(/[ \t]+((?:\x1b\[[0-9;]*m)*)$/, "$1");
 }
 
+function isPathDisplayLine(line: string): boolean {
+  return /^\s*[📖✏️📝🧠]/u.test(stripAnsi(line));
+}
+
 function truncateLines(lines: string[], width: number): string[] {
-  return lines.map((line) => truncateToWidth(trimLineEnd(line), width));
+  return lines.map((line) => {
+    const trimmed = trimLineEnd(line);
+    return isPathDisplayLine(trimmed)
+      ? trimmed
+      : truncateToWidth(trimmed, width);
+  });
 }
 
 function textOutputLineCount(result: ToolResult | undefined): number {
@@ -235,7 +299,7 @@ function restoreBashCollapsedHint(
       .slice(Math.max(0, outputEnd - 5), outputEnd)
       .map((line) => stripAnsi(line).match(/^\s*/)?.[0] ?? "")
       .find((indent) => indent.length > 0) ?? "";
-  const hint = `${outputIndent}\x1b[90m... (${skipped} earlier lines, to expand)\x1b[39m`;
+  const hint = `${outputIndent}${TOOL_DISPLAY.dim(`... (${skipped} earlier lines, to expand)`)}`;
   const existingHint = lines.findIndex((line) =>
     stripAnsi(line).includes("earlier lines"),
   );
@@ -282,17 +346,20 @@ function patchToolExecutionBorder() {
     if (lines.length === 0) return lines;
 
     if (this.toolName === "edit") {
-      lines = toolPathLine(this.args, this.cwd, "✏️")
-        ? [toolPathLine(this.args, this.cwd, "✏️")!]
+      const pathLines = toolPathLines(this.args, this.cwd, "✏️", width);
+      lines = pathLines
+        ? replaceFirstContentLineBlock(lines, pathLines)
         : iconizeFirstContentLine(lines, "✏️", "edit");
     } else if (this.toolName === "write") {
-      lines = toolPathLine(this.args, this.cwd, "✏️")
-        ? [toolPathLine(this.args, this.cwd, "✏️")!]
-        : iconizeFirstContentLine(lines, "✏️", "write");
+      const pathLines = toolPathLines(this.args, this.cwd, "📝", width);
+      lines = pathLines
+        ? replaceFirstContentLineBlock(lines, pathLines)
+        : iconizeFirstContentLine(lines, "📝", "write");
     } else if (this.toolName === "read") {
-      lines = toolPathLine(this.args, this.cwd, "📖")
-        ? [toolPathLine(this.args, this.cwd, "📖")!]
-        : firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
+      const pathLines = toolPathLines(this.args, this.cwd, "📖", width);
+      lines =
+        pathLines ??
+        firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
     } else if (this.toolName === "bash") {
       if (this.isPartial) lines = setBashStatusIcon(lines, "🟡");
       if (!this.expanded) lines = restoreBashCollapsedHint(lines, this.result);

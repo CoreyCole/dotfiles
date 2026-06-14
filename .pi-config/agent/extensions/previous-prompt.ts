@@ -82,12 +82,27 @@ function formatQrspiPrompt(text: string): string | undefined {
   return `[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`;
 }
 
+function formatSkillPrompt(text: string): string | undefined {
+  const match = text.match(/^\/skill:(\S+)\s*([\s\S]*)/);
+  if (!match) return undefined;
+
+  const skillName = match[1];
+  const userPrompt = match[2].trim().replace(/\s+/g, " ");
+  return userPrompt ? `💪 ${skillName} ${userPrompt}` : `💪 ${skillName}`;
+}
+
 function normalizePromptText(text: string): string | undefined {
   const normalized = text.trim();
   if (!normalized) return undefined;
 
   const qrspiPrompt = formatQrspiPrompt(normalized);
   if (qrspiPrompt) return qrspiPrompt;
+
+  const skillPrompt = formatSkillPrompt(normalized);
+  if (skillPrompt)
+    return skillPrompt.length <= MAX_PROMPT_CHARS
+      ? skillPrompt
+      : `${skillPrompt.slice(0, MAX_PROMPT_CHARS - 1).trimEnd()}…`;
 
   if (normalized.length <= MAX_PROMPT_CHARS) return normalized;
   return `${normalized.slice(0, MAX_PROMPT_CHARS - 1).trimEnd()}…`;

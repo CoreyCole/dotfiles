@@ -2,7 +2,8 @@ import { complete, type Model, type Api } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const skillPattern = /^\/skill:(\S+)\s*([\s\S]*)/;
-const planRootPattern = /((?:\/)?(?:[^/\s"'`()]+\/)*thoughts\/[^/\s"'`()]+\/plans\/[^/\s"'`()]+)/;
+const planRootPattern =
+  /((?:\/)?(?:[^/\s"'`()]+\/)*thoughts\/[^/\s"'`()]+\/plans\/[^/\s"'`()]+)/;
 const PLAN_CLASSIFICATION_TYPE = "plan-classification";
 const QRSPI_RESULT_TYPE = "qrspi-result";
 
@@ -25,17 +26,28 @@ async function pickCheapModel(ctx: {
   model: Model<Api> | undefined;
   modelRegistry: {
     find: (p: string, id: string) => Model<Api> | undefined;
-    getApiKeyAndHeaders: (m: Model<Api>) => Promise<{ ok: true; apiKey?: string; headers?: Record<string, string> } | { ok: false; error: string }>;
+    getApiKeyAndHeaders: (
+      m: Model<Api>,
+    ) => Promise<
+      | { ok: true; apiKey?: string; headers?: Record<string, string> }
+      | { ok: false; error: string }
+    >;
   };
-}): Promise<{ model: Model<Api>; apiKey?: string; headers?: Record<string, string> } | null> {
+}): Promise<{
+  model: Model<Api>;
+  apiKey?: string;
+  headers?: Record<string, string>;
+} | null> {
   const haiku = ctx.modelRegistry.find("anthropic", HAIKU_MODEL_ID);
   if (haiku) {
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(haiku);
-    if (auth.ok) return { model: haiku, apiKey: auth.apiKey, headers: auth.headers };
+    if (auth.ok)
+      return { model: haiku, apiKey: auth.apiKey, headers: auth.headers };
   }
   if (ctx.model) {
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-    if (auth.ok) return { model: ctx.model, apiKey: auth.apiKey, headers: auth.headers };
+    if (auth.ok)
+      return { model: ctx.model, apiKey: auth.apiKey, headers: auth.headers };
   }
   return null;
 }
@@ -48,7 +60,10 @@ function normalizePlanDir(path: string | undefined): string | undefined {
   return match?.[1];
 }
 
-function resolvePlanClassification(text: string, cwd: string): PlanClassification | undefined {
+function resolvePlanClassification(
+  text: string,
+  cwd: string,
+): PlanClassification | undefined {
   const fromPrompt = normalizePlanDir(text);
   if (fromPrompt) {
     return { planDir: fromPrompt, source: "prompt-path" };
@@ -62,11 +77,17 @@ function resolvePlanClassification(text: string, cwd: string): PlanClassificatio
   return undefined;
 }
 
-function getLatestPlanClassification(ctx: { sessionManager: { getEntries: () => Array<any> } }): PlanClassification | undefined {
+function getLatestPlanClassification(ctx: {
+  sessionManager: { getEntries: () => Array<any> };
+}): PlanClassification | undefined {
   const entries = ctx.sessionManager.getEntries();
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const entry = entries[i];
-    if (entry?.type !== "custom" || entry?.customType !== PLAN_CLASSIFICATION_TYPE) continue;
+    if (
+      entry?.type !== "custom" ||
+      entry?.customType !== PLAN_CLASSIFICATION_TYPE
+    )
+      continue;
     const planDir = normalizePlanDir(entry?.data?.planDir);
     const source = entry?.data?.source;
     if (!planDir || (source !== "prompt-path" && source !== "cwd")) continue;
@@ -76,7 +97,10 @@ function getLatestPlanClassification(ctx: { sessionManager: { getEntries: () => 
 }
 
 function tagPattern(tagName: string): string {
-  return tagName.split("").map((char) => `${char}\\s*`).join("");
+  return tagName
+    .split("")
+    .map((char) => `${char}\\s*`)
+    .join("");
 }
 
 function extractXmlTag(text: string, tagName: string): string | undefined {
@@ -85,9 +109,14 @@ function extractXmlTag(text: string, tagName: string): string | undefined {
 
 function extractXmlTags(text: string, tagName: string): string[] {
   const tag = tagPattern(tagName);
-  return [...text.matchAll(new RegExp(`<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`, "gi"))].map(
-    (match) => match[1],
-  );
+  return [
+    ...text.matchAll(
+      new RegExp(
+        `<\\s*${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*${tag}>`,
+        "gi",
+      ),
+    ),
+  ].map((match) => match[1]);
 }
 
 function normalizeXmlText(text: string): string {
@@ -128,8 +157,11 @@ function normalizePlainNextText(text: string): string {
 }
 
 function pickNextStageStep(steps: string[]): string | undefined {
-  return steps.find((step) => /\b(?:start|resume)\b[\s\S]*\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step))
-    ?? steps.find((step) => /\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step));
+  return (
+    steps.find((step) =>
+      /\b(?:start|resume)\b[\s\S]*\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step),
+    ) ?? steps.find((step) => /\/(?:skill:)?q-[a-z0-9-]+\b/i.test(step))
+  );
 }
 
 function parseQrspiResult(text: string): QrspiResult | undefined {
@@ -144,10 +176,14 @@ function parseQrspiResult(text: string): QrspiResult | undefined {
 
 function formatNextStage(next: string): string {
   const normalized = normalizeNextText(next);
-  const match = normalized.match(/\/(?:skill:)?(q-[a-z0-9-]+)\b/i) ?? normalized.match(/\b(q-[a-z0-9-]+)\b/i);
+  const match =
+    normalized.match(/\/(?:skill:)?(q-[a-z0-9-]+)\b/i) ??
+    normalized.match(/\b(q-[a-z0-9-]+)\b/i);
   if (match) return match[1];
 
-  const tagStripped = normalizePlainNextText(normalized.replace(/<\/?[^>]+>/g, " "));
+  const tagStripped = normalizePlainNextText(
+    normalized.replace(/<\/?[^>]+>/g, " "),
+  );
   return tagStripped.split(/\s+/, 1)[0] || "next";
 }
 
@@ -160,10 +196,17 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("input", async (event, ctx) => {
     const qrspi = parseQrspiResult(event.text);
-    const classification = resolvePlanClassification(qrspi ? `${qrspi.next}\n${event.text}` : event.text, ctx.cwd);
+    const classification = resolvePlanClassification(
+      qrspi ? `${qrspi.next}\n${event.text}` : event.text,
+      ctx.cwd,
+    );
     if (classification) {
       const latest = getLatestPlanClassification(ctx);
-      if (!latest || latest.planDir !== classification.planDir || latest.source !== classification.source) {
+      if (
+        !latest ||
+        latest.planDir !== classification.planDir ||
+        latest.source !== classification.source
+      ) {
         pi.appendEntry(PLAN_CLASSIFICATION_TYPE, classification);
       }
     }
@@ -175,7 +218,9 @@ export default function (pi: ExtensionAPI) {
       });
       if (!named) {
         named = true;
-        pi.setSessionName(`[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`);
+        pi.setSessionName(
+          `[qrspi:${formatNextStage(qrspi.next)}] <- ${qrspi.stage}`,
+        );
       }
       return;
     }
@@ -190,11 +235,11 @@ export default function (pi: ExtensionAPI) {
     named = true;
 
     if (!userPrompt) {
-      pi.setSessionName(`[${skillName}]`);
+      pi.setSessionName(`💪 ${skillName}`);
       return;
     }
 
-    pi.setSessionName(`[${skillName}] ${userPrompt.slice(0, 60)}`);
+    pi.setSessionName(`💪 ${skillName} ${userPrompt.slice(0, 60)}`);
 
     const cheap = await pickCheapModel(ctx);
     if (!cheap) return;
@@ -204,7 +249,13 @@ export default function (pi: ExtensionAPI) {
         cheap.model,
         {
           systemPrompt: SUMMARY_PROMPT,
-          messages: [{ role: "user", content: [{ type: "text", text: userPrompt }], timestamp: Date.now() }],
+          messages: [
+            {
+              role: "user",
+              content: [{ type: "text", text: userPrompt }],
+              timestamp: Date.now(),
+            },
+          ],
         },
         { apiKey: cheap.apiKey, headers: cheap.headers },
       );
@@ -216,7 +267,7 @@ export default function (pi: ExtensionAPI) {
         .trim();
 
       if (summary) {
-        pi.setSessionName(`[${skillName}] ${summary}`);
+        pi.setSessionName(`💪 ${skillName} ${summary}`);
       }
     } catch {
       // Keep the truncated name, no big deal
