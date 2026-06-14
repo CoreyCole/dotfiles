@@ -215,13 +215,7 @@ function replaceFirstContentLineBlock(
   if (index === -1) return [...replacements, ...lines];
 
   const next = [...lines];
-  let deleteCount = 1;
-  for (let i = index + 1; i < next.length; i++) {
-    const text = stripAnsi(next[i]).trim();
-    if (text === "" || /^─+$/.test(text) || /^[+-]/.test(text)) break;
-    deleteCount++;
-  }
-  next.splice(index, deleteCount, ...replacements);
+  next.splice(index, 1, ...replacements);
   return next;
 }
 
