@@ -207,15 +207,32 @@ function toolPathLines(
   return pathDisplayLines(path, undefined, icon, width);
 }
 
+function normalizePathFragment(text: string): string {
+  return stripAnsi(text).replace(/\s+/g, "");
+}
+
 function replaceFirstContentLineBlock(
   lines: string[],
   replacements: string[],
+  originalPath?: string,
 ): string[] {
   const index = firstContentLineIndex(lines);
   if (index === -1) return [...replacements, ...lines];
 
   const next = [...lines];
-  next.splice(index, 1, ...replacements);
+  let deleteCount = 1;
+  const normalizedPath = originalPath
+    ? normalizePathFragment(originalPath)
+    : undefined;
+  if (normalizedPath) {
+    for (let i = index + 1; i < next.length; i++) {
+      const fragment = normalizePathFragment(next[i]);
+      if (!fragment || !normalizedPath.includes(fragment)) break;
+      deleteCount++;
+    }
+  }
+
+  next.splice(index, deleteCount, ...replacements);
   return next;
 }
 
@@ -342,12 +359,20 @@ function patchToolExecutionBorder() {
     if (this.toolName === "edit") {
       const pathLines = toolPathLines(this.args, this.cwd, "✏️", width);
       lines = pathLines
-        ? replaceFirstContentLineBlock(lines, pathLines)
+        ? replaceFirstContentLineBlock(
+            lines,
+            pathLines,
+            toolPathDisplay(this.args, this.cwd),
+          )
         : iconizeFirstContentLine(lines, "✏️", "edit");
     } else if (this.toolName === "write") {
       const pathLines = toolPathLines(this.args, this.cwd, "📝", width);
       lines = pathLines
-        ? replaceFirstContentLineBlock(lines, pathLines)
+        ? replaceFirstContentLineBlock(
+            lines,
+            pathLines,
+            toolPathDisplay(this.args, this.cwd),
+          )
         : iconizeFirstContentLine(lines, "📝", "write");
     } else if (this.toolName === "read") {
       const pathLines = toolPathLines(this.args, this.cwd, "📖", width);
