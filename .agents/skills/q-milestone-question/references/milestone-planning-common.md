@@ -74,12 +74,36 @@ Owns whole-system architecture synthesis:
 
 - target system explanation
 - current implemented system explanation
-- current to target path organized by reviewed milestone designs
+- critical path and milestone sequencing before detailed milestone planning when needed
+- current to target path organized by reviewed milestone designs when those designs exist
 - cross-cutting technical decisions
 
 May challenge child milestone designs, but must not silently mutate them. Any scope/ticket-shape change routes back to affected milestone-plan design, automated review, and human approval.
 
 Architecture/spec deliverables normally live as root-level docs in the owning ticket directory, linked from ticket `index.md`. Do not hide primary deliverables under `context/`; reserve `context/` for supporting research/scratch/evidence.
+
+#### High-level spec before milestone planning
+
+A high-level spec may come before milestone-level QRSPI to align the project on target architecture, critical-path sequence, and known milestone-planning inputs. It is a guide for future milestone planning, not a replacement for it.
+
+Expected shape:
+
+- concise target end state and architecture rules
+- current-state facts only where they explain a gap, risk, or sequence decision
+- milestone sequence with Linear milestone links when available; link to the project issues view filtered by milestone: `https://linear.app/chestnut/project/[project-slug]/issues#milestone-[milestone-id]`, not `/overview#milestone-...`
+- one proposed-work table per milestone
+- table rows as planning inputs with columns like `Proposed work | Critical-path outcome | Notes | Linear`
+- deployed E2E/Ranger verification as separate proposed-work rows, not hidden in a column
+- final readiness/backstop table only for explicitly named leftover polish or edge-to-edge completeness
+- source index linking canonical research, brainstorms, source docs, and Linear comments
+
+Rules:
+
+- Keep final spec text matter-of-fact and concise.
+- Put decision reasoning, alternatives, and in-progress debate in `context/brainstorms/` or research docs.
+- Do not treat proposed-work rows as final ticket boundaries. Milestone `design.md` and `/q-milestone-create-tickets` decide final ticket count and titles.
+- Do not create implementation tickets directly from the high-level spec table.
+- Each plan/product milestone should own the deployed E2E/Ranger proof needed for that milestone unless the lead explicitly creates a shared verification milestone.
 
 ## Vertical milestone rule
 

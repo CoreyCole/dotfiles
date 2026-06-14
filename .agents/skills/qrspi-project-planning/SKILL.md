@@ -92,13 +92,38 @@ Important ticket deliverables live at the ticket root next to `index.md`; do not
 
 ### Architecture/spec synthesis ticket
 
-A project may have a whole-system architecture/spec ticket. It consumes reviewed milestone designs, explains target system and current state, then maps current to target through milestone designs.
+A project may have a whole-system architecture/spec ticket. It can run before detailed milestone planning when the team needs a concise high-level spec to align on the target system, critical path, milestone sequencing, and known cross-milestone seams.
 
 It may challenge child milestone designs, but must not silently mutate them. Scope/ticket-shape changes route back to the affected milestone design review and human approval.
 
 Architecture/spec synthesis tickets are thoughts-only unless their approved plan edits production source files. If the output is a living spec, project status doc, Linear/ticket memory, milestone map, or other `thoughts/` artifact, the plan must say `execution_mode: thoughts-only`, omit `Implementation Workspace Prep`, and route after plan review directly to thoughts-only `/q-implement` in the current checkout. The implement stage edits `thoughts/...`, runs verification and `just sync-thoughts`, and does not create a copied workspace or Graphite slice branches.
 
 Whole-system architecture/spec deliverables normally live as root-level docs in the owning ticket directory, with `index.md` linking them. Only put the deliverable at project root when it is truly project-owned rather than ticket-owned.
+
+#### High-level spec before milestone planning
+
+A pre-milestone high-level spec is not a milestone design and not a ticket manifest. It should give enough direction for future milestone QRSPI to start from aligned facts without pretending ticket boundaries are final.
+
+Good high-level spec shape:
+
+- concise purpose/audience and target end state
+- current-state facts only where they affect target gaps or sequencing
+- domain model and non-negotiable architecture rules
+- milestone sequence with links to Linear issue-list milestone views when milestones already exist; use `https://linear.app/chestnut/project/[project-slug]/issues#milestone-[milestone-id]`, not `/overview#milestone-...`
+- one section/table per future milestone, using rows as milestone-planning inputs
+- row columns such as `Proposed work | Critical-path outcome | Notes | Linear`
+- separate rows for deployed E2E/Ranger proof when that work is expected to become a ticket
+- a final readiness/backstop section only for explicitly identified leftover polish or edge-to-edge completeness
+- source index linking canonical research, brainstorms, Linear comments, and source docs
+
+Rules for this spec:
+
+- Keep the spec matter-of-fact: final decisions and accepted direction only.
+- Put reasoning, alternatives, user quotes, and unresolved debate in `context/brainstorms/` or research docs, then link them from the source index.
+- Rows are planning inputs, not final Linear ticket boundaries. A row can become zero, one, or many tickets after milestone design/review/human approval.
+- Do not create implementation/spec tickets directly from this table. `/q-milestone-create-tickets` owns final ticket creation after the milestone design is reviewed and human-approved.
+- Each plan/product milestone owns its own deployed E2E/Ranger verification unless a human explicitly defines a separate shared verification milestone.
+- Do not invent generic final-readiness scope. The final readiness milestone should contain only named leftover requirements or lead-approved polish/backstop work.
 
 ## Standard milestone planning flow
 
