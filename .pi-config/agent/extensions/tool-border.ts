@@ -430,10 +430,13 @@ function patchAssistantMessageSpacing() {
           block.text.trim(),
       );
     if (!hasThinking || hasText || hasBorder(lines)) return lines;
-    const indented = lines.map((line) =>
-      stripAnsi(line).trim() === "" ? line : `  ${line}`,
-    );
-    return truncateLines([...indented, subtleBorder(width)], width);
+    const indented = lines.flatMap((line) => {
+      if (stripAnsi(line).trim() === "") return [line];
+      return wrapTextWithAnsi(line, Math.max(1, width - 2)).map(
+        (wrapped) => `  ${wrapped}`,
+      );
+    });
+    return [...indented, subtleBorder(width)];
   };
 }
 

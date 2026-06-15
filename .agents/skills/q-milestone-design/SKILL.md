@@ -35,6 +35,7 @@ Resolve:
 - target users and concise user stories, including engineer-as-user stories only when outcome/architecture-enabling
 - current-to-target direction
 - gap map and architecture-spec inputs needed by the whole-system architecture ticket
+- ticket-set structure before ticket details: name the vertical slices/workstreams, their sequence, what each proves, and what is intentionally deferred to later milestones
 - proposed ticket set, with each ticket mapped to outcomes/user stories/gaps/evidence and ordered to preserve end-to-end verifiability
 - cross-milestone dependency handling
 - taxonomy change proposals, if any
@@ -58,6 +59,7 @@ Required sections:
 1. Current to target direction.
 1. Gap map.
 1. Architecture-spec inputs.
+1. Ticket-set structure / vertical workstream overview: group proposed work into the smallest coherent slices, explain sequence, what each slice proves, and what is postponed to later milestones.
 1. Proposed ticket set with ticket → stories/gaps/evidence/dependencies; preserve vertical ordering and mark any unavoidable horizontal/enabling tickets with the vertical path they unlock.
 1. Cross-milestone dependencies.
 1. Taxonomy proposals.

@@ -7,7 +7,7 @@ description: Create Linear tickets from a reviewed milestone design. Use after m
 
 Use this after `/q-milestone-review [design.md]` and human design approval. This replaces the old milestone `outline -> review -> plan -> review` flow.
 
-Goal: convert the reviewed milestone design into a small set of well-shaped Linear tickets, with human refinement one ticket at a time. Tickets should preserve vertical delivery: each ticket should either move the named bonus plan/scenario closer to end-to-end verification or be a narrowly scoped enabler for that path. After the final ticket is approved, create the Linear tickets immediately; the one-by-one approvals are the mutation approval.
+Goal: convert the reviewed milestone design into a small set of well-shaped Linear tickets, with human refinement one ticket at a time. Tickets should preserve vertical delivery: each ticket should either move the named bonus plan/scenario closer to end-to-end verification or be a narrowly scoped enabler for that path. Before drafting individual tickets, align with the human on the overall ticket-set structure and vertical slices/workstreams. After the final ticket is approved, create the Linear tickets immediately; the one-by-one approvals are the mutation approval.
 
 ## Step 1: Load baseline workflow
 
@@ -25,12 +25,25 @@ Read:
 
 Stop if design review or human approval is missing.
 
-## Step 2: Extract candidate tickets
+## Step 2: Align on ticket-set structure
 
-From reviewed `design.md`, identify each proposed ticket and summarize in the standard ticket format:
+Before presenting individual Linear drafts, extract the whole proposed set from reviewed `design.md` and present a concise structure overview:
+
+- milestone spine: named bonus plan/scenario/user path this ticket set proves
+- vertical slices/workstreams: grouped proposed work, sequence, and what each group proves
+- ticket list: tentative titles in order, with each ticket's role in the sequence
+- defer map: what belongs to later milestones, especially final E2E / readiness backstops
+- risk check: any ticket that looks horizontal/enabling and the vertical path it unlocks
+
+Ask the human to approve or adjust the structure before drafting ticket 1. If the human changes structure, update the candidate list first. Do not start one-by-one ticket refinement until this structure is approved.
+
+## Step 3: Extract candidate tickets
+
+From the approved structure and reviewed `design.md`, summarize each proposed ticket in the standard ticket format:
 
 - title in Conventional Commit style, e.g. `feat(bonuses): add ordered first-five E-App policy selection`
 - vertical path: named bonus plan/scenario/user path this ticket advances; do not put process jargon like "Vertical" in ticket or milestone titles
+- role in ticket-set structure: what slice/workstream this ticket belongs to and what it unlocks
 - goal
 - user stories
 - where we are today
@@ -42,7 +55,7 @@ From reviewed `design.md`, identify each proposed ticket and summarize in the st
 
 Do not invent implementation details. Ticket-level QRSPI owns exact design and implementation.
 
-## Step 3: Refine tickets one by one
+## Step 4: Refine tickets one by one
 
 Show exactly one candidate ticket at a time.
 
@@ -56,7 +69,7 @@ For each ticket:
 
 Do not include operator-only creation guards or internal planning caveats in ticket descriptions.
 
-## Step 4: Update ticket description docs
+## Step 5: Update ticket description docs
 
 After a ticket is approved, update the proposed ticket description docs created earlier from the design/ticket-shaping work. Prefer existing docs in their original location; do not create duplicate approved-description trees unless no docs exist yet. If no docs exist, create them under:
 
@@ -71,6 +84,7 @@ Ticket description docs must be exactly the Markdown body that goes into Linear:
 Each description must be concise and Linear-ready, using these sections in this order:
 
 1. Vertical path
+1. Role in ticket-set structure
 1. Goal
 1. User stories
 1. Where we are today
@@ -91,7 +105,7 @@ Use markdown links for docs/assets in Linear descriptions: `[relative/path/from/
 
 Keep the title in the Linear issue title, not as a body heading. Do not include suggested next commands in the Linear description body; those belong in routing-only ticket `AGENTS.md` after the issue exists.
 
-## Step 5: Execute and update repo routing
+## Step 6: Execute and update repo routing
 
 After all ticket drafts are approved one by one:
 
@@ -115,7 +129,7 @@ Standard result fields required: `<qrspi-result>`, `<stage>`, `<status>`, `<outc
 
 Useful outcomes:
 
-- `<status>needs_human</status>` while waiting on per-ticket approval.
+- `<status>needs_human</status>` while waiting on structure approval or per-ticket approval.
 - `<stage>create-tickets</stage>` when ticket docs/Linear mutations are complete.
 - `<artifact>` = primary ticket description doc while refining, or project status/log artifact after execution.
 - `<artifacts>` = approved ticket description docs, created Linear issue URLs, and created ticket dirs after execution.
