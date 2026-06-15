@@ -61,6 +61,25 @@ function displayPath(filePath: string, cwd: string | undefined): string {
   return filePath;
 }
 
+function splitDisplayPath(
+  path: string,
+  cwd: string | undefined,
+): { directory: string; filename: string; lineRange: string } {
+  const displayed = displayPath(path, cwd);
+  const lineRangeMatch = displayed.match(/:\d+(?:-\d+)?$/);
+  const lineRange = lineRangeMatch?.[0] ?? "";
+  const pathOnly = lineRange
+    ? displayed.slice(0, -lineRange.length)
+    : displayed;
+  const slash = pathOnly.lastIndexOf("/");
+  if (slash === -1) return { directory: "", filename: pathOnly, lineRange };
+  return {
+    directory: pathOnly.slice(0, slash + 1),
+    filename: pathOnly.slice(slash + 1),
+    lineRange,
+  };
+}
+
 function pathDisplayLines(
   path: string,
   cwd: string | undefined,
@@ -69,12 +88,30 @@ function pathDisplayLines(
 ): string[] {
   const prefix = ` ${icon} `;
   const pathWidth = Math.max(1, width - visibleWidth(prefix));
-  const wrappedPath = wrapTextWithAnsi(
-    TOOL_DISPLAY.path(displayPath(path, cwd)),
-    pathWidth,
-  );
   const continuationPrefix = " ".repeat(visibleWidth(prefix));
-  return wrappedPath.map((line, index) =>
+  const { directory, filename, lineRange } = splitDisplayPath(path, cwd);
+  const styledFilename = `${TOOL_DISPLAY.filename(filename)}${TOOL_DISPLAY.lineNumber(lineRange)}`;
+  const styledPath = `${TOOL_DISPLAY.path(directory)}${styledFilename}`;
+  if (visibleWidth(`${prefix}${directory}${filename}${lineRange}`) <= width) {
+    return [`${prefix}${styledPath}`];
+  }
+
+  const directoryLines = directory
+    ? wrapTextWithAnsi(TOOL_DISPLAY.path(directory), pathWidth)
+    : [];
+  const lines = [...directoryLines];
+
+  if (
+    lines.length > 0 &&
+    visibleWidth(`${lines[lines.length - 1]}${filename}${lineRange}`) <=
+      pathWidth
+  ) {
+    lines[lines.length - 1] = `${lines[lines.length - 1]}${styledFilename}`;
+  } else {
+    lines.push(...wrapTextWithAnsi(styledFilename, pathWidth));
+  }
+
+  return lines.map((line, index) =>
     index === 0 ? `${prefix}${line}` : `${continuationPrefix}${line}`,
   );
 }
