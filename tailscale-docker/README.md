@@ -107,23 +107,23 @@ If the remote shell prints errors like:
 can't find terminal definition for xterm-ghostty
 ```
 
-or interactive input looks corrupted, the remote login environment does not have terminfo for your local terminal early enough during shell startup. The helper scripts start SSH login with `TERM=xterm-256color`, then switch the interactive shell to your local `TERM` by default, so Ghostty sessions still run as `xterm-ghostty` after nix-darwin's login environment has loaded.
+or interactive input looks corrupted, the remote login environment does not have terminfo for your local terminal early enough during shell startup. The helper scripts now default both login and shell startup to `TERM=xterm-256color`, and explicitly export a UTF-8 locale so prompt glyphs do not degrade because the remote shell started without `LC_CTYPE`.
 
-To use Ghostty's terminal type, the remote login environment must have `xterm-ghostty` in one of its active terminfo paths. This dotfiles repo installs `pkgs.ghostty.terminfo` through nix-darwin for macOS machines. After rebuilding nix-darwin on the target, test it with:
+To force Ghostty's terminal type, the remote login environment must have `xterm-ghostty` in one of its active terminfo paths. This dotfiles repo installs `pkgs.ghostty.terminfo` through nix-darwin for macOS machines. After rebuilding nix-darwin on the target, test it with:
 
 ```bash
 work
 infocmp xterm-ghostty
 ```
 
-To force a safer terminal type for one connection:
+To force a different terminal type for one connection:
 
 ```bash
-SSH_TERM=xterm-256color work
-SSH_TERM=xterm-256color home
+SSH_TERM=xterm-ghostty work
+SSH_TERM=tmux-256color home
 ```
 
-Inside tmux, this dotfiles config uses `tmux-256color` and updates the tmux server's SSH and locale environment on attach. If glyphs differ only inside an existing tmux session, reload the config and restart the tmux server so panes inherit the new terminal and UTF-8 locale settings:
+Inside tmux, this dotfiles config uses `tmux-256color`, advertises clipboard support, and copies mouse selections through tmux/OSC52. If glyphs or clipboard behavior differ only inside an existing tmux session, reload the config and restart the tmux server so panes inherit the new terminal and UTF-8 locale settings:
 
 ```bash
 tmux source-file ~/.tmux.conf

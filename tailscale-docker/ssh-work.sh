@@ -84,8 +84,10 @@ if [ -z "$IP" ]; then
   exit 1
 fi
 
-SSH_TERM="${SSH_TERM:-${TERM:-xterm-256color}}"
+SSH_TERM="${SSH_TERM:-xterm-256color}"
 SSH_LOGIN_TERM="${SSH_LOGIN_TERM:-xterm-256color}"
+SSH_LANG="${SSH_LANG:-${LANG:-en_US.UTF-8}}"
+SSH_LC_CTYPE="${SSH_LC_CTYPE:-${LC_CTYPE:-$SSH_LANG}}"
 
 case "$SSH_TERM" in
   ""|*[!A-Za-z0-9_.-]*)
@@ -94,14 +96,28 @@ case "$SSH_TERM" in
     ;;
 esac
 
+case "$SSH_LOGIN_TERM" in
+  ""|*[!A-Za-z0-9_.-]*)
+    echo "Invalid SSH_LOGIN_TERM: $SSH_LOGIN_TERM"
+    exit 1
+    ;;
+esac
+
+case "$SSH_LANG:$SSH_LC_CTYPE" in
+  *[!A-Za-z0-9_.:@-]*)
+    echo "Invalid SSH_LANG or SSH_LC_CTYPE: $SSH_LANG / $SSH_LC_CTYPE"
+    exit 1
+    ;;
+esac
+
 if [ "$SSH_LOGIN_TERM" != "$SSH_TERM" ]; then
-  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with login TERM=$SSH_LOGIN_TERM, shell TERM=$SSH_TERM..."
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with login TERM=$SSH_LOGIN_TERM, shell TERM=$SSH_TERM, locale=$SSH_LC_CTYPE..."
 else
-  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM..."
+  echo "Connecting to $REMOTE_USER@$REMOTE_HOST ($IP) via SOCKS5 proxy with TERM=$SSH_TERM, locale=$SSH_LC_CTYPE..."
 fi
 
 export TERM="$SSH_LOGIN_TERM"
 exec ssh -t \
   -o ProxyCommand="socat - SOCKS5-CONNECT:127.0.0.1:$SOCKS_PORT:%h:%p" \
   "$REMOTE_USER@$IP" \
-  "export TERM=$SSH_TERM; exec \"\${SHELL:-/bin/zsh}\" -l"
+  "export TERM=$SSH_TERM LANG=$SSH_LANG LC_CTYPE=$SSH_LC_CTYPE; exec \"\${SHELL:-/bin/zsh}\" -l"
