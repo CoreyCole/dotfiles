@@ -2,7 +2,11 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import {
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
 
 function sanitizeStatusText(text: string): string {
   return text
@@ -30,14 +34,13 @@ function formatContextBar(percent: number): string {
   return `|${"■".repeat(filledBlocks)}${"□".repeat(10 - filledBlocks)}|`;
 }
 
-function shortHomePath(cwd: string): string {
-  const home = process.env.HOME || process.env.USERPROFILE;
-  if (home && cwd.startsWith(home)) return `~${cwd.slice(home.length)}`;
-  return cwd;
+function currentDirectoryName(cwd: string): string {
+  const normalized = cwd.replace(/[/\\]+$/, "");
+  return normalized.split(/[/\\]/).pop() || normalized || cwd;
 }
 
 function getCwd(ctx: ExtensionContext): string {
-  return shortHomePath(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
+  return currentDirectoryName(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
 }
 
 function workspaceSlug(cwd: string): string | undefined {
@@ -181,13 +184,7 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
               theme.fg("dim", "..."),
             ),
           );
-        lines.push(
-          truncateToWidth(
-            theme.fg("dim", cwd),
-            safeWidth,
-            theme.fg("dim", "..."),
-          ),
-        );
+        lines.push(...wrapTextWithAnsi(theme.fg("dim", cwd), safeWidth));
         if (branch)
           lines.push(
             truncateToWidth(

@@ -347,7 +347,7 @@ function restoreBashCollapsedHint(
       .slice(Math.max(0, outputEnd - 5), outputEnd)
       .map((line) => stripAnsi(line).match(/^\s*/)?.[0] ?? "")
       .find((indent) => indent.length > 0) ?? "";
-  const hint = `${outputIndent}${TOOL_DISPLAY.dim(`... (${skipped} earlier lines, to expand)`)}`;
+  const hint = `${outputIndent}${TOOL_DISPLAY.dim(`... (${skipped} earlier lines, ctrl+o to expand)`)}`;
   const existingHint = lines.findIndex((line) =>
     stripAnsi(line).includes("earlier lines"),
   );
