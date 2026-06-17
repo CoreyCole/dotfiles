@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rewrite_command="${1:-}"
+if [[ "$rewrite_command" == "rebase" ]]; then
+  "$(dirname "${BASH_SOURCE[0]}")/post-pull"
+fi
