@@ -267,6 +267,7 @@ For any non-trivial task, default to the QRSPI pipeline:
 Rules of thumb:
 
 - The stage skills are the process. Read the relevant skill before starting or resuming a stage.
+- For QRSPI skill reads/edits, prefer `~/dotfiles/context/vamos/.pi/skills/` as the source of truth. The local `~/cn/chestnut-flake/vamos/.pi/skills/` checkout may be out of date.
 - Question, research, design, and outline are human gates. The human reviews those artifacts before you move forward.
 - Loop backward when the evidence says you should. Research can invalidate questions, design can reveal missing research, and outline can expose design flaws.
 - Use prior stage artifacts as your working context. Do not re-invent the workflow in ad hoc chat plans.

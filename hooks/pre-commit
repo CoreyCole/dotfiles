@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VAMOS_DIR="$DOTFILES_DIR/context/vamos"
+
+if [[ ! -d "$VAMOS_DIR/.git" ]]; then
+  exit 0
+fi
+
+if ! git -C "$VAMOS_DIR" diff --quiet || ! git -C "$VAMOS_DIR" diff --cached --quiet; then
+  cat >&2 <<EOF
+
+[dotfiles hook] context/vamos has pending changes.
+[dotfiles hook] Agent: notify the human before finishing or committing dotfiles.
+[dotfiles hook] Check with: git -C "$VAMOS_DIR" status --short
+
+EOF
+fi
