@@ -14,6 +14,7 @@ setup:
     echo "Vamos context checkout already exists"; \
   fi
   ./hooks/post-pull
+  ./.pi-config/setup.sh
 
 # Format, commit, pull --rebase, and push changed thoughts/ artifacts.
 sync-thoughts:

@@ -39,7 +39,7 @@ There is no extra resource symlink layer.
 - `agent/scripts/` — scripts used by tracked extensions/tool hooks
 - `config/tool-hooks.json` — tracked tool-hook configuration
 - `AGENTS.md` — repo-specific instructions for working on this Pi config
-- `package.json` and `package-lock.json` — optional local TypeScript/LSP support for extension development
+- `package.json` and `pnpm-lock.yaml` — local TypeScript extension runtime/development dependencies
 
 ### Ignored runtime/cache/local state
 
@@ -85,17 +85,16 @@ Run:
 ~/dotfiles/.pi-config/setup.sh
 ```
 
-That script validates the `~/.pi` symlink and required `agent/*` paths, then prints manual remediation guidance for missing tools. It does not install Pi packages, npm dependencies, Homebrew packages, or `parallel-cli`.
+That script validates the `~/.pi` symlink and required `agent/*` paths, installs this config package's local `pnpm` dependencies, then prints manual remediation guidance for missing external tools. It does not install Pi packages, Homebrew packages, or `parallel-cli`.
 
-## Optional local extension development
+## Local extension dependencies
 
-The root `package.json` and `package-lock.json` are kept so local TypeScript extensions get useful dependency metadata and LSP support.
+The root `package.json` and `pnpm-lock.yaml` provide runtime dependencies for local TypeScript extensions plus useful dependency metadata and LSP support.
 
-They are not required for normal Pi startup. If you are editing local TypeScript extensions and want local dependencies installed, run manually:
+Run setup to install them:
 
 ```bash
-cd ~/.pi
-npm install
+~/dotfiles/.pi-config/setup.sh
 ```
 
 ## pi-parallel dependency

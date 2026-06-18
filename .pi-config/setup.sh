@@ -48,11 +48,27 @@ require_dir extensions
 require_dir skills
 require_dir agents
 require_file settings.json
-require_file mcp.json
+if [ -f "$EXPECTED_AGENT_DIR/mcp.json" ]; then
+    echo "ok: agent/mcp.json file"
+else
+    echo "warning: agent/mcp.json file not found; MCP servers will be unavailable until configured"
+fi
 
 if [ "$missing" -ne 0 ]; then
     echo ""
     echo "Pi config validation failed. Fix the missing path(s) above and rerun setup."
+    exit 1
+fi
+
+echo ""
+echo "Installing local Pi config dependencies ..."
+if command -v pnpm >/dev/null 2>&1; then
+    (cd "$EXPECTED_PI_DIR" && pnpm install --frozen-lockfile)
+    echo "ok: local pnpm dependencies are installed"
+else
+    echo "missing: pnpm is required to install local Pi config dependencies"
+    echo "  Enable it with corepack or install pnpm, then rerun setup:"
+    echo "  corepack enable pnpm"
     exit 1
 fi
 
@@ -81,8 +97,7 @@ echo "  $EXPECTED_AGENT_DIR/settings.json"
 echo "Pi resolves missing configured packages into ~/.pi/agent/git/ during normal startup when online."
 echo "For package visibility, run the Pi package list command manually."
 echo ""
-echo "Optional local TypeScript/LSP dependencies for extension editing are not installed by setup."
-echo "If needed, install local npm dependencies manually from:"
+echo "Local pnpm dependencies are installed from:"
 echo "  $EXPECTED_PI_DIR"
 echo ""
 echo "Validation complete. Restart pi or run /reload to pick up config/resource changes."
