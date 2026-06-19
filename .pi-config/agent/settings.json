@@ -4,7 +4,7 @@
     "git:github.com/CoreyCole/pi-deterministic-docs"
   ],
   "skills": [
-    "~/cn/chestnut-flake/vamos/.pi/skills"
+    "~/dotfiles/context/vamos/.pi/skills"
   ],
   "compaction": {
     "enabled": false
