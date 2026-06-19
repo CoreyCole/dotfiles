@@ -2,17 +2,24 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VAMOS_DIR="$DOTFILES_DIR/context/vamos"
 
-if [[ ! -d "$VAMOS_DIR/.git" ]]; then
-  echo "post-pull: skipping vamos; checkout not found at $VAMOS_DIR" >&2
-  exit 0
-fi
+pull_context_checkout() {
+  local name="$1"
+  local checkout_dir="$2"
 
-if ! git -C "$VAMOS_DIR" diff --quiet || ! git -C "$VAMOS_DIR" diff --cached --quiet; then
-  echo "post-pull: skipping vamos; working tree has local changes" >&2
-  exit 0
-fi
+  if [[ ! -d "$checkout_dir/.git" ]]; then
+    echo "post-pull: skipping $name; checkout not found at $checkout_dir" >&2
+    return 0
+  fi
 
-echo "post-pull: updating vamos context checkout"
-git -C "$VAMOS_DIR" pull --rebase --autostash
+  if ! git -C "$checkout_dir" diff --quiet || ! git -C "$checkout_dir" diff --cached --quiet; then
+    echo "post-pull: skipping $name; working tree has local changes" >&2
+    return 0
+  fi
+
+  echo "post-pull: updating $name context checkout"
+  git -C "$checkout_dir" pull --rebase --autostash
+}
+
+pull_context_checkout "vamos" "$DOTFILES_DIR/context/vamos"
+pull_context_checkout "pi-mono" "$DOTFILES_DIR/context/pi-mono"
