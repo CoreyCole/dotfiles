@@ -1,11 +1,15 @@
 import {
   createBashToolDefinition,
   getAgentDir,
+  getLanguageFromPath,
+  getMarkdownTheme,
+  highlightCode,
   type ExtensionAPI,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 import {
   Container,
+  Markdown,
   Text,
   truncateToWidth,
   type Component,
@@ -90,7 +94,8 @@ function formatBashCall(
   status?: "success" | "error",
 ): string {
   const command = str(args?.command);
-  const statusPrefix = status === "success" ? "🟢 " : status === "error" ? "🔴 " : "";
+  const statusPrefix =
+    status === "success" ? "🟢 " : status === "error" ? "🔴 " : "";
   if (command === null) {
     return `${statusPrefix}${theme.fg("toolTitle", theme.bold(invalidArgText(theme)))}`;
   }
@@ -99,6 +104,155 @@ function formatBashCall(
     ? replaceTabs(normalizeDisplayText(command))
     : theme.fg("toolOutput", "...");
   return `${statusPrefix}${theme.fg("toolTitle", theme.bold(commandDisplay))}`;
+}
+
+type HeredocRender = {
+  prefix: string;
+  body: string;
+  suffix: string;
+  lang?: string;
+  markdown: boolean;
+};
+
+function isMarkdownPath(filePath: string | undefined): boolean {
+  return filePath !== undefined && /\.(md|markdown)$/i.test(filePath);
+}
+
+function languageFromDelimiter(delimiter: string): string | undefined {
+  const map: Record<string, string> = {
+    PY: "python",
+    PYTHON: "python",
+    JS: "javascript",
+    JAVASCRIPT: "javascript",
+    TS: "typescript",
+    TYPESCRIPT: "typescript",
+    SH: "bash",
+    BASH: "bash",
+    ZSH: "bash",
+    SQL: "sql",
+    RB: "ruby",
+    RUBY: "ruby",
+    PHP: "php",
+    LUA: "lua",
+    GO: "go",
+    RS: "rust",
+    RUST: "rust",
+  };
+  return map[delimiter.toUpperCase()];
+}
+
+function languageFromInterpreter(commandPrefix: string): string | undefined {
+  const patterns: Array<[RegExp, string]> = [
+    [/(^|[;&|]\s*)(uv\s+run\s+)?python[\d.]*\b/, "python"],
+    [/(^|[;&|]\s*)node\b/, "javascript"],
+    [/(^|[;&|]\s*)ruby\b/, "ruby"],
+    [/(^|[;&|]\s*)(ba|z|fi)?sh\b/, "bash"],
+    [/(^|[;&|]\s*)perl\b/, "perl"],
+    [/(^|[;&|]\s*)php\b/, "php"],
+    [/(^|[;&|]\s*)lua\b/, "lua"],
+    [/(^|[;&|]\s*)psql\b/, "sql"],
+  ];
+  return patterns.find(([pattern]) => pattern.test(commandPrefix))?.[1];
+}
+
+function heredocTargetPath(commandPrefix: string): string | undefined {
+  const cat = commandPrefix.match(/\bcat\s*>\s*(['"]?)([^'"\s]+)\1/);
+  if (cat) return cat[2];
+  const tee = commandPrefix.match(/\btee(?:\s+-a)?\s+(['"]?)([^'"\s]+)\1/);
+  return tee?.[2];
+}
+
+function parseHeredocCommand(command: string): HeredocRender | undefined {
+  const normalized = normalizeDisplayText(command);
+  const lines = normalized.split("\n");
+  const openerIndex = lines.findIndex((line) =>
+    /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/.test(line),
+  );
+  if (openerIndex === -1) return undefined;
+
+  const opener = lines[openerIndex].match(
+    /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/,
+  );
+  const delimiter = opener?.[2];
+  if (!delimiter) return undefined;
+
+  const closeIndex = lines.findIndex(
+    (line, index) => index > openerIndex && line.trim() === delimiter,
+  );
+  if (closeIndex === -1) return undefined;
+
+  const prefix = lines.slice(0, openerIndex + 1).join("\n");
+  const body = lines.slice(openerIndex + 1, closeIndex).join("\n");
+  const suffix = lines.slice(closeIndex).join("\n");
+  const targetPath = heredocTargetPath(prefix);
+  return {
+    prefix,
+    body,
+    suffix,
+    lang:
+      languageFromInterpreter(prefix) ??
+      getLanguageFromPath(targetPath ?? "") ??
+      languageFromDelimiter(delimiter),
+    markdown: isMarkdownPath(targetPath),
+  };
+}
+
+function markdownWithHighlightedFrontmatter(content: string): string {
+  const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!frontmatter) return content;
+
+  const yaml = frontmatter[1];
+  const markdown = content.slice(frontmatter[0].length);
+  return `\`\`\`yaml\n${yaml}\n\`\`\`\n\n${markdown}`;
+}
+
+function renderBashCall(
+  args: any,
+  theme: ThemeLike,
+  status?: "success" | "error",
+): Component {
+  const command = str(args?.command);
+  if (command === null || !command)
+    return new Text(formatBashCall(args, theme, status), 0, 0);
+
+  const heredoc = parseHeredocCommand(command);
+  if (!heredoc) return new Text(formatBashCall(args, theme, status), 0, 0);
+
+  const statusPrefix =
+    status === "success" ? "🟢 " : status === "error" ? "🔴 " : "";
+  const component = new Container();
+  const prefix = highlightCode(heredoc.prefix, "bash").join("\n");
+  component.addChild(new Text(`${statusPrefix}${prefix}`, 0, 0));
+
+  if (heredoc.markdown) {
+    component.addChild(
+      new Markdown(
+        markdownWithHighlightedFrontmatter(heredoc.body),
+        0,
+        1,
+        getMarkdownTheme(),
+      ),
+    );
+  } else if (heredoc.lang) {
+    component.addChild(
+      new Text(
+        `\n${highlightCode(heredoc.body, heredoc.lang).join("\n")}`,
+        0,
+        0,
+      ),
+    );
+  } else if (heredoc.body) {
+    component.addChild(
+      new Text(`\n${theme.fg("toolOutput", heredoc.body)}`, 0, 0),
+    );
+  }
+
+  if (heredoc.suffix) {
+    component.addChild(
+      new Text(`\n${highlightCode(heredoc.suffix, "bash").join("\n")}`, 0, 0),
+    );
+  }
+  return component;
 }
 
 class BashPreviewComponent implements Component {
@@ -136,9 +290,8 @@ class BashPreviewComponent implements Component {
       lines.length > 5
         ? [linesMessage(lines.length - 5, this.theme), ...lines.slice(-5)]
         : lines;
-    const rendered = outputBlock.length > 0
-      ? outputBlock.map((line) => `   ${line}`)
-      : [];
+    const rendered =
+      outputBlock.length > 0 ? outputBlock.map((line) => `   ${line}`) : [];
 
     if (this.startedAt !== undefined) {
       const label = this.isPartial ? "Elapsed" : "Took";
@@ -275,7 +428,8 @@ export default function toolHooks(pi: ExtensionAPI) {
         endedAt?: number;
         timeout?: number;
       };
-      state.timeout = typeof args?.timeout === "number" ? args.timeout : undefined;
+      state.timeout =
+        typeof args?.timeout === "number" ? args.timeout : undefined;
       if (context.executionStarted && state.startedAt === undefined) {
         state.startedAt = Date.now();
         state.endedAt = undefined;
@@ -286,12 +440,7 @@ export default function toolHooks(pi: ExtensionAPI) {
         : context.isError
           ? "error"
           : "success";
-      const text =
-        context.lastComponent instanceof Text
-          ? context.lastComponent
-          : new Text("", 0, 0);
-      text.setText(formatBashCall(args, theme, status));
-      return text;
+      return renderBashCall(args, theme, status);
     },
     renderResult(result, options, theme, context) {
       const displayResult = normalizeToolResultText(result);
@@ -354,7 +503,6 @@ export default function toolHooks(pi: ExtensionAPI) {
       return component;
     },
   });
-
 
   pi.registerMessageRenderer(
     "tool-hooks-session-start",
