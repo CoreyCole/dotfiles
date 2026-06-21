@@ -8,7 +8,7 @@ import { Container, Markdown, Text } from "@earendil-works/pi-tui";
 type WriteArgs = { path?: string; file_path?: string; content?: string };
 
 function isMarkdownPath(path: string | undefined): path is string {
-  return path !== undefined && /\.(md|markdown)$/i.test(path);
+  return path !== undefined && /\.(md|markdown|txt)$/i.test(path);
 }
 
 function renderMarkdownWriteContent(content: string): Markdown {

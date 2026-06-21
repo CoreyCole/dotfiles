@@ -115,7 +115,7 @@ type HeredocRender = {
 };
 
 function isMarkdownPath(filePath: string | undefined): boolean {
-  return filePath !== undefined && /\.(md|markdown)$/i.test(filePath);
+  return filePath !== undefined && /\.(md|markdown|txt)$/i.test(filePath);
 }
 
 function languageFromDelimiter(delimiter: string): string | undefined {
