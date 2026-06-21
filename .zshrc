@@ -94,6 +94,11 @@ export PATH="$HOME/.opencode/bin:$PATH"
 # SSH into tailnet machines via docker
 home() { "$HOME/dotfiles/tailscale-docker/ssh-home.sh" "${1:-ruby}"; }
 work() { "$HOME/dotfiles/tailscale-docker/ssh-work.sh" "${1:-default}"; }
+
+# Switch local Tailscale profile/tailnet
+alias switch-home='tailscale switch ccoreycole@gmail.com'
+alias switch-work='tailscale switch chestnutfi.com'
+
 export PATH="$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
 
 if command -v chestnut >/dev/null 2>&1; then
