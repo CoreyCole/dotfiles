@@ -7,6 +7,7 @@ import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import YAML from "yaml";
 
 const WIDGET_KEY = "previous-prompt";
+const HIDDEN_USER_PROMPT_MARKER = "previous-prompt:hidden-user-prompt";
 const WIDGET_PREFIX = "❓ ";
 const WIDGET_OPTIONS = { placement: "belowEditor" } as const;
 const MAX_PROMPT_CHARS = 160;
@@ -191,11 +192,42 @@ function textFromUserMessage(entry: SessionMessageEntry): string | undefined {
   return text || undefined;
 }
 
+function hiddenUserPromptIdsFromBranch(
+  branch: ReturnType<ExtensionContext["sessionManager"]["getBranch"]>,
+): Set<string> {
+  const hiddenIds = new Set<string>();
+  let hideNextUserPrompt = false;
+
+  for (const entry of branch) {
+    if (
+      entry.type === "custom" &&
+      entry.customType === HIDDEN_USER_PROMPT_MARKER
+    ) {
+      hideNextUserPrompt = true;
+      continue;
+    }
+
+    if (entry.type !== "message" || entry.message.role !== "user") continue;
+    if (hideNextUserPrompt) hiddenIds.add(entry.id);
+    hideNextUserPrompt = false;
+  }
+
+  return hiddenIds;
+}
+
 function latestUserPromptFromBranch(ctx: ExtensionContext): string | undefined {
   const branch = ctx.sessionManager.getBranch();
+  const hiddenIds = hiddenUserPromptIdsFromBranch(branch);
+
   for (let i = branch.length - 1; i >= 0; i--) {
     const entry = branch[i];
-    if (entry?.type !== "message" || entry.message.role !== "user") continue;
+    if (
+      entry?.type !== "message" ||
+      entry.message.role !== "user" ||
+      hiddenIds.has(entry.id)
+    ) {
+      continue;
+    }
 
     const text = textFromUserMessage(entry);
     if (text) return normalizePromptText(text);
@@ -254,9 +286,14 @@ function updatePreviousPromptWidget(
   );
 }
 
+type TrackedPrompt = {
+  text?: string;
+  display: boolean;
+};
+
 export default function previousPromptExtension(pi: ExtensionAPI) {
-  let pendingPrompt: string | undefined;
-  let sentPrompts: string[] = [];
+  let pendingPrompt: TrackedPrompt | undefined;
+  let sentPrompts: TrackedPrompt[] = [];
 
   const restoreFromBranch = (ctx: ExtensionContext) => {
     pendingPrompt = undefined;
@@ -273,19 +310,16 @@ export default function previousPromptExtension(pi: ExtensionAPI) {
   });
 
   pi.on("input", (event, ctx) => {
-    if (event.source === "extension") {
-      return { action: "continue" as const };
-    }
-
-    const prompt = normalizePromptText(event.text);
-    if (!prompt) {
-      return { action: "continue" as const };
-    }
+    const prompt =
+      event.source === "extension"
+        ? undefined
+        : normalizePromptText(event.text);
+    const trackedPrompt: TrackedPrompt = { text: prompt, display: !!prompt };
 
     if (ctx.isIdle()) {
-      pendingPrompt = prompt;
+      pendingPrompt = trackedPrompt;
     } else {
-      sentPrompts.push(prompt);
+      sentPrompts.push(trackedPrompt);
     }
 
     return { action: "continue" as const };
@@ -302,7 +336,11 @@ export default function previousPromptExtension(pi: ExtensionAPI) {
 
     const prompt = sentPrompts.shift();
     if (!prompt) return;
+    if (!prompt.display) {
+      pi.appendEntry(HIDDEN_USER_PROMPT_MARKER);
+      return;
+    }
 
-    updatePreviousPromptWidget(ctx, prompt);
+    updatePreviousPromptWidget(ctx, prompt.text);
   });
 }
