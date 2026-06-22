@@ -12,6 +12,7 @@ import {
   Markdown,
   Text,
   truncateToWidth,
+  wrapTextWithAnsi,
   type Component,
 } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
@@ -305,7 +306,7 @@ class BashPreviewComponent implements Component {
       );
     }
 
-    return rendered.map((line) => truncateToWidth(line, width));
+    return rendered.flatMap((line) => wrapTextWithAnsi(line, width));
   }
 }
 

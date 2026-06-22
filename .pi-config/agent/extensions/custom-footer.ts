@@ -2,11 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import {
-  truncateToWidth,
-  visibleWidth,
-  wrapTextWithAnsi,
-} from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 function sanitizeStatusText(text: string): string {
   return text
@@ -30,32 +26,8 @@ function formatContextTokens(count: number): string {
 }
 
 function formatContextBar(percent: number): string {
-  const filledBlocks = Math.max(0, Math.min(10, Math.round(percent / 10)));
-  return `|${"■".repeat(filledBlocks)}${"□".repeat(10 - filledBlocks)}|`;
-}
-
-function currentDirectoryName(cwd: string): string {
-  const normalized = cwd.replace(/[/\\]+$/, "");
-  return normalized.split(/[/\\]/).pop() || normalized || cwd;
-}
-
-function getCwd(ctx: ExtensionContext): string {
-  return currentDirectoryName(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
-}
-
-function workspaceSlug(cwd: string): string | undefined {
-  const normalized = cwd.replace(/[/\\]+$/, "");
-  const slug = normalized.split(/[/\\]/).pop()?.trim();
-  return slug || undefined;
-}
-
-function getSessionLabel(ctx: ExtensionContext): string | undefined {
-  const name = ctx.sessionManager.getSessionName?.();
-  if (!name) return undefined;
-  if (!/^\[qrspi:[^\]]+\]\s*<-/.test(name)) return name;
-
-  const slug = workspaceSlug(ctx.sessionManager.getCwd?.() ?? ctx.cwd);
-  return slug ? `${slug} • ${name}` : name;
+  const filledBlocks = Math.max(0, Math.min(5, Math.round(percent / 20)));
+  return `${"▰".repeat(filledBlocks)}${"▱".repeat(5 - filledBlocks)}`;
 }
 
 function renderPaddedLine(left: string, right: string, width: number): string {
@@ -83,8 +55,6 @@ function renderPaddedLine(left: string, right: string, width: number): string {
 function totalUsage(ctx: ExtensionContext) {
   let input = 0;
   let output = 0;
-  let cacheRead = 0;
-  let cacheWrite = 0;
   let cost = 0;
 
   for (const entry of ctx.sessionManager.getEntries()) {
@@ -94,12 +64,10 @@ function totalUsage(ctx: ExtensionContext) {
     const usage = entry.message.usage;
     input += usage.input;
     output += usage.output;
-    cacheRead += usage.cacheRead;
-    cacheWrite += usage.cacheWrite;
     cost += usage.cost.total;
   }
 
-  return { input, output, cacheRead, cacheWrite, cost };
+  return { input, output, cost };
 }
 
 function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
@@ -122,30 +90,9 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
         const contextPercent =
           contextUsage?.percent === null || contextUsage === undefined
             ? "?"
-            : contextPercentValue.toFixed(1);
-
-        const cwdLabel = getSessionLabel(ctx);
-        const cwd = getCwd(ctx);
-        const branch = footerData.getGitBranch();
+            : contextPercentValue.toFixed(0);
 
         const statsParts: string[] = [];
-        if (usage.input)
-          statsParts.push(`↑${formatCompactTokens(usage.input)}`);
-        if (usage.output)
-          statsParts.push(`↓${formatCompactTokens(usage.output)}`);
-        if (usage.cacheRead)
-          statsParts.push(`R${formatCompactTokens(usage.cacheRead)}`);
-        if (usage.cacheWrite)
-          statsParts.push(`W${formatCompactTokens(usage.cacheWrite)}`);
-
-        const usingSubscription = ctx.model
-          ? ctx.modelRegistry.isUsingOAuth(ctx.model)
-          : false;
-        if (usage.cost || usingSubscription) {
-          statsParts.push(
-            `$${usage.cost.toFixed(3)}${usingSubscription ? " (sub)" : ""}`,
-          );
-        }
 
         const contextTokenCount =
           contextTokens === null || contextTokens === undefined
@@ -153,9 +100,9 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
             : formatContextTokens(contextTokens);
         const contextBar =
           contextUsage?.percent === null || contextUsage === undefined
-            ? "|??????????|"
+            ? "?????"
             : formatContextBar(contextPercentValue);
-        const contextDisplay = `${contextPercent}% ${contextBar} (${contextTokenCount}/${formatCompactTokens(contextWindow)})`;
+        const contextDisplay = `${contextTokenCount}/${formatCompactTokens(contextWindow)} ${contextBar} ${contextPercent}%`;
         const styledContext =
           contextPercentValue > 90
             ? theme.fg("error", contextDisplay)
@@ -163,6 +110,12 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
               ? theme.fg("warning", contextDisplay)
               : contextDisplay;
         statsParts.push(styledContext);
+        if (usage.input || usage.output || usage.cost) statsParts.push("│");
+        if (usage.input)
+          statsParts.push(`↑${formatCompactTokens(usage.input)}`);
+        if (usage.output)
+          statsParts.push(`↓${formatCompactTokens(usage.output)}`);
+        if (usage.cost) statsParts.push(`$${usage.cost.toFixed(2)}`);
 
         let leftStats = statsParts.join(" ");
         if (visibleWidth(leftStats) > safeWidth)
@@ -176,24 +129,6 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
         );
 
         const lines = [];
-        if (cwdLabel)
-          lines.push(
-            truncateToWidth(
-              theme.fg("dim", cwdLabel),
-              safeWidth,
-              theme.fg("dim", "..."),
-            ),
-          );
-        lines.push(...wrapTextWithAnsi(theme.fg("dim", cwd), safeWidth));
-        if (branch)
-          lines.push(
-            truncateToWidth(
-              theme.fg("dim", `   ${branch}`),
-              safeWidth,
-              theme.fg("dim", "..."),
-            ),
-          );
-
         const extensionStatuses = footerData.getExtensionStatuses();
         if (extensionStatuses.size > 0) {
           const statusLine = Array.from(extensionStatuses.entries())

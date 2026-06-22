@@ -1,12 +1,22 @@
-import type { ExtensionContext, ToolResultEvent } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionContext,
+  ToolResultEvent,
+} from "@earendil-works/pi-coding-agent";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { matchesHookRule } from "./matchers";
 import { parseHookOutput, runCommand } from "./process";
-import type { ClaudeHookEventName, HookCommandPayload, HookExecutionResult, NormalizedHookRule } from "./types";
+import type {
+  ClaudeHookEventName,
+  HookCommandPayload,
+  HookExecutionResult,
+  NormalizedHookRule,
+} from "./types";
 
-type ToolResultPatch = Partial<Pick<ToolResultEvent, "content" | "details" | "isError">>;
+type ToolResultPatch = Partial<
+  Pick<ToolResultEvent, "content" | "details" | "isError">
+>;
 
 export function createClaudeEnvFile(): string {
   const dir = mkdtempSync(path.join(tmpdir(), "pi-tool-hooks-"));
@@ -19,7 +29,10 @@ export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
-function buildHookEnv(payload: HookCommandPayload, claudeEnvFile: string | undefined): NodeJS.ProcessEnv {
+function buildHookEnv(
+  payload: HookCommandPayload,
+  claudeEnvFile: string | undefined,
+): NodeJS.ProcessEnv {
   return {
     ...process.env,
     CLAUDE_HOOK_EVENT_NAME: payload.hook_event_name,
@@ -38,20 +51,29 @@ function filterInputPatch(
   if (!inputPatch || !originalInput) return undefined;
 
   const filtered = Object.fromEntries(
-    Object.entries(inputPatch).filter(([key, value]) => key in originalInput && value !== undefined),
+    Object.entries(inputPatch).filter(
+      ([key, value]) => key in originalInput && value !== undefined,
+    ),
   );
   return Object.keys(filtered).length > 0 ? filtered : undefined;
 }
 
-function filterResultPatch(resultPatch: HookExecutionResult["resultPatch"]): ToolResultPatch | undefined {
+function filterResultPatch(
+  resultPatch: HookExecutionResult["resultPatch"],
+): ToolResultPatch | undefined {
   if (!resultPatch) return undefined;
 
   const next: ToolResultPatch = {};
   if (Array.isArray(resultPatch.content)) next.content = resultPatch.content;
-  if (resultPatch.details && typeof resultPatch.details === "object" && !Array.isArray(resultPatch.details)) {
+  if (
+    resultPatch.details &&
+    typeof resultPatch.details === "object" &&
+    !Array.isArray(resultPatch.details)
+  ) {
     next.details = resultPatch.details;
   }
-  if (typeof resultPatch.isError === "boolean") next.isError = resultPatch.isError;
+  if (typeof resultPatch.isError === "boolean")
+    next.isError = resultPatch.isError;
 
   return Object.keys(next).length > 0 ? next : undefined;
 }
@@ -70,7 +92,9 @@ export async function runHookRules(args: {
   additionalContext: string[];
   additionalContextDisplay: string[];
 }> {
-  const matching = args.rules.filter((rule) => rule.event === args.event && matchesHookRule(rule, args.payload));
+  const matching = args.rules.filter(
+    (rule) => rule.event === args.event && matchesHookRule(rule, args.payload),
+  );
   const additionalContext: string[] = [];
   const additionalContextDisplay: string[] = [];
   let inputPatch: Record<string, unknown> | undefined;
@@ -80,19 +104,33 @@ export async function runHookRules(args: {
     const env = buildHookEnv(args.payload, args.claudeEnvFile);
 
     if (rule.async) {
-      runCommand(rule, args.payload, env).catch(() => undefined);
+      runCommand(rule, args.payload, env)
+        .then((result) => {
+          const outcome = parseHookOutput(result);
+          const message =
+            outcome.additionalContextDisplay ?? outcome.additionalContext;
+          if (message) args.ctx.ui.notify(message, "warning");
+        })
+        .catch(() => undefined);
       continue;
     }
 
     const outcome = parseHookOutput(await runCommand(rule, args.payload, env));
 
-    const nextInputPatch = filterInputPatch(outcome.inputPatch, args.payload.tool_input);
+    const nextInputPatch = filterInputPatch(
+      outcome.inputPatch,
+      args.payload.tool_input,
+    );
     const nextResultPatch = filterResultPatch(outcome.resultPatch);
 
-    if (outcome.additionalContext) additionalContext.push(outcome.additionalContext);
-    if (outcome.additionalContextDisplay) additionalContextDisplay.push(outcome.additionalContextDisplay);
-    if (nextInputPatch) inputPatch = { ...(inputPatch ?? {}), ...nextInputPatch };
-    if (nextResultPatch) resultPatch = { ...(resultPatch ?? {}), ...nextResultPatch };
+    if (outcome.additionalContext)
+      additionalContext.push(outcome.additionalContext);
+    if (outcome.additionalContextDisplay)
+      additionalContextDisplay.push(outcome.additionalContextDisplay);
+    if (nextInputPatch)
+      inputPatch = { ...(inputPatch ?? {}), ...nextInputPatch };
+    if (nextResultPatch)
+      resultPatch = { ...(resultPatch ?? {}), ...nextResultPatch };
     if (outcome.block) {
       return {
         block: true,
@@ -105,5 +143,10 @@ export async function runHookRules(args: {
     }
   }
 
-  return { inputPatch, resultPatch, additionalContext, additionalContextDisplay };
+  return {
+    inputPatch,
+    resultPatch,
+    additionalContext,
+    additionalContextDisplay,
+  };
 }

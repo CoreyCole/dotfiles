@@ -30,7 +30,8 @@
           {
             "type": "command",
             "command": "~/.pi/agent/scripts/lint-unstaged-go.mjs",
-            "timeout": 120
+            "timeout": 120,
+            "async": true
           }
         ]
       }

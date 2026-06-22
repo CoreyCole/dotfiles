@@ -53,7 +53,9 @@ function findGoModRoot(file, gitRoot) {
 
 function extractDisplayTail(text, maxLines = 40) {
   const lines = text.trimEnd().split("\n");
-  const summaryStart = lines.findLastIndex((line) => /^\d+ issues?:$/.test(line.trim()));
+  const summaryStart = lines.findLastIndex((line) =>
+    /^\d+ issues?:$/.test(line.trim()),
+  );
   if (summaryStart >= 0) {
     return [
       "golangci-lint:",
@@ -173,7 +175,7 @@ if (failures.length > 0) {
   const context = [
     "Go lint reported issues in unstaged files.",
     "Multiple agents may be editing this repo in parallel, so these issues may have been introduced by another agent.",
-    "Treat this as advisory context: investigate whether the findings are from your own changes, but do not assume you must fix unrelated lint issues.",
+    "Treat this as advisory context: investigate whether the findings are from your own changes, but do not assume you must fix unrelated lint issues. Please ignore issues unrelated to your work; another agent is likely working in parallel in this workspace.",
     failures.join("\n\n---\n\n"),
   ].join("\n\n");
 

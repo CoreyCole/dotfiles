@@ -23,19 +23,42 @@ function M.render()
         path = vim.fn.pathshorten(path)
     else
         -- For some special folders, add a prefix instead of the full path (making
-        -- sure to pick the longest prefix).
-        ---@type table<string, string>
-        local special_dirs = {
-            DOTFILES = vim.env.HOME .. "/dotfiles",
-            CN = vim.env.HOME .. "/cn/chestnut-flake/monorepo",
-            VAMOS = vim.env.HOME .. "/cn/chestnut-flake/vamos",
-            AGENTS = vim.env.HOME .. "/cn/chestnut-flake/cn-agents",
-            DSUI = vim.env.HOME .. "/cn/chestnut-flake/cn-agents/pkg/datastarui",
-            HOME = vim.env.HOME,
-        }
-        for dir_name, dir_path in pairs(special_dirs) do
-            if vim.startswith(path, vim.fs.normalize(dir_path)) and #dir_path > #prefix_path then
-                prefix, prefix_path = dir_name, dir_path
+        -- sure to pick the longest prefix). Include sibling feature checkouts
+        -- like vamos-*, cn-agents-*, monorepo-*, and monorepo2/monorepo3.
+        ---@type table<integer, {name: string, path: string}>
+        local special_dirs = {}
+        local function add_dir(name, dir, include_variants)
+            table.insert(special_dirs, { name = name, path = dir })
+            if include_variants then
+                local base = vim.fn.fnamemodify(dir, ":t")
+                for _, variant in ipairs(vim.fn.glob(dir .. "-*", true, true)) do
+                    local suffix = vim.fn.fnamemodify(variant, ":t"):gsub("^" .. vim.pesc(base), "")
+                    table.insert(special_dirs, { name = name .. suffix, path = variant })
+                end
+                for _, variant in ipairs(vim.fn.glob(dir .. "[0-9]*", true, true)) do
+                    local suffix = vim.fn.fnamemodify(variant, ":t"):gsub("^" .. vim.pesc(base), "")
+                    table.insert(special_dirs, { name = name .. suffix, path = variant })
+                end
+            end
+        end
+
+        add_dir("DOTFILES", vim.env.HOME .. "/dotfiles", false)
+        add_dir("CN", vim.env.HOME .. "/cn/chestnut-flake/monorepo", true)
+        add_dir("VAMOS", vim.env.HOME .. "/cn/chestnut-flake/vamos", true)
+        add_dir("AGENTS", vim.env.HOME .. "/cn/chestnut-flake/cn-agents", true)
+        add_dir("DSUI", vim.env.HOME .. "/cn/chestnut-flake/cn-agents/pkg/datastarui", false)
+        for _, variant in
+            ipairs(vim.fn.glob(vim.env.HOME .. "/cn/chestnut-flake/cn-agents-*/pkg/datastarui", true, true))
+        do
+            local checkout = variant:match "/cn%-agents([^/]*)/pkg/datastarui$" or ""
+            table.insert(special_dirs, { name = "DSUI" .. checkout, path = variant })
+        end
+        add_dir("HOME", vim.env.HOME, false)
+
+        for _, dir in ipairs(special_dirs) do
+            local dir_path = vim.fs.normalize(dir.path)
+            if vim.startswith(path, dir_path) and #dir_path > #prefix_path then
+                prefix, prefix_path = dir.name, dir_path
             end
         end
         if prefix ~= "" then
