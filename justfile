@@ -7,6 +7,12 @@ setup:
   git config core.hooksPath hooks
   @echo "Configured git hooks path: $(git config --get core.hooksPath)"
   mkdir -p context
+  @if [ ! -d context/pi/.git ]; then \
+    echo "Cloning pi context checkout"; \
+    git clone git@github.com:earendil-works/pi.git context/pi; \
+  else \
+    echo "Pi context checkout already exists"; \
+  fi
   @if [ ! -d context/vamos/.git ]; then \
     echo "Cloning vamos context checkout"; \
     git clone https://github.com/CoreyCole/vamos.git context/vamos; \

@@ -45,9 +45,9 @@ Do **not** also load another `answer` implementation from an imported config/pac
 
 When planning or implementing Pi config changes in this repo:
 
-- use `context/pi-mono` as the local ground-truth source for Pi behavior, APIs, extension events, resource loading, and settings semantics
+- use `context/pi` as the local ground-truth source for Pi behavior, APIs, extension events, resource loading, and settings semantics
 - use the `pi` skill for Pi-specific work
-- do not rely only on memory or upstream examples when the local `context/pi-mono` clone can answer the question
+- do not rely only on memory or upstream examples when the local `context/pi` clone can answer the question
 
 This is especially important for extension hooks, resource loading, AGENTS.md behavior, and other config/runtime integration changes.
 

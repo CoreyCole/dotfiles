@@ -21,5 +21,5 @@ pull_context_checkout() {
   git -C "$checkout_dir" pull --rebase --autostash
 }
 
+pull_context_checkout "pi" "$DOTFILES_DIR/context/pi"
 pull_context_checkout "vamos" "$DOTFILES_DIR/context/vamos"
-pull_context_checkout "pi-mono" "$DOTFILES_DIR/context/pi-mono"
