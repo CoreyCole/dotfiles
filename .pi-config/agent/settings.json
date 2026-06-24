@@ -1,7 +1,8 @@
 {
-  "lastChangelogVersion": "0.79.9",
+  "lastChangelogVersion": "0.80.2",
   "packages": [
-    "git:github.com/CoreyCole/pi-deterministic-docs"
+    "git:github.com/CoreyCole/pi-deterministic-docs",
+    "git:github.com/nicobailon/pi-mcp-adapter"
   ],
   "skills": [
     "~/dotfiles/context/vamos/.pi/skills"
@@ -11,5 +12,7 @@
   },
   "hideThinkingBlock": false,
   "theme": "corey-dark",
-  "defaultThinkingLevel": "medium"
+  "defaultThinkingLevel": "medium",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5"
 }
