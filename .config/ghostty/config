@@ -31,10 +31,8 @@ keybind = ctrl+9=last_tab
 keybind = alt+enter=toggle_fullscreen
 keybind = ctrl+shift+c=copy_to_clipboard:mixed
 keybind = ctrl+shift+C=copy_to_clipboard:mixed
-keybind = ctrl+v=paste_from_clipboard
 keybind = ctrl+shift+v=paste_from_clipboard
 keybind = ctrl+shift+V=paste_from_clipboard
-keybind = ctrl+key_v=paste_from_clipboard
 keybind = ctrl+shift+key_v=paste_from_clipboard
 keybind = alt+v=paste_from_clipboard
 keybind = ctrl+shift+f=start_search
