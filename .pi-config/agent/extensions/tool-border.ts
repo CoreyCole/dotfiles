@@ -320,53 +320,24 @@ function truncateLines(lines: string[], width: number): string[] {
   });
 }
 
-function textOutputLineCount(result: ToolResult | undefined): number {
-  const text = result?.content
-    ?.filter((block) => block.type === "text" && typeof block.text === "string")
-    .map((block) => block.text?.trimEnd())
-    .filter(Boolean)
-    .join("\n");
-  if (!text) return 0;
-  return text.split("\n").length;
-}
-
-function restoreBashCollapsedHint(
-  lines: string[],
-  result: ToolResult | undefined,
-): string[] {
-  const lineCount = textOutputLineCount(result);
-  const skipped = lineCount - 5;
-  if (skipped <= 0) return lines;
-
-  const timingIndex = lines.findIndex((line) =>
-    /\b(?:Took|Elapsed)\b/.test(stripAnsi(line)),
-  );
-  const outputEnd = timingIndex === -1 ? lines.length : timingIndex;
-  const outputIndent =
-    lines
-      .slice(Math.max(0, outputEnd - 5), outputEnd)
-      .map((line) => stripAnsi(line).match(/^\s*/)?.[0] ?? "")
-      .find((indent) => indent.length > 0) ?? "";
-  const hint = `${outputIndent}${TOOL_DISPLAY.dim(`... (${skipped} earlier lines, ctrl+o to expand)`)}`;
-  const existingHint = lines.findIndex((line) =>
-    stripAnsi(line).includes("earlier lines"),
-  );
-  if (existingHint !== -1) {
-    const next = [...lines];
-    next[existingHint] = hint;
-    return next;
+function restoreBashCollapsedHint(lines: string[]): string[] {
+  if (lines.some((line) => stripAnsi(line).includes("earlier lines"))) {
+    return lines;
   }
 
-  const next = lines.filter(
-    (line) => !/^\s*\d+ lines\.\.\.\s*$/.test(stripAnsi(line)),
+  const oldHintIndex = lines.findIndex((line) =>
+    /^\s*\d+ lines\.\.\.\s*$/.test(stripAnsi(line)),
   );
-  const filteredTimingIndex = next.findIndex((line) =>
-    /\b(?:Took|Elapsed)\b/.test(stripAnsi(line)),
-  );
-  const filteredOutputEnd =
-    filteredTimingIndex === -1 ? next.length : filteredTimingIndex;
-  const insertAt = Math.max(1, filteredOutputEnd - 5);
-  next.splice(insertAt, 0, hint);
+  if (oldHintIndex === -1) return lines;
+
+  const oldHint = stripAnsi(lines[oldHintIndex]);
+  const indent = oldHint.match(/^\s*/)?.[0] ?? "";
+  const skipped = oldHint.trim().match(/^(\d+) lines\.\.\.$/)?.[1];
+  if (!skipped) return lines;
+
+  const next = [...lines];
+  next[oldHintIndex] =
+    `${indent}${TOOL_DISPLAY.dim(`... (${skipped} earlier lines, ctrl+o to expand)`)}`;
   return next;
 }
 
@@ -418,7 +389,7 @@ function patchToolExecutionBorder() {
         firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
     } else if (this.toolName === "bash") {
       if (this.isPartial) lines = setBashStatusIcon(lines, "🟡");
-      if (!this.expanded) lines = restoreBashCollapsedHint(lines, this.result);
+      if (!this.expanded) lines = restoreBashCollapsedHint(lines);
     }
 
     if (hasBorder(lines))
