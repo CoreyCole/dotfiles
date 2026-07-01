@@ -320,6 +320,14 @@ function truncateLines(lines: string[], width: number): string[] {
   });
 }
 
+function wrapLines(lines: string[], width: number): string[] {
+  return lines.flatMap((line) => {
+    const trimmed = trimLineEnd(line);
+    if (isPathDisplayLine(trimmed)) return [trimmed];
+    return wrapTextWithAnsi(trimmed, Math.max(1, width));
+  });
+}
+
 function restoreBashCollapsedHint(lines: string[]): string[] {
   if (lines.some((line) => stripAnsi(line).includes("earlier lines"))) {
     return lines;
@@ -390,6 +398,13 @@ function patchToolExecutionBorder() {
     } else if (this.toolName === "bash") {
       if (this.isPartial) lines = setBashStatusIcon(lines, "🟡");
       if (!this.expanded) lines = restoreBashCollapsedHint(lines);
+      const content = trimLeadingBlankLines(lines);
+      if (hasBorder(content)) return wrapLines(content, width);
+      const docs = deterministicDocsSummary(this.result, width, this.cwd);
+      return wrapLines(
+        [...trimTrailingBlankLines(content), ...docs, subtleBorder(width)],
+        width,
+      );
     }
 
     if (hasBorder(lines))

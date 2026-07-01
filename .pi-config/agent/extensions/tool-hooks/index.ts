@@ -103,7 +103,7 @@ function formatBashCall(
 
   const commandDisplay = command
     ? replaceTabs(normalizeDisplayText(command))
-    : theme.fg("toolOutput", "...");
+    : "";
   return `${statusPrefix}${theme.fg("toolTitle", theme.bold(commandDisplay))}`;
 }
 

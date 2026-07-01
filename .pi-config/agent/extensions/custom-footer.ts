@@ -11,6 +11,12 @@ function sanitizeStatusText(text: string): string {
     .trim();
 }
 
+function shouldShowStatusText(text: string): boolean {
+  const mcpStatus = text.match(/^MCP:\s*(\d+)\/(\d+)\s+servers$/i);
+  if (!mcpStatus) return true;
+  return Number(mcpStatus[1]) > 0;
+}
+
 function formatCompactTokens(count: number): string {
   if (count < 1000) return count.toString();
   if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -134,10 +140,13 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
           const statusLine = Array.from(extensionStatuses.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([, text]) => sanitizeStatusText(text))
+            .filter(shouldShowStatusText)
             .join(" ");
-          lines.push(
-            truncateToWidth(statusLine, safeWidth, theme.fg("dim", "...")),
-          );
+          if (statusLine) {
+            lines.push(
+              truncateToWidth(statusLine, safeWidth, theme.fg("dim", "...")),
+            );
+          }
         }
 
         lines.push(statsLine);
