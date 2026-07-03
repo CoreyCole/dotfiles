@@ -386,7 +386,7 @@ export default function (pi: ExtensionAPI): void {
       const parsed = parseArgs(args);
       const usageFlags = usageFlagsFromContext(ctx.getContextUsage());
       const result = await runQManagerCLI(parsed.action, parsed.passthrough, usageFlags, ctx.cwd);
-      publishCLIResult(pi, result);
+      publishCLIResult(ctx, result);
       if (result.exitCode !== 0) {
         ctx.ui.notify("q-manager CLI failed; parent compaction skipped", "error");
         return;
@@ -494,7 +494,7 @@ function compactParent(ctx: ExtensionCommandContext, signal: QManagerCompactionS
 }
 ```
 
-`publishCLIResult` should make concise stdout visible without bloating context. Acceptable minimal path: `ctx.ui.notify(first significant line, "info")` plus a displayed custom message if Pi rendering makes custom messages readable. Do not dump NDJSON.
+`publishCLIResult(ctx: ExtensionCommandContext, result: QManagerCLIResult)` should make concise stdout visible without bloating context. Acceptable minimal path: `ctx.ui.notify(first significant line, "info")` plus a displayed custom message if Pi rendering makes custom messages readable. Do not dump NDJSON.
 
 **`.pi/README.md`**:
 
@@ -684,11 +684,15 @@ If keeping `ActiveChildHealthStatus` constants near existing health constants, p
 
 **`cmd/vamos-runtime/internal/qrspicmd/child_health.go`**:
 
-Add evidence detection:
+Add evidence detection. Include both tmux/output diagnostics and the final child session text because provider context-limit failures can exist in the child JSONL even when the transcript tail is empty or truncated.
 
 ```go
-func HasChildContextExhaustionEvidence(health ActiveChildHealth) bool {
-    for _, line := range append(append([]string{}, health.Evidence...), health.OutputTail...) {
+func HasChildContextExhaustionEvidence(health ActiveChildHealth, sessionText string) bool {
+    lines := append(append([]string{}, health.Evidence...), health.OutputTail...)
+    if strings.TrimSpace(sessionText) != "" {
+        lines = append(lines, sessionText)
+    }
+    for _, line := range lines {
         text := strings.ToLower(line)
         if strings.Contains(text, "context length") ||
            strings.Contains(text, "context window") ||
@@ -703,15 +707,26 @@ func HasChildContextExhaustionEvidence(health ActiveChildHealth) bool {
 }
 ```
 
-In `InspectActiveChildHealth`, after output tail/status is loaded and before generic launch-failed classification, if terminal done/status exists, no `qrspi_result`, and context evidence exists:
+In `InspectActiveChildHealth`, after output tail/status is loaded and before generic launch-failed classification, read the active child session's final assistant text when available and use it for context-exhaustion evidence before deciding whether this is a generic launch failure:
 
 ```go
-if status != nil && HasDoneMarker(child.DonePath) && !hasResult && HasChildContextExhaustionEvidence(health) {
+sessionText := ""
+if strings.TrimSpace(child.SessionPath) != "" {
+    if text, err := ExtractFinalAssistantTextFromSession(child.SessionPath); err == nil {
+        sessionText = text
+    }
+}
+if status != nil && HasDoneMarker(child.DonePath) && !hasResult && HasChildContextExhaustionEvidence(health, sessionText) {
     health.Status = ActiveChildContextExhausted
+    if strings.TrimSpace(sessionText) != "" {
+        health.Evidence = append(health.Evidence, "session has context-limit/no-result evidence")
+    }
     health.SafeCommand = fmt.Sprintf("pi --resume %s # then run /compact only if this is the exhausted child session", firstNonEmpty(child.SessionPath, child.SessionID))
     return health, nil
 }
 ```
+
+If `SessionPath` is empty, resolve it from `SessionDir`/`SessionID`/`Cwd` the same way `ReadChildResultText` does, then inspect that file. Do not require the provider error to appear in both JSONL and tmux output.
 
 Keep `IsTerminalFailedChild` true only for cases where it is safe to clear/relaunch mechanically. Context exhaustion should produce its own action card first, not be silently cleared.
 
@@ -771,7 +786,7 @@ If the human/operator chooses relaunch, they should use existing `repair-state -
 
 **`cmd/vamos-runtime/internal/qrspicmd/child_completion_test.go`**:
 
-Add a no-result context-limit test. A child session contains provider error text but no fenced `qrspi_result`; done/status indicates terminal. `RunChildComplete` should either reprompt while retry remains or, after retry exhaustion, wake manager with invalid-result action without advancing. For direct `RunContinue`, assert the context-exhausted action card appears.
+Add a no-result context-limit test. A child session contains provider error text but no fenced `qrspi_result`; done/status indicates terminal; output transcript may be empty. `RunChildComplete` should either reprompt while retry remains or, after retry exhaustion, wake manager with invalid-result action without advancing. For direct `RunContinue`, assert the context-exhausted action card appears.
 
 **`cmd/vamos-runtime/internal/qrspicmd/child_health_test.go`**:
 
