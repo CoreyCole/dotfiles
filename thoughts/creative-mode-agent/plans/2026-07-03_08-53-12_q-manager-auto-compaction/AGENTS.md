@@ -61,7 +61,7 @@ When adding content:
 
 ## Current focus
 
-Design q-manager parent auto-compaction after child launch. Live test showed current CLI did not compact/handoff because compaction only runs when explicit `--manager-usage-*` is passed.
+Implement q-manager parent auto-compaction after child launch in `/home/ruby/dotfiles/context/vamos-2026-07-03_08-53-12_q-manager-auto-compaction`. Live test showed current CLI did not compact/handoff because compaction only runs when explicit `--manager-usage-*` is passed.
 
 ## Canonical context
 
@@ -78,6 +78,8 @@ Design q-manager parent auto-compaction after child launch. Live test showed cur
 
 ## Invariants / gotchas
 
+- Workspace prep selected `origin/main` / `main` at `2f4ed07e7e576de1015e76daa2ecd07f7d75287c` for the normal parent implementation workspace because this plan is not a review-fix follow-up and has no intentional unmerged parent stack. Expected Graphite parent for first slice: `main`.
+- Plan workspace: `/home/ruby/dotfiles/thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction`; implementation workspace: `/home/ruby/dotfiles/context/vamos-2026-07-03_08-53-12_q-manager-auto-compaction`.
 - Current q-manager CLI only starts manager compaction from explicit usage flags; parent wrapper should feed those flags from fresh Pi `ctx.getContextUsage()` in the parent manager process, not from scanning Pi JSONL. Persist last usage in local state for diagnostics only; never compact from stale stored usage.
 - Pi extension context exposes `getContextUsage()` and non-awaiting `compact()` only in the parent Pi process; child extension/CLI cannot call them directly.
 - Native `ctx.compact()` must not fire unless CLI already saved delivery `compacting`; otherwise quick child wake can race parent availability.

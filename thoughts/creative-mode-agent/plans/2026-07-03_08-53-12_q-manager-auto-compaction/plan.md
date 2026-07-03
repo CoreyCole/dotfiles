@@ -25,28 +25,42 @@ related_projects:
 
 ## Implementation Workspace Prep
 
-`/q-workspace` will create or repair the fresh filesystem copy for `/q-implement` after `/q-review [plan.md]` succeeds.
+`/q-workspace` prepared the fresh filesystem copy for `/q-implement` after `/q-review [plan.md]` succeeded.
 
-Planned workspace path:
+Plan workspace:
+
+```text
+/home/ruby/dotfiles/thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction
+```
+
+Implementation workspace:
 
 ```text
 /home/ruby/dotfiles/context/vamos-2026-07-03_08-53-12_q-manager-auto-compaction
 ```
 
-Workspace base selection is deferred to `/q-workspace` so it can account for plan-review edits and unmerged parent stacks. For this normal parent plan, the base is usually latest `origin/main` / project trunk.
+Selected workspace base:
 
-Do not use `git worktree`. This workspace is a normal copied directory created with efficient filesystem clone/reflink copy (`cp -ac` on macOS, `cp -a --reflink=auto` on Linux). If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
+```text
+branch: origin/main
+commit: 2f4ed07e7e576de1015e76daa2ecd07f7d75287c
+actual workspace HEAD after workspace prep sync: 2f4ed07e7e576de1015e76daa2ecd07f7d75287c
+```
 
-`/q-workspace`, not `/q-plan`, chooses the final workspace base. The workspace directory should be based on the plan slug/timestamp, for example `vamos-2026-07-03_08-53-12_q-manager-auto-compaction`. The full plan directory must be present inside the workspace at the same relative `thoughts/...` path so `/q-implement [plan.md]` can load `AGENTS.md`, ADRs, questions, research, reviews, and handoffs.
+Base decision: this is a normal parent plan, not an implementation-review follow-up and not an intentional continuation of an unmerged Graphite stack. Current trunk and `origin/main` both point at `2f4ed07e7e576de1015e76daa2ecd07f7d75287c`; no prior implementation stack exists for this plan, so latest trunk preserves all reviewed planning artifacts and avoids stacking onto unrelated dirty source-checkout edits.
 
-For implementation-review follow-up plans under `reviews/*_implementation-review/`, `/q-workspace` must prove whether the parent implementation stack top is merged into `origin/main`; if not, base the workspace on that parent top branch/commit and record the expected Graphite parent. This plan is not a review-fixes plan, so normal trunk base is expected.
+Parent stack state: no parent implementation stack for this plan; treat it as already merged/not applicable. Expected Graphite parent for the first implementation slice is `main` at the selected base above.
+
+Do not use `git worktree`. This workspace is a normal copied/cloned directory. If the workspace directory is dirty or missing when implementation starts, stop and ask before moving/replacing it.
+
+The full plan directory is available from the implementation workspace at `thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction` via the local thoughts symlink so `/q-implement [plan.md]` can load `AGENTS.md`, ADRs, questions, research, reviews, and handoffs.
 
 Repository submission model: Vamos uses Graphite stack branches for feature work. Implement in the workspace selected by `/q-workspace`, complete and verify each tracked edit slice first, then create or modify the slice branch at the end of that slice with the final Conventional Commit message plus fenced `qrspi_commit` footer. Do not commit QRSPI implementation slices directly to `main` and do not pre-create future slice branches.
 
-Command template after plan review:
+Command template after workspace prep:
 
 ```bash
-/q-workspace thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction/plan.md
+/q-implement thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction/plan.md
 ```
 
 Related-project note: `github.com/earendil-works/pi-mono` is source-of-truth reference material for Pi extension APIs only. Implementation edits are in `github.com/CoreyCole/vamos` unless review explicitly asks for upstream Pi changes.
