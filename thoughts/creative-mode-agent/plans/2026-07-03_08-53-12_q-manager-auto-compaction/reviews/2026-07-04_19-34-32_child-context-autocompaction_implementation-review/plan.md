@@ -17,12 +17,12 @@ related_projects:
 
 ## Status
 
-- [ ] Slice 1: Terminal provider evidence parser.
-- [ ] Slice 2: Health/recovery latest-evidence precedence.
-- [ ] Slice 3: `child-complete` provider-context wake + delivery identity.
-- [ ] Slice 4: Action-card/wake evidence and docs.
-- [ ] Slice 5: Optional recovery summarizer helper.
-- [ ] Slice 6: Regression suite and manual smoke notes.
+- [x] Slice 1: Terminal provider evidence parser.
+- [x] Slice 2: Health/recovery latest-evidence precedence.
+- [x] Slice 3: `child-complete` provider-context wake + delivery identity.
+- [x] Slice 4: Action-card/wake evidence and docs.
+- [x] Slice 5: Optional recovery summarizer helper.
+- [x] Slice 6: Regression suite and manual smoke notes.
 
 ## Implementation Workspace Prep
 
