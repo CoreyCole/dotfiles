@@ -525,26 +525,35 @@ if evidence, ok, evidenceErr := terminalEvidenceForActiveChildWithRefresh(state)
 }
 ```
 
-Use a bounded refresh helper because Pi `agent_end` may fire before final assistant JSONL persistence:
+Use a bounded refresh helper because Pi `agent_end` may fire before final assistant JSONL persistence. Do **not** stop polling merely because the session already has older non-context assistant evidence; that would reintroduce the stale-result bug. Return immediately only for context-window provider evidence, remember the latest non-context evidence as a fallback, and keep polling until attempts are exhausted:
 
 ```go
 func terminalEvidenceForActiveChildWithRefresh(state ManagerState) (AssistantTerminalEvidence, bool, error) {
     var lastErr error
+    var latest AssistantTerminalEvidence
+    found := false
     for attempt := 0; attempt < 4; attempt++ {
         evidence, ok, err := LatestTerminalEvidenceForActiveChild(state)
         if err == nil && ok {
-            return evidence, true, nil
+            latest = evidence
+            found = true
+            if evidence.ContextWindowError {
+                return evidence, true, nil
+            }
         }
         lastErr = err
         if attempt < 3 {
             time.Sleep(100 * time.Millisecond)
         }
     }
+    if found {
+        return latest, true, nil
+    }
     return AssistantTerminalEvidence{}, false, lastErr
 }
 ```
 
-Keep the sleep small. Tests that already have the session file return on first attempt.
+Keep the sleep small. Tests that already have terminal context evidence return on first attempt; add coverage that an older assistant/QRSPI result present before a delayed provider error does not make the helper return early.
 
 Add status/delivery helpers:
 
@@ -600,6 +609,12 @@ Add `TestChildCompleteProviderContextErrorDeliversManagerWake`:
 - `RunChildComplete` returns `Validated=false`, `ManagerNeeded=true`, `Result.Status=child_context_exhausted`, `TerminalEvidence.ContextWindowError=true`, delivery ID contains `provider_context_error`, and wake mode is `deliver` or `queue` according to manager pane/compaction.
 - Disk `validation-status.json` has the same terminal evidence.
 - Loaded state `LastActionCard.Kind == ActionChildContextExhausted`.
+
+Add `TestTerminalEvidenceRefreshDoesNotReturnEarlyForOlderResult` or equivalent:
+
+- Session initially has an older valid assistant/QRSPI result.
+- Provider context-error line appears during the bounded refresh window.
+- Refresh helper returns the context-window evidence, not the older non-context assistant evidence.
 
 Add `TestChildCompleteProviderContextErrorSuppressesSameEvidenceDuplicate`:
 
