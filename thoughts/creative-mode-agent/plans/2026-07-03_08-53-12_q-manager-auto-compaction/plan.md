@@ -17,11 +17,11 @@ related_projects:
 
 ## Status
 
-- [ ] Slice 1: CLI threshold, stable signal, and usage diagnostics
-- [ ] Slice 2: Parent Pi q-manager wrapper command
-- [ ] Slice 3: Wake reliability regressions
-- [ ] Slice 4: Child context-exhaustion / no-result recovery
-- [ ] Slice 5: Docs and operator runbook
+- [x] Slice 1: CLI threshold, stable signal, and usage diagnostics
+- [x] Slice 2: Parent Pi q-manager wrapper command
+- [x] Slice 3: Wake reliability regressions
+- [x] Slice 4: Child context-exhaustion / no-result recovery
+- [x] Slice 5: Docs and operator runbook
 
 ## Implementation Workspace Prep
 
