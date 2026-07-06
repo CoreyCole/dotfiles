@@ -16,10 +16,10 @@ related_projects: []
 
 ## Status
 
-- [ ] Slice 1: Shared adoption helper + action cards
-- [ ] Slice 2: Continue and state-file start-next adoption
-- [ ] Slice 3: Manager-ready adoption + dead-pane wake queue
-- [ ] Slice 4: Regression docs and full qrspicmd verification
+- [x] Slice 1: Shared adoption helper + action cards
+- [x] Slice 2: Continue and state-file start-next adoption
+- [x] Slice 3: Manager-ready adoption + dead-pane wake queue
+- [x] Slice 4: Regression docs and full qrspicmd verification
 
 ## Implementation Workspace Prep
 
@@ -830,14 +830,14 @@ ______________________________________________________________________
 
 ## Final Verification Checklist
 
-- [ ] `go test ./cmd/vamos-runtime/internal/qrspicmd`
-- [ ] `just build --no-restart` or documented environment-specific blocker
-- [ ] Manual/no-op CLI sanity from tmux if available:
-  - [ ] `vamos qrspi continue --help` includes `--manager-pane`.
-  - [ ] `vamos qrspi start-next --help` still includes `--manager-pane`.
-  - [ ] `vamos qrspi manager-ready --help` still includes `--manager-pane`.
-- [ ] `docs/q-manager.md` explains current-pane adoption, live-parent action card, and dead-pane queued wake.
-- [ ] `plan.md` checkboxes updated as slices complete.
+- [x] `go test ./cmd/vamos-runtime/internal/qrspicmd`
+- [x] `just build --no-restart` or documented environment-specific blocker
+- [x] Manual/no-op CLI sanity from tmux if available:
+  - [x] `vamos qrspi continue --help` includes `--manager-pane`.
+  - [x] `vamos qrspi start-next --help` still includes `--manager-pane`.
+  - [x] `vamos qrspi manager-ready --help` still includes `--manager-pane`.
+- [x] `docs/q-manager.md` explains current-pane adoption, live-parent action card, and dead-pane queued wake.
+- [x] `plan.md` checkboxes updated as slices complete.
 
 ## ADR Traceability
 
