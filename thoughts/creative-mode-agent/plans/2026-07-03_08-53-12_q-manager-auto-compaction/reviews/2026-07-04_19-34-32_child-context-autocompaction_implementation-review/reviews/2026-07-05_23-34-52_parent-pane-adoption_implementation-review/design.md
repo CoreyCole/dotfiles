@@ -100,6 +100,7 @@ Add `--manager-pane` to `continue`. Existing `--manager-pane` on state-file `sta
 Auto-adopt current env pane when all are true:
 
 - current env pane non-empty
+- current env pane liveness check succeeds; never persist a stale/dead `$TMUX_PANE` as the new manager
 - no explicit pane needed
 - at least one safe condition:
   - stored manager pane blank
@@ -188,6 +189,7 @@ Going with shared safe adoption helper + explicit `--manager-pane` rebind + dead
 
 - Unit: helper auto-adopts when no stored pane and current env exists.
 - Unit: helper auto-adopts when stored pane dead and current env exists.
+- Unit: helper does not env-adopt when current env pane itself is unavailable.
 - Unit: helper does not env-adopt when stored different pane is live; writes action card.
 - Unit: explicit `--manager-pane` rebinds even when stored different pane is live.
 - Command: `continue --manager-pane` updates `ManagerPaneID` and launches next child with adopted parent.

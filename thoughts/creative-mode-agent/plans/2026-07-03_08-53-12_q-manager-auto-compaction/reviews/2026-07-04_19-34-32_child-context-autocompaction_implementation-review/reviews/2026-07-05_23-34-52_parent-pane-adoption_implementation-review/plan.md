@@ -150,6 +150,11 @@ func ResolveManagerPaneAdoption(ctx context.Context, state ManagerState, opts Ma
         result.Reason = "no_current_manager_pane"
         return result, nil
     }
+    if currentLive.Checked && !currentLive.Exists {
+        result.Reason = "current_manager_pane_unavailable"
+        result.Evidence = append(result.Evidence, "adoption: current TMUX_PANE unavailable; not adopted")
+        return result, nil
+    }
     if selected != "" && selected == opts.CurrentPane {
         if state.ManagerPaneID == "" {
             result.State.ManagerPaneID = opts.CurrentPane
@@ -284,7 +289,7 @@ Implementation notes:
 
 - Keep helper in package `qrspicmd` so tests can call unexported helpers.
 - Use existing `tmuxClient(d)` helper rather than directly reading `d.Tmux`.
-- Keep auto-adoption conservative: if a different selected old manager/delivery pane is live and no explicit pane is provided, return action card instead of rebinding.
+- Keep auto-adoption conservative: if the current env pane is unavailable, do not adopt it; if a different selected old manager/delivery pane is live and no explicit pane is provided, return action card instead of rebinding.
 - Pane IDs stay local state/action-card evidence only; do not add them to `qrspi_result` YAML.
 
 ### Tests
@@ -326,6 +331,15 @@ func TestManagerPaneAdoptionLiveConflictRequiresExplicitPane(t *testing.T) {
     got, err := ResolveManagerPaneAdoption(t.Context(), state, ManagerPaneAdoptionOptions{StateFile: "state.json", Command: ManagerPaneAdoptionContinue, CurrentPane: "%new"}, deps{Tmux: &recordingTmux{}})
     if err != nil { t.Fatal(err) }
     if got.Changed || got.ActionCard == nil || got.ActionCard.Kind != ActionManagerPaneAdoptionRequired || !strings.Contains(got.ActionCard.SafeCommand, "continue --state-file state.json --manager-pane") {
+        t.Fatalf("adoption = %+v", got)
+    }
+}
+
+func TestManagerPaneAdoptionDoesNotAdoptUnavailableCurrentPane(t *testing.T) {
+    tmux := &recordingTmux{missingPanes: map[string]bool{"%new": true}}
+    got, err := ResolveManagerPaneAdoption(t.Context(), ManagerState{}, ManagerPaneAdoptionOptions{StateFile: "state.json", Command: ManagerPaneAdoptionContinue, CurrentPane: "%new"}, deps{Tmux: tmux})
+    if err != nil { t.Fatal(err) }
+    if got.Changed || got.State.ManagerPaneID != "" || got.Reason != "current_manager_pane_unavailable" {
         t.Fatalf("adoption = %+v", got)
     }
 }

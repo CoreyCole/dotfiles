@@ -125,7 +125,7 @@ func ResolveManagerPaneAdoption(ctx context.Context, state ManagerState, opts Ma
 ```
 
 - Explicit pane: always rebind `ManagerPaneID`; also rebind `Delivery.ManagerPaneID` when delivery is compacting, queued, blank/dead, or explicit override targets delivery owner.
-- Current env pane: auto-adopt only when no stored pane, selected stored/delivery pane dead/unavailable, delivery `compacting`, queued wake exists, or delivery pane missing.
+- Current env pane: auto-adopt only when the current pane itself is live and no stored pane, selected stored/delivery pane is dead/unavailable, delivery `compacting`, queued wake exists, or delivery pane missing.
 - Live different stored/delivery pane + env only: no rebind; save action card with safe explicit command.
 - Child-side delivery path: never adopt current env; only liveness-check selected pane and queue if unavailable.
 
