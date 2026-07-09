@@ -91,11 +91,76 @@ git_branch() {
     [[ -n "$branch" ]] && printf '%s' "$branch"
 }
 
-display_path=$(escape_tmux "$(short_path "$cwd")")
-branch=$(git_branch "$cwd")
-branch=$(escape_tmux "$branch")
+client_width=${2:-0}
+
+truncate_text() {
+    local text=$1
+    local max=$2
+
+    if ((max <= 0)); then
+        return
+    fi
+    if ((${#text} <= max)); then
+        printf '%s' "$text"
+        return
+    fi
+    if ((max <= 1)); then
+        printf '…'
+        return
+    fi
+
+    printf '%s…' "${text:0:max-1}"
+}
+
+context_width_limit() {
+    local width=$1
+    local limit
+
+    if ((width <= 0)); then
+        printf '120'
+        return
+    fi
+
+    # Use a fraction of the terminal so the tmux window list keeps priority,
+    # but do not punish naturally short contexts like "DOTFILES  main".
+    if ((width < 80)); then
+        limit=$((width * 40 / 100))
+    else
+        limit=$((width * 50 / 100))
+    fi
+
+    if ((limit < 20)); then
+        limit=20
+    elif ((limit > 120)); then
+        limit=120
+    fi
+    printf '%s' "$limit"
+}
+
+plain_display_path=$(short_path "$cwd")
+plain_branch=$(git_branch "$cwd")
+max_context_width=$(context_width_limit "$client_width")
+
+branch_suffix=""
+if [[ -n "$plain_branch" ]]; then
+    branch_suffix="  $plain_branch"
+fi
+
+# Prefer showing branch when it fits, but drop it before reducing the path to
+# an unhelpful stub. This keeps short contexts complete while preventing very
+# long cwd+branch strings from hiding tmux window tabs.
+if [[ -n "$branch_suffix" && $((${#plain_display_path} + ${#branch_suffix})) -gt $max_context_width ]]; then
+    path_width_with_branch=$((max_context_width - ${#branch_suffix}))
+    if ((path_width_with_branch < 20)); then
+        branch_suffix=""
+    fi
+fi
+
+path_width=$((max_context_width - ${#branch_suffix}))
+display_path=$(escape_tmux "$(truncate_text "$plain_display_path" "$path_width")")
+branch_suffix=$(escape_tmux "$branch_suffix")
 
 printf '#[fg=#808080]%s' "$display_path"
-if [[ -n "$branch" ]]; then
-    printf ' #[fg=#4a7a9b] %s' "$branch"
+if [[ -n "$branch_suffix" ]]; then
+    printf ' #[fg=#4a7a9b]%s' "${branch_suffix# }"
 fi

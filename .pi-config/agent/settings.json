@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.80.2",
+  "lastChangelogVersion": "0.80.3",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"

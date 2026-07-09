@@ -248,6 +248,18 @@ function normalizePathFragment(text: string): string {
   return stripAnsi(text).replace(/\s+/g, "");
 }
 
+function pathFragmentMatches(
+  fragment: string,
+  normalizedPath: string,
+): boolean {
+  if (normalizedPath.includes(fragment) || fragment.includes(normalizedPath)) {
+    return true;
+  }
+
+  const anchored = anchoredPath(fragment);
+  return anchored !== undefined && normalizedPath.includes(anchored);
+}
+
 function replaceFirstContentLineBlock(
   lines: string[],
   replacements: string[],
@@ -264,7 +276,7 @@ function replaceFirstContentLineBlock(
   if (normalizedPath) {
     for (let i = index + 1; i < next.length; i++) {
       const fragment = normalizePathFragment(next[i]);
-      if (!fragment || !normalizedPath.includes(fragment)) break;
+      if (!fragment || !pathFragmentMatches(fragment, normalizedPath)) break;
       deleteCount++;
     }
   }
