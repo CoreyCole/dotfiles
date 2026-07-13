@@ -15,6 +15,7 @@ short_path() {
     local best_path=""
 
     # Keep this in sync with neovim-config/lua/winbar.lua special_dirs.
+    local worktree_marker="*"
     local entries=(
         "DSUI:$home/cn/chestnut-flake/cn-agents/pkg/datastarui"
         "AGENTS:$home/cn/chestnut-flake/cn-agents"
@@ -23,16 +24,13 @@ short_path() {
         "DOTFILES:$home/dotfiles"
         "HOME:$home"
     )
-    local dsui_dir agent_checkout agent_suffix
+    local dsui_dir
     for dsui_dir in "$home"/cn/chestnut-flake/cn-agents-*/pkg/datastarui; do
         [[ -d "$dsui_dir" ]] || continue
-        agent_checkout=${dsui_dir#"$home/cn/chestnut-flake/"}
-        agent_checkout=${agent_checkout%%/*}
-        agent_suffix=${agent_checkout#cn-agents}
-        entries+=("DSUI$agent_suffix:$dsui_dir")
+        entries+=("DSUI$worktree_marker:$dsui_dir")
     done
 
-    local entry name dir parent base candidate candidate_name remainder suffix
+    local entry name dir parent base candidate candidate_name remainder
     for entry in "${entries[@]}"; do
         name=${entry%%:*}
         dir=${entry#*:}
@@ -40,7 +38,8 @@ short_path() {
 
         # Match the canonical checkout, plus sibling feature checkouts such as
         # vamos-*, cn-agents-*, monorepo-*, and numbered monorepo2/monorepo3
-        # workspaces without showing the full ~/cn/chestnut-flake prefix.
+        # workspaces. Feature checkout names can be very long, so the status
+        # only marks them with a symbol; the full branch name is shown later.
         parent=${dir%/*}
         base=${dir##*/}
         candidate=""
@@ -51,9 +50,7 @@ short_path() {
         elif [[ "$path" == "$parent/$base"-* || "$path" == "$parent/$base"[0-9]* ]]; then
             remainder=${path#"$parent/"}
             candidate="$parent/${remainder%%/*}"
-            suffix=${candidate##*/}
-            suffix=${suffix#"$base"}
-            candidate_name="$name$suffix"
+            candidate_name="$name$worktree_marker"
         fi
 
         if [[ -n "$candidate" && ${#candidate} -gt ${#best_path} ]]; then
