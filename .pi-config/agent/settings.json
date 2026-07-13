@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.80.3",
+  "lastChangelogVersion": "0.80.6",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"
@@ -12,7 +12,7 @@
   },
   "hideThinkingBlock": false,
   "theme": "corey-dark",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "off",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5"
+  "defaultModel": "gpt-5.6-terra"
 }

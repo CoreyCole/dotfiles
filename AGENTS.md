@@ -61,3 +61,28 @@ Pi extensions should import Pi APIs and TUI components by package name so the co
 import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 ```
+
+## Vamos CLI launcher in `context/vamos`
+
+The `vamos` command on PATH is intentionally a stable launcher binary, not the runtime itself. It reads launcher config, fingerprints the configured runtime source checkout, builds a cached `vamos-runtime` when relevant source changes, then execs that runtime.
+
+For this dotfiles checkout, runtime development happens in `~/dotfiles/context/vamos`. If `vamos launcher doctor` shows `runtime source root: /Users/swarm/dotfiles/context/vamos`, source edits under `context/vamos` go live automatically on the next `vamos ...` invocation after the launcher rebuilds the managed runtime cache. You do not need to rebuild `~/.local/bin/vamos` for normal runtime changes.
+
+Only rebuild the launcher itself when changing `cmd/vamos-launcher`:
+
+```bash
+cd ~/dotfiles/context/vamos
+go build -o ~/.local/bin/vamos ./cmd/vamos-launcher
+vamos launcher configure --runtime-source-root ~/dotfiles/context/vamos
+vamos launcher doctor
+```
+
+Useful checks:
+
+```bash
+which vamos
+vamos launcher doctor
+VAMOS_PACKAGE_ROOT=~/dotfiles/context/vamos vamos qrspi --help
+```
+
+Use `VAMOS_PACKAGE_ROOT=/absolute/path/to/checkout` to temporarily force a feature checkout as the runtime source without changing persisted launcher config.
