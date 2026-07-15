@@ -159,25 +159,30 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Research proactive manager/child context monitoring, durable handoff, and fresh-session continuation without Pi compaction.
+Approved design; next stage is outline. Implement proactive manager/child handoff rotation without Pi compaction.
 
 ## Canonical context
 
+- Approved design: `design.md`
+- Design reasoning: `context/design/2026-07-14_16-06-42_q-manager-session-handoff-rotation-design-brainstorm.md`
+- Research: `research/2026-07-14_15-34-21_q-manager-session-handoff-rotation.md`
 - Brainstorm / alignment: `context/brainstorms/2026-07-14_12-21-37_q-manager-session-handoff-rotation.md`
 - Research agenda: `questions/2026-07-14_13-10-05_q-manager-session-handoff-rotation.md`
 - Prior related work: `thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction/`
 
 ## Decisions to preserve
 
-- Replace Pi compaction with durable handoff plus a fresh Pi session for both manager and child.
-- Do not rely on `agent_end`; rotation must begin before another normal provider request.
-- Child uses normal q-handoff semantics. Manager should have a lightweight specialized handoff wrapper for local control-plane refs and restart commands.
-- Fresh successor must read the handoff automatically before resuming; old session remains inspectable but loses active ownership.
-- One `turn_end` follows the full concurrent-tool batch, so reserve must cover aggregate batch growth plus handoff work.
+- Durable handoff must validate before fresh-session replacement; no native Pi compaction fallback.
+- At stable `turn_end`, configurable 75% usage queues one handoff instruction as steering, never follow-up.
+- Manager stays in the same pane: persist rotation, send built-in `/new`, then inject exact handoff from fresh `session_start`.
+- Child keeps existing fresh-pane/process launch, save successor, then close predecessor; do not use child `/new`.
+- Every ticket-level QRSPI Agent node accepts same-node `status: handoff`; human-review/done nodes do not.
+- Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
+- V1 has no aggregate tool-output cap or upstream Pi API change.
 
-## ADR candidates for design
+## Accepted ADRs
 
-- Durable handoff/fresh-session rotation instead of context compaction.
-- Rotation threshold and safety-reserve policy.
-- Manager handoff wrapper boundary.
-- Successor ownership and stale-wake protocol.
+- `adrs/2026-07-15_11-06-58_durable-handoff-fresh-session-rotation.md`
+- `adrs/2026-07-15_11-06-58_turn-end-steering-at-75-percent.md`
+- `adrs/2026-07-15_11-06-58_asymmetric-manager-child-session-replacement.md`
+- `adrs/2026-07-15_11-06-58_graph-wide-agent-handoff.md`
