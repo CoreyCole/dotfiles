@@ -159,7 +159,7 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Outline complete; next is formal outline review. Implement proactive child monitoring first, manager same-pane rotation second, then remove native compaction and run repeated-rotation verification.
+Plan complete; next is formal plan review. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
 
 ## Canonical context
 
@@ -182,6 +182,8 @@ Outline complete; next is formal outline review. Implement proactive child monit
 - Child monitor ends at existing `RunChildComplete`; merged auto-resume saves successor, durably notifies, then cleans predecessor. Do not use child `/new`.
 - Every ticket-level QRSPI Agent node already accepts same-node `status: handoff`; human-review/done nodes do not.
 - Existing per-state operation lock must serialize rotation request/completion/claim with child-complete, continue, and manager-ready.
+- Child launch must export the persisted child generation; JavaScript must not infer it from current state.
+- Persist `/new` delivery as paste/submit phases so retry can submit an already-pasted command without pasting `/new` twice.
 - Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
 - V1 has no aggregate tool-output cap or upstream Pi API change.
 
