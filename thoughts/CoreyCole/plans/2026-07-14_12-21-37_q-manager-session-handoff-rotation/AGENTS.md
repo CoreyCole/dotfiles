@@ -159,10 +159,11 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Plan complete; next is formal plan review. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
+Plan review complete; next is `/q-workspace`. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
 
 ## Canonical context
 
+- Final plan review: `reviews/2026-07-16_16-29-36_q-manager-session-handoff-rotation_plan-review/review.md`
 - Revised approved design: `design.md`
 - Structural outline: `outline.md`
 - Merged-baseline validation: `context/outline/2026-07-16_16-02-04_merged-handoff-auto-resume-baseline.md`
