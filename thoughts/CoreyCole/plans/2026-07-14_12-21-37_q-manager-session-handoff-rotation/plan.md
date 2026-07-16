@@ -762,6 +762,3 @@ ______________________________________________________________________
 - [ ] Managed parent/child compaction is cancelled; no native compaction fallback remains.
 - [ ] Focused, race, vet, no-restart build, and two-cycle controlled tmux evidence pass.
 - [ ] Predecessor JSONLs/handoffs remain inspectable and pane count does not grow.
-
-```
-```
