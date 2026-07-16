@@ -2,7 +2,7 @@
 date: 2026-07-16T16:17:12-07:00
 researcher: CoreyCole
 last_updated_by: CoreyCole
-last_updated_at: 2026-07-16T16:29:36-07:00
+last_updated_at: 2026-07-16T16:40:45-07:00
 git_commit: 7ca824d7960e617861f647fd6314da34b2cff1fc
 branch: main
 repository: vamos
@@ -30,17 +30,16 @@ Vamos uses Graphite feature stacks. In the prepared implementation copy, impleme
 
 ## Implementation Workspace Prep
 
-`/q-workspace` will create or repair the fresh filesystem copy after `/q-review [plan.md]` succeeds.
+Workspace prep completed 2026-07-16:
 
-Planned workspace path:
+- Plan workspace: `/Users/swarm/dotfiles/thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation`
+- Implementation workspace: `/Users/swarm/dotfiles/context/vamos-2026-07-14_12-21-37_q-manager-session-handoff-rotation`
+- Selected base: `main` at `7ca824d7960e617861f647fd6314da34b2cff1fc`, exactly matching fetched `origin/main`
+- Parent stack state: no prior implementation stack exists; merged-parent handling is not applicable
+- Expected first slice parent: `main`
+- Safety rationale: the plan is a normal parent plan with no unmerged dependency stack, so latest fetched trunk preserves all prerequisites. The copied workspace is normalized to the committed base without modifying the planning checkout's unrelated tracked changes, preventing lost work while keeping the new Graphite stack rooted at trunk.
 
-```text
-/Users/swarm/dotfiles/context/vamos-2026-07-14_12-21-37_q-manager-session-handoff-rotation
-```
-
-Implementation happens in a normal copied directory, never a git worktree. `/q-workspace`, not this planning stage, chooses the final base after review edits. This is a normal parent plan, so use latest clean `origin/main` unless final review records a different safe parent. Create the copy with `cp -ac` on macOS or `cp -a --reflink=auto` on Linux.
-
-The workspace copy is the isolation boundary. The full plan directory must exist at the same relative `thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation` path so implementation can load questions, research, ADRs, reviews, and handoffs. If the candidate workspace already exists and is dirty, stop; move it aside only after explicit approval and with an explicit backup name.
+Implementation happens in this normal copied directory, never a git worktree. The workspace copy is the isolation boundary. The full plan directory exists at the same relative `thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation` path so implementation can load questions, research, ADRs, reviews, and handoffs.
 
 This is not an implementation-review follow-up. If this later becomes a review-fix plan, `/q-workspace` must first prove whether the parent implementation stack top is merged. An unmerged review-fix workspace must base on the exact parent stack top, and its first Graphite branch must report that top from `gt parent`.
 

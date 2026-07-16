@@ -159,7 +159,7 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Plan review complete; next is `/q-workspace`. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
+Workspace prep complete; next is `/q-implement` Slice 1. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
 
 ## Canonical context
 
@@ -189,6 +189,13 @@ Plan review complete; next is `/q-workspace`. Implementation order remains proac
 - Persist `/new` delivery as paste/submit phases so retry can submit an already-pasted command without pasting `/new` twice.
 - Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
 - V1 has no aggregate tool-output cap or upstream Pi API change.
+
+## Implementation workspace
+
+- Plan workspace: `/Users/swarm/dotfiles/thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation`
+- Implementation workspace: `/Users/swarm/dotfiles/context/vamos-2026-07-14_12-21-37_q-manager-session-handoff-rotation`
+- Base: `main` at `7ca824d7960e617861f647fd6314da34b2cff1fc`, matching fetched `origin/main`
+- No prior implementation stack exists; first Graphite slice must parent `main`. The copied workspace was normalized to the committed base without touching unrelated tracked changes in the planning checkout.
 
 ## Accepted ADRs
 
