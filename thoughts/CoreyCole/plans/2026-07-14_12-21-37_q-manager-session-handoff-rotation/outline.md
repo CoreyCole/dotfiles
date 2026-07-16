@@ -2,6 +2,7 @@
 date: 2026-07-16T16:05:08-07:00
 researcher: CoreyCole
 last_updated_by: CoreyCole
+last_updated_at: 2026-07-16T16:29:36-07:00
 git_commit: 7ca824d7960e617861f647fd6314da34b2cff1fc
 branch: main
 repository: vamos
@@ -98,12 +99,11 @@ Request/manager lifecycle surfaces:
 
 ```go
 type RotationRequestOptions struct {
-    StateFile       string
-    Role            RotationRole
-    ChildID         string
-    ChildGeneration int
-    SessionPath     string
-    Usage           ManagerUsageInput
+    StateFile   string
+    Role        RotationRole
+    ChildID     string
+    SessionPath string
+    Usage       ManagerUsageInput
 }
 
 type RotationRequestStatus struct {
@@ -178,7 +178,7 @@ type ManagerRotationClaimResult = {
 vamos qrspi rotation-request \
   --state-file <file> \
   --role manager|child \
-  [--child-id <id> --child-generation <n>] \
+  [--child-id <id>] \
   --session-path <jsonl> \
   --usage-percent <percent> \
   --output json
@@ -196,7 +196,7 @@ vamos qrspi manager-ready \
   --manager-pane <pane>
 ```
 
-`start-next`/initialization accepts configurable `--rotation-threshold-percent`; state default is `75`. Request compares usage under existing operation lock. Missing/null usage is represented by no request, never guessed.
+`start-next`/initialization accepts configurable `--rotation-threshold-percent`; state default is `75`. Request compares usage under existing operation lock. Missing/null usage is represented by no request, never guessed. Successful `start-next` and `continue` text output both expose the same stable `state: <path>` marker so the parent extension can bind direct operations and conversational q-manager CLI tool results.
 
 ## Extension Lifecycle
 
@@ -209,7 +209,6 @@ pi.on("turn_end", async (_event, ctx) => {
     role: "child",
     stateFile: process.env.Q_MANAGER_STATE_FILE,
     childId: process.env.Q_MANAGER_CHILD_ID,
-    childGeneration: process.env.Q_MANAGER_CHILD_GENERATION,
     sessionPath: ctx.sessionManager.getSessionFile(),
     usage,
   });
@@ -219,13 +218,13 @@ pi.on("turn_end", async (_event, ctx) => {
 });
 ```
 
-Keep existing `agent_end` → `child-complete`. On matching handoff auto-resume, `completeHandoffContinuation` marks the child rotation successor-ready from persisted continuation lineage. Generic/manual handoffs continue identically without requiring a rotation record.
+Keep existing `agent_end` → `child-complete`. The request CLI verifies child ID and exact JSONL under the operation lock, safely binds `ActiveChild.SessionPath` when still empty, and copies the current `ActiveChild.Generation` into the rotation record. It must not trust an environment generation: `mark-child-active` and manual rebind intentionally change delivery generation without restarting the child process. On matching handoff auto-resume, `completeHandoffContinuation` marks the child rotation successor-ready from persisted continuation lineage. Generic/manual handoffs continue identically without requiring a rotation record.
 
 Managed child `session_before_compact` cancels Pi compaction; provider exhaustion remains explicit terminal evidence.
 
 ### Manager
 
-Parent extension binds the active state file after `/q-manager start-next|continue` from the stable `state:` CLI line. It stores state file/rotation ID in module state plus process environment so same-process `/new` extension reload can claim; child processes are excluded when `Q_MANAGER_CHILD_ID` is set.
+Parent extension binds the active state file from the stable `state:` line after either a direct `/q-manager start-next|continue` operation or a successful matching `vamos qrspi start-next|continue` bash tool result produced by conversational q-manager. It maps the completed assistant bash call to its non-error tool result before trusting the marker, so arbitrary prose containing `state:` cannot bind the manager. It stores state file/rotation ID in module state plus process environment so same-process `/new` extension reload can claim; child processes are excluded when `Q_MANAGER_CHILD_ID` is set.
 
 Hooks:
 
@@ -269,6 +268,8 @@ Final result requires `stage: q-manager`, `status: handoff`, no outcome, and pri
 - `cmd/vamos-runtime/internal/qrspicmd/rotation_test.go` (new)
 - `cmd/vamos-runtime/internal/qrspicmd/child_completion_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/delivery_test.go`
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption.go`
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/integration_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/assets/q_manager_child_extension.js`
 - `.pi/extensions/q-manager-parent.ts`
@@ -294,7 +295,7 @@ No workflow-definition, q-resume, DB, schema, or upstream Pi source changes expe
 - `cmd/vamos-runtime/internal/qrspicmd/child_completion_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/assets/q_manager_child_extension.js`
 
-Add rotation config/state, `rotation-request`, idempotent owner/generation checks, child `turn_end` monitor, steering prompt, and managed compaction cancellation. Link matching merged continuation lineage to successor-ready; leave generic handoffs unchanged.
+Add rotation config/state, `rotation-request`, idempotent child ID/session checks with locked generation snapshot, child `turn_end` monitor, steering prompt, and managed compaction cancellation. Link matching merged continuation lineage to successor-ready; leave generic handoffs unchanged.
 
 ```go
 func RunRotationRequest(ctx context.Context, opts RotationRequestOptions, d deps, out io.Writer) error
@@ -302,7 +303,7 @@ func requestSessionRotation(state ManagerState, opts RotationRequestOptions, now
 func completeChildRotation(state ManagerState, source ChildRunRef, successor ChildRunRef) ManagerState
 ```
 
-**Test checkpoint:** `go test ./cmd/vamos-runtime/internal/qrspicmd` proves below/null/pending/stale suppression, one 75% request, exact child steering prompt, and matching handoff completion reuses one merged q-resume successor. Existing guided/discuss, artifact safety, duplicate callback, wake, and cleanup tests remain green.
+**Test checkpoint:** `go test ./cmd/vamos-runtime/internal/qrspicmd` proves below/null/pending/stale-session suppression, one 75% request, exact child steering prompt, current generation is copied after `mark-child-active`/rebind without disabling the current session, and matching handoff completion reuses one merged q-resume successor. Existing guided/discuss, artifact safety, duplicate callback, wake, and cleanup tests remain green.
 
 ### Slice 2: Manager operational handoff and same-pane fresh session
 
@@ -312,12 +313,14 @@ func completeChildRotation(state ManagerState, source ChildRunRef, successor Chi
 - `cmd/vamos-runtime/internal/qrspicmd/rotation.go`
 - `cmd/vamos-runtime/internal/qrspicmd/rotation_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/delivery_test.go`
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption.go`
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/integration_test.go`
 - `.pi/extensions/q-manager-parent.ts`
 - `.pi/skills/q-manager-handoff/SKILL.md` (new)
 - `.pi/skills/q-manager/SKILL.md`
 
-Add manager monitoring, operational handoff validation, exact-pane `/new`, fresh-session claim/kickoff injection, and `agent_start` ready acknowledgement. Queue wakes in `replacing`; reuse existing `manager-ready` lock and delivery flush.
+Add manager monitoring, direct/conversational state binding, operational handoff validation, exact-pane `/new`, fresh-session claim/kickoff injection, and `agent_start` ready acknowledgement. Queue wakes in `replacing`; during this intermediate slice continue to recognize legacy `compacting` as queue-only so existing compaction tests remain green, then delete that temporary branch in Slice 3. Reuse existing `manager-ready` lock and delivery flush.
 
 ```go
 func RunManagerRotationComplete(ctx context.Context, opts ManagerRotationCompleteOptions, d deps, out io.Writer) error
@@ -335,6 +338,8 @@ func claimManagerSuccessor(state ManagerState, opts ManagerRotationClaimOptions,
 - `cmd/vamos-runtime/internal/qrspicmd/options.go`
 - `cmd/vamos-runtime/internal/qrspicmd/root.go`
 - `cmd/vamos-runtime/internal/qrspicmd/manager_compaction_test.go` (remove/replace)
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption.go`
+- `cmd/vamos-runtime/internal/qrspicmd/manager_pane_adoption_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/delivery_test.go`
 - `cmd/vamos-runtime/internal/qrspicmd/integration_test.go`
 - `.pi/extensions/q-manager-parent.ts`
@@ -352,7 +357,7 @@ Delete fixed 90% manager compaction types/signals, `ctx.compact()` path, `compac
 | --- | --- |
 | below/null usage | no request |
 | duplicate same owner/rotation | return existing request; no second steering |
-| stale child generation/session | reject request/claim |
+| stale child ID/session | reject request; snapshot current generation only after identity matches |
 | child valid handoff | merged auto-resume; matching rotation successor-ready |
 | child invalid/launch/wake/cleanup failure | merged action cards and recovery; rotation keeps evidence |
 | manager invalid/missing handoff | no `/new`; source remains active |

@@ -182,7 +182,9 @@ Plan complete; next is formal plan review. Implementation order remains proactiv
 - Child monitor ends at existing `RunChildComplete`; merged auto-resume saves successor, durably notifies, then cleans predecessor. Do not use child `/new`.
 - Every ticket-level QRSPI Agent node already accepts same-node `status: handoff`; human-review/done nodes do not.
 - Existing per-state operation lock must serialize rotation request/completion/claim with child-complete, continue, and manager-ready.
-- Child launch must export the persisted child generation; JavaScript must not infer it from current state.
+- Child rotation requests identify child ID + exact JSONL; the locked CLI snapshots current `ActiveChild.Generation`. Do not export delivery generation as a process lease: `mark-child-active` and rebind can increment it without restarting the child.
+- Parent rotation binding must cover direct `/q-manager start-next|continue` and conversational q-manager CLI tool results via the stable state marker.
+- Slice 2 must temporarily recognize both `replacing` and old `compacting` queue/adoption states so its commit stays green; Slice 3 removes `compacting` and updates `manager_pane_adoption.go` plus tests.
 - Persist `/new` delivery as paste/submit phases so retry can submit an already-pasted command without pasting `/new` twice.
 - Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
 - V1 has no aggregate tool-output cap or upstream Pi API change.

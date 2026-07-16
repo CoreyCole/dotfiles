@@ -2,7 +2,7 @@
 date: 2026-07-15T11:06:58-07:00
 researcher: CoreyCole
 last_updated_by: CoreyCole
-last_updated_at: 2026-07-16T16:02:04-07:00
+last_updated_at: 2026-07-16T16:29:36-07:00
 git_commit: 7ca824d7960e617861f647fd6314da34b2cff1fc
 branch: main
 repository: vamos
@@ -104,7 +104,7 @@ The current assistant/tool batch always completes. Steering owns the next provid
 
 ### Child rotation on merged auto-resume
 
-1. Child `turn_end` requests rotation using state file + child ID/generation.
+1. Child `turn_end` requests rotation using state file + child ID + exact current session path. Under the state lock, the CLI verifies that source identity and snapshots the current `ActiveChild.Generation`; JavaScript does not carry a generation lease that becomes stale after `mark-child-active` or manual rebind.
 1. Child extension steers exact q-handoff stop-work instructions.
 1. Child writes an exact-stage in-progress handoff and emits graph-valid `status: handoff`.
 1. Existing `agent_end` → `RunChildComplete` validates it.
@@ -126,6 +126,7 @@ Local refs stay markdown-only; durable `qrspi_result` does not gain machine-loca
 
 ### Manager same-pane rotation
 
+1. Parent extension binds manager state from either a successful direct `/q-manager start-next|continue` operation or the stable state marker in a successful conversational q-manager CLI tool result; that same completed `turn_end` may then request rotation.
 1. Manager `turn_end` persists a rotation request and steers manager-handoff work.
 1. Manager writes operational handoff and final `status: handoff` YAML.
 1. Settled parent extension asks CLI to validate expected result/artifact and mark handoff-ready.
@@ -157,12 +158,12 @@ Phases: `requested` → `handoff_ready` → `replacing` → `successor_ready`; f
 
 Invariants:
 
-- One pending rotation per role/source generation.
+- One pending rotation per role/source identity. Child identity is child ID + exact JSONL; the locked request snapshots current delivery generation from state rather than trusting process environment.
 - Existing operation lock serializes request, completion, claim, ready, and wake mutation.
 - Durable validated handoff before replacement.
 - Child success is proven by merged continuation lineage.
 - Manager fresh claim must match rotation ID and exact pane/source session.
-- Stale session/child generation cannot clear newer rotation.
+- A stale child JSONL or manager predecessor cannot request, claim, or clear a newer rotation; `mark-child-active` generation changes do not disable monitoring for the still-current child session.
 - Wakes queue while manager delivery is replacing and flush only after successor start acknowledgement.
 
 ## Failure Semantics
