@@ -159,24 +159,29 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Approved design; next stage is outline. Implement proactive manager/child handoff rotation without Pi compaction.
+Outline complete; next is formal outline review. Implement proactive child monitoring first, manager same-pane rotation second, then remove native compaction and run repeated-rotation verification.
 
 ## Canonical context
 
-- Approved design: `design.md`
+- Revised approved design: `design.md`
+- Structural outline: `outline.md`
+- Merged-baseline validation: `context/outline/2026-07-16_16-02-04_merged-handoff-auto-resume-baseline.md`
 - Design reasoning: `context/design/2026-07-14_16-06-42_q-manager-session-handoff-rotation-design-brainstorm.md`
 - Research: `research/2026-07-14_15-34-21_q-manager-session-handoff-rotation.md`
 - Brainstorm / alignment: `context/brainstorms/2026-07-14_12-21-37_q-manager-session-handoff-rotation.md`
 - Research agenda: `questions/2026-07-14_13-10-05_q-manager-session-handoff-rotation.md`
-- Prior related work: `thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction/`
+- Implemented prerequisite: `thoughts/CoreyCole/plans/2026-07-16_10-32-28_q-manager-handoff-auto-resume/`
+- Superseded compaction work: `thoughts/creative-mode-agent/plans/2026-07-03_08-53-12_q-manager-auto-compaction/`
 
 ## Decisions to preserve
 
+- Merged baseline already owns graph-wide handoff, safe artifact validation, operation locking, fresh same-node q-resume child launch, lineage, wake retry, and predecessor cleanup. Reuse it; do not duplicate it.
 - Durable handoff must validate before fresh-session replacement; no native Pi compaction fallback.
 - At stable `turn_end`, configurable 75% usage queues one handoff instruction as steering, never follow-up.
-- Manager stays in the same pane: persist rotation, send built-in `/new`, then inject exact handoff from fresh `session_start`.
-- Child keeps existing fresh-pane/process launch, save successor, then close predecessor; do not use child `/new`.
-- Every ticket-level QRSPI Agent node accepts same-node `status: handoff`; human-review/done nodes do not.
+- Manager stays in the same pane: persist rotation, send built-in `/new`, then inject exact handoff from fresh `session_start` before wake release. Claim must pass Pi's `event.previousSessionFile` and match it to the persisted source JSONL.
+- Child monitor ends at existing `RunChildComplete`; merged auto-resume saves successor, durably notifies, then cleans predecessor. Do not use child `/new`.
+- Every ticket-level QRSPI Agent node already accepts same-node `status: handoff`; human-review/done nodes do not.
+- Existing per-state operation lock must serialize rotation request/completion/claim with child-complete, continue, and manager-ready.
 - Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
 - V1 has no aggregate tool-output cap or upstream Pi API change.
 

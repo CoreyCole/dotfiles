@@ -2,7 +2,8 @@
 date: 2026-07-15T11:06:58-07:00
 researcher: CoreyCole
 last_updated_by: CoreyCole
-git_commit: f61af15238c679df46583495971e2841e30dcc8c
+last_updated_at: 2026-07-16T16:02:04-07:00
+git_commit: 7ca824d7960e617861f647fd6314da34b2cff1fc
 branch: main
 repository: vamos
 stage: design
@@ -11,6 +12,8 @@ plan_dir: thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff
 project: github.com/CoreyCole/vamos
 related_projects:
   - github.com/earendil-works/pi-mono
+related_plans:
+  - thoughts/CoreyCole/plans/2026-07-16_10-32-28_q-manager-handoff-auto-resume
 related_adrs:
   - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/adrs/2026-07-15_11-06-58_durable-handoff-fresh-session-rotation.md
   - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/adrs/2026-07-15_11-06-58_turn-end-steering-at-75-percent.md
@@ -21,281 +24,235 @@ brainstorm_docs:
   - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/questions/2026-07-14_13-10-05_q-manager-session-handoff-rotation.md
   - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/research/2026-07-14_15-34-21_q-manager-session-handoff-rotation.md
   - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/context/design/2026-07-14_16-06-42_q-manager-session-handoff-rotation-design-brainstorm.md
+  - thoughts/CoreyCole/plans/2026-07-14_12-21-37_q-manager-session-handoff-rotation/context/outline/2026-07-16_16-02-04_merged-handoff-auto-resume-baseline.md
 ---
 
 # Design: q-manager session handoff rotation
 
 ## Executive Summary
 
-Replace q-manager parent compaction and reactive child exhaustion as normal continuity with proactive durable handoff plus fresh Pi session.
+Add proactive context monitoring and manager-session rotation on top of the merged q-manager handoff auto-resume foundation.
 
-Managed manager/child extensions sample usage at completed `turn_end`. At configurable 75%, one persisted rotation intent queues q-handoff work as steering. Current tool batch finishes; handoff owns the next turn.
+Merged code already validates graph-wide handoffs, auto-launches one fresh same-node `q-resume` child in guided/autopilot, persists replacement lineage, delivers or queues the wake, and cleans the predecessor last. This plan must reuse that child continuation path rather than build another replacement state machine.
 
-After artifact/result validation, manager rotates in-place with built-in `/new`; child reuses q-manager's fresh-pane launch/save/close flow. Every QRSPI Agent node accepts same-node handoff.
-
-Risk: one extreme parallel batch can jump past reserve. V1 stays simple: early threshold, current truncation, explicit exhaustion recovery, no compaction or fabricated result.
+Remaining work: monitor manager and child Pi sessions at completed `turn_end`; at configurable 75% usage, persist one rotation request and steer the next turn into q-handoff. Child completion then flows through merged auto-resume. Manager completion validates an operational handoff, replaces the same-pane Pi session with built-in `/new`, injects exact continuation from fresh `session_start`, then releases queued wakes.
 
 ## Goals
 
-- Rotate before overflow through durable QRSPI handoff.
-- Auto-start exact-context successor; preserve inspectable predecessor history and one active owner.
-- Allow handoff from every managed Agent node.
+- Request durable handoff before manager or child provider overflow.
+- Reuse merged child auto-resume as the sole child replacement path.
+- Replace native parent compaction with same-pane fresh manager sessions.
+- Preserve one active owner, exact artifact context, inspectable predecessors, and recoverable failures.
 
 ## Non-Goals
 
-- Exact token accounting, aggregate output cap, or upstream Pi API.
-- Identical role mechanics, hidden execution, or runtime-authored result.
-- Product-design graph changes; latest QRSPI makes it standalone.
+- Reimplement graph-wide handoff, artifact validation, q-resume prompting, child launch lineage, wake retry, or pane cleanup.
+- Auto-run normal `complete` transitions from `child-complete`.
+- Exact next-payload token accounting, aggregate tool-output cap, or telemetry prerequisite.
+- Upstream Pi API changes, child in-pane `/new`, hidden child execution, or fabricated QRSPI results.
 
-## Current State
+## Merged Foundation
 
-### Pi
+`q-manager-handoff-auto-resume` landed in `e6f1e1f..374f8d6`, with follow-up docs on current `main` `7ca824d`.
 
-- Assistant plus full tool batch completes before `turn_end`; steering is polled before next provider call. `/Users/swarm/dotfiles/context/pi/packages/agent/src/agent-loop.ts:224-259`.
-- `getContextUsage()` estimates transcript usage, not exact next payload. `/Users/swarm/dotfiles/context/pi/packages/coding-agent/src/core/agent-session.ts:3078-3119`.
-- `sendUserMessage(..., {deliverAs: "steer"})` enters steering while streaming. `/Users/swarm/dotfiles/context/pi/packages/coding-agent/src/core/agent-session.ts:1431-1471`.
-- Built-in `/new` awaits runtime session replacement. `/Users/swarm/dotfiles/context/pi/packages/coding-agent/src/modes/interactive/interactive-mode.ts:5833-5847`.
+### Graph and handoff contract
 
-### Manager
+- All 15 agent-owned ticket-level QRSPI nodes accept `StatusHandoff`; human-review/done reject it.
+- Handoff remains same-node runtime continuation; guided/autopilot starts, discuss waits.
+- Exact-node handoff frontmatter uses `status: in_progress`; result uses `status: handoff`, no outcome.
+- `q-handoff` and `q-resume` enumerate every resumable node.
 
-- Parent samples usage only during direct `/q-manager start-next|continue`. `.pi/extensions/q-manager-parent.ts:33-64`.
-- Threshold writes manager handoff, marks `compacting`, then calls `ctx.compact()`. `cmd/vamos-runtime/internal/qrspicmd/root.go:2230-2285`; `.pi/extensions/q-manager-parent.ts:226-237`.
-- Generated manager handoff lacks some session/output/validation refs required by skill. `cmd/vamos-runtime/internal/qrspicmd/root.go:2350-2446`.
-- Manager pane adoption and queued wake flush already exist.
+### Child continuation
 
-### Child and graph
+- `RunChildComplete` validates the graph decision and in-plan handoff artifact.
+- Artifact validation maps through source-child cwd, resolves symlinks, requires regular file under real `handoffs/`, exact source stage, and `in_progress` status.
+- Per-state operation lock serializes `child-complete`, `continue`, and `manager-ready` mutation.
+- Guided/autopilot persists same-node decision and source claim, launches a fresh q-resume child, and stores replacement lineage.
+- Order is replacement durable → source validation status → wake delivered/queued → predecessor cleanup.
+- Duplicate source callbacks recover the persisted continuation; wake/pane failures converge without duplicate launch.
+- Replacement tmux splits target the stored manager pane.
 
-- Child extension reacts only at `agent_end`. `cmd/vamos-runtime/internal/qrspicmd/assets/q_manager_child_extension.js:75-109`.
-- Valid continuation launches/saves replacement before old-pane cleanup. `cmd/vamos-runtime/internal/qrspicmd/root.go:3428-3477`; `cmd/vamos-runtime/internal/qrspicmd/root.go:4195-4230`.
-- Child prompt already carries graph skill, exact artifact, full prior YAML. `cmd/vamos-runtime/internal/qrspicmd/prompt.go:38-78`.
-- Runtime handoff already means same-node continuation. `pkg/agents/workflows/runtime/transition.go:71-83`.
-- Local graph allows handoff only on implement/verify. `pkg/agents/workflows/qrspi/definition_agentchat.go:91-101`.
+### Existing parent behavior still to replace
+
+- Parent usage is sampled only when `/q-manager start-next|continue` runs.
+- Threshold remains fixed at 90%.
+- CLI writes a manager operational handoff, marks delivery `compacting`, then the parent extension calls `ctx.compact()`.
+- Fresh manager must manually run `manager-ready`.
+- Generated operational handoff still describes compaction and lacks a proactive rotation identity.
+
+### Existing child trigger gap
+
+- Generated child extension invokes `child-complete` only from `agent_end`.
+- It does not sample usage or steer a handoff at `turn_end`.
+- Merged auto-resume solves continuation after a valid handoff, not proactive handoff creation.
 
 ## Desired End State
 
-### Shared monitor
+### Shared rotation request
 
-Every managed session:
+Manager and child extensions use one CLI-owned request contract:
 
 1. Observe completed `turn_end`.
-1. Read estimated usage.
-1. Ignore below threshold, unknown usage, or pending rotation.
-1. At threshold, persist one rotation intent.
-1. Queue exact handoff instruction as steering.
-1. Allow only handoff creation to continue.
-1. Validate durable handoff result.
-1. Replace through role-specific path.
-1. Inject exact handoff before successor work.
-1. Clear pending state after successor claim/start.
+1. Read `ctx.getContextUsage()`.
+1. Ignore missing/null usage, below-threshold usage, stale owner, or existing pending rotation.
+1. At configurable default 75%, acquire the existing state operation lock.
+1. Persist one rotation ID, role, source identity, usage sample, threshold, and phase.
+1. Return an exact role-specific handoff prompt.
+1. Queue it once with `deliverAs: "steer"`.
 
-Representative direction:
+The current assistant/tool batch always completes. Steering owns the next provider turn. Threshold is conservative policy, not a proof against one extreme parallel batch.
 
-```ts
-pi.on("turn_end", (_event, ctx) => {
-  const usage = ctx.getContextUsage();
-  if (!rotationPending && usage?.percent !== null && usage.percent >= threshold) {
-    rotationPending = true;
-    persistRotationIntent();
-    pi.sendUserMessage(handoffPrompt, { deliverAs: "steer" });
-  }
-});
-```
+### Child rotation on merged auto-resume
 
-Outline owns exact state/types.
+1. Child `turn_end` requests rotation using state file + child ID/generation.
+1. Child extension steers exact q-handoff stop-work instructions.
+1. Child writes an exact-stage in-progress handoff and emits graph-valid `status: handoff`.
+1. Existing `agent_end` → `RunChildComplete` validates it.
+1. Merged auto-resume launches and persists one fresh same-stage q-resume child.
+1. Existing durable wake and cleanup ordering applies.
+1. Rotation state records successor-ready only when persisted lineage matches the requested source.
 
-### Steering and reserve
+No second child launcher, replacement record, artifact validator, or wake protocol.
 
-- Steering, never follow-up.
-- Current assistant/tool batch always finishes.
-- Handoff becomes next user message before normal continuation.
-- q-handoff stop-work limits work to checkpoint creation.
-- Final YAML/no-tool response ends naturally.
-- Configurable default: 75% for manager and child.
-- No model table, aggregate cap, or telemetry prerequisite in v1.
-- Unknown usage does not trigger.
-- Existing provider-exhaustion recovery remains explicit failure path.
-- Threshold is conservative, not a safety proof.
+### Manager operational handoff
 
-### Child handoff contract
+Use a dedicated lightweight manager handoff prompt/helper. Artifact contains:
 
-- Standard artifact under plan `handoffs/`.
-- Stage remains current node.
-- `status: handoff`; no outcome.
-- Handoff/checkpoint is primary artifact.
-- `next.steps` load q-resume plus exact stage context.
-- q-manager validates before replacement.
+- Durable refs: plan, current node, latest result/artifact, handoff path.
+- Local labeled refs: state file, run/pane/session, active child output/status/done/session refs.
+- Rotation ID and exact continuation instruction.
 
-### Manager handoff contract
+Local refs stay markdown-only; durable `qrspi_result` does not gain machine-local fields.
 
-Dedicated lightweight manager wrapper:
+### Manager same-pane rotation
 
-- Durable refs: plan, node, latest result/artifact.
-- Local refs: state, pane, session, output/status/done paths.
-- Exact continuation/ready instruction.
-- Local refs stay markdown-only, not structured YAML.
-- Parent validates expected manager handoff before `/new`.
+1. Manager `turn_end` persists a rotation request and steers manager-handoff work.
+1. Manager writes operational handoff and final `status: handoff` YAML.
+1. Settled parent extension asks CLI to validate expected result/artifact and mark handoff-ready.
+1. CLI sets delivery replacing so child wakes queue.
+1. CLI targets exact manager pane with `/new` + Enter once.
+1. Pi tears down old extension runtime, creates fresh JSONL, reloads extensions, emits `session_start(reason: "new")`.
+1. Fresh extension claims the expected pane/rotation and records successor session identity.
+1. Extension injects exact manager handoff + continuation prompt.
+1. Successor-start acknowledgement marks rotation successor-ready and flushes one lineage-current queued wake.
 
-### Manager rotation
-
-1. Monitor queues manager-handoff steering.
-1. Agent writes operational handoff and final YAML.
-1. Settled extension asks CLI to validate/persist readiness.
-1. Delivery enters `rotating`; child wakes queue.
-1. CLI sends `/new` + Enter to exact manager pane.
-1. Pi replaces session/runtime; pane stays stable.
-1. Fresh extension `session_start` claims rotation ID.
-1. Extension records new session identity.
-1. Extension injects full handoff YAML/path.
-1. Delivery becomes ready; one current wake flushes.
-
-Never paste `/new` and kickoff back-to-back. Fresh `session_start` is injection boundary. Old JSONL stays inspectable; old extension runtime is invalidated.
-
-### Child rotation
-
-1. Monitor queues stage handoff steering.
-1. Child writes handoff/final YAML.
-1. `agent_end` validates through child completion.
-1. Runtime decides same-node continuation.
-1. q-manager renders exact handoff/full-YAML prompt.
-1. q-manager launches fresh pane/process/session with correct stage/cwd/env.
-1. New child becomes `ActiveChild`.
-1. q-manager closes predecessor pane.
-1. Cleanup failure preserves predecessor ref.
-
-Do not use child `/new`: process env binds child/stage/cwd/session/path/wake refs; in-place replacement creates stale control state.
-
-### Graph-wide handoff
-
-Add `StatusHandoff` to every ticket-level Agent node:
-
-- question, research, design
-- outline, review-outline
-- research/address-review-research-outline
-- plan, review-plan
-- research/address-review-research-plan
-- workspace, implement
-- review-implementation, verify
-
-Exclude human-review and done nodes.
-
-q-resume becomes stage-aware for every Agent node. Handoff artifact is read explicitly; full prior YAML stays verbatim. Existing human-created product design remains optional context only.
+Never paste `/new` and kickoff back-to-back. `session_start` is the injection boundary. Predecessor JSONL remains inspectable.
 
 ## State and Ownership
 
-Persist one rotation record:
+Extend existing `ManagerState`; do not create a parallel store.
 
-- role and rotation ID
-- expected node/child generation
-- usage sample and threshold
-- phase
-- handoff artifact/result
-- predecessor/successor session identity
-- timestamps and last error
+Rotation record needs:
 
-Phases: requested → handoff-ready → replacing → successor-ready; failure records error without erasing refs.
+- rotation ID and role (`manager` or `child`)
+- source manager session or child ID/generation
+- source graph node
+- usage sample and configured threshold
+- phase and timestamps
+- handoff result/artifact
+- successor session or child lineage
+- last error
+
+Phases: `requested` → `handoff_ready` → `replacing` → `successor_ready`; failures preserve phase evidence and refs.
 
 Invariants:
 
-- One pending rotation per role/session generation.
-- Durable handoff before replacement.
-- Child successor saved before predecessor close.
-- Manager `session_start` must match rotation ID.
-- Wakes queue during manager replacement.
-- Stale generation/rotation cannot clear newer state.
+- One pending rotation per role/source generation.
+- Existing operation lock serializes request, completion, claim, ready, and wake mutation.
+- Durable validated handoff before replacement.
+- Child success is proven by merged continuation lineage.
+- Manager fresh claim must match rotation ID and exact pane/source session.
+- Stale session/child generation cannot clear newer rotation.
+- Wakes queue while manager delivery is replacing and flush only after successor start acknowledgement.
 
 ## Failure Semantics
 
 ### Handoff cannot finish
 
-No rotation. Preserve predecessor evidence. Surface exhaustion/invalid-result recovery. Never compact or fabricate YAML.
+No replacement. Preserve source session, rotation request, and terminal evidence. Existing provider-context recovery remains explicit; never compact or fabricate YAML.
 
-### Manager `/new` or injection fails
+### Child continuation fails
 
-Keep handoff and pending/failed rotation. Keep queued wake. Action card gives exact retry. Do not flush wake before fresh claim/injection succeeds.
+Use merged `invalid_handoff_artifact`, `handoff_continuation_failed`, queued wake, lineage recovery, and pending cleanup behavior. Rotation state only adds trigger/source evidence.
 
-### Child launch or cleanup fails
+### Manager `/new` fails
 
-Launch failure keeps predecessor; relaunch same node from validated handoff. Cleanup failure leaves successor active and pending-cleanup ref; old generation cannot deliver accepted wake.
+Keep validated handoff and replacing/failed state. Keep queued wake. Action card supplies exact retry; do not issue another `/new` without checking rotation/source identity.
+
+### Fresh manager claim or injection fails
+
+Preserve handoff, predecessor/successor session refs, and queued wake. Retry claim/injection into the current same-pane session or expose deterministic recovery; do not mark ready early.
 
 ### Unknown usage
 
-Continue without guessed percentage. Existing provider-context evidence drives recovery.
+Continue without guessed percentage. Existing provider-context failure evidence remains authoritative.
 
 ## Patterns to Follow
 
-- Pi full-turn steering boundary. `/Users/swarm/dotfiles/context/pi/packages/agent/src/agent-loop.ts:224-259`.
-- q-manager replacement-before-retirement. `cmd/vamos-runtime/internal/qrspicmd/root.go:3428-3477`.
-- Generic same-node handoff. `pkg/agents/workflows/runtime/transition.go:71-83`.
-- Full prior-YAML prompt. `cmd/vamos-runtime/internal/qrspicmd/prompt.go:38-78`.
-- Exact tmux pane targeting. `cmd/vamos-runtime/internal/qrspicmd/tmux.go:34-47`.
-- Existing generation/delivery suppression.
+- Merged operation lock, continuation lineage, wake retry, and cleanup convergence.
+- Merged q-resume prompt with full prior YAML and exact handoff.
+- Pi `turn_end` full-batch steering boundary.
+- Pi `/new` lifecycle: old shutdown → runtime replacement → fresh `session_start`.
+- Existing exact manager-pane targeting and manager pane adoption.
 
 ## Patterns to Avoid
 
-- `agent_end` trigger or `followUp` handoff.
-- Native compaction or blind `/new` + kickoff race.
-- Child `/new` with stale env.
-- Fabricated result or stage handoff exemption.
-- Duplicate rotation IDs/retries.
+- Reopening graph-wide handoff or child auto-resume design.
+- Triggering from `agent_end` or using follow-up messages.
+- Native compaction or child `/new`.
+- Separate child rotation launcher/state machine.
+- Blind `/new` + kickoff tmux paste.
+- Wake flush before fresh manager claim and start acknowledgement.
+- Result movement inferred from `next.steps` or child-emitted policy.
 
 ## Verification Strategy
 
-### Extension
+### Shared request/extension
 
-- Parallel batch finishes before steering.
-- Exactly one trigger above threshold.
-- Below/unknown usage does not trigger.
-- Pending state suppresses duplicates.
-- Fresh manager session injects exact handoff.
-- Stale session start cannot claim newer rotation.
+- Full parallel tool batch completes before one steering prompt.
+- Exactly one request above threshold; below/null/pending suppress.
+- Default 75% is configurable and persisted.
+- Stale child/session identity cannot request or claim rotation.
 
-### Graph/runtime
+### Child integration
 
-- Enumerate every Agent node; handoff accepted.
-- Human/done reject handoff.
-- Same node remains pending/idle.
-- Guided auto-starts; discuss leaves pending.
+- Triggered research/design/review/implementation handoff uses merged q-resume path.
+- Existing artifact safety, operation-lock, duplicate callback, wake, and cleanup tests stay green.
+- Rotation becomes successor-ready only from matching persisted continuation lineage.
 
-### q-manager
+### Manager rotation
 
-- Manager handoff contains all required refs.
-- Wake queues during replacement.
-- `/new` targets exact pane once.
-- Fresh claim precedes wake flush.
-- Child successor save precedes close.
-- Launch/cleanup failure preserves refs.
-- Stale generation/wake suppressed.
+- Operational handoff includes required durable and local refs plus rotation ID.
+- Result/artifact validate before `/new`.
+- Exact manager pane receives `/new` once.
+- Fresh `session_start` injects exact handoff; old extension state is not reused.
+- Wake remains queued until successor start acknowledgement.
+- Duplicate/stale claim, `/new` failure, injection failure, and restart recovery preserve refs.
 
 ### Controlled tmux
 
-Use low test threshold. Confirm durable handoff, manager same-pane new session with automatic injection, child fresh pane with old-pane cleanup, same-node resume, valid completion, inspectable old JSONL.
+Use a low threshold. Prove manager same-pane fresh JSONL and automatic continuation, child fresh-pane q-resume, repeated rotations without pane accumulation, valid stage completion, and inspectable predecessor sessions.
 
 ## Rollout
 
-- Replace manager compaction directly; no compatibility mode.
-- Keep reactive exhaustion action card.
-- Expose 75% through normal q-manager config/CLI.
-- Update graph contracts before monitor activation.
-- Update skills and generated child extension together.
-- Run focused graph/runtime tests, then controlled tmux story.
+1. Treat merged auto-resume as prerequisite baseline; no duplicate graph/child work.
+1. Add shared rotation state/request and child monitoring first.
+1. Add manager operational handoff validation and same-pane fresh-session claim/injection.
+1. Remove native parent compaction path and 90% terminology directly.
+1. Update q-manager docs/skills and generated child extension together.
+1. Run focused/race/build checks plus controlled manager/child tmux story.
 
 ## Decision
 
-Use proactive `turn_end` steering into durable q-handoff, then role-specific fresh-session replacement. Reuses proven q-manager child lifecycle and Pi `/new`; keeps graph/artifacts authoritative; avoids upstream complexity.
+Build proactive 75% `turn_end` handoff requests and same-pane manager fresh-session rotation on top of merged graph-authorized child auto-resume. Child rotation ends at the existing `RunChildComplete` continuation transaction; only trigger metadata and manager lifecycle remain new.
 
 ## Resolved Decisions
 
-- Durable handoff before fresh session; no compaction. See [`adrs/2026-07-15_11-06-58_durable-handoff-fresh-session-rotation.md`](adrs/2026-07-15_11-06-58_durable-handoff-fresh-session-rotation.md).
-- Configurable 75% `turn_end` steering. See [`adrs/2026-07-15_11-06-58_turn-end-steering-at-75-percent.md`](adrs/2026-07-15_11-06-58_turn-end-steering-at-75-percent.md).
-- Manager same-pane `/new`; child fresh-pane replacement. See [`adrs/2026-07-15_11-06-58_asymmetric-manager-child-session-replacement.md`](adrs/2026-07-15_11-06-58_asymmetric-manager-child-session-replacement.md).
-- Handoff on every Agent node. See [`adrs/2026-07-15_11-06-58_graph-wide-agent-handoff.md`](adrs/2026-07-15_11-06-58_graph-wide-agent-handoff.md).
-
-## ADR Candidate Disposition
-
-- Accepted: durable handoff/fresh session; threshold; role-specific replacement; graph-wide handoff.
-- Resolved without ADR: manager wrapper; upstream Pi API unnecessary.
-- Deferred: aggregate output cap and telemetry tuning.
+- Durable handoff before fresh session; no compaction.
+- Configurable 75% `turn_end` steering.
+- Manager same-pane `/new`; child merged fresh-pane q-resume.
+- Graph-wide handoff and child continuation are implemented baseline, not this plan's work.
 
 ## Open Questions
 
-None blocking outline. V1 accepts conservative-not-guaranteed reserve semantics.
+None blocking outline. Exact CLI command/type names and manager fresh-session binding belong in outline; no upstream Pi change is expected.
