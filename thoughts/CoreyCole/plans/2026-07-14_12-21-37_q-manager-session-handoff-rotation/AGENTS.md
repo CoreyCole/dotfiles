@@ -159,7 +159,7 @@ Use handoffs for checkpoint status. Promote only durable, high-signal learnings 
 
 ## Current focus
 
-Workspace prep complete; next is `/q-implement` Slice 1. Implementation order remains proactive child monitoring, manager same-pane rotation, then native-compaction removal and repeated-rotation verification.
+Proactive child monitoring and validated manager same-pane replacement are implemented. Next remove legacy native compaction/terminology, document recovery, then run repeated-rotation verification.
 
 ## Canonical context
 
@@ -189,6 +189,7 @@ Workspace prep complete; next is `/q-implement` Slice 1. Implementation order re
 - Persist `/new` delivery as paste/submit phases so retry can submit an already-pasted command without pasting `/new` twice.
 - Unknown usage does not trigger; existing provider-exhaustion recovery remains explicit failure path.
 - V1 has no aggregate tool-output cap or upstream Pi API change.
+- Parent completion uses Pi `agent_settled`; Vamos pins `@earendil-works/pi-coding-agent` 0.80.7 because the prepared 0.80.3 types predated that lifecycle event.
 
 ## Implementation workspace
 

@@ -18,8 +18,8 @@ related_projects:
 
 ## Status
 
-- [ ] Slice 1: Proactive child rotation through merged auto-resume
-- [ ] Slice 2: Manager operational handoff and same-pane fresh session
+- [x] Slice 1: Proactive child rotation through merged auto-resume
+- [x] Slice 2: Manager operational handoff and same-pane fresh session
 - [ ] Slice 3: Remove native compaction, document recovery, and verify repeated rotation
 
 ## Scope and submission model
@@ -327,8 +327,14 @@ Make manager rotation durable and exact: manager `turn_end` requests an operatio
 - `.pi/extensions/q-manager-parent.ts` (modify)
 - `.pi/skills/q-manager-handoff/SKILL.md` (new)
 - `.pi/skills/q-manager/SKILL.md` (modify)
+- `package.json` (modify)
+- `pnpm-lock.yaml` (modify)
 
 ### Changes
+
+#### `package.json` / `pnpm-lock.yaml`: Pi lifecycle event types
+
+Bump `@earendil-works/pi-coding-agent` from 0.80.3 to 0.80.7. The reviewed plan relies on the current `agent_settled` event, but the prepared workspace's older package did not expose that event in `ExtensionAPI`; use the first pinned release that does rather than weakening the extension to `agent_end` or adding local type shims.
 
 #### `options.go` / `state.go`: manager completion, claim, and convergent `/new` delivery
 
