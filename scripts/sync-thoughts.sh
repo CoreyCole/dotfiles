@@ -9,6 +9,15 @@ NC='\033[0m' # No Color
 
 echo "📤 Syncing thoughts..."
 
+THOUGHTS_REPO="$HOME/cn/chestnut-flake/cn-agents"
+if [ ! -d "$THOUGHTS_REPO/.git" ]; then
+    echo -e "${RED}Error: thoughts repository not found at ${THOUGHTS_REPO}${NC}"
+    exit 1
+fi
+
+cd "$THOUGHTS_REPO"
+echo -e "${GREEN}Repository: ${THOUGHTS_REPO}${NC}"
+
 # Validate mdformat has frontmatter plugin installed
 MDFORMAT_VERSION=$(mdformat --version 2>/dev/null || echo "not found")
 if [ "$MDFORMAT_VERSION" = "not found" ]; then
@@ -157,7 +166,7 @@ if [ -n "$SHARED_FILES" ]; then
                 mv "$file" "$dest_file"
             done
         fi
-    done <<< "$SHARED_FILES"
+    done <<<"$SHARED_FILES"
 
     # Clean up empty directories in thoughts/shared/
     find thoughts/shared/ -type d -empty -delete 2>/dev/null || true
@@ -179,7 +188,7 @@ if [ -n "$MD_FILES" ]; then
             echo "  Formatting: $file"
             mdformat "$file"
         fi
-    done <<< "$MD_FILES"
+    done <<<"$MD_FILES"
     echo -e "${GREEN}✓ Markdown formatting complete${NC}"
 else
     echo "No markdown files to format"

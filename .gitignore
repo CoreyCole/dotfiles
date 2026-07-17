@@ -28,6 +28,7 @@
 .claude/downloads
 .claude/.last-cleanup
 context/
+/thoughts
 .pi-config/node_modules/
 .pi-config/auth.json
 .pi-config/sessions/

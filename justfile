@@ -22,6 +22,6 @@ setup:
   ./hooks/post-pull
   ./.pi-config/setup.sh
 
-# Format, commit, pull --rebase, and push changed thoughts/ artifacts.
+# Format, commit, pull --rebase, and push thoughts in ~/cn/chestnut-flake/cn-agents.
 sync-thoughts:
   @./scripts/sync-thoughts.sh
