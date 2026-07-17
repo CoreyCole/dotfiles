@@ -15,7 +15,6 @@ short_path() {
     local best_path=""
 
     # Keep this in sync with neovim-config/lua/winbar.lua special_dirs.
-    local worktree_marker="*"
     local entries=(
         "DSUI:$home/cn/chestnut-flake/cn-agents/pkg/datastarui"
         "AGENTS:$home/cn/chestnut-flake/cn-agents"
@@ -24,22 +23,24 @@ short_path() {
         "DOTFILES:$home/dotfiles"
         "HOME:$home"
     )
-    local dsui_dir
+    local dsui_dir dsui_checkout dsui_suffix
     for dsui_dir in "$home"/cn/chestnut-flake/cn-agents-*/pkg/datastarui; do
         [[ -d "$dsui_dir" ]] || continue
-        entries+=("DSUI$worktree_marker:$dsui_dir")
+        dsui_checkout=${dsui_dir%/pkg/datastarui}
+        dsui_checkout=${dsui_checkout##*/}
+        dsui_suffix=${dsui_checkout#cn-agents}
+        entries+=("DSUI$dsui_suffix:$dsui_dir")
     done
 
-    local entry name dir parent base candidate candidate_name remainder
+    local entry name dir parent base candidate candidate_name remainder suffix
     for entry in "${entries[@]}"; do
         name=${entry%%:*}
         dir=${entry#*:}
         [[ -n "$dir" ]] || continue
 
         # Match the canonical checkout, plus sibling feature checkouts such as
-        # vamos-*, cn-agents-*, monorepo-*, and numbered monorepo2/monorepo3
-        # workspaces. Feature checkout names can be very long, so the status
-        # only marks them with a symbol; the full branch name is shown later.
+        # vamos-*, cn-agents-*, monorepo-*, and numbered monorepo2/monorepo3.
+        # Preserve each checkout's suffix so distinct worktrees remain visible.
         parent=${dir%/*}
         base=${dir##*/}
         candidate=""
@@ -50,7 +51,9 @@ short_path() {
         elif [[ "$path" == "$parent/$base"-* || "$path" == "$parent/$base"[0-9]* ]]; then
             remainder=${path#"$parent/"}
             candidate="$parent/${remainder%%/*}"
-            candidate_name="$name$worktree_marker"
+            suffix=${candidate##*/}
+            suffix=${suffix#"$base"}
+            candidate_name="$name$suffix"
         fi
 
         if [[ -n "$candidate" && ${#candidate} -gt ${#best_path} ]]; then
@@ -89,6 +92,8 @@ git_branch() {
 }
 
 client_width=${2:-0}
+session_name=${3:-}
+remote_mode=${4:-0}
 
 truncate_text() {
     local text=$1
@@ -106,37 +111,40 @@ truncate_text() {
         return
     fi
 
-    printf '%s…' "${text:0:max-1}"
+    printf '…%s' "${text: -$((max - 1))}"
 }
 
 context_width_limit() {
     local width=$1
+    local session=$2
+    local remote=$3
     local limit
 
     if ((width <= 0)); then
-        printf '120'
+        printf '1000'
         return
     fi
 
-    # Use a fraction of the terminal so the tmux window list keeps priority,
-    # but do not punish naturally short contexts like "DOTFILES  main".
-    if ((width < 80)); then
-        limit=$((width * 40 / 100))
-    else
-        limit=$((width * 50 / 100))
+    # Always reserve room for the session label and all ten single-digit
+    # window tabs (" #I "). Reserve the remote indicator only when shown. The
+    # context may use all remaining space; there is no arbitrary width cap.
+    local session_width=$((${#session} + 2))
+    local tabs_width=$((10 * 3))
+    local remote_indicator_width=0
+    if ((remote)); then
+        remote_indicator_width=9
     fi
+    limit=$((width - session_width - tabs_width - remote_indicator_width))
 
-    if ((limit < 20)); then
-        limit=20
-    elif ((limit > 120)); then
-        limit=120
+    if ((limit < 0)); then
+        limit=0
     fi
     printf '%s' "$limit"
 }
 
 plain_display_path=$(short_path "$cwd")
 plain_branch=$(git_branch "$cwd")
-max_context_width=$(context_width_limit "$client_width")
+max_context_width=$(context_width_limit "$client_width" "$session_name" "$remote_mode")
 
 branch_suffix=""
 if [[ -n "$plain_branch" ]]; then
