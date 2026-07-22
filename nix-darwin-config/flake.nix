@@ -275,6 +275,7 @@
             "fnm" # Fast Node Manager
             "cmake"
             "ninja"
+            "tree-sitter-cli" # Parser compiler required by nvim-treesitter
             "gettext"
             "curl"
             "git"

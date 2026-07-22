@@ -99,7 +99,7 @@ M.open = function(buf, win, action)
         if headerw > max_w then
             max_w = headerw
         end
-        local col = math.floor((winw / 2) - math.floor(vim.api.nvim_strwidth(v) / 2)) - 6
+        local col = math.max(0, math.floor((winw / 2) - math.floor(vim.api.nvim_strwidth(v) / 2)) - 6)
         local opt = { virt_text_win_col = col, virt_text = { { v, "NvDashAscii" } } }
         table.insert(ui, opt)
     end
@@ -119,7 +119,7 @@ M.open = function(buf, win, action)
         local col, opt
 
         local str = spaced_button(v.txt, v.keys, w)
-        col = math.floor((winw / 2) - math.floor(w / 2)) - 6
+        col = math.max(0, math.floor((winw / 2) - math.floor(w / 2)) - 6)
         opt = { virt_text_win_col = col, virt_text = { { str, "NvDashButtons" } } }
 
         table.insert(ui, opt)

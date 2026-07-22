@@ -1,3 +1,11 @@
+-- A shell opened inside Neovim can retain an unusable per-instance runtime
+-- directory. Long paths also leave too little room for fzf-lua's Unix socket.
+local runtime_dir = vim.env.XDG_RUNTIME_DIR
+local runtime_dir_is_invalid = runtime_dir and (vim.fn.filewritable(runtime_dir) ~= 2 or #runtime_dir > 70)
+if runtime_dir_is_invalid then
+    vim.env.XDG_RUNTIME_DIR = nil
+end
+
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
