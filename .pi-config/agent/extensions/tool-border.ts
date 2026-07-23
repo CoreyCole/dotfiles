@@ -1,5 +1,6 @@
 import {
   AssistantMessageComponent,
+  BashExecutionComponent,
   ToolExecutionComponent,
   UserMessageComponent,
   type ExtensionAPI,
@@ -15,6 +16,9 @@ const ORIGINAL_UPDATE_DISPLAY = Symbol.for(
   "corey.toolBorderOriginalUpdateDisplay",
 );
 const ORIGINAL_RENDER = Symbol.for("corey.toolBorderOriginalRender");
+const ORIGINAL_USER_BASH_RENDER = Symbol.for(
+  "corey.toolBorderOriginalUserBashRender",
+);
 const ORIGINAL_ASSISTANT_RENDER = Symbol.for(
   "corey.toolBorderOriginalAssistantRender",
 );
@@ -428,6 +432,59 @@ function patchToolExecutionBorder() {
   };
 }
 
+function patchUserBashTruncation() {
+  const proto = BashExecutionComponent.prototype as any;
+  proto[ORIGINAL_USER_BASH_RENDER] ??= proto.render;
+
+  proto.render = function render(width: number): string[] {
+    const lines = proto[ORIGINAL_USER_BASH_RENDER].call(
+      this,
+      width,
+    ) as string[];
+    const hintIndex = lines.findIndex((line) =>
+      /^\s*\.\.\. \d+ more lines \(.*to expand\)\s*$/.test(stripAnsi(line)),
+    );
+    if (hintIndex === -1) return lines;
+
+    const headerIndex = lines.findIndex((line) =>
+      stripAnsi(line).trimStart().startsWith("$ "),
+    );
+    const outputStart = headerIndex + 1;
+    if (headerIndex === -1 || outputStart >= hintIndex) return lines;
+
+    const statusSpacerIndex = hintIndex - 1;
+    const hasStatusSpacer =
+      statusSpacerIndex >= outputStart &&
+      stripAnsi(lines[statusSpacerIndex]).trim() === "";
+    const withoutHint = lines.filter(
+      (_, index) =>
+        index !== hintIndex &&
+        (!hasStatusSpacer || index !== statusSpacerIndex),
+    );
+    const hintInsertIndex = outputStart;
+
+    const reordered = [
+      ...withoutHint.slice(0, hintInsertIndex),
+      lines[hintIndex],
+      ...withoutHint.slice(hintInsertIndex),
+    ];
+    let bottomBorderIndex = -1;
+    for (let index = reordered.length - 1; index >= 0; index--) {
+      if (isBorderLine(reordered[index])) {
+        bottomBorderIndex = index;
+        break;
+      }
+    }
+    if (
+      bottomBorderIndex > 0 &&
+      stripAnsi(reordered[bottomBorderIndex - 1]).trim() === ""
+    ) {
+      reordered.splice(bottomBorderIndex - 1, 1);
+    }
+    return reordered;
+  };
+}
+
 function patchAssistantMessageSpacing() {
   const proto = AssistantMessageComponent.prototype as any;
   proto[ORIGINAL_ASSISTANT_RENDER] ??= proto.render;
@@ -489,6 +546,7 @@ function patchUserMessageSpacing() {
 
 export default function (_pi: ExtensionAPI) {
   patchToolExecutionBorder();
+  patchUserBashTruncation();
   patchAssistantMessageSpacing();
   patchUserMessageSpacing();
 }
