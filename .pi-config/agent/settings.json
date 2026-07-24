@@ -2,8 +2,7 @@
   "lastChangelogVersion": "0.81.1",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs",
-    "git:github.com/nicobailon/pi-mcp-adapter",
-    "npm:pi-subagents"
+    "git:github.com/nicobailon/pi-mcp-adapter"
   ],
   "skills": [
     "~/dotfiles/context/vamos/.pi/skills"
