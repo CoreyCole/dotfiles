@@ -53,6 +53,7 @@ return {
                             .. "--glob '!.claude/shell-snapshots/**' "
                             .. "--glob '!.claude/projects/**' "
                             .. "--glob '!node_modules/**' "
+                            .. "--glob '!**/*_templ.go' "
                             .. "--glob '!.next/**' "
                             .. "--glob '!pkg/proto/**' "
                             .. "--glob '!pkg/db/mocks/**' "

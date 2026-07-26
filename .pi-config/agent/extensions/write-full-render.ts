@@ -16,6 +16,10 @@ function isMarkdownPath(path: string | undefined): path is string {
   return path !== undefined && /\.(md|markdown|txt)$/i.test(path);
 }
 
+function isTemplPath(path: string | undefined): path is string {
+  return path !== undefined && /\.templ$/i.test(path);
+}
+
 function renderMarkdownWriteContent(content: string): Markdown {
   const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!frontmatter) return new Markdown(content, 0, 1, getMarkdownTheme());
@@ -65,8 +69,10 @@ export default function (pi: ExtensionAPI) {
       );
       if (signal?.aborted) return result;
 
-      const batOutput = renderWithBat(params.path, ctx.cwd);
-      if (batOutput) batOutputs.set(toolCallId, batOutput);
+      if (isTemplPath(params.path)) {
+        const batOutput = renderWithBat(params.path, ctx.cwd);
+        if (batOutput) batOutputs.set(toolCallId, batOutput);
+      }
 
       return result;
     },

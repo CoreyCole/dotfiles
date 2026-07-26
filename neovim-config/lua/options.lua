@@ -24,17 +24,10 @@ vim.opt.fillchars = {
 }
 vim.o.foldmethod = "expr"
 vim.o.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-vim.o.foldlevel = 2
-vim.o.foldlevelstart = 2
+vim.o.foldenable = false
+vim.o.foldlevel = 99
+vim.o.foldlevelstart = 99
 vim.o.foldcolumn = "1"
-
--- Default code files to fold level 2, but open Markdown at level 4.
-vim.api.nvim_create_autocmd({ "FileType", "BufWinEnter" }, {
-    pattern = { "markdown", "markdown.mdx" },
-    callback = function()
-        vim.wo.foldlevel = 4
-    end,
-})
 
 -- Add diagonal lines for diff deletions
 vim.opt.fillchars:append { diff = "╱" }

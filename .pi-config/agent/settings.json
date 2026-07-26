@@ -11,9 +11,9 @@
   "compaction": {
     "enabled": false
   },
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "theme": "corey-dark",
-  "defaultThinkingLevel": "low",
+  "defaultThinkingLevel": "high",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
   "transport": "sse"
