@@ -57,6 +57,10 @@ When adding content:
 - Remediate the shared GolangCI policy in correctness-first slices; do not start a broad formatter rewrite.
 - Baseline: `context/outline/2026-07-22_12-58-23_lint-baseline.md`.
 - Approved structure: `outline.md`.
+- Plan workspace: `/Users/coreycole/dotfiles/thoughts/CoreyCole/plans/2026-07-22_12-58-23_vamos-golangci-remediation`.
+- Implementation workspace: `/Users/coreycole/dotfiles/context/vamos-2026-07-22_12-58-23_vamos-golangci-remediation`.
+- Workspace base: `main` at `8606318bc9da5ff8c1e089545bc431ba0dce22d9` (fetched `origin/main`); no prior/unmerged implementation stack exists, so this avoids losing stack work.
+- Slice 1 must prepare sibling DatastarUI upstream, fix there first, then regenerate the Vamos copy via CLI.
 
 ## How to Orient Yourself
 

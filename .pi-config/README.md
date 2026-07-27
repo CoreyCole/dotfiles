@@ -33,7 +33,6 @@ There is no extra resource symlink layer.
 - `agent/settings.json` — tracked Pi settings, package declarations, and explicit extension includes
 - `agent/mcp.json` — tracked MCP configuration
 - `agent/extensions/` — custom global Pi extensions checked into dotfiles
-- `agent/extensions/subagent/config.json` — tracked `nicobailon/pi-subagents` parallel limit config
 - `agent/skills/` — custom skills checked into dotfiles
 - `agent/agents/` — custom agent definitions checked into dotfiles
 - `agent/scripts/` — scripts used by tracked extensions/tool hooks
@@ -175,28 +174,3 @@ If document parsing fails or you want a machine-specific preflight check, run in
 ```
 
 Upstream reference: <https://github.com/maxedapps/pi-docparser/tree/main#host-dependencies>
-
-## pi-subagents parallel limits
-
-The `nicobailon/pi-subagents` package reads optional config from:
-
-```text
-~/.pi/agent/extensions/subagent/config.json
-```
-
-This repo tracks that file at:
-
-```text
-.pi-config/agent/extensions/subagent/config.json
-```
-
-Current intended limits:
-
-```json
-{
-  "parallel": {
-    "maxTasks": 16,
-    "concurrency": 16
-  }
-}
-```
