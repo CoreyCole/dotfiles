@@ -394,7 +394,7 @@ function patchToolExecutionBorder() {
         ? replaceFirstContentLineBlock(
             lines,
             pathLines,
-            toolPathDisplay(this.args, this.cwd),
+            rawToolPath(this.args) ?? toolPathDisplay(this.args, this.cwd),
           )
         : iconizeFirstContentLine(lines, "✏️", "edit");
     } else if (this.toolName === "write") {
@@ -403,7 +403,7 @@ function patchToolExecutionBorder() {
         ? replaceFirstContentLineBlock(
             lines,
             pathLines,
-            toolPathDisplay(this.args, this.cwd),
+            rawToolPath(this.args) ?? toolPathDisplay(this.args, this.cwd),
           )
         : iconizeFirstContentLine(lines, "📝", "write");
     } else if (this.toolName === "read") {
