@@ -3,9 +3,11 @@ set -x
 set -eo pipefail
 
 function buildnvim() {
-    # Make sure I cloned the thing.
     local nvim_dir="$HOME/cdev/neovim"
-    [ ! -d "$nvim_dir" ] && echo "Silly boy, you haven't cloned neovim..." && return
+    if [ ! -d "$nvim_dir/.git" ]; then
+        mkdir -p "$(dirname "$nvim_dir")"
+        git clone https://github.com/neovim/neovim.git "$nvim_dir"
+    fi
 
     # Go to the neovim directory.
     cd "$nvim_dir" || { printf '\n========== COULD NOT CD TO NEOVIM DIRECTORY ==========\n' && return; }

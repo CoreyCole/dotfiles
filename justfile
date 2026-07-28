@@ -3,7 +3,7 @@ default:
   @just --list
 
 # Configure this dotfiles checkout.
-setup:
+setup: arch-setup
   git config core.hooksPath hooks
   @echo "Configured git hooks path: $(git config --get core.hooksPath)"
   mkdir -p context
@@ -21,6 +21,10 @@ setup:
   fi
   ./hooks/post-pull
   ./.pi-config/setup.sh
+
+# Link this checkout's Arch Linux dotfiles into the home directory.
+arch-setup:
+  @./scripts/setup-arch-symlinks.sh
 
 # Format, commit, pull --rebase, and push thoughts in ~/cn/chestnut-flake/cn-agents.
 sync-thoughts:
