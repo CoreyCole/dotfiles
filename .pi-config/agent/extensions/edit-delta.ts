@@ -161,11 +161,16 @@ export default function (pi: ExtensionAPI) {
   });
 
   const edit = createEditToolDefinition(process.cwd());
+  const originalRenderCall = edit.renderCall?.bind(edit);
   const originalRenderResult = edit.renderResult?.bind(edit);
 
   pi.registerTool({
     ...edit,
     renderCall(args, theme, context) {
+      if (!context.executionStarted) {
+        return originalRenderCall?.(args, theme, context) ?? new Text("", 0, 0);
+      }
+
       const text = context.lastComponent instanceof Text ? context.lastComponent : new Text("", 0, 0);
       const path = context.args?.file_path ?? context.args?.path ?? args?.file_path ?? args?.path ?? "...";
       text.setText(`${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", path)}`);
