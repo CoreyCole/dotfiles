@@ -12,6 +12,6 @@ Pi auto-discovers this extension from `~/.pi/agent/extensions/vamos-pi-metadata/
 ~/.pi -> ~/dotfiles/.pi-config
 ```
 
-Events use schema version `1` and include session lifecycle events plus a normalized `qrspi_result` event when the final assistant message contains a fenced QRSPI YAML result.
+Events use schema version `1` and include Pi session lifecycle events. QRSPI result YAML is not parsed, validated, or emitted.
 
 The event log is append-only and consumed by Vamos terminal metadata indexing. It is local routing/projection metadata, not durable project state.

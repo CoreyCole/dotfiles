@@ -1,11 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { appendFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { dirname, join, basename } from "node:path";
-import { parse as parseYAML } from "yaml";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -149,77 +148,6 @@ function detectPlanFromCwd(cwd: string): JsonRecord | undefined {
   return planDir ? { plan_dir: planDir } : undefined;
 }
 
-function extractFencedQRSPIResult(text: string): string | undefined {
-  const fencePattern = /```(?:yaml|yml)?\s*\n([\s\S]*?)```/gi;
-  for (const match of text.matchAll(fencePattern)) {
-    const body = match[1]?.trim();
-    if (body?.includes("qrspi_result:")) return body;
-  }
-  const bare = text.match(/(^|\n)(qrspi_result:\n[\s\S]*)/);
-  return bare?.[2]?.trim();
-}
-
-function hashText(text: string): string {
-  return `sha256:${createHash("sha256").update(text).digest("hex")}`;
-}
-
-function qrspiPayloadFromText(
-  text: string,
-): { qrspi: JsonRecord; plan?: JsonRecord } | undefined {
-  const raw = extractFencedQRSPIResult(text);
-  if (!raw) return undefined;
-
-  let parsed: JsonRecord | undefined;
-  try {
-    parsed = asRecord(parseYAML(raw));
-  } catch {
-    return undefined;
-  }
-  const result = asRecord(parsed?.qrspi_result);
-  if (!result) return undefined;
-
-  const workspaceMetadata = asRecord(result.workspace_metadata);
-  const planDir = normalizeThoughtsPlanDir(
-    typeof workspaceMetadata?.plan_workspace === "string"
-      ? workspaceMetadata.plan_workspace
-      : typeof result.workspace === "string"
-        ? result.workspace
-        : typeof result.artifact === "string"
-          ? result.artifact
-          : undefined,
-  );
-
-  if (!planDir) return undefined;
-
-  const stage = typeof result.stage === "string" ? result.stage : undefined;
-  return {
-    plan: {
-      plan_dir: planDir,
-      ...(typeof workspaceMetadata?.implementation_workspace === "string"
-        ? {
-            implementation_workspace:
-              workspaceMetadata.implementation_workspace,
-          }
-        : {}),
-    },
-    qrspi: {
-      ...(stage ? { stage, workflow_node_id: stage } : {}),
-      ...(typeof result.status === "string" ? { status: result.status } : {}),
-      ...(typeof result.outcome === "string"
-        ? { outcome: result.outcome }
-        : {}),
-      ...(typeof result.artifact === "string"
-        ? { artifact: result.artifact }
-        : {}),
-      result_json: result,
-      result_yaml: raw,
-      raw_result: raw,
-      raw_result_hash: hashText(raw),
-      ...(result.summary !== undefined ? { summary: result.summary } : {}),
-    },
-  };
-}
-
 async function appendEvent(event: JsonRecord): Promise<void> {
   await mkdir(dirname(EVENT_LOG_PATH), { recursive: true });
   await appendFile(EVENT_LOG_PATH, `${JSON.stringify(event)}\n`, {
@@ -283,22 +211,6 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_end", async (event, ctx) => {
     const assistant = latestAssistantMessageText(event, ctx);
     await appendEvent(baseEvent(ctx, "agent_end", assistant));
-
-    const extracted = qrspiPayloadFromText(assistant.text);
-    if (!extracted) return;
-
-    await appendEvent({
-      ...baseEvent(ctx, "qrspi_result", assistant),
-      plan: extracted.plan,
-      qrspi: extracted.qrspi,
-      source: {
-        ...(assistant.entryId ? { message_entry_id: assistant.entryId } : {}),
-        ...(assistant.parentEntryId
-          ? { parent_entry_id: assistant.parentEntryId }
-          : {}),
-        assistant_message_hash: hashText(assistant.text),
-      },
-    });
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
@@ -308,7 +220,5 @@ export default function (pi: ExtensionAPI) {
 
 export const vamosPiMetadataTest = {
   eventLogPath: EVENT_LOG_PATH,
-  extractFencedQRSPIResult,
-  qrspiPayloadFromText,
   normalizeThoughtsPlanDir,
 };
