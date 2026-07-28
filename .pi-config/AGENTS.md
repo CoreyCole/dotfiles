@@ -9,12 +9,13 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `~/.pi -> ~/dotfiles/.pi-config`
 - Pi auto-discovers global resources from paths under `~/.pi/agent/`.
 - Tracked Pi resources live directly in `agent/`, matching Pi's runtime layout:
-  - `agent/settings.json`
   - `agent/extensions/`
   - `agent/skills/`
   - `agent/agents/`
   - `agent/mcp.json`
 - Runtime state also lives in `agent/` and is ignored where appropriate:
+  - `agent/settings.json`
+  - `agent/models-store.json`
   - `agent/auth.json`
   - `agent/sessions/`
   - `agent/run-history.jsonl`
@@ -34,7 +35,7 @@ import { Text } from "@earendil-works/pi-tui";
 ## Pi Customization Rules
 
 - Do **not** patch installed Pi runtime files or package manager output: no edits under `node_modules/`, global npm/fnm installations, `dist/` files in installed packages, or other generated dependency caches.
-- For local behavior changes, extend Pi through tracked `.pi-config` resources: `agent/extensions/`, `agent/skills/`, `agent/settings.json`, `agent/mcp.json`, `AGENTS.md`, `SYSTEM.md`, or `APPEND_SYSTEM.md`.
+- For local behavior changes, extend Pi through tracked `.pi-config` resources: `agent/extensions/`, `agent/skills/`, `agent/mcp.json`, `AGENTS.md`, `SYSTEM.md`, or `APPEND_SYSTEM.md`. Use the ignored `agent/settings.json` only for machine-local runtime settings.
 - When changing Pi behavior, use the `pi` skill and follow its extension-first guidance. Prefer `pi.registerCommand`, `pi.registerTool`, and `pi.on(...)` hooks over modifying Pi internals.
 - Use `context/pi-mono` as source-of-truth research for Pi APIs and behavior, but do not edit it for this dotfiles config unless the task is explicitly to prepare an upstream Pi change.
 

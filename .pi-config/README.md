@@ -30,7 +30,6 @@ There is no extra resource symlink layer.
 
 ### Tracked source config
 
-- `agent/settings.json` — tracked Pi settings, package declarations, and explicit extension includes
 - `agent/mcp.json` — tracked MCP configuration
 - `agent/extensions/` — custom global Pi extensions checked into dotfiles
 - `agent/skills/` — custom skills checked into dotfiles
@@ -42,6 +41,8 @@ There is no extra resource symlink layer.
 
 ### Ignored runtime/cache/local state
 
+- `agent/settings.json`
+- `agent/models-store.json`
 - `agent/auth.json`
 - `agent/sessions/`
 - `agent/run-history.jsonl`
@@ -52,7 +53,7 @@ There is no extra resource symlink layer.
 
 ## Package declarations vs package caches
 
-Configured Pi packages are declared in tracked source config at:
+Configured Pi packages are declared in the machine-local, ignored settings file at:
 
 ```text
 .pi-config/agent/settings.json
