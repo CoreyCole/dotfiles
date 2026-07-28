@@ -91,8 +91,11 @@ function pathDisplayLines(
   width: number,
 ): string[] {
   const prefix = ` ${icon} `;
-  const pathWidth = Math.max(1, width - visibleWidth(prefix));
-  const continuationPrefix = " ".repeat(visibleWidth(prefix));
+  const prefixWidth = visibleWidth(prefix);
+  if (width <= prefixWidth) return [truncateToWidth(prefix, width, "")];
+
+  const pathWidth = width - prefixWidth;
+  const continuationPrefix = " ".repeat(prefixWidth);
   const { directory, filename, lineRange } = splitDisplayPath(path, cwd);
   const styledFilename = `${TOOL_DISPLAY.filename(filename)}${TOOL_DISPLAY.lineNumber(lineRange)}`;
   const styledPath = `${TOOL_DISPLAY.path(directory)}${styledFilename}`;
@@ -116,7 +119,11 @@ function pathDisplayLines(
   }
 
   return lines.map((line, index) =>
-    index === 0 ? `${prefix}${line}` : `${continuationPrefix}${line}`,
+    truncateToWidth(
+      index === 0 ? `${prefix}${line}` : `${continuationPrefix}${line}`,
+      width,
+      "",
+    ),
   );
 }
 
