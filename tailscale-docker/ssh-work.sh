@@ -15,12 +15,16 @@ case "$TARGET" in
     REMOTE_USER="swarm"
     REMOTE_HOST="swarms-macbook-pro-1"
     ;;
+  omarchy)
+    REMOTE_USER="coreycole"
+    REMOTE_HOST="omarchy"
+    ;;
   *@*)
     REMOTE_USER="${TARGET%@*}"
     REMOTE_HOST="${TARGET#*@}"
     ;;
   *)
-    echo "Usage: $0 [swarm|user@host]"
+    echo "Usage: $0 [swarm|omarchy|user@host]"
     exit 1
     ;;
 esac

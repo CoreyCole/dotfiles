@@ -76,6 +76,7 @@ home user@host
 ```bash
 work           # coreycole@coreys-macbook-pro-2-2
 work swarm     # swarm@swarms-macbook-pro-1
+work omarchy   # coreycole@omarchy
 work user@host # any other machine on the work tailnet
 ```
 
