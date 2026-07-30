@@ -18,6 +18,6 @@ See the official [Hyprland dispatchers](https://wiki.hypr.land/Configuring/Dispa
 - Bindings: `~/.config/hypr/bindings.conf`
 - Discover classes: `hyprctl clients -j | jq -r '.[] | [.class, .title] | @tsv'`
 
-The script accepts a primary class regex and optional additional regexes. `--cycle-app` selects the next running regex, providing the same-letter application cycle without changing window placement.
+The script accepts a primary class regex and optional additional regexes. `--cycle-window` traverses a stable MRU snapshot of matching windows; its runtime state prevents Hyprland's updated focus history from bouncing between only the two newest windows. `--cycle-app` selects the next running class regex when a letter is assigned to multiple applications.
 
 Do not focus every matching window in sequence to imitate macOS application raising. In Hyprland that produces visible focus-ring flashes and adds no value for tiled windows.
