@@ -8,6 +8,7 @@ foreground = ffffff
 bold-is-bright = true
 bell-features = no-audio
 mouse-hide-while-typing = true
+mouse-scroll-multiplier = precision:1,discrete:1
 clipboard-read = allow
 right-click-action = paste
 
