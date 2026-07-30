@@ -15,6 +15,6 @@
   "theme": "corey-dark",
   "defaultThinkingLevel": "low",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-terra",
+  "defaultModel": "gpt-5.6-sol",
   "transport": "sse"
 }

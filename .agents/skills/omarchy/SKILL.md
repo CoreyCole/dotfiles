@@ -16,14 +16,16 @@ Be an educational guide, not an executor. The user is learning Omarchy and wants
 When explaining any topic, apply the 80/20 rule:
 
 1. **Lead with the vital 20%** — identify the small set of concepts, commands, or mental models that explain the vast majority of real-world behavior. Start there. Don't bury the essentials under exhaustive detail.
+
    - Example: for Hyprland keybindings, the vital 20% is understanding that `~/.config/hypr/bindings.conf` is your override file, `bindd` format is `MODIFIERS, KEY, Description, exec, command`, and Hyprland auto-reloads on save. That covers ~80% of daily use.
    - Example: for themes, the vital 20% is `omarchy-theme-list`, `omarchy-theme-set <name>`, and knowing themes live in `~/.local/share/omarchy/themes/` with overrides in `~/.config/omarchy/current/theme/`.
 
-2. **Surface common misconceptions** — after teaching the core, proactively call out what people commonly get wrong.
+1. **Surface common misconceptions** — after teaching the core, proactively call out what people commonly get wrong.
+
    - Example: "A common misconception is that you edit files in `~/.local/share/omarchy/` to customize your setup. Those are core files that get overwritten on updates — always override in `~/.config/` instead."
    - Example: "People often think a keybind isn't working because of Hyprland, when fcitx5 is actually grabbing the key first. Check fcitx5 bindings before debugging Hyprland."
 
-3. **Layer depth on request** — after covering the vital 20%, offer to go deeper. Say what the next layer covers so the user can decide if they need it.
+1. **Layer depth on request** — after covering the vital 20%, offer to go deeper. Say what the next layer covers so the user can decide if they need it.
 
 ### Cite with Links
 
@@ -36,15 +38,15 @@ When explaining topics covered by Omarchy docs or the Arch Wiki, provide section
 ### Research and Action
 
 1. **Research autonomously** — read reference files, run read-only commands (`omarchy-*` discovery, `cat $(which omarchy-*)`, config file reads), and search both Omarchy docs and the Arch Wiki (see `references/manual-index.md`) without asking permission.
-2. **Explain before acting** — before running any command that modifies the system (editing configs, running `omarchy-refresh-*`, `omarchy-install-*`, etc.), stop and explain:
+1. **Explain before acting** — before running any command that modifies the system (editing configs, running `omarchy-refresh-*`, `omarchy-install-*`, etc.), stop and explain:
    - What the command does and why it's the right approach
    - What files or state it will change
    - Any risks or side effects
    - Link to the relevant Omarchy manual page, Arch Wiki section, or upstream docs
-3. **Summarize findings** — after researching, present a clear summary: what you found, what the options are. Teach the "why" not just the "what".
-4. **Wait for confirmation** — only execute modifying commands or edits after the user says to proceed.
-5. **Cite sources** — reference Omarchy manual pages, Arch Wiki sections, Hyprland wiki, or upstream docs so the user can read further. Always include clickable links.
-6. **Grow the skill** — when research uncovers useful information not already in the reference files (new command patterns, config techniques, manual findings):
+1. **Summarize findings** — after researching, present a clear summary: what you found, what the options are. Teach the "why" not just the "what".
+1. **Wait for confirmation** — only execute modifying commands or edits after the user says to proceed.
+1. **Cite sources** — reference Omarchy manual pages, Arch Wiki sections, Hyprland wiki, or upstream docs so the user can read further. Always include clickable links.
+1. **Grow the skill** — when research uncovers useful information not already in the reference files (new command patterns, config techniques, manual findings):
    - Add a new reference document or update an existing one in `references/`
    - Add a link to the new reference in the `References` section of `SKILL.md`
    - Include links to the relevant Omarchy docs, Arch Wiki sections, and upstream docs *inside* the reference file so future sessions can go straight to the source
@@ -104,6 +106,7 @@ See `references/` for detailed documentation:
 - [`references/dev-env-zsh.md`](references/dev-env-zsh.md) — mise is the node version manager; zsh users must add `eval "$(mise activate zsh)"` for `npm install -g` binaries to be on PATH
 - [`references/fcitx5.md`](references/fcitx5.md) — fcitx5 input method config, keybinding format gotchas, and restart requirements
 - [`references/bluetooth-audio.md`](references/bluetooth-audio.md) — Bluetooth headphone output switching, A2DP vs headset profiles, and Omarchy audio shortcuts
+- [`references/rcmd-hyprland.md`](references/rcmd-hyprland.md) — rcmd-style application activation across Hyprland workspaces and monitors
 
 ## Related Skills
 
