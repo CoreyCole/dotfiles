@@ -104,3 +104,10 @@ export PATH="$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
 if command -v chestnut >/dev/null 2>&1; then
   eval "$(chestnut shell-init zsh)"
 fi
+
+# suppress the benign macOS warning tracked by NousResearch/hermes-agent#54833
+hermes() {
+  "$HOME/.local/bin/hermes" "$@" \
+    2> >(grep --line-buffered -Fv \
+      "MallocStackLogging: can't turn off malloc stack logging because it was not enabled." >&2)
+}

@@ -1,7 +1,7 @@
 [user]
   name = CoreyCole
   email = coreyleoc@gmail.com
-	signingkey = FA25E0156C171C7AF0AB9773675D0A1346518CDC
+	signingkey = 134483DDDEE98EA0A82D4B4ECE29F0A09CC416DF
 
 [url "git@github.com:"]
   insteadOf = https://github.com/

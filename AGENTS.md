@@ -62,18 +62,18 @@ import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 ```
 
-## Vamos CLI launcher in `context/vamos`
+## Vamos CLI launcher
 
 The `vamos` command on PATH is intentionally a stable launcher binary, not the runtime itself. It reads launcher config, fingerprints the configured runtime source checkout, builds a cached `vamos-runtime` when relevant source changes, then execs that runtime.
 
-For this dotfiles checkout, runtime development happens in `~/dotfiles/context/vamos`. If `vamos launcher doctor` shows `runtime source root: /Users/swarm/dotfiles/context/vamos`, source edits under `context/vamos` go live automatically on the next `vamos ...` invocation after the launcher rebuilds the managed runtime cache. You do not need to rebuild `~/.local/bin/vamos` for normal runtime changes.
+Dogfood runtime and Pi skill development happens in `~/cn/chestnut-flake/vamos`. Point the launcher and Pi skill configuration at that working checkout, verify changes there, and promote tested commits to `~/cn/chestnut-flake/vamos-main` afterward. Runtime source edits go live automatically on the next `vamos ...` invocation after the launcher rebuilds its managed cache; normal runtime changes do not require rebuilding `~/.local/bin/vamos`.
 
-Only rebuild the launcher itself when changing `cmd/vamos-launcher`:
+Only rebuild the stable launcher when changing `cmd/vamos-launcher` itself:
 
 ```bash
-cd ~/dotfiles/context/vamos
+cd ~/cn/chestnut-flake/vamos
 go build -o ~/.local/bin/vamos ./cmd/vamos-launcher
-vamos launcher configure --runtime-source-root ~/dotfiles/context/vamos
+vamos launcher configure --runtime-source-root ~/cn/chestnut-flake/vamos
 vamos launcher doctor
 ```
 
@@ -82,7 +82,7 @@ Useful checks:
 ```bash
 which vamos
 vamos launcher doctor
-VAMOS_PACKAGE_ROOT=~/dotfiles/context/vamos vamos qrspi --help
+VAMOS_PACKAGE_ROOT=~/cn/chestnut-flake/vamos vamos hermes pi start --help
 ```
 
 Use `VAMOS_PACKAGE_ROOT=/absolute/path/to/checkout` to temporarily force a feature checkout as the runtime source without changing persisted launcher config.
