@@ -12,6 +12,7 @@ Each container exposes a local SOCKS5 proxy, and the helper scripts SSH through 
 - `docker-compose.yml` — starts both Tailscale containers
 - `ssh-home.sh` — SSH through the personal tailnet
 - `ssh-work.sh` — SSH through the work tailnet
+- `update-work-hostname.sh` — updates the default `work` target to the currently-online work Mac whose Tailscale hostname starts with `corey`
 
 ## Services
 
@@ -74,7 +75,7 @@ home user@host
 ### Work tailnet
 
 ```bash
-work           # coreycole@coreys-macbook-pro-2-2
+work           # coreycole@coreys-macbook-pro-211
 work swarm     # swarm@swarms-macbook-pro-1
 work omarchy   # coreycole@omarchy
 work user@host # any other machine on the work tailnet
@@ -91,7 +92,16 @@ docker compose exec -T work tailscale status
 
 ### Host not found
 
-If a helper script says it cannot find the host, verify the exact device name in `tailscale status`.
+If the default `work` host changes after restarting your computer, update the saved hostname:
+
+```bash
+cd ~/dotfiles/tailscale-docker
+./update-work-hostname.sh
+```
+
+The updater finds the online macOS node whose Tailscale hostname starts with `corey` and rewrites the default `work` target.
+
+If a helper script says it cannot find another host, verify the exact device name in `tailscale status`.
 
 ### Restart one side
 

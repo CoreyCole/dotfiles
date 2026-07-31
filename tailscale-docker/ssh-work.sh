@@ -9,7 +9,7 @@ TARGET="${1:-default}"
 case "$TARGET" in
   default)
     REMOTE_USER="coreycole"
-    REMOTE_HOST="coreys-macbook-pro-2-2"
+    REMOTE_HOST="coreys-macbook-pro-211"
     ;;
   swarm)
     REMOTE_USER="swarm"
