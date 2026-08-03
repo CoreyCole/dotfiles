@@ -104,24 +104,27 @@ async function ensureTransportColumn(): Promise<void> {
   }
 }
 
-async function appendRow(row: readonly (string | number | boolean)[]): Promise<void> {
-  await mkdir(dirname(CSV_PATH), { recursive: true, mode: 0o700 });
-  await ensureTransportColumn();
-
-  let isEmpty = false;
-  try {
-    isEmpty = (await stat(CSV_PATH)).size === 0;
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    isEmpty = true;
-  }
-
-  const content = `${isEmpty ? `${CSV_HEADER}\n` : ""}${row.map(csvCell).join(",")}\n`;
+async function appendRow(
+  row: readonly (string | number | boolean)[],
+  csvInitialized: boolean,
+): Promise<void> {
+  const content = `${csvInitialized ? "" : `${CSV_HEADER}\n`}${row.map(csvCell).join(",")}\n`;
   await appendFile(CSV_PATH, content, { encoding: "utf8", mode: 0o600 });
 }
 
 export default function requestStatsExtension(pi: ExtensionAPI) {
   let activeRequest: RequestStats | undefined;
+  let csvInitialized = false;
+
+  pi.on("session_start", async () => {
+    await mkdir(dirname(CSV_PATH), { recursive: true, mode: 0o700 });
+    await ensureTransportColumn();
+    try {
+      csvInitialized = (await stat(CSV_PATH)).size > 0;
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  });
 
   pi.on("before_provider_request", (_event, ctx) => {
     const model = ctx.model;
@@ -189,7 +192,8 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
       outputTokens,
       outputTokensPerSecond,
       event.message.stopReason,
-    ]);
+    ], csvInitialized);
+    csvInitialized = true;
   });
 }
 
