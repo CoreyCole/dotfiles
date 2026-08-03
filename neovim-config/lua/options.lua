@@ -166,5 +166,6 @@ vim.diagnostic.config {
     },
 }
 
--- Disable cursor blinking in terminal mode.
-vim.o.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-TermCursor"
+-- Let Ghostty own the cursor. Its config fixes it as a solid block, while an
+-- unset guicursor prevents Neovim from changing it with DECSCUSR sequences.
+vim.o.guicursor = ""

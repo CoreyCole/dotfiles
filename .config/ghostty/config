@@ -1,6 +1,8 @@
 font-family = Hasklug Nerd Font Mono
 font-size = 14
 term = xterm-256color
+cursor-style = block
+cursor-style-blink = false
 
 background = 000000
 foreground = ffffff
