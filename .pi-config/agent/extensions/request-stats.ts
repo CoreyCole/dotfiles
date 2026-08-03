@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendFile, mkdir, stat } from "node:fs/promises";
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -16,6 +16,7 @@ const CSV_HEADER = [
   "model",
   "api",
   "endpoint",
+  "transport",
   "streaming",
   "ttft_ms",
   "total_ms",
@@ -33,6 +34,7 @@ type RequestStats = {
   api: string;
   endpoint: string;
   xRequestID?: string;
+  transport?: "sse" | "websocket";
   firstTokenAt?: number;
   streaming: boolean;
 };
@@ -63,8 +65,48 @@ function xClientRequestID(stats: RequestStats): string {
   return stats.api.startsWith("openai-") ? stats.sessionID : NOT_APPLICABLE;
 }
 
+async function ensureTransportColumn(): Promise<void> {
+  let content: string;
+  try {
+    content = await readFile(CSV_PATH, "utf8");
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+
+  const lines = content.trimEnd().split(/\r?\n/);
+  const header = lines[0]?.split(",") ?? [];
+  const transportIndex = header.indexOf("transport");
+  const streamingIndex = header.indexOf("streaming");
+  if (streamingIndex < 0) return;
+
+  if (transportIndex < 0) {
+    header.splice(streamingIndex, 0, "transport");
+  }
+
+  const expectedColumns = header.length;
+  const columnIndex = transportIndex < 0 ? streamingIndex : transportIndex;
+  let changed = transportIndex < 0;
+  const rows = lines.slice(1).map((line) => {
+    const columns = line.split(",");
+    if (columns.length === expectedColumns - 1) {
+      columns.splice(columnIndex, 0, UNAVAILABLE);
+      changed = true;
+    }
+    return columns.join(",");
+  });
+
+  if (changed) {
+    await writeFile(CSV_PATH, `${[header.join(","), ...rows].join("\n")}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+  }
+}
+
 async function appendRow(row: readonly (string | number | boolean)[]): Promise<void> {
   await mkdir(dirname(CSV_PATH), { recursive: true, mode: 0o700 });
+  await ensureTransportColumn();
 
   let isEmpty = false;
   try {
@@ -100,12 +142,14 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
   pi.on("after_provider_response", (event) => {
     if (!activeRequest) return;
     activeRequest.xRequestID = event.headers["x-request-id"];
+    activeRequest.transport = "sse";
   });
 
   pi.on("message_update", (event) => {
     if (!activeRequest || event.assistantMessageEvent.type === "start") return;
 
     activeRequest.streaming = true;
+    activeRequest.transport ??= "websocket";
     activeRequest.firstTokenAt ??= performance.now();
   });
 
@@ -138,6 +182,7 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
       request.model,
       request.api,
       request.endpoint,
+      request.transport ?? UNAVAILABLE,
       request.streaming,
       ttftMs,
       totalMs,
