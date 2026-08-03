@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.82.1",
+  "lastChangelogVersion": "0.83.0",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"
@@ -17,5 +17,5 @@
   "defaultThinkingLevel": "medium",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
-  "transport": "sse"
+  "transport": "websocket"
 }
