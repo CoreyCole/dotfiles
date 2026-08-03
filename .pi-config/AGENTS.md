@@ -21,6 +21,7 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `agent/run-history.jsonl`
   - `agent/git/`
 - Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
+- When investigating slow Pi/OpenAI requests, inspect `~/.local/state/pi/request-stats.csv` for endpoint, model, streaming, TTFT, total time, and output TPS.
 
 ## Dependencies and Extension Imports
 
