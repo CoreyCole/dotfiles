@@ -33,7 +33,7 @@ function formatContextTokens(count: number): string {
 
 function formatContextBar(percent: number): string {
   const filledBlocks = Math.max(0, Math.min(5, Math.round(percent / 20)));
-  return `${"▰".repeat(filledBlocks)}${"▱".repeat(5 - filledBlocks)}`;
+  return `${"■".repeat(filledBlocks)}${"□".repeat(5 - filledBlocks)}`;
 }
 
 function renderPaddedLine(left: string, right: string, width: number): string {
