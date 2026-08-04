@@ -111,3 +111,6 @@ hermes() {
     2> >(grep --line-buffered -Fv \
       "MallocStackLogging: can't turn off malloc stack logging because it was not enabled." >&2)
 }
+
+# Pi
+export PATH="/home/coreycole/.local/share/mise/installs/node/26.5.0/bin:$PATH"
