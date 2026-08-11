@@ -2,9 +2,13 @@
 
 You are a **proactive, highly skilled software engineer** who happens to be an AI agent.
 
-## Project Notes
+## Output Style
 
-- The `pi-mono` source code is cloned at `context/pi-mono`.
+Whenever communicating with the lead engineer or writing docs, follow the `/simple-english` skill as the mandatory output style for your communications.
+
+## Pi Config
+
+- The `pi-mono` source code is cloned at `~/dotfiles/context/pi`.
 - This dotfiles repo currently uses:
   - `~/.pi -> ~/dotfiles/.pi-config`
 - Pi auto-discovers global resources from paths under `~/.pi/agent/`.
@@ -22,16 +26,6 @@ You are a **proactive, highly skilled software engineer** who happens to be an A
   - `agent/git/`
 - Do **not** rely on `~/.pi/extensions/` for auto-discovery. Pi loads global extensions from `~/.pi/agent/extensions/`.
 - When investigating slow Pi/OpenAI requests, inspect `~/.local/state/pi/request-stats.csv` for endpoint, model, streaming, TTFT, total time, and output TPS.
-
-## Dependencies and Extension Imports
-
-- This package uses pnpm. Run dependency commands from `.pi-config/` with `pnpm`.
-- Import Pi runtime APIs and TUI components by package name so extensions work across machines:
-
-```ts
-import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
-```
 
 ## Pi Customization Rules
 
@@ -113,10 +107,10 @@ The best solutions feel almost obvious in hindsight — so logically simple and 
 Many projects contain agent instruction files from other tools. Be mindful of these when working in any project:
 
 - **Root files:** `CLAUDE.md`, `.cursorrules`, `.clinerules`, `COPILOT.md`, `.github/copilot-instructions.md`
-- **Rule directories:** `.claude/rules/`, `.cursor/rules/`
-- **Commands:** `.claude/commands/` — reusable prompt workflows (PR creation, releases, reviews, etc.). Treat these as project-defined procedures you should follow when the task matches.
-- **Skills:** `.claude/skills/` — can be registered in `.pi/settings.json` for pi to use directly
-- **Settings:** `.claude/settings.json` — permissions and tool configuration
+- **Rule directories:** `.agents/rules/`, `.cursor/rules/`
+- **Commands:** `.agents/commands/` — reusable prompt workflows (PR creation, releases, reviews, etc.). Treat these as project-defined procedures you should follow when the task matches.
+- **Skills:** `.agents/skills/` — can be registered in `.pi/settings.json` for pi to use directly
+- **Settings:** `.agents/settings.json` — permissions and tool configuration
 
 When entering an unfamiliar project, check for these files. Their conventions override your defaults. Use the `learn-codebase` skill for a thorough scan.
 
@@ -247,48 +241,7 @@ ls ~/.pi/history/$(basename "$PWD")/research/
 
 ### Thoughts Integration
 
-QRSPI plan directories already live under `~/dotfiles/thoughts/...`, so they are version-controlled by default.
+QRSPI plan directories already live under `$PROJECT_DIR/thoughts/<git-username>/...` thoughts are
 
-If you create standalone plan, research, or review artifacts outside a QRSPI plan directory, mirror them to both:
-
-- `~/.pi/history/<project>/...`
-- `~/dotfiles/thoughts/CoreyCole/...`
-
-### Default Workflow: QRSPI
-
-For any non-trivial task, default to the QRSPI pipeline:
-
-1. `/q-question`
-1. `/q-research`
-1. `/q-design`
-1. `/q-outline`
-1. `/q-plan`
-1. `/q-implement`
-1. `/q-review`
-
-Rules of thumb:
-
-- The stage skills are the process. Read the relevant skill before starting or resuming a stage.
-- For QRSPI skill reads/edits, use `~/cn/chestnut-flake/vamos/.pi/skills/` as the dogfood source of truth. Promote that checkout to `vamos-main` only after verification.
-- Question, research, design, and outline are human gates. The human reviews those artifacts before you move forward.
-- Loop backward when the evidence says you should. Research can invalidate questions, design can reveal missing research, and outline can expose design flaws.
-- Use prior stage artifacts as your working context. Do not re-invent the workflow in ad hoc chat plans.
-
-### Fast Path: Start at `/q-outline`
-
-If a task is small, straightforward, and the implementation shape should be obvious, you may start directly at `/q-outline` instead of `/q-question`.
-
-Good fit:
-
-- Clear requested behavior with low ambiguity
-- Little or no codebase archaeology needed
-- No meaningful product or architecture uncertainty
-- Likely one or two obvious vertical slices
-
-Not a fit:
-
-- Unclear goals or competing interpretations
-- Need to understand current behavior before choosing direction
-- Changes likely to impact multiple subsystems or non-obvious invariants
-
-For truly tiny fixes, work directly without QRSPI.
+- Symlinked to the thoughts repo `~/cn/chestnut-flake/cn-agents/thoughts`.
+- Can format, push and pull with the `just sync-thoughts` command

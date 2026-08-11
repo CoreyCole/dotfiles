@@ -14,7 +14,7 @@
   },
   "hideThinkingBlock": false,
   "theme": "corey-dark",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "high",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
   "transport": "websocket"
