@@ -148,21 +148,6 @@ function detectPlanFromCwd(cwd: string): JsonRecord | undefined {
   return planDir ? { plan_dir: planDir } : undefined;
 }
 
-function missingPiCompletion(session: string | undefined): boolean {
-  const planDir = process.env.VAMOS_PLAN_DIR?.trim();
-  if (!session || !planDir) return false;
-  return !existsSync(
-    join(planDir, ".vamos", "sessions", "pi", `${session}_result.yaml`),
-  );
-}
-
-const PI_COMPLETION_REMINDER = [
-  "This Hermes-managed Pi worker has not yielded to its manager.",
-  "Before stopping, create any required durable artifact and run:",
-  "`vamos hermes pi done --session \"$PI_SESSION_ID\" --outcome <complete|handoff|needs_human|blocked|error> --next <action> --summary $'1. ...\\n2. ...\\n3. ...'`",
-  "Do that now; do not emit a legacy qrspi_result YAML block.",
-].join("\n");
-
 async function appendEvent(event: JsonRecord): Promise<void> {
   await mkdir(dirname(EVENT_LOG_PATH), { recursive: true });
   await appendFile(EVENT_LOG_PATH, `${JSON.stringify(event)}\n`, {
@@ -215,8 +200,6 @@ function baseEvent(
 }
 
 export default function (pi: ExtensionAPI) {
-  let completionReminderSent = false;
-
   pi.on("session_start", async (_event, ctx) => {
     await appendEvent(baseEvent(ctx, "session_start"));
   });
@@ -228,13 +211,6 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_end", async (event, ctx) => {
     const assistant = latestAssistantMessageText(event, ctx);
     await appendEvent(baseEvent(ctx, "agent_end", assistant));
-  });
-
-  pi.on("agent_settled", (_event, ctx) => {
-    const session = ctx.sessionManager.getSessionId();
-    if (completionReminderSent || !missingPiCompletion(session)) return;
-    completionReminderSent = true;
-    pi.sendUserMessage(PI_COMPLETION_REMINDER, { deliverAs: "followUp" });
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {

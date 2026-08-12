@@ -33,13 +33,25 @@ For Pi-specific agent behavior inside the tracked config, also read `.pi-config/
 
 ## Pi extension ownership
 
-When editing `~/.pi/agent` / `.pi-config`, avoid loading duplicate extensions that register the same tool name from both a local file and a package.
+The global `.pi-config` owns user-level, project-agnostic resources that must load for every Pi session. Provider performance telemetry is one example.
+
+Vamos is the reusable open-source orchestration platform for all managed projects. It owns shared context, agent-session data, QRSPI skills, and Hermes-to-Pi communication.
+
+Vamos implements QRSPI with separate Pi context windows for each workflow stage. Its Pi extensions belong under `~/cn/chestnut-flake/vamos/.pi/extensions/`.
+
+`cn-agents` is the Chestnut host and library consumer of the Vamos server. It does not own generic Vamos orchestration extensions.
+
+During `/q-hermes-manager`, Hermes starts managed workers through `vamos hermes pi start`. The launcher must load Vamos-owned extensions from the selected Vamos runtime checkout, independent of the worker's project directory.
+
+Do not copy, symlink, or globally auto-load Vamos extensions from `.pi-config/agent/extensions/`. Develop them in `~/cn/chestnut-flake/vamos` and promote them through the normal Vamos merge workflow.
+
+When editing `~/.pi/agent` or `.pi-config`, avoid duplicate extensions that register the same tool name from local and package sources.
 
 Current intentional local ownership:
 
 - `.pi-config/agent/extensions/answer.ts`
 
-Do **not** also load another `answer` implementation from an imported config/package unless you are deliberately replacing the local version.
+Do **not** load another `answer` implementation from an imported config or package unless you intentionally replace the local version.
 
 ## Pi config research ground truth
 

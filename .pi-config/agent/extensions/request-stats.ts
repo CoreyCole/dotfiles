@@ -17,6 +17,7 @@ const CSV_HEADER = [
   "api",
   "endpoint",
   "transport",
+  "fast_mode_requested",
   "streaming",
   "ttft_ms",
   "total_ms",
@@ -35,6 +36,7 @@ type RequestStats = {
   endpoint: string;
   xRequestID?: string;
   transport?: "sse" | "websocket";
+  fastModeRequested: boolean;
   firstTokenAt?: number;
   streaming: boolean;
 };
@@ -65,7 +67,55 @@ function xClientRequestID(stats: RequestStats): string {
   return stats.api.startsWith("openai-") ? stats.sessionID : NOT_APPLICABLE;
 }
 
-async function ensureTransportColumn(): Promise<void> {
+function isFastModeRequested(payload: unknown): boolean {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    !Array.isArray(payload) &&
+    (payload as Record<string, unknown>).service_tier === "priority"
+  );
+}
+
+function migrateCsvColumns(content: string): string | undefined {
+  const lines = content.trimEnd().split(/\r?\n/);
+  const header = lines[0]?.split(",") ?? [];
+  const rows = lines.slice(1).map((line) => line.split(","));
+  let changed = false;
+
+  for (const [name, before] of [
+    ["transport", "streaming"],
+    ["fast_mode_requested", "streaming"],
+  ] as const) {
+    if (header.includes(name)) continue;
+    const columnIndex = header.indexOf(before);
+    if (columnIndex < 0) continue;
+
+    header.splice(columnIndex, 0, name);
+    for (const row of rows) row.splice(columnIndex, 0, UNAVAILABLE);
+    changed = true;
+  }
+
+  const transportIndex = header.indexOf("transport");
+  const fastModeIndex = header.indexOf("fast_mode_requested");
+  for (const row of rows) {
+    if (row.length === header.length - 2) {
+      row.splice(transportIndex, 0, UNAVAILABLE);
+      row.splice(fastModeIndex, 0, UNAVAILABLE);
+      changed = true;
+    } else if (row.length === header.length - 1) {
+      const missingIndex = ["true", "false"].includes(row[transportIndex])
+        ? transportIndex
+        : fastModeIndex;
+      row.splice(missingIndex, 0, UNAVAILABLE);
+      changed = true;
+    }
+  }
+
+  if (!changed) return undefined;
+  return `${[header, ...rows].map((row) => row.join(",")).join("\n")}\n`;
+}
+
+async function ensureStatsColumns(): Promise<void> {
   let content: string;
   try {
     content = await readFile(CSV_PATH, "utf8");
@@ -74,33 +124,9 @@ async function ensureTransportColumn(): Promise<void> {
     throw error;
   }
 
-  const lines = content.trimEnd().split(/\r?\n/);
-  const header = lines[0]?.split(",") ?? [];
-  const transportIndex = header.indexOf("transport");
-  const streamingIndex = header.indexOf("streaming");
-  if (streamingIndex < 0) return;
-
-  if (transportIndex < 0) {
-    header.splice(streamingIndex, 0, "transport");
-  }
-
-  const expectedColumns = header.length;
-  const columnIndex = transportIndex < 0 ? streamingIndex : transportIndex;
-  let changed = transportIndex < 0;
-  const rows = lines.slice(1).map((line) => {
-    const columns = line.split(",");
-    if (columns.length === expectedColumns - 1) {
-      columns.splice(columnIndex, 0, UNAVAILABLE);
-      changed = true;
-    }
-    return columns.join(",");
-  });
-
-  if (changed) {
-    await writeFile(CSV_PATH, `${[header.join(","), ...rows].join("\n")}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
-    });
+  const migrated = migrateCsvColumns(content);
+  if (migrated !== undefined) {
+    await writeFile(CSV_PATH, migrated, { encoding: "utf8", mode: 0o600 });
   }
 }
 
@@ -118,7 +144,7 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
 
   pi.on("session_start", async () => {
     await mkdir(dirname(CSV_PATH), { recursive: true, mode: 0o700 });
-    await ensureTransportColumn();
+    await ensureStatsColumns();
     try {
       csvInitialized = (await stat(CSV_PATH)).size > 0;
     } catch (error: unknown) {
@@ -126,7 +152,7 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
     }
   });
 
-  pi.on("before_provider_request", (_event, ctx) => {
+  pi.on("before_provider_request", (event, ctx) => {
     const model = ctx.model;
     if (!model) return;
 
@@ -138,6 +164,7 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
       model: model.id,
       api: model.api,
       endpoint: endpointName(model.api),
+      fastModeRequested: isFastModeRequested(event.payload),
       streaming: false,
     };
   });
@@ -176,23 +203,27 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
         ? (outputTokens / (generationMs / 1000)).toFixed(3)
         : UNAVAILABLE;
 
-    await appendRow([
-      request.timestamp,
-      xClientRequestID(request),
-      valueOrUnavailable(request.xRequestID),
-      valueOrUnavailable(event.message.responseId),
-      request.provider,
-      request.model,
-      request.api,
-      request.endpoint,
-      request.transport ?? UNAVAILABLE,
-      request.streaming,
-      ttftMs,
-      totalMs,
-      outputTokens,
-      outputTokensPerSecond,
-      event.message.stopReason,
-    ], csvInitialized);
+    await appendRow(
+      [
+        request.timestamp,
+        xClientRequestID(request),
+        valueOrUnavailable(request.xRequestID),
+        valueOrUnavailable(event.message.responseId),
+        request.provider,
+        request.model,
+        request.api,
+        request.endpoint,
+        request.transport ?? UNAVAILABLE,
+        request.fastModeRequested,
+        request.streaming,
+        ttftMs,
+        totalMs,
+        outputTokens,
+        outputTokensPerSecond,
+        event.message.stopReason,
+      ],
+      csvInitialized,
+    );
     csvInitialized = true;
   });
 }
@@ -202,4 +233,6 @@ export const requestStatsTest = {
   CSV_PATH,
   endpointName,
   csvCell,
+  isFastModeRequested,
+  migrateCsvColumns,
 };

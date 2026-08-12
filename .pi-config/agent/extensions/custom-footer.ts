@@ -3,6 +3,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { FAST_STATUS_KEY } from "./pi-openai-fast/src/capabilities.ts";
 
 function sanitizeStatusText(text: string): string {
   return text
@@ -127,7 +128,14 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
         if (visibleWidth(leftStats) > safeWidth)
           leftStats = truncateToWidth(leftStats, safeWidth, "...");
 
-        const rightStats = `${ctx.model?.id ?? "no-model"} • ${pi.getThinkingLevel()}`;
+        const extensionStatuses = footerData.getExtensionStatuses();
+        const rightStats = [
+          ctx.model?.id ?? "no-model",
+          pi.getThinkingLevel(),
+          extensionStatuses.get(FAST_STATUS_KEY),
+        ]
+          .filter((part): part is string => Boolean(part))
+          .join(" • ");
         const statsLine = renderPaddedLine(
           theme.fg("dim", leftStats),
           theme.fg("dim", rightStats),
@@ -135,9 +143,9 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
         );
 
         const lines = [];
-        const extensionStatuses = footerData.getExtensionStatuses();
         if (extensionStatuses.size > 0) {
           const statusLine = Array.from(extensionStatuses.entries())
+            .filter(([key]) => key !== FAST_STATUS_KEY)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([, text]) => sanitizeStatusText(text))
             .filter(shouldShowStatusText)

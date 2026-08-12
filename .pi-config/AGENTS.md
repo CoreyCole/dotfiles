@@ -31,6 +31,7 @@ Whenever communicating with the lead engineer or writing docs, follow the `/simp
 
 - Do **not** patch installed Pi runtime files or package manager output: no edits under `node_modules/`, global npm/fnm installations, `dist/` files in installed packages, or other generated dependency caches.
 - For local behavior changes, extend Pi through tracked `.pi-config` resources: `agent/extensions/`, `agent/skills/`, `agent/mcp.json`, `AGENTS.md`, `SYSTEM.md`, or `APPEND_SYSTEM.md`. Use the ignored `agent/settings.json` only for machine-local runtime settings.
+- Obey the extension ownership boundary in `~/dotfiles/AGENTS.md`. Do not globally load Vamos, QRSPI, or Hermes worker extensions from `.pi-config`.
 - When changing Pi behavior, use the `pi` skill and follow its extension-first guidance. Prefer `pi.registerCommand`, `pi.registerTool`, and `pi.on(...)` hooks over modifying Pi internals.
 - Use `context/pi-mono` as source-of-truth research for Pi APIs and behavior, but do not edit it for this dotfiles config unless the task is explicitly to prepare an upstream Pi change.
 
