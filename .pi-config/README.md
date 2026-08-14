@@ -75,21 +75,11 @@ Put a project-agnostic global extension in:
 .pi-config/agent/extensions/
 ```
 
-Vamos owns the extensions that connect managed Pi workers to Hermes and the QRSPI runtime. These extensions live in:
-
-```text
-~/cn/chestnut-flake/vamos/.pi/extensions/
-```
-
-The `vamos hermes pi start` launcher must load those extensions for managed workers. This loading does not depend on the worker's project directory.
-
-`cn-agents` consumes the Vamos server for Chestnut. It does not own the generic Vamos worker extensions.
-
-Do not copy or globally auto-load Vamos extensions from this config. Global dotfiles extensions are for user-level behavior, such as provider performance telemetry.
+Vamos owns every Vamos-specific extension and loads managed-child resources from its selected canonical checkout. Do not name, copy, symlink, or globally auto-load those resources from this config. Global dotfiles extensions are only for project-agnostic user behavior.
 
 Do **not** assume that `~/.pi/extensions/` is the global discovery path. Pi discovers global extensions from `~/.pi/agent/extensions/`.
 
-See `~/dotfiles/AGENTS.md` for the complete ownership rules.
+See `~/dotfiles/AGENTS.md` for the ownership boundary and canonical Vamos documentation pointer.
 
 ## Setup
 

@@ -22,4 +22,3 @@ pull_context_checkout() {
 }
 
 pull_context_checkout "pi" "$DOTFILES_DIR/context/pi"
-pull_context_checkout "vamos" "$DOTFILES_DIR/context/vamos"

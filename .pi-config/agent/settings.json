@@ -6,8 +6,8 @@
   ],
   "skills": [
     "~/dotfiles/.agents/skills",
-    "~/cn/chestnut-flake/vamos/.pi/skills",
-    "~/cn/chestnut-flake/.agents/skills"
+    "~/cn/chestnut-flake/.agents/skills",
+    "~/cn/chestnut-flake/vamos/.agents/skills"
   ],
   "compaction": {
     "enabled": false
@@ -19,3 +19,4 @@
   "defaultModel": "gpt-5.6-sol",
   "transport": "websocket"
 }
+

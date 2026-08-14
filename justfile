@@ -13,12 +13,6 @@ setup: arch-setup
   else \
     echo "Pi context checkout already exists"; \
   fi
-  @if [ ! -d context/vamos/.git ]; then \
-    echo "Cloning vamos context checkout"; \
-    git clone https://github.com/CoreyCole/vamos.git context/vamos; \
-  else \
-    echo "Vamos context checkout already exists"; \
-  fi
   ./hooks/post-pull
   ./.pi-config/setup.sh
 
