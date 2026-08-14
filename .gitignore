@@ -47,3 +47,5 @@ sessions/
 secrets.sh
 __pycache__/
 pi-crash.log
+.pi-config/agent/bin
+
