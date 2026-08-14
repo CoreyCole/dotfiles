@@ -1,9 +1,16 @@
 -- A shell opened inside Neovim can retain an unusable per-instance runtime
 -- directory. Long paths also leave too little room for fzf-lua's Unix socket.
-local runtime_dir = vim.env.XDG_RUNTIME_DIR
-local runtime_dir_is_invalid = runtime_dir and (vim.fn.filewritable(runtime_dir) ~= 2 or #runtime_dir > 70)
-if runtime_dir_is_invalid then
+local runtime_dir = vim.fn.stdpath "run"
+local runtime_dir_is_writable = vim.fn.filewritable(runtime_dir) == 2
+if not runtime_dir_is_writable then
     vim.env.XDG_RUNTIME_DIR = nil
+end
+
+if not runtime_dir_is_writable or #runtime_dir > 70 then
+    local ok, server = pcall(vim.fn.serverstart, "/tmp/fzf-lua." .. vim.fn.getpid())
+    if ok then
+        vim.g.fzf_lua_server = server
+    end
 end
 
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
