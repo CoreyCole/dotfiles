@@ -83,7 +83,39 @@ Rules:
 </html>
 ```
 
-## Step 4: Format content for presentation
+## Step 4: Establish the narrative before layout
+
+When a deck presents an existing report, design, or plan, treat that source as the content contract. Do not invent a simplified problem statement from code or from a title.
+
+Before editing the deck:
+
+1. Read the source document.
+1. Map each proposed slide to a source section.
+1. Ask the user one slide at a time when the message, audience, or claim is unclear.
+1. Keep the same problem, benefit, scope, and exclusions as the source document.
+1. Remove a slide when it repeats or flattens the source story. Do not add a generic feature slide only because it looks balanced.
+
+For a non-technical deck, separate these facts on the relevant slides:
+
+- the prior user or Product problem;
+- the new design benefit;
+- the exact claim that is safe for the current scope;
+- the detailed source for complete coverage, such as a CSV.
+
+Do not collapse distinct fields into one visual row when the source contract lists them separately. Preserve priority order where the source establishes one.
+
+When the design uses server-rendered content with a thin client, state the boundary exactly: the backend renders action-specific summary and detail content; the frontend provides the container. New event types must not imply frontend changes unless the product explicitly requires them. If backend rendering supports per-event overrides, mention that capability without implying a matching frontend implementation.
+
+## Step 4: Align the deck to its source narrative before writing
+
+When a deck presents an existing report, roadmap, or Markdown document, read that source first. Map every slide to a section of the source before editing HTML.
+
+- Do not replace milestone structure with broad product-area groups when the source tells a milestone story.
+- Keep the source's exact distinctions. For example, do not merge metadata fields or collapse separate problems into one vague claim.
+- Put only high-level coverage in slides. Link to the CSV or inventory for every action when the source uses it as the complete record.
+- If the user asks to grill the deck, review one slide at a time. Ask what claim it makes, what source section proves it, and what detail must stay visible. Do not revise the deck until the slide-by-slide decisions are clear.
+
+## Step 5: Format content for presentation
 
 Prefer slide content that is readable at presentation distance:
 
@@ -93,6 +125,16 @@ Prefer slide content that is readable at presentation distance:
 - For title slides, keep the title on one line and format subtitle as a list when it has multiple items.
 - For timelines, prefer rows/columns with dates visually separated from event text.
 - Do not add visible helper text like “Use arrow keys”; arrow-key support should be silent unless explicitly requested.
+
+### Presentation geometry
+
+Use a centered presentation canvas with a generous but bounded width. Do not let every slide element stretch across the full browser viewport.
+
+- Use a slide canvas such as `width: min(100%, 1500px); margin: 0 auto;` for a wide deck.
+- Use fixed or bounded widths for comparison cards, flow-chart boxes, and other repeated visual units.
+- Keep diagram boxes snug around their content. Center the whole diagram group instead of making each box a `1fr` column.
+- Do not remove all `max-width` limits after feedback that a deck is too narrow. Increase the canvas width and preserve deliberate, professional geometry.
+- Give the frontend/backend flow a final frontend box. A diagram must show every step named in the source.
 
 Useful CSS patterns:
 
@@ -104,7 +146,13 @@ Useful CSS patterns:
 .timeline .title { display: block; }
 ```
 
-## Step 5: Debug broken navigation
+### Professional layout discipline
+
+Do not make every slide component stretch across the full browser width. Use a centered presentation canvas with a generous controlled maximum width, then give diagrams and comparison cards deliberate fixed or bounded widths. For example, a flow diagram should use fixed-width boxes centered as a group; arrows should stay narrow; boxes should not expand merely because the viewport is wide.
+
+When converting an approved Markdown narrative into slides, grill the story slide by slide before editing. For each slide, map it to its exact source section, state its single message, and identify facts that must not be compressed. Keep the complete project/milestone structure when the document uses it; do not flatten it into a few broad product groups just to reduce slide count.
+
+## Step 6: Debug broken navigation
 
 Check these first:
 
@@ -118,7 +166,7 @@ Check these first:
 
 Use `rg "data-on-|data-attr-" file.html` to find old broken syntax.
 
-## Step 6: Verify before done
+## Step 7: Verify before done
 
 After editing:
 
