@@ -108,6 +108,7 @@ See `references/` for detailed documentation:
 - [`references/compose-key.md`](references/compose-key.md) — Compose key setup for typing accented and special characters
 - [`references/bluetooth-audio.md`](references/bluetooth-audio.md) — Bluetooth headphone output switching, A2DP vs headset profiles, and Omarchy audio shortcuts
 - [`references/rcmd-hyprland.md`](references/rcmd-hyprland.md) — rcmd-style application activation across Hyprland workspaces and monitors
+- [`references/quattro-migration.md`](references/quattro-migration.md) — guarded Omarchy 3 to Quattro migration for symlinked dotfiles and unconfigured Snapper
 
 ## Related Skills
 
