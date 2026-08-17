@@ -105,6 +105,7 @@ See `references/` for detailed documentation:
 - [`references/monitors.md`](references/monitors.md) — desc:-based monitor matching for robust multi-monitor/DisplayLink setups
 - [`references/dev-env-zsh.md`](references/dev-env-zsh.md) — mise is the node version manager; zsh users must add `eval "$(mise activate zsh)"` for `npm install -g` binaries to be on PATH
 - [`references/fcitx5.md`](references/fcitx5.md) — fcitx5 input method config, keybinding format gotchas, and restart requirements
+- [`references/compose-key.md`](references/compose-key.md) — Compose key setup for typing accented and special characters
 - [`references/bluetooth-audio.md`](references/bluetooth-audio.md) — Bluetooth headphone output switching, A2DP vs headset profiles, and Omarchy audio shortcuts
 - [`references/rcmd-hyprland.md`](references/rcmd-hyprland.md) — rcmd-style application activation across Hyprland workspaces and monitors
 
