@@ -1,6 +1,7 @@
 ---
 name: datastar-slides
 description: Create or fix static HTML slide decks powered by Datastar signals. Use when asked to make "datastar slides", "HTML slide deck", "slide deck with Datastar buttons", "arrow-key slides", or fix broken Datastar slide navigation. Covers v1 colon attribute syntax, local UI signals, keyboard handlers, dot indicators, and compact slide layout.
+layout_reference: references/professional-layout.md
 ---
 
 Build static HTML slide decks that use Datastar only for local UI interaction: current slide, next/prev buttons, keyboard navigation, and active dot indicators.
