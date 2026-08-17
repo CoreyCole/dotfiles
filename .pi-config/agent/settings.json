@@ -7,7 +7,7 @@
   "skills": [
     "~/dotfiles/.agents/skills",
     "~/cn/chestnut-flake/.agents/skills",
-    "~/cn/chestnut-flake/vamos/.agents/skills"
+    "~/cn/chestnut-flake/vamos/.pi/skills"
   ],
   "compaction": {
     "enabled": false
