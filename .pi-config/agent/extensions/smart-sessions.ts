@@ -1,4 +1,4 @@
-import { complete, type Model, type Api } from "@earendil-works/pi-ai";
+import { complete, type Model, type Api } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import YAML from "yaml";
 

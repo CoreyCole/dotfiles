@@ -1,4 +1,9 @@
-import { createEditToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  type AgentToolResult,
+  createEditToolDefinition,
+  type EditToolDetails,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
@@ -13,17 +18,6 @@ const DELTA_ARGS = [
   "--hyperlinks",
   "--hyperlinks-file-link-format=lazygit-edit://{path}:{line}",
 ];
-
-type TextBlock = { type: string; text?: string };
-type EditResult = {
-  content: TextBlock[];
-  details?: { diff?: string; patch?: string; firstChangedLine?: number };
-};
-type RenderContext = {
-  args?: { path?: string; file_path?: string };
-  isError: boolean;
-  lastComponent?: unknown;
-};
 
 type ParsedDiffLine = {
   kind: "add" | "remove" | "context" | "skip";
@@ -104,7 +98,9 @@ function renderWithDelta(displayDiff: string, filePath: string, patch?: string):
   return delta.stdout.trim();
 }
 
-function errorText(result: EditResult): string | undefined {
+function errorText(
+  result: AgentToolResult<EditToolDetails | undefined>,
+): string | undefined {
   const text = result.content
     .filter((block) => block.type === "text")
     .map((block) => block.text ?? "")
@@ -118,7 +114,7 @@ function shellQuote(value: string): string {
 
 function editPath(input: unknown): string | undefined {
   if (!input || typeof input !== "object") return undefined;
-  const value = (input as { path?: unknown; file_path?: unknown }).path ?? (input as { file_path?: unknown }).file_path;
+  const value = (input as { path?: unknown }).path;
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
@@ -172,11 +168,11 @@ export default function (pi: ExtensionAPI) {
       }
 
       const text = context.lastComponent instanceof Text ? context.lastComponent : new Text("", 0, 0);
-      const path = context.args?.file_path ?? context.args?.path ?? args?.file_path ?? args?.path ?? "...";
+      const path = context.args?.path ?? args?.path ?? "...";
       text.setText(`${theme.fg("toolTitle", theme.bold("edit"))} ${theme.fg("accent", path)}`);
       return text;
     },
-    renderResult(result: EditResult, options, theme, context: RenderContext) {
+    renderResult(result, options, theme, context) {
       if (context.isError) {
         const message = errorText(result);
         if (!message) {
@@ -190,7 +186,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       const diff = result.details?.diff;
-      const path = context.args?.file_path ?? context.args?.path ?? "edit";
+      const path = context.args?.path ?? "edit";
       const deltaOutput = diff ? renderWithDelta(diff, path, result.details?.patch) : undefined;
       if (!deltaOutput) {
         return originalRenderResult?.(result, options, theme, context) ?? new Container();

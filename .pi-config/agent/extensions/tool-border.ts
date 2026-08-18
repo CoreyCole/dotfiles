@@ -146,13 +146,30 @@ function deterministicDocsSummary(
 function visibleReadResult(
   result: ToolResult | undefined,
 ): ToolResult | undefined {
-  const hiddenBlocks =
-    result?.details?.deterministicDocs?.autoContextContentBlocks;
-  if (typeof hiddenBlocks !== "number" || hiddenBlocks <= 0) return result;
+  const deterministicDocs = result?.details?.deterministicDocs;
+  const hiddenBlocks = deterministicDocs?.autoContextContentBlocks;
+  const content = result?.content;
+  const hasValidLoadedPaths =
+    Array.isArray(deterministicDocs?.loaded) &&
+    deterministicDocs.loaded.length > 0 &&
+    deterministicDocs.loaded.every(
+      (entry) => typeof entry?.path === "string" && entry.path.length > 0,
+    );
+  if (
+    !hasValidLoadedPaths ||
+    !Array.isArray(content) ||
+    typeof hiddenBlocks !== "number" ||
+    !Number.isInteger(hiddenBlocks) ||
+    hiddenBlocks <= 0 ||
+    hiddenBlocks > content.length ||
+    content.slice(0, hiddenBlocks).some((block) => block.type !== "text")
+  ) {
+    return result;
+  }
 
   return {
     ...result,
-    content: result?.content?.slice(hiddenBlocks),
+    content: content.slice(hiddenBlocks),
   };
 }
 
@@ -392,7 +409,17 @@ function patchToolExecutionBorder() {
   };
 
   proto.render = function render(width: number): string[] {
-    let lines = proto[ORIGINAL_RENDER].call(this, width) as string[];
+    const originalResult = this.result;
+    if (this.toolName === "read" && this.expanded && originalResult) {
+      this.result = visibleReadResult(originalResult);
+    }
+
+    let lines: string[];
+    try {
+      lines = proto[ORIGINAL_RENDER].call(this, width) as string[];
+    } finally {
+      this.result = originalResult;
+    }
     if (lines.length === 0) return lines;
 
     if (this.toolName === "edit") {
@@ -415,9 +442,19 @@ function patchToolExecutionBorder() {
         : iconizeFirstContentLine(lines, "📝", "write");
     } else if (this.toolName === "read") {
       const pathLines = toolPathLines(this.args, this.cwd, "📖", width);
-      lines =
-        pathLines ??
-        firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
+      if (this.expanded) {
+        lines = pathLines
+          ? replaceFirstContentLineBlock(
+              lines,
+              pathLines,
+              rawToolPath(this.args) ?? toolPathDisplay(this.args, this.cwd),
+            )
+          : iconizeFirstContentLine(lines, "📖", "read");
+      } else {
+        lines =
+          pathLines ??
+          firstContentLine(iconizeFirstContentLine(lines, "📖", "read"));
+      }
     } else if (this.toolName === "bash") {
       if (this.isPartial) lines = setBashStatusIcon(lines, "🟡");
       if (!this.expanded) lines = restoreBashCollapsedHint(lines);
