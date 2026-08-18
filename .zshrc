@@ -87,6 +87,7 @@ export NIX_DIRENV_SILENT=0
 eval "$(direnv hook zsh)"
 
 export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
 
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"
