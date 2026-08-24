@@ -204,6 +204,33 @@ test("resolveAttachTarget rejects ambiguous prefixes and names", () => {
   assert.match("error" in name ? name.error : "", /Ambiguous subagent/);
 });
 
+test("watcher ownership is isolated across cached extension factory invocations", () => {
+  const oldInstance = __test__.createWatcherOwner();
+  const newInstance = __test__.createWatcherOwner();
+
+  oldInstance.abort();
+
+  assert.equal(oldInstance.signal.aborted, true);
+  assert.equal(oldInstance.shutdown, true);
+  assert.equal(newInstance.signal.aborted, false);
+  assert.equal(newInstance.shutdown, false);
+});
+
+test("shutdown cancellation suppresses false child failures", () => {
+  const running = candidate("shutdown1234", "Shutting down");
+  running.shutdownCancelled = true;
+  assert.equal(__test__.shouldDeliverWatcherNotification(running), false);
+});
+
+test("infrastructure watcher failures remove unstarted transient runs", () => {
+  const running = candidate("missing1234", "Never started");
+  __test__.runningSubagents.set(running.id, running);
+
+  __test__.cleanupFailedWatcherRun(running);
+
+  assert.equal(__test__.runningSubagents.has(running.id), false);
+});
+
 test("explicit stops suppress watcher success and rejection notifications", () => {
   const running = candidate("stop1234", "Stopped");
   assert.equal(__test__.shouldDeliverWatcherNotification(running), true);

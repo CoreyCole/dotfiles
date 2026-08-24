@@ -75,8 +75,6 @@ const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
 // the old module keep running. See https://github.com/HazAT/pi-interactive-subagents/issues/5
 const WIDGET_INTERVAL_KEY = Symbol.for("pi-subagents/widget-interval");
 const STATUS_INTERVAL_KEY = Symbol.for("pi-subagents/status-interval");
-const POLL_ABORT_KEY = Symbol.for("pi-subagents/poll-abort-controller");
-
 {
   const prevInterval = (globalThis as any)[WIDGET_INTERVAL_KEY];
   if (prevInterval) {
@@ -88,15 +86,21 @@ const POLL_ABORT_KEY = Symbol.for("pi-subagents/poll-abort-controller");
     clearInterval(prevStatusInterval);
     (globalThis as any)[STATUS_INTERVAL_KEY] = null;
   }
-  const prevAbort = (globalThis as any)[POLL_ABORT_KEY] as
-    | AbortController
-    | undefined;
-  if (prevAbort) prevAbort.abort();
-  (globalThis as any)[POLL_ABORT_KEY] = new AbortController();
 }
 
-function getModuleAbortSignal(): AbortSignal {
-  return ((globalThis as any)[POLL_ABORT_KEY] as AbortController).signal;
+function createWatcherOwner() {
+  const controller = new AbortController();
+  let shutdown = false;
+  return {
+    signal: controller.signal,
+    get shutdown() {
+      return shutdown;
+    },
+    abort() {
+      shutdown = true;
+      controller.abort();
+    },
+  };
 }
 
 const SubagentParams = Type.Object({
@@ -701,6 +705,7 @@ interface RunningSubagent {
   processState?: "active" | "resumable";
   runId?: number;
   explicitlyStopped?: boolean;
+  shutdownCancelled?: boolean;
   sessionFile: string;
   launchScriptFile?: string;
   activityFile?: string;
@@ -872,7 +877,14 @@ function appendPersistenceWarning(
 }
 
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
-  return running.explicitlyStopped !== true;
+  return (
+    running.explicitlyStopped !== true && running.shutdownCancelled !== true
+  );
+}
+
+function cleanupFailedWatcherRun(running: RunningSubagent): void {
+  if (!existsSync(running.sessionFile)) runningSubagents.delete(running.id);
+  else running.processState = "resumable";
 }
 
 // ── Widget management ──
@@ -1468,6 +1480,8 @@ export const __test__ = {
   selectActiveBranchSnapshot,
   serializeResumableSnapshot,
   stopTrackedSubagent,
+  createWatcherOwner,
+  cleanupFailedWatcherRun,
   validateResumableRecord,
   validateSnapshotEnvelope,
   RESUMABLE_SNAPSHOT_CUSTOM_TYPE,
@@ -1852,6 +1866,7 @@ function copyClaudeSession(sentinelFile: string): string | null {
 async function watchSubagent(
   running: RunningSubagent,
   signal: AbortSignal,
+  ownerSignal: AbortSignal,
 ): Promise<SubagentResult> {
   const { name, task, surface, startTime, sessionFile } = running;
   const ownedRunId = running.runId ?? 1;
@@ -1859,7 +1874,7 @@ async function watchSubagent(
   try {
     const result = await pollForExit(
       surface,
-      AbortSignal.any([signal, getModuleAbortSignal()]),
+      AbortSignal.any([signal, ownerSignal]),
       {
         interval: 1000,
         sessionFile,
@@ -1963,7 +1978,7 @@ async function watchSubagent(
       closeSurface(surface);
     } catch {}
 
-    if (signal.aborted) {
+    if (signal.aborted || ownerSignal.aborted) {
       return {
         name,
         task,
@@ -1974,7 +1989,9 @@ async function watchSubagent(
         sessionFile,
       };
     }
-    running.processState = "resumable";
+    // A launch-side infrastructure failure can occur before Pi writes a
+    // session. Do not retain a resumable record that cannot be resumed.
+    cleanupFailedWatcherRun(running);
     return {
       name,
       task,
@@ -1987,6 +2004,8 @@ async function watchSubagent(
 }
 
 export default function subagentsExtension(pi: ExtensionAPI) {
+  const watcherOwner = createWatcherOwner();
+  const ownedRuns = new Set<RunningSubagent>();
   let managerSessionId: string | null = null;
 
   const persistSnapshot = (excludedId?: string) => {
@@ -2038,14 +2057,17 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       statusInterval = null;
       (globalThis as any)[STATUS_INTERVAL_KEY] = null;
     }
-    const moduleAbort = (globalThis as any)[POLL_ABORT_KEY] as
-      | AbortController
-      | undefined;
-    if (moduleAbort) moduleAbort.abort();
-    for (const [_id, agent] of runningSubagents) {
+    watcherOwner.abort();
+    for (const agent of ownedRuns) {
+      agent.shutdownCancelled = true;
       agent.abortController?.abort();
+      try {
+        closeSurface(agent.surface);
+      } catch {}
+      if (runningSubagents.get(agent.id) === agent)
+        runningSubagents.delete(agent.id);
     }
-    runningSubagents.clear();
+    ownedRuns.clear();
   });
 
   // Tools denied via PI_DENY_TOOLS env var (set by parent agent based on frontmatter)
@@ -2118,15 +2140,17 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         // (the tool's signal completes when we return)
         const watcherAbort = new AbortController();
         running.abortController = watcherAbort;
+        ownedRuns.add(running);
 
         // Start widget refresh and status supervision when the first agent launches
         startWidgetRefresh();
         startStatusRefresh(pi);
 
         // Fire-and-forget: start watching in background
-        watchSubagent(running, watcherAbort.signal)
+        watchSubagent(running, watcherAbort.signal, watcherOwner.signal)
           .then((result) => {
-            if (running.explicitlyStopped) {
+            ownedRuns.delete(running);
+            if (!shouldDeliverWatcherNotification(running)) {
               updateWidget();
               return;
             }
@@ -2295,9 +2319,10 @@ export default function subagentsExtension(pi: ExtensionAPI) {
     running: RunningSubagent,
     watcherAbort: AbortController,
   ) => {
-    watchSubagent(running, watcherAbort.signal)
+    watchSubagent(running, watcherAbort.signal, watcherOwner.signal)
       .then((result) => {
-        if (running.explicitlyStopped) {
+        ownedRuns.delete(running);
+        if (!shouldDeliverWatcherNotification(running)) {
           updateWidget();
           return;
         }
@@ -2395,6 +2420,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
             startTimeMs: startTime,
           });
           running.abortController = watcherAbort;
+          ownedRuns.add(running);
         },
         startWatcher: () => deliverControlledRun(running, watcherAbort),
         update() {
@@ -2865,10 +2891,12 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         // Fire-and-forget watcher
         const watcherAbort = new AbortController();
         running.abortController = watcherAbort;
+        ownedRuns.add(running);
 
-        watchSubagent(running, watcherAbort.signal)
+        watchSubagent(running, watcherAbort.signal, watcherOwner.signal)
           .then((result) => {
-            if (running.explicitlyStopped) {
+            ownedRuns.delete(running);
+            if (!shouldDeliverWatcherNotification(running)) {
               updateWidget();
               return;
             }
