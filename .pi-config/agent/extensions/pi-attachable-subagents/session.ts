@@ -62,11 +62,13 @@ export function seedSubagentSessionFile(params: {
   parentSessionFile: string;
   childSessionFile: string;
   childCwd: string;
-}): void {
+  childSessionId?: string;
+}): string {
+  const childSessionId = params.childSessionId ?? randomUUID();
   const header = {
     type: "session",
     version: 3,
-    id: randomUUID(),
+    id: childSessionId,
     timestamp: new Date().toISOString(),
     cwd: params.childCwd,
     parentSession: params.parentSessionFile,
@@ -76,7 +78,11 @@ export function seedSubagentSessionFile(params: {
   const lines = [JSON.stringify(header), ...contentLines];
 
   mkdirSync(dirname(params.childSessionFile), { recursive: true });
-  writeFileSync(params.childSessionFile, lines.join("\n") + "\n", "utf8");
+  writeFileSync(params.childSessionFile, lines.join("\n") + "\n", {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  return childSessionId;
 }
 
 function readEntries(sessionFile: string): SessionEntry[] {

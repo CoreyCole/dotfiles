@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { __test__ } from "./index.ts";
-import { inspectSession } from "./session.ts";
+import { inspectSession, seedSubagentSessionFile } from "./session.ts";
 import { createStatusState } from "./status.ts";
 
 type AttachCandidate = Parameters<
@@ -30,6 +30,119 @@ const agents = [
   candidate("abcd5678", "Worker"),
   candidate("ef901234", "Scout"),
 ];
+
+test("native child header is materialized with its stable UUID before dispatch", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-native-child-"));
+  const parent = join(dir, "manager.jsonl");
+  const child = join(dir, "child.jsonl");
+  const childSessionId = "7cae45bd-7dc3-4ee8-87d4-e57996249e93";
+  writeFileSync(
+    parent,
+    JSON.stringify({ type: "session", id: "manager" }) + "\n",
+  );
+  try {
+    assert.equal(
+      seedSubagentSessionFile({
+        mode: "lineage-only",
+        parentSessionFile: parent,
+        childSessionFile: child,
+        childCwd: "/work",
+        childSessionId,
+      }),
+      childSessionId,
+    );
+    assert.equal(
+      JSON.parse(readFileSync(child, "utf8").split("\n")[0]).id,
+      childSessionId,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("active-branch child registrations replay idempotently and reject foreign owners", () => {
+  const registration = (
+    childSessionId: string,
+    managerSessionId = "manager",
+  ) => ({
+    type: "custom",
+    customType: __test__.CHILD_SESSION_CUSTOM_TYPE,
+    data: {
+      version: 1,
+      managerSessionId,
+      childSessionId,
+      name: "Worker",
+      agent: "worker",
+      cwd: "/work",
+    },
+  });
+  const active = [
+    registration("one"),
+    registration("two"),
+    registration("one"),
+    registration("foreign", "other"),
+  ];
+  assert.deepEqual(
+    [
+      ...__test__
+        .replayChildCatalog({ id: "manager" }, "manager", active)
+        .keys(),
+    ],
+    ["one", "two"],
+  );
+  assert.equal(
+    __test__.replayChildCatalog({ id: "fork" }, "manager", active).size,
+    0,
+  );
+});
+
+test("legacy snapshots migrate native child headers once without process state", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-legacy-child-"));
+  const file = join(dir, "child.jsonl");
+  const parent = join(dir, "manager.jsonl");
+  writeFileSync(
+    parent,
+    JSON.stringify({ type: "session", id: "manager" }) + "\n",
+  );
+  try {
+    seedSubagentSessionFile({
+      mode: "lineage-only",
+      parentSessionFile: parent,
+      childSessionFile: file,
+      childCwd: "/work",
+      childSessionId: "native-child",
+    });
+    const legacy = __test__.serializeResumableSnapshot("manager", [
+      makeResumable("synthetic", file),
+    ]);
+    const recovered = __test__.migrateLegacySnapshots(
+      { id: "manager" },
+      "manager",
+      [snapshotEntry(legacy)],
+      new Map(),
+    );
+    assert.deepEqual(recovered, [
+      {
+        managerSessionId: "manager",
+        childSessionId: "native-child",
+        name: "Worker synthetic",
+        agent: "worker",
+        cwd: "/work",
+      },
+    ]);
+    assert.deepEqual(
+      __test__.migrateLegacySnapshots(
+        { id: "manager" },
+        "manager",
+        [snapshotEntry(legacy)],
+        new Map([["native-child", recovered[0]]]),
+      ),
+      [],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("one resolved Pi profile preserves flags and environment across runs", () => {
   const profile = {

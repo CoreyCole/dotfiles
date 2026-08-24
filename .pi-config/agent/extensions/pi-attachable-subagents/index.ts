@@ -22,6 +22,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { homedir } from "node:os";
+import { randomUUID } from "node:crypto";
 import {
   isMuxAvailable,
   muxSetupHint,
@@ -526,6 +527,127 @@ interface ResolvedPiLaunchProfile {
 
 const RESUMABLE_SNAPSHOT_CUSTOM_TYPE =
   "pi-attachable-subagents/resumable-snapshot";
+const CHILD_SESSION_CUSTOM_TYPE = "pi-attachable-subagents/child";
+
+/** Durable identity only. Process and pane state intentionally never belongs here. */
+interface ChildSession {
+  managerSessionId: string;
+  childSessionId: string;
+  name: string;
+  agent?: string;
+  cwd: string;
+}
+
+function validateChildSession(value: unknown): ChildSession | undefined {
+  if (
+    !isPlainObject(value) ||
+    value.version !== 1 ||
+    !isNonemptyString(value.managerSessionId) ||
+    !isNonemptyString(value.childSessionId) ||
+    !isNonemptyString(value.name) ||
+    !isNonemptyString(value.cwd) ||
+    (value.agent !== undefined && !isNonemptyString(value.agent))
+  )
+    return undefined;
+  return {
+    managerSessionId: value.managerSessionId,
+    childSessionId: value.childSessionId,
+    name: value.name,
+    ...(value.agent === undefined ? {} : { agent: value.agent }),
+    cwd: value.cwd,
+  };
+}
+
+function replayChildCatalog(
+  header: { id?: unknown } | null,
+  managerSessionId: string,
+  branch: readonly unknown[],
+): Map<string, ChildSession> {
+  const catalog = new Map<string, ChildSession>();
+  if (header?.id !== managerSessionId) return catalog;
+  for (const entry of branch) {
+    if (
+      !isPlainObject(entry) ||
+      entry.type !== "custom" ||
+      entry.customType !== CHILD_SESSION_CUSTOM_TYPE
+    )
+      continue;
+    const child = validateChildSession(entry.data);
+    if (!child || child.managerSessionId !== managerSessionId) continue;
+    const existing = catalog.get(child.childSessionId);
+    // Immutable duplicate registrations are harmless. Conflicting records do
+    // not replace the first branch-owned identity.
+    if (!existing) catalog.set(child.childSessionId, child);
+  }
+  return catalog;
+}
+
+function nativeSessionId(sessionFile: string): string | undefined {
+  try {
+    const firstLine = readFileSync(sessionFile, "utf8").split("\n", 1)[0];
+    const header = JSON.parse(firstLine);
+    return header?.type === "session" && isNonemptyString(header.id)
+      ? header.id
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** One-way compatibility reader; historical tool-result recovery is deferred. */
+function migrateLegacySnapshots(
+  header: { id?: unknown } | null,
+  managerSessionId: string,
+  branch: readonly unknown[],
+  existing: ReadonlyMap<string, ChildSession>,
+): ChildSession[] {
+  if (header?.id !== managerSessionId) return [];
+  const recovered = new Map<string, ChildSession>();
+  for (const entry of branch) {
+    if (
+      !isPlainObject(entry) ||
+      entry.type !== "custom" ||
+      entry.customType !== RESUMABLE_SNAPSHOT_CUSTOM_TYPE
+    )
+      continue;
+    const envelope = validateSnapshotEnvelope(entry.data);
+    if (!envelope || envelope.ownerSessionId !== managerSessionId) continue;
+    for (const value of envelope.records) {
+      const record = validateResumableRecord(value, existsSync);
+      if (!record) continue;
+      const childSessionId = nativeSessionId(record.launchProfile.sessionFile);
+      if (
+        !childSessionId ||
+        existing.has(childSessionId) ||
+        recovered.has(childSessionId)
+      )
+        continue;
+      const cwd = nativeSessionId(record.launchProfile.sessionFile)
+        ? (() => {
+            try {
+              return JSON.parse(
+                readFileSync(record.launchProfile.sessionFile, "utf8").split(
+                  "\n",
+                  1,
+                )[0],
+              ).cwd;
+            } catch {
+              return undefined;
+            }
+          })()
+        : undefined;
+      if (!isNonemptyString(cwd)) continue;
+      recovered.set(childSessionId, {
+        managerSessionId,
+        childSessionId,
+        name: record.name,
+        ...(record.agent ? { agent: record.agent } : {}),
+        cwd,
+      });
+    }
+  }
+  return [...recovered.values()];
+}
 
 interface ResumableRecordV1 {
   id: string;
@@ -722,8 +844,10 @@ interface RunningSubagent {
   statusState: SubagentStatusState;
 }
 
-/** All currently running subagents, keyed by id. */
+/** All currently running subagents, keyed by native Pi session id. */
 const runningSubagents = new Map<string, RunningSubagent>();
+/** Every child registered on the active manager branch, including idle children. */
+const childrenBySessionId = new Map<string, ChildSession>();
 
 function serializeResumableSnapshot(
   ownerSessionId: string,
@@ -1485,6 +1609,12 @@ export const __test__ = {
   validateResumableRecord,
   validateSnapshotEnvelope,
   RESUMABLE_SNAPSHOT_CUSTOM_TYPE,
+  CHILD_SESSION_CUSTOM_TYPE,
+  validateChildSession,
+  replayChildCatalog,
+  migrateLegacySnapshots,
+  nativeSessionId,
+  childrenBySessionId,
   runningSubagents,
   formatElapsed,
 };
@@ -1514,10 +1644,14 @@ async function launchSubagent(
     };
     cwd: string;
   },
-  options?: { surface?: string },
+  options?: {
+    surface?: string;
+    registerChild?: (child: ChildSession) => void;
+  },
 ): Promise<RunningSubagent> {
   const startTime = Date.now();
-  const id = Math.random().toString(16).slice(2, 10);
+  // This is the only manager-facing identity. Never manufacture a runtime ID.
+  const id = randomUUID();
 
   const agentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
   const effectiveModel = resolveModelArgument(
@@ -1554,13 +1688,7 @@ async function launchSubagent(
   // each agent knows exactly which file is theirs.
   const timestamp =
     new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23) + "Z";
-  const uuid = [
-    id,
-    Math.random().toString(16).slice(2, 10),
-    Math.random().toString(16).slice(2, 10),
-    Math.random().toString(16).slice(2, 6),
-  ].join("-");
-  const subagentSessionFile = join(sessionDir, `${timestamp}_${uuid}.jsonl`);
+  const subagentSessionFile = join(sessionDir, `${timestamp}_${id}.jsonl`);
 
   // Use pre-created surface (parallel mode) or create a new one.
   // For new surfaces, pause briefly so the shell is ready before sending the command.
@@ -1574,14 +1702,15 @@ async function launchSubagent(
 
   const launchBehavior = resolveLaunchBehavior(params, agentDefs);
 
-  if (launchBehavior.seededSessionMode) {
-    seedSubagentSessionFile({
-      mode: launchBehavior.seededSessionMode,
-      parentSessionFile: sessionFile,
-      childSessionFile: subagentSessionFile,
-      childCwd: targetCwdForSession,
-    });
-  }
+  // Pi must have its durable native session before the pane receives a command.
+  // Standalone children use lineage-only rather than relying on Pi to create it.
+  seedSubagentSessionFile({
+    mode: launchBehavior.seededSessionMode ?? "lineage-only",
+    parentSessionFile: sessionFile,
+    childSessionFile: subagentSessionFile,
+    childCwd: targetCwdForSession,
+    childSessionId: id,
+  });
 
   const activityFile = getSubagentActivityFile(artifactDir, id);
   mkdirSync(dirname(activityFile), { recursive: true });
@@ -1673,7 +1802,12 @@ async function launchSubagent(
 
   // Build pi command
   const parts: string[] = ["pi"];
-  parts.push("--session", shellEscape(subagentSessionFile));
+  parts.push(
+    "--session",
+    shellEscape(id),
+    "--session-dir",
+    shellEscape(sessionDir),
+  );
 
   const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
   parts.push("-e", shellEscape(subagentDonePath));
@@ -1785,6 +1919,13 @@ async function launchSubagent(
     promptArguments,
     originalLaunch: true,
   });
+  options?.registerChild?.({
+    managerSessionId: ctx.sessionManager.getSessionId(),
+    childSessionId: id,
+    name: params.name,
+    ...(params.agent ? { agent: params.agent } : {}),
+    cwd: targetCwdForSession,
+  });
   const launchScriptName = `${
     (params.name || "subagent")
       .toLowerCase()
@@ -1798,15 +1939,24 @@ async function launchSubagent(
     "subagent-scripts",
     launchScriptName,
   );
-  sendLongCommand(surface, command, {
-    scriptPath: launchScriptFile,
-    scriptPreamble: [
-      `# Subagent launch script for ${params.name}`,
-      `# Generated: ${new Date().toISOString()}`,
-      `# Session: ${subagentSessionFile}`,
-      `# Surface: ${surface}`,
-    ].join("\n"),
-  });
+  try {
+    sendLongCommand(surface, command, {
+      scriptPath: launchScriptFile,
+      scriptPreamble: [
+        `# Subagent launch script for ${params.name}`,
+        `# Generated: ${new Date().toISOString()}`,
+        `# Session: ${subagentSessionFile}`,
+        `# Surface: ${surface}`,
+      ].join("\n"),
+    });
+  } catch (error) {
+    try {
+      closeSurface(surface);
+    } catch {}
+    throw new Error(
+      `Child ${id} is registered but not running: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   const running: RunningSubagent = {
     id,
@@ -1959,7 +2109,7 @@ async function watchSubagent(
     }
     running.processState = "resumable";
     closeSurface(surface);
-    if (result.reason === "done") runningSubagents.delete(running.id);
+    // A completed turn ends only this process. The durable catalog entry remains.
 
     return {
       name,
@@ -2026,19 +2176,30 @@ export default function subagentsExtension(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
     runningSubagents.clear();
+    childrenBySessionId.clear();
     const header = ctx.sessionManager.getHeader();
     const currentSessionId = ctx.sessionManager.getSessionId();
     managerSessionId =
       header?.id === currentSessionId ? currentSessionId : null;
     if (managerSessionId) {
-      restoreRunningSubagents(
-        restoreSnapshotRecords(
-          header,
-          currentSessionId,
-          ctx.sessionManager.getBranch(),
-        ),
-        runningSubagents,
-      );
+      const branch = ctx.sessionManager.getBranch();
+      for (const [id, child] of replayChildCatalog(
+        header,
+        currentSessionId,
+        branch,
+      ))
+        childrenBySessionId.set(id, child);
+      // Compatibility migration deliberately recovers only extant native Pi
+      // session headers; old process state is not carried forward.
+      for (const child of migrateLegacySnapshots(
+        header,
+        currentSessionId,
+        branch,
+        childrenBySessionId,
+      )) {
+        pi.appendEntry(CHILD_SESSION_CUSTOM_TYPE, { version: 1, ...child });
+        childrenBySessionId.set(child.childSessionId, child);
+      }
     }
     if (runningSubagents.size > 0) startWidgetRefresh();
     else updateWidget();
@@ -2134,7 +2295,15 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         }
 
         // Launch the subagent (creates pane, sends command)
-        const running = await launchSubagent(params, ctx);
+        const running = await launchSubagent(params, ctx, {
+          registerChild(child) {
+            if (!managerSessionId)
+              throw new Error("manager session identity is unavailable");
+            if (childrenBySessionId.has(child.childSessionId)) return;
+            pi.appendEntry(CHILD_SESSION_CUSTOM_TYPE, { version: 1, ...child });
+            childrenBySessionId.set(child.childSessionId, child);
+          },
+        });
 
         // Create a separate AbortController for the watcher
         // (the tool's signal completes when we return)
@@ -2619,37 +2788,37 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       name: "subagents_list",
       label: "List Subagents",
       description:
-        "List all available subagent definitions. " +
-        "Scans project-local .pi/agents/ and global ~/.pi/agent/agents/. " +
-        "Project-local agents override global ones with the same name.",
+        "List every durable child session owned by this manager branch.",
       promptSnippet:
-        "List all available subagent definitions. " +
-        "Scans project-local .pi/agents/ and global ~/.pi/agent/agents/. " +
-        "Project-local agents override global ones with the same name.",
+        "List every durable child session owned by this manager branch.",
       parameters: Type.Object({}),
 
       async execute() {
-        const list = discoverAgentDefinitions().filter(
-          (agent) => !agent.disableModelInvocation,
-        );
-
-        if (list.length === 0) {
+        const children = [...childrenBySessionId.values()].map((child) => ({
+          ...child,
+          // Idle children are resumable by contract; controls validate files when used.
+          status: runningSubagents.has(child.childSessionId)
+            ? "running"
+            : "idle",
+        }));
+        if (children.length === 0)
           return {
-            content: [{ type: "text", text: "No subagent definitions found." }],
+            content: [{ type: "text", text: "No child sessions registered." }],
             details: { agents: [] },
           };
-        }
-
-        const lines = list.map((a) => {
-          const badge = a.source === "project" ? " (project)" : "";
-          const desc = a.description ? ` — ${a.description}` : "";
-          const model = a.model ? ` [${a.model}]` : "";
-          return `• ${a.name}${badge}${model}${desc}`;
-        });
-
         return {
-          content: [{ type: "text", text: lines.join("\n") }],
-          details: { agents: list },
+          content: [
+            {
+              type: "text",
+              text: children
+                .map(
+                  (child) =>
+                    `• ${child.childSessionId} — ${child.name} (${child.status})`,
+                )
+                .join("\n"),
+            },
+          ],
+          details: { agents: children },
         };
       },
 
