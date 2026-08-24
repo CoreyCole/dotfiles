@@ -96,6 +96,48 @@ test("active-branch child registrations replay idempotently and reject foreign o
   );
 });
 
+test("historical tool results recover valid native children and ignore missing duplicates", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-tool-result-child-"));
+  const child = join(dir, "child.jsonl");
+  const id = "d970b457-d651-49f8-b2c3-59292290a459";
+  writeFileSync(
+    child,
+    JSON.stringify({ type: "session", id, cwd: "/work" }) + "\n",
+  );
+  try {
+    const recovered = __test__.migrateHistoricalToolResults(
+      { id: "manager" },
+      "manager",
+      [
+        {
+          type: "message",
+          details: { name: "Done worker", agent: "worker", sessionFile: child },
+        },
+        { type: "message", details: { name: "duplicate", sessionFile: child } },
+        {
+          type: "message",
+          details: {
+            name: "false launch",
+            sessionFile: join(dir, "missing.jsonl"),
+          },
+        },
+      ],
+      new Map(),
+    );
+    assert.deepEqual(recovered, [
+      {
+        managerSessionId: "manager",
+        childSessionId: id,
+        name: "Done worker",
+        agent: "worker",
+        cwd: "/work",
+      },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("legacy snapshots migrate native child headers once without process state", () => {
   const dir = mkdtempSync(join(tmpdir(), "pi-legacy-child-"));
   const file = join(dir, "child.jsonl");
