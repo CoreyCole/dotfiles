@@ -512,14 +512,165 @@ interface SubagentResult {
  * State for a launched (but not yet completed) subagent.
  */
 interface ResolvedPiLaunchProfile {
+  sessionFile: string;
+  activityFile: string;
   cwdPrefix: string;
   environment: readonly string[];
   arguments: readonly string[];
+  selectedSkills: readonly string[];
+}
+
+const RESUMABLE_SNAPSHOT_CUSTOM_TYPE =
+  "pi-attachable-subagents/resumable-snapshot";
+
+interface ResumableRecordV1 {
+  id: string;
+  name: string;
+  task: string;
+  agent?: string;
+  firstStartTime: number;
+  accumulatedActiveMs: number;
+  launchProfile: Readonly<ResolvedPiLaunchProfile>;
+}
+
+interface ResumableSnapshotV1 {
+  version: 1;
+  ownerSessionId: string;
+  records: ResumableRecordV1[];
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function copyLaunchProfile(
+  value: unknown,
+  fileExists: (path: string) => boolean,
+): Readonly<ResolvedPiLaunchProfile> | undefined {
+  if (!isPlainObject(value)) return undefined;
+  if (
+    !isNonemptyString(value.sessionFile) ||
+    !isNonemptyString(value.activityFile) ||
+    !isNonemptyString(value.cwdPrefix) ||
+    !Array.isArray(value.environment) ||
+    !value.environment.every((item) => typeof item === "string") ||
+    !Array.isArray(value.arguments) ||
+    !value.arguments.every((item) => typeof item === "string") ||
+    !Array.isArray(value.selectedSkills) ||
+    !value.selectedSkills.every((item) => typeof item === "string") ||
+    !fileExists(value.sessionFile)
+  ) {
+    return undefined;
+  }
+
+  return Object.freeze({
+    sessionFile: value.sessionFile,
+    activityFile: value.activityFile,
+    cwdPrefix: value.cwdPrefix,
+    environment: Object.freeze([...value.environment]),
+    arguments: Object.freeze([...value.arguments]),
+    selectedSkills: Object.freeze([...value.selectedSkills]),
+  });
+}
+
+function validateSnapshotEnvelope(
+  value: unknown,
+): { ownerSessionId: string; records: unknown[] } | undefined {
+  if (
+    !isPlainObject(value) ||
+    value.version !== 1 ||
+    !isNonemptyString(value.ownerSessionId) ||
+    !Array.isArray(value.records)
+  ) {
+    return undefined;
+  }
+  return { ownerSessionId: value.ownerSessionId, records: value.records };
+}
+
+function validateResumableRecord(
+  value: unknown,
+  fileExists: (path: string) => boolean,
+): ResumableRecordV1 | undefined {
+  if (
+    !isPlainObject(value) ||
+    !isNonemptyString(value.id) ||
+    !isNonemptyString(value.name) ||
+    !isNonemptyString(value.task) ||
+    (value.agent !== undefined && typeof value.agent !== "string") ||
+    typeof value.firstStartTime !== "number" ||
+    !Number.isFinite(value.firstStartTime) ||
+    value.firstStartTime < 0 ||
+    typeof value.accumulatedActiveMs !== "number" ||
+    !Number.isFinite(value.accumulatedActiveMs) ||
+    value.accumulatedActiveMs < 0
+  ) {
+    return undefined;
+  }
+  const launchProfile = copyLaunchProfile(value.launchProfile, fileExists);
+  if (!launchProfile) return undefined;
+
+  return {
+    id: value.id,
+    name: value.name,
+    task: value.task,
+    ...(value.agent === undefined ? {} : { agent: value.agent }),
+    firstStartTime: value.firstStartTime,
+    accumulatedActiveMs: value.accumulatedActiveMs,
+    launchProfile,
+  };
+}
+
+function selectActiveBranchSnapshot(
+  branch: readonly unknown[],
+  ownerSessionId: string,
+  fileExists: (path: string) => boolean = existsSync,
+): ResumableRecordV1[] {
+  for (let index = branch.length - 1; index >= 0; index--) {
+    const entry = branch[index];
+    if (
+      !isPlainObject(entry) ||
+      entry.type !== "custom" ||
+      entry.customType !== RESUMABLE_SNAPSHOT_CUSTOM_TYPE
+    ) {
+      continue;
+    }
+    const envelope = validateSnapshotEnvelope(entry.data);
+    if (!envelope) continue;
+    if (envelope.ownerSessionId !== ownerSessionId) return [];
+
+    const seenIds = new Set<string>();
+    const records: ResumableRecordV1[] = [];
+    for (const candidate of envelope.records) {
+      const record = validateResumableRecord(candidate, fileExists);
+      if (!record || seenIds.has(record.id)) continue;
+      seenIds.add(record.id);
+      records.push(record);
+    }
+    return records;
+  }
+  return [];
+}
+
+function restoreSnapshotRecords(
+  header: { id?: unknown } | null,
+  sessionId: string,
+  branch: readonly unknown[],
+  fileExists: (path: string) => boolean = existsSync,
+): ResumableRecordV1[] {
+  if (header?.id !== sessionId) return [];
+  return selectActiveBranchSnapshot(branch, sessionId, fileExists);
 }
 
 interface PiLaunchRun {
   surface: string;
   promptArguments: readonly string[];
+  originalLaunch: boolean;
 }
 
 function buildPiLaunchCommand(
@@ -528,6 +679,9 @@ function buildPiLaunchCommand(
 ): string {
   const environment = [
     ...profile.environment,
+    ...(run.originalLaunch && profile.selectedSkills.length > 0
+      ? [`PI_SUBAGENT_SKILLS=${shellEscape(profile.selectedSkills.join(","))}`]
+      : []),
     `PI_SUBAGENT_SURFACE=${shellEscape(run.surface)}`,
   ];
   const command =
@@ -542,6 +696,8 @@ interface RunningSubagent {
   agent?: string;
   surface: string;
   startTime: number;
+  firstStartTime: number;
+  accumulatedActiveMs: number;
   processState?: "active" | "resumable";
   runId?: number;
   explicitlyStopped?: boolean;
@@ -564,6 +720,157 @@ interface RunningSubagent {
 /** All currently running subagents, keyed by id. */
 const runningSubagents = new Map<string, RunningSubagent>();
 
+function serializeResumableSnapshot(
+  ownerSessionId: string,
+  agents: Iterable<RunningSubagent>,
+  excludedId?: string,
+): ResumableSnapshotV1 {
+  const records: ResumableRecordV1[] = [];
+  for (const running of agents) {
+    if (
+      running.id === excludedId ||
+      running.processState !== "resumable" ||
+      running.cli === "claude" ||
+      !running.launchProfile ||
+      !isNonemptyString(running.id) ||
+      !isNonemptyString(running.name) ||
+      !isNonemptyString(running.task) ||
+      !Number.isFinite(running.firstStartTime) ||
+      running.firstStartTime < 0 ||
+      !Number.isFinite(running.accumulatedActiveMs) ||
+      running.accumulatedActiveMs < 0
+    ) {
+      continue;
+    }
+    const launchProfile = copyLaunchProfile(running.launchProfile, () => true);
+    if (!launchProfile) continue;
+    records.push({
+      id: running.id,
+      name: running.name,
+      task: running.task,
+      ...(running.agent === undefined ? {} : { agent: running.agent }),
+      firstStartTime: running.firstStartTime,
+      accumulatedActiveMs: running.accumulatedActiveMs,
+      launchProfile: {
+        sessionFile: launchProfile.sessionFile,
+        activityFile: launchProfile.activityFile,
+        cwdPrefix: launchProfile.cwdPrefix,
+        environment: [...launchProfile.environment],
+        arguments: [...launchProfile.arguments],
+        selectedSkills: [...launchProfile.selectedSkills],
+      },
+    });
+  }
+  return { version: 1, ownerSessionId, records };
+}
+
+const PERSISTENCE_WARNING_PREFIX =
+  "Persistence warning: child remains resumable here but is not restart-durable";
+
+function persistenceWarning(error: unknown): string {
+  return `${PERSISTENCE_WARNING_PREFIX}: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+function completeWakeTransition(actions: {
+  persist?: () => void;
+  update: () => void;
+  wake: (warning?: string) => void;
+}): void {
+  let warning: string | undefined;
+  try {
+    actions.persist?.();
+  } catch (error) {
+    warning = persistenceWarning(error);
+  }
+  actions.update();
+  actions.wake(warning);
+}
+
+function commitResumedTransition(actions: {
+  persistRemoval: () => void;
+  close: () => void;
+  commit: () => void;
+  startWatcher: () => void;
+  update: () => void;
+}): { ok: true } | { error: string } {
+  try {
+    actions.persistRemoval();
+  } catch (error) {
+    try {
+      actions.close();
+    } catch {}
+    return { error: persistenceWarning(error) };
+  }
+  actions.commit();
+  actions.startWatcher();
+  actions.update();
+  return { ok: true };
+}
+
+function restoreRunningSubagents(
+  records: readonly ResumableRecordV1[],
+  target: Map<string, RunningSubagent>,
+): void {
+  for (const record of records) {
+    const launchProfile = record.launchProfile;
+    target.set(record.id, {
+      id: record.id,
+      name: record.name,
+      task: record.task,
+      ...(record.agent === undefined ? {} : { agent: record.agent }),
+      surface: "",
+      startTime: record.firstStartTime,
+      firstStartTime: record.firstStartTime,
+      accumulatedActiveMs: record.accumulatedActiveMs,
+      processState: "resumable",
+      sessionFile: launchProfile.sessionFile,
+      activityFile: launchProfile.activityFile,
+      launchProfile,
+      statusState: createStatusState({
+        source: "pi",
+        startTimeMs: record.firstStartTime,
+      }),
+    });
+  }
+}
+
+function stopTrackedSubagent(
+  running: RunningSubagent,
+  actions: {
+    persistRemoval: () => void;
+    close: (surface: string) => void;
+    remove: (id: string) => void;
+    update: () => void;
+  },
+): { ok: true } | { error: string } {
+  if (running.processState === "resumable") {
+    try {
+      actions.persistRemoval();
+    } catch (error) {
+      return { error: persistenceWarning(error) };
+    }
+  }
+
+  running.explicitlyStopped = true;
+  running.runId = (running.runId ?? 1) + 1;
+  running.abortController?.abort();
+  if (running.processState !== "resumable") {
+    try {
+      actions.close(running.surface);
+    } catch {}
+  }
+  actions.remove(running.id);
+  actions.update();
+  return { ok: true };
+}
+
+function appendPersistenceWarning(
+  content: string,
+  warning: string | undefined,
+): string {
+  return warning ? `${content}\n\n${warning}` : content;
+}
+
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
   return running.explicitlyStopped !== true;
 }
@@ -579,8 +886,36 @@ let widgetInterval: ReturnType<typeof setInterval> | null = null;
 /** Interval timer for status transition checks. */
 let statusInterval: ReturnType<typeof setInterval> | null = null;
 
-function formatElapsedMMSS(startTime: number): string {
-  const seconds = Math.floor((Date.now() - startTime) / 1000);
+function getActiveRuntimeMs(running: RunningSubagent, now: number): number {
+  return running.processState === "resumable"
+    ? running.accumulatedActiveMs
+    : running.accumulatedActiveMs + Math.max(0, now - running.startTime);
+}
+
+function finalizeActiveRun(
+  running: RunningSubagent,
+  ownedRunId: number,
+  now: number,
+): boolean {
+  if (
+    (running.runId ?? 1) !== ownedRunId ||
+    running.processState === "resumable"
+  ) {
+    return false;
+  }
+  running.accumulatedActiveMs += Math.max(0, now - running.startTime);
+  return true;
+}
+
+function formatLocalStartTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return "??:??";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "??:??";
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatElapsedMMSS(elapsedMs: number): string {
+  const seconds = Math.floor(elapsedMs / 1000);
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
@@ -651,6 +986,7 @@ function borderBottom(width: number): string {
 function renderSubagentWidgetLines(
   agents: RunningSubagent[],
   width: number,
+  now = Date.now(),
 ): string[] {
   const count = agents.length;
   const active = agents.filter(
@@ -662,18 +998,20 @@ function renderSubagentWidgetLines(
   const lines: string[] = [borderTop(title, info, width)];
 
   for (const agent of agents) {
-    const elapsed = formatElapsedMMSS(agent.startTime);
+    const elapsed = formatElapsedMMSS(getActiveRuntimeMs(agent, now));
     const agentTag = agent.agent ? ` (${agent.agent})` : "";
     const left = ` ${elapsed}  ${agent.name}${agentTag} `;
-    const snapshot = classifyStatus(agent.statusState, Date.now());
-    const right =
+    const snapshot = classifyStatus(agent.statusState, now);
+    const startLabel = formatLocalStartTime(agent.firstStartTime);
+    const status =
       agent.processState === "resumable"
-        ? " stopped · resumable "
+        ? "stopped · resumable"
         : statusConfig.enabled
-          ? formatWidgetRightLabel(snapshot)
+          ? formatWidgetRightLabel(snapshot).trim()
           : agent.cli === "claude"
-            ? " running… "
-            : " starting… ";
+            ? "running…"
+            : "starting…";
+    const right = ` ${status} · ${startLabel} `;
 
     lines.push(borderLine(left, right, width));
   }
@@ -763,6 +1101,56 @@ function formatSubagentTaskCall(task: string, expanded: boolean) {
     lineCount: lines.length,
     expandable: clipped || lines.length > 1,
   };
+}
+
+const PI_REASONING_SUFFIXES = new Set([
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+function resolveModelArgument(
+  explicitModel?: string,
+  agentModel?: string,
+  agentThinking?: string,
+): string | undefined {
+  if (explicitModel) return explicitModel;
+  if (!agentModel) return undefined;
+  const suffix = agentModel.slice(agentModel.lastIndexOf(":") + 1);
+  if (PI_REASONING_SUFFIXES.has(suffix)) return agentModel;
+  return agentThinking ? `${agentModel}:${agentThinking}` : agentModel;
+}
+
+function buildSystemPromptArguments(params: {
+  agentBodyPath?: string;
+  agentMode?: "append" | "replace";
+  callerPromptPath?: string;
+}): string[] {
+  const result: string[] = [];
+  if (params.agentBodyPath) {
+    result.push(
+      params.agentMode === "replace"
+        ? "--system-prompt"
+        : "--append-system-prompt",
+      shellEscape(params.agentBodyPath),
+    );
+  }
+  if (params.callerPromptPath) {
+    result.push("--append-system-prompt", shellEscape(params.callerPromptPath));
+  }
+  return result;
+}
+
+function buildInitialTask(task: string): string {
+  return [
+    "Complete your task autonomously. If blocked, call caller_ping. When finished, call subagent_done. Automatic settlement is only a fallback.",
+    task,
+    "Your FINAL assistant message should summarize what you accomplished.",
+  ].join("\n\n");
 }
 
 function buildPiPromptArgs(params: {
@@ -1054,6 +1442,12 @@ export const __test__ = {
   buildSubagentToolAllowlist,
   buildPiPromptArgs,
   buildPiLaunchCommand,
+  resolveModelArgument,
+  buildSystemPromptArguments,
+  buildInitialTask,
+  getActiveRuntimeMs,
+  finalizeActiveRun,
+  formatLocalStartTime,
   formatSubagentTaskCall,
   formatWidgetRightLabel,
   observeRunningSubagent,
@@ -1066,6 +1460,17 @@ export const __test__ = {
   handleSubagentInterrupt,
   resolveResultPresentation,
   shouldDeliverWatcherNotification,
+  appendPersistenceWarning,
+  commitResumedTransition,
+  completeWakeTransition,
+  restoreRunningSubagents,
+  restoreSnapshotRecords,
+  selectActiveBranchSnapshot,
+  serializeResumableSnapshot,
+  stopTrackedSubagent,
+  validateResumableRecord,
+  validateSnapshotEnvelope,
+  RESUMABLE_SNAPSHOT_CUSTOM_TYPE,
   runningSubagents,
   formatElapsed,
 };
@@ -1101,10 +1506,16 @@ async function launchSubagent(
   const id = Math.random().toString(16).slice(2, 10);
 
   const agentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
-  const effectiveModel = params.model ?? agentDefs?.model;
+  const effectiveModel = resolveModelArgument(
+    params.model,
+    agentDefs?.model,
+    agentDefs?.thinking,
+  );
   const effectiveTools = params.tools ?? agentDefs?.tools;
-  const effectiveSkills = params.skills ?? agentDefs?.skills;
-  const effectiveThinking = agentDefs?.thinking;
+  const effectiveSkills = (params.skills ?? agentDefs?.skills ?? "")
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
 
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (!sessionFile) throw new Error("No session file");
@@ -1160,24 +1571,8 @@ async function launchSubagent(
 
   const activityFile = getSubagentActivityFile(artifactDir, id);
   mkdirSync(dirname(activityFile), { recursive: true });
-  const { inheritsConversationContext } = launchBehavior;
-
-  // Build the task message
-  // Only full-context fork mode inherits prior conversation state.
-  // Blank-session modes need the wrapper instructions and artifact-backed handoff.
-  const modeHint =
-    "Complete your task autonomously. If blocked, call caller_ping. When finished, call subagent_done. Automatic settlement is only a fallback.";
-  const summaryInstruction =
-    "Your FINAL assistant message should summarize what you accomplished.";
+  const fullTask = buildInitialTask(params.task);
   const denySet = resolveDenyTools(agentDefs);
-  const identity = agentDefs?.body ?? params.systemPrompt ?? null;
-  const systemPromptMode = agentDefs?.systemPromptMode;
-  const identityInSystemPrompt = systemPromptMode && identity;
-  const roleBlock =
-    identity && !identityInSystemPrompt ? `\n\n${identity}` : "";
-  const fullTask = inheritsConversationContext
-    ? params.task
-    : `${roleBlock}\n\n${modeHint}\n\n${params.task}\n\n${summaryInstruction}`;
   // ── Claude Code CLI path ──
   if (agentDefs?.cli === "claude") {
     const sentinelFile = `/tmp/pi-claude-${id}-done`;
@@ -1242,6 +1637,8 @@ async function launchSubagent(
       agent: params.agent,
       surface,
       startTime,
+      firstStartTime: startTime,
+      accumulatedActiveMs: 0,
       sessionFile: subagentSessionFile,
       launchScriptFile,
       cli: "claude",
@@ -1267,39 +1664,44 @@ async function launchSubagent(
   const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
   parts.push("-e", shellEscape(subagentDonePath));
 
-  if (effectiveModel) {
-    const model = effectiveThinking
-      ? `${effectiveModel}:${effectiveThinking}`
-      : effectiveModel;
-    parts.push("--model", shellEscape(model));
-  }
+  if (effectiveModel) parts.push("--model", shellEscape(effectiveModel));
 
-  // Pass agent body as system prompt via file to avoid shell escaping issues
-  // with multiline content. Pi's --append-system-prompt and --system-prompt
-  // auto-detect file paths and read their contents.
-  if (identityInSystemPrompt && identity) {
-    const flag =
-      systemPromptMode === "replace"
-        ? "--system-prompt"
-        : "--append-system-prompt";
-    const spTimestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
-    const spSafeName = params.name
+  const promptTimestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .slice(0, 19);
+  const promptSafeName =
+    params.name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    const syspromptPath = join(
-      artifactDir,
-      `context/${spSafeName || "subagent"}-sysprompt-${spTimestamp}.md`,
+      .replace(/^-|-$/g, "") || "subagent";
+  const promptDir = join(artifactDir, "context");
+  mkdirSync(promptDir, { recursive: true });
+  let agentBodyPath: string | undefined;
+  let callerPromptPath: string | undefined;
+  if (agentDefs?.body) {
+    agentBodyPath = join(
+      promptDir,
+      `${promptSafeName}-agent-${promptTimestamp}.md`,
     );
-    mkdirSync(dirname(syspromptPath), { recursive: true });
-    writeFileSync(syspromptPath, identity, "utf8");
-    parts.push(flag, shellEscape(syspromptPath));
+    writeFileSync(agentBodyPath, agentDefs.body, "utf8");
   }
+  if (params.systemPrompt) {
+    callerPromptPath = join(
+      promptDir,
+      `${promptSafeName}-caller-${promptTimestamp}.md`,
+    );
+    writeFileSync(callerPromptPath, params.systemPrompt, "utf8");
+  }
+  parts.push(
+    ...buildSystemPromptArguments({
+      agentBodyPath,
+      agentMode: agentDefs?.systemPromptMode,
+      callerPromptPath,
+    }),
+  );
 
   const toolAllowlist = buildSubagentToolAllowlist(effectiveTools);
   if (toolAllowlist) {
@@ -1317,9 +1719,6 @@ async function launchSubagent(
   envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
   if (params.agent) {
     envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(params.agent)}`);
-  }
-  if (effectiveSkills?.trim()) {
-    envParts.push(`PI_SUBAGENT_SKILLS=${shellEscape(effectiveSkills)}`);
   }
   envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
   envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
@@ -1358,15 +1757,19 @@ async function launchSubagent(
 
   // Resolve cwd — param overrides agent default, supports absolute and relative paths.
   // This was already computed above so session placement, PI_CODING_AGENT_DIR, and cd agree.
-  const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
+  const cdPrefix = `cd ${shellEscape(targetCwdForSession)} && `;
   const launchProfile = Object.freeze({
+    sessionFile: subagentSessionFile,
+    activityFile,
     cwdPrefix: cdPrefix,
     environment: Object.freeze([...envParts]),
     arguments: Object.freeze([...parts]),
+    selectedSkills: Object.freeze([...effectiveSkills]),
   });
   const command = buildPiLaunchCommand(launchProfile, {
     surface,
     promptArguments,
+    originalLaunch: true,
   });
   const launchScriptName = `${
     (params.name || "subagent")
@@ -1398,6 +1801,8 @@ async function launchSubagent(
     agent: params.agent,
     surface,
     startTime,
+    firstStartTime: startTime,
+    accumulatedActiveMs: 0,
     sessionFile: subagentSessionFile,
     launchScriptFile,
     activityFile,
@@ -1534,15 +1939,12 @@ async function watchSubagent(
           : "Sub-agent exited without output";
     }
 
-    if (
-      (running.runId ?? 1) !== ownedRunId ||
-      running.processState === "resumable"
-    ) {
+    if (!finalizeActiveRun(running, ownedRunId, Date.now())) {
       throw new Error("Stale subagent watcher.");
     }
+    running.processState = "resumable";
     closeSurface(surface);
     if (result.reason === "done") runningSubagents.delete(running.id);
-    else running.processState = "resumable";
 
     return {
       name,
@@ -1556,7 +1958,7 @@ async function watchSubagent(
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
   } catch (err: any) {
-    if ((running.runId ?? 1) !== ownedRunId) throw err;
+    if (!finalizeActiveRun(running, ownedRunId, Date.now())) throw err;
     try {
       closeSurface(surface);
     } catch {}
@@ -1585,13 +1987,47 @@ async function watchSubagent(
 }
 
 export default function subagentsExtension(pi: ExtensionAPI) {
-  // Capture the UI context for widget updates
+  let managerSessionId: string | null = null;
+
+  const persistSnapshot = (excludedId?: string) => {
+    if (!managerSessionId) {
+      throw new Error("manager session identity is unavailable");
+    }
+    pi.appendEntry(
+      RESUMABLE_SNAPSHOT_CUSTOM_TYPE,
+      serializeResumableSnapshot(
+        managerSessionId,
+        runningSubagents.values(),
+        excludedId,
+      ),
+    );
+  };
+
+  // Capture the UI context and restore only the active manager branch.
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
+    runningSubagents.clear();
+    const header = ctx.sessionManager.getHeader();
+    const currentSessionId = ctx.sessionManager.getSessionId();
+    managerSessionId =
+      header?.id === currentSessionId ? currentSessionId : null;
+    if (managerSessionId) {
+      restoreRunningSubagents(
+        restoreSnapshotRecords(
+          header,
+          currentSessionId,
+          ctx.sessionManager.getBranch(),
+        ),
+        runningSubagents,
+      );
+    }
+    if (runningSubagents.size > 0) startWidgetRefresh();
+    else updateWidget();
   });
 
   // Clean up on session shutdown
   pi.on("session_shutdown", (_event, _ctx) => {
+    managerSessionId = null;
     if (widgetInterval) {
       clearInterval(widgetInterval);
       widgetInterval = null;
@@ -1690,56 +2126,67 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         // Fire-and-forget: start watching in background
         watchSubagent(running, watcherAbort.signal)
           .then((result) => {
-            updateWidget(); // reflect removal from Map immediately
-            if (running.explicitlyStopped) return;
-
-            if (result.ping) {
-              // Subagent is requesting help — steer a ping message with session path for resume
-              const sessionRef = `\n\nSession: ${result.sessionFile}\nResume: pi --session ${result.sessionFile}`;
-              pi.sendMessage(
-                {
-                  customType: "subagent_ping",
-                  content: `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${sessionRef}`,
-                  display: true,
-                  details: {
-                    name: result.ping.name,
-                    message: result.ping.message,
-                    agent: running.agent,
-                    sessionFile: result.sessionFile,
-                  },
-                },
-                { triggerTurn: true, deliverAs: "steer" },
-              );
+            if (running.explicitlyStopped) {
+              updateWidget();
               return;
             }
+            const becameResumable =
+              running.processState === "resumable" &&
+              runningSubagents.get(running.id) === running;
+            completeWakeTransition({
+              ...(becameResumable ? { persist: () => persistSnapshot() } : {}),
+              update: updateWidget,
+              wake(warning) {
+                if (result.ping) {
+                  const sessionRef = `\n\nSession: ${result.sessionFile}\nResume: pi --session ${result.sessionFile}`;
+                  pi.sendMessage(
+                    {
+                      customType: "subagent_ping",
+                      content: appendPersistenceWarning(
+                        `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${sessionRef}`,
+                        warning,
+                      ),
+                      display: true,
+                      details: {
+                        name: result.ping.name,
+                        message: result.ping.message,
+                        agent: running.agent,
+                        sessionFile: result.sessionFile,
+                      },
+                    },
+                    { triggerTurn: true, deliverAs: "steer" },
+                  );
+                  return;
+                }
 
-            const presentation = resolveResultPresentation(
-              result,
-              running.name,
-            );
-
-            pi.sendMessage(
-              {
-                customType: "subagent_result",
-                content: presentation,
-                display: true,
-                details: {
-                  name: running.name,
-                  task: running.task,
-                  agent: running.agent,
-                  exitCode: result.exitCode,
-                  elapsed: result.elapsed,
-                  sessionFile: result.sessionFile,
-                  ...(result.errorMessage
-                    ? { errorMessage: result.errorMessage }
-                    : {}),
-                  ...(result.claudeSessionId
-                    ? { claudeSessionId: result.claudeSessionId }
-                    : {}),
-                },
+                const presentation = resolveResultPresentation(
+                  result,
+                  running.name,
+                );
+                pi.sendMessage(
+                  {
+                    customType: "subagent_result",
+                    content: appendPersistenceWarning(presentation, warning),
+                    display: true,
+                    details: {
+                      name: running.name,
+                      task: running.task,
+                      agent: running.agent,
+                      exitCode: result.exitCode,
+                      elapsed: result.elapsed,
+                      sessionFile: result.sessionFile,
+                      ...(result.errorMessage
+                        ? { errorMessage: result.errorMessage }
+                        : {}),
+                      ...(result.claudeSessionId
+                        ? { claudeSessionId: result.claudeSessionId }
+                        : {}),
+                    },
+                  },
+                  { triggerTurn: true, deliverAs: "steer" },
+                );
               },
-              { triggerTurn: true, deliverAs: "steer" },
-            );
+            });
           })
           .catch((err) => {
             updateWidget();
@@ -1850,24 +2297,35 @@ export default function subagentsExtension(pi: ExtensionAPI) {
   ) => {
     watchSubagent(running, watcherAbort.signal)
       .then((result) => {
-        updateWidget();
-        if (running.explicitlyStopped) return;
-        const content = result.ping
-          ? `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}\n\nSession: ${running.sessionFile}`
-          : resolveResultPresentation(result, running.name);
-        pi.sendMessage(
-          {
-            customType: result.ping ? "subagent_ping" : "subagent_result",
-            content,
-            display: true,
-            details: {
-              name: running.name,
-              sessionFile: running.sessionFile,
-              reason: result.reason,
-            },
+        if (running.explicitlyStopped) {
+          updateWidget();
+          return;
+        }
+        const becameResumable =
+          running.processState === "resumable" &&
+          runningSubagents.get(running.id) === running;
+        completeWakeTransition({
+          ...(becameResumable ? { persist: () => persistSnapshot() } : {}),
+          update: updateWidget,
+          wake(warning) {
+            const content = result.ping
+              ? `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}\n\nSession: ${running.sessionFile}`
+              : resolveResultPresentation(result, running.name);
+            pi.sendMessage(
+              {
+                customType: result.ping ? "subagent_ping" : "subagent_result",
+                content: appendPersistenceWarning(content, warning),
+                display: true,
+                details: {
+                  name: running.name,
+                  sessionFile: running.sessionFile,
+                  reason: result.reason,
+                },
+              },
+              { triggerTurn: true, deliverAs: "steer" },
+            );
           },
-          { triggerTurn: true, deliverAs: "steer" },
-        );
+        });
       })
       .catch((error) => {
         if (shouldDeliverWatcherNotification(running))
@@ -1918,20 +2376,34 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       const command = buildPiLaunchCommand(running.launchProfile, {
         surface,
         promptArguments: [message],
+        originalLaunch: false,
       });
       sendLongCommand(surface, command);
-      running.surface = surface;
-      running.startTime = Date.now();
-      running.processState = "active";
-      running.runId = (running.runId ?? 1) + 1;
-      running.statusState = createStatusState({
-        source: "pi",
-        startTimeMs: running.startTime,
-      });
+      const startTime = Date.now();
+      const nextRunId = (running.runId ?? 1) + 1;
       const watcherAbort = new AbortController();
-      running.abortController = watcherAbort;
-      deliverControlledRun(running, watcherAbort);
-      updateWidget();
+      const transition = commitResumedTransition({
+        persistRemoval: () => persistSnapshot(running.id),
+        close: () => closeSurface(surface!),
+        commit() {
+          running.surface = surface!;
+          running.startTime = startTime;
+          running.processState = "active";
+          running.runId = nextRunId;
+          running.statusState = createStatusState({
+            source: "pi",
+            startTimeMs: startTime,
+          });
+          running.abortController = watcherAbort;
+        },
+        startWatcher: () => deliverControlledRun(running, watcherAbort),
+        update() {
+          startWidgetRefresh();
+          startStatusRefresh(pi);
+          updateWidget();
+        },
+      });
+      if ("error" in transition) return transition;
       return { running };
     } catch (error) {
       if (surface)
@@ -2031,20 +2503,22 @@ export default function subagentsExtension(pi: ExtensionAPI) {
             details: { error: resolved.error, id: "" },
           };
         const running = resolved.running;
-        running.explicitlyStopped = true;
-        running.runId = (running.runId ?? 1) + 1;
-        running.abortController?.abort();
-        if (running.processState !== "resumable")
-          try {
-            closeSurface(running.surface);
-          } catch {}
-        runningSubagents.delete(running.id);
-        updateWidget();
+        const stopped = stopTrackedSubagent(running, {
+          persistRemoval: () => persistSnapshot(running.id),
+          close: closeSurface,
+          remove: (id) => runningSubagents.delete(id),
+          update: updateWidget,
+        });
+        const text =
+          "error" in stopped
+            ? stopped.error
+            : `Stopped subagent "${running.name}".`;
         return {
-          content: [
-            { type: "text", text: `Stopped subagent "${running.name}".` },
-          ],
-          details: { error: "", id: running.id },
+          content: [{ type: "text", text }],
+          details: {
+            error: "error" in stopped ? stopped.error : "",
+            id: running.id,
+          },
         };
       },
     });
@@ -2325,15 +2799,19 @@ export default function subagentsExtension(pi: ExtensionAPI) {
           `PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`,
         );
         const launchProfile = Object.freeze({
-          cwdPrefix: "",
+          sessionFile: params.sessionPath,
+          activityFile,
+          cwdPrefix: `cd ${shellEscape(ctx.cwd)} && `,
           environment: Object.freeze([...resumeEnvParts]),
           arguments: Object.freeze(
             params.message ? parts.slice(0, -1) : [...parts],
           ),
+          selectedSkills: Object.freeze([]),
         });
         const command = buildPiLaunchCommand(launchProfile, {
           surface,
           promptArguments: params.message ? [`@${resumeMsgFile}`] : [],
+          originalLaunch: true,
         });
         const launchScriptFile = join(
           artifactDir,
@@ -2367,6 +2845,8 @@ export default function subagentsExtension(pi: ExtensionAPI) {
           task: params.message ?? "resumed session",
           surface,
           startTime,
+          firstStartTime: startTime,
+          accumulatedActiveMs: 0,
           sessionFile: params.sessionPath,
           launchScriptFile,
           activityFile,
@@ -2388,61 +2868,74 @@ export default function subagentsExtension(pi: ExtensionAPI) {
 
         watchSubagent(running, watcherAbort.signal)
           .then((result) => {
-            updateWidget();
-            if (running.explicitlyStopped) return;
-
-            if (result.ping) {
-              const sessionRef = `\n\nSession: ${params.sessionPath}\nResume: pi --session ${params.sessionPath}`;
-              pi.sendMessage(
-                {
-                  customType: "subagent_ping",
-                  content: `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${sessionRef}`,
-                  display: true,
-                  details: {
-                    name: result.ping.name,
-                    message: result.ping.message,
-                    sessionFile: params.sessionPath,
-                  },
-                },
-                { triggerTurn: true, deliverAs: "steer" },
-              );
+            if (running.explicitlyStopped) {
+              updateWidget();
               return;
             }
+            const becameResumable =
+              running.processState === "resumable" &&
+              runningSubagents.get(running.id) === running;
+            completeWakeTransition({
+              ...(becameResumable ? { persist: () => persistSnapshot() } : {}),
+              update: updateWidget,
+              wake(warning) {
+                if (result.ping) {
+                  const sessionRef = `\n\nSession: ${params.sessionPath}\nResume: pi --session ${params.sessionPath}`;
+                  pi.sendMessage(
+                    {
+                      customType: "subagent_ping",
+                      content: appendPersistenceWarning(
+                        `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}${sessionRef}`,
+                        warning,
+                      ),
+                      display: true,
+                      details: {
+                        name: result.ping.name,
+                        message: result.ping.message,
+                        sessionFile: params.sessionPath,
+                      },
+                    },
+                    { triggerTurn: true, deliverAs: "steer" },
+                  );
+                  return;
+                }
 
-            const allEntries = getNewEntries(
-              params.sessionPath,
-              entryCountBefore,
-            );
-            const summary =
-              findLastAssistantMessage(allEntries) ??
-              (result.errorMessage
-                ? `Subagent error: ${result.errorMessage}`
-                : result.exitCode !== 0
-                  ? `Resumed session exited with code ${result.exitCode}`
-                  : "Resumed session exited without new output");
-            const presentation = resolveResultPresentation(
-              { ...result, summary, sessionFile: params.sessionPath },
-              name,
-            );
-
-            pi.sendMessage(
-              {
-                customType: "subagent_result",
-                content: presentation,
-                display: true,
-                details: {
+                const allEntries = getNewEntries(
+                  params.sessionPath,
+                  entryCountBefore,
+                );
+                const summary =
+                  findLastAssistantMessage(allEntries) ??
+                  (result.errorMessage
+                    ? `Subagent error: ${result.errorMessage}`
+                    : result.exitCode !== 0
+                      ? `Resumed session exited with code ${result.exitCode}`
+                      : "Resumed session exited without new output");
+                const presentation = resolveResultPresentation(
+                  { ...result, summary, sessionFile: params.sessionPath },
                   name,
-                  task: params.message ?? "resumed session",
-                  exitCode: result.exitCode,
-                  elapsed: result.elapsed,
-                  sessionFile: params.sessionPath,
-                  ...(result.errorMessage
-                    ? { errorMessage: result.errorMessage }
-                    : {}),
-                },
+                );
+
+                pi.sendMessage(
+                  {
+                    customType: "subagent_result",
+                    content: appendPersistenceWarning(presentation, warning),
+                    display: true,
+                    details: {
+                      name,
+                      task: params.message ?? "resumed session",
+                      exitCode: result.exitCode,
+                      elapsed: result.elapsed,
+                      sessionFile: params.sessionPath,
+                      ...(result.errorMessage
+                        ? { errorMessage: result.errorMessage }
+                        : {}),
+                    },
+                  },
+                  { triggerTurn: true, deliverAs: "steer" },
+                );
               },
-              { triggerTurn: true, deliverAs: "steer" },
-            );
+            });
           })
           .catch((err) => {
             updateWidget();
@@ -2523,16 +3016,18 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         return;
       }
       const running = selected.running;
-      running.explicitlyStopped = true;
-      running.runId = (running.runId ?? 1) + 1;
-      running.abortController?.abort();
-      if (running.processState !== "resumable")
-        try {
-          closeSurface(running.surface);
-        } catch {}
-      runningSubagents.delete(running.id);
-      updateWidget();
-      ctx.ui.notify(`Stopped subagent "${running.name}".`, "info");
+      const stopped = stopTrackedSubagent(running, {
+        persistRemoval: () => persistSnapshot(running.id),
+        close: closeSurface,
+        remove: (id) => runningSubagents.delete(id),
+        update: updateWidget,
+      });
+      ctx.ui.notify(
+        "error" in stopped
+          ? stopped.error
+          : `Stopped subagent "${running.name}".`,
+        "error" in stopped ? "error" : "info",
+      );
     },
   });
 

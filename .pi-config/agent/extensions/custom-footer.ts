@@ -5,6 +5,8 @@ import type {
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { FAST_STATUS_KEY } from "./pi-openai-fast/src/capabilities.ts";
 
+const ANSI_SGR_PATTERN = /\x1b\[[0-?]*[ -/]*m/g;
+
 function sanitizeStatusText(text: string): string {
   return text
     .replace(/[\r\n\t]/g, " ")
@@ -12,10 +14,57 @@ function sanitizeStatusText(text: string): string {
     .trim();
 }
 
+function stripAnsiSgr(text: string): string {
+  return text.replace(ANSI_SGR_PATTERN, "");
+}
+
 function shouldShowStatusText(text: string): boolean {
-  const mcpStatus = text.match(/^MCP:\s*(\d+)\/(\d+)\s+servers$/i);
+  const mcpStatus = stripAnsiSgr(text).match(
+    /^MCP:\s*(\d+)\/(\d+)\s+servers$/i,
+  );
   if (!mcpStatus) return true;
   return Number(mcpStatus[1]) > 0;
+}
+
+function parseSessionStartTime(
+  timestamp: string | undefined,
+  now = Date.now(),
+): number | undefined {
+  if (!timestamp) return undefined;
+  const startTime = new Date(timestamp).getTime();
+  if (!Number.isFinite(startTime) || startTime > now) return undefined;
+  return startTime;
+}
+
+function formatLocalHHMM(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatElapsedDuration(elapsedMs: number): string {
+  const totalMinutes = Math.floor(Math.max(0, elapsedMs) / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `(${days}d ${String(remainingHours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m)`;
+  }
+  return `(${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m)`;
+}
+
+function formatSessionLine(
+  startTime: number | undefined,
+  now = Date.now(),
+): string | undefined {
+  if (
+    startTime === undefined ||
+    !Number.isFinite(startTime) ||
+    startTime > now
+  ) {
+    return undefined;
+  }
+  return `${formatLocalHHMM(startTime)} ${formatElapsedDuration(now - startTime)}`;
 }
 
 function formatCompactTokens(count: number): string {
@@ -80,11 +129,22 @@ function totalUsage(ctx: ExtensionContext) {
 function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
   if (!ctx.hasUI) return;
 
+  const sessionStartTime = parseSessionStartTime(
+    ctx.sessionManager.getHeader()?.timestamp,
+  );
+
   ctx.ui.setFooter((tui, theme, footerData) => {
     const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+    const refreshInterval =
+      sessionStartTime === undefined
+        ? undefined
+        : setInterval(() => tui.requestRender(), 60_000);
 
     return {
-      dispose: unsubscribe,
+      dispose() {
+        unsubscribe();
+        if (refreshInterval !== undefined) clearInterval(refreshInterval);
+      },
       invalidate() {},
       render(width: number): string[] {
         const safeWidth = Math.max(1, width);
@@ -142,7 +202,7 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
           safeWidth,
         );
 
-        const lines = [];
+        const lines: string[] = [];
         if (extensionStatuses.size > 0) {
           const statusLine = Array.from(extensionStatuses.entries())
             .filter(([key]) => key !== FAST_STATUS_KEY)
@@ -157,12 +217,29 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
           }
         }
 
+        const sessionLine = formatSessionLine(sessionStartTime);
+        if (sessionLine) {
+          lines.push(
+            renderPaddedLine("", theme.fg("dim", sessionLine), safeWidth),
+          );
+        }
         lines.push(statsLine);
         return lines;
       },
     };
   });
 }
+
+export const __test__ = {
+  formatElapsedDuration,
+  formatLocalHHMM,
+  formatSessionLine,
+  installFooter,
+  parseSessionStartTime,
+  sanitizeStatusText,
+  shouldShowStatusText,
+  stripAnsiSgr,
+};
 
 export default function customFooterExtension(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {

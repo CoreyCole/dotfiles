@@ -166,6 +166,41 @@ test("requested skills are expanded into the first child turn", async () => {
   }
 });
 
+test("a fresh resumed child does not transform its steer without the skills environment", async () => {
+  const previousSkills = process.env.PI_SUBAGENT_SKILLS;
+  delete process.env.PI_SUBAGENT_SKILLS;
+  const handlers = new Map<
+    string,
+    (...args: unknown[]) => unknown | Promise<unknown>
+  >();
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool() {},
+  } as unknown as ExtensionAPI;
+
+  try {
+    subagentDoneExtension(pi);
+    const result = await handlers.get("input")?.(
+      { text: "Continue from here.", source: "interactive" },
+      { shutdown() {} },
+    );
+    assert.equal(result, undefined);
+  } finally {
+    if (previousSkills == null) delete process.env.PI_SUBAGENT_SKILLS;
+    else process.env.PI_SUBAGENT_SKILLS = previousSkills;
+  }
+});
+
 test("terminal agent errors notify the manager without auto-exit", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "pi-subagent-error-"));
   const sessionFile = join(tempDir, "child.jsonl");
