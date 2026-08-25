@@ -152,12 +152,6 @@ const SubagentParams = Type.Object({
         "Force the full-context fork mode for this spawn. The sub-agent inherits the current session conversation, overriding any agent frontmatter session-mode.",
     }),
   ),
-  resumeSessionId: Type.Optional(
-    Type.String({
-      description:
-        "Resume a previous Claude Code session by its ID. Loads the conversation history and continues where it left off. The session ID is returned in details of every claude tool call. Use this to retry cancelled runs or ask follow-up questions.",
-    }),
-  ),
 });
 
 type SubagentSessionMode = "standalone" | "lineage-only" | "fork";
@@ -502,7 +496,6 @@ interface SubagentResult {
   task: string;
   summary: string;
   sessionFile?: string;
-  claudeSessionId?: string;
   exitCode: number;
   elapsed: number;
   error?: string;
@@ -515,7 +508,7 @@ interface SubagentResult {
 /**
  * State for a launched (but not yet completed) subagent.
  */
-interface ResolvedPiLaunchProfile {
+interface PiLaunchProfile {
   sessionFile: string;
   activityFile: string;
   cwdPrefix: string;
@@ -528,7 +521,6 @@ const RESUMABLE_SNAPSHOT_CUSTOM_TYPE =
   "pi-attachable-subagents/resumable-snapshot";
 const CHILD_SESSION_CUSTOM_TYPE = "pi-attachable-subagents/child";
 
-/** Durable identity only. Process and pane state intentionally never belongs here. */
 interface ChildSession {
   managerSessionId: string;
   childSessionId: string;
@@ -537,6 +529,14 @@ interface ChildSession {
   cwd: string;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
 function validateChildSession(value: unknown): ChildSession | undefined {
   if (
     !isPlainObject(value) ||
@@ -556,7 +556,6 @@ function validateChildSession(value: unknown): ChildSession | undefined {
     cwd: value.cwd,
   };
 }
-
 function replayChildCatalog(
   header: { id?: unknown } | null,
   managerSessionId: string,
@@ -572,19 +571,20 @@ function replayChildCatalog(
     )
       continue;
     const child = validateChildSession(entry.data);
-    if (!child || child.managerSessionId !== managerSessionId) continue;
-    const existing = catalog.get(child.childSessionId);
-    // Immutable duplicate registrations are harmless. Conflicting records do
-    // not replace the first branch-owned identity.
-    if (!existing) catalog.set(child.childSessionId, child);
+    if (
+      child &&
+      child.managerSessionId === managerSessionId &&
+      !catalog.has(child.childSessionId)
+    )
+      catalog.set(child.childSessionId, child);
   }
   return catalog;
 }
-
 function nativeSessionId(sessionFile: string): string | undefined {
   try {
-    const firstLine = readFileSync(sessionFile, "utf8").split("\n", 1)[0];
-    const header = JSON.parse(firstLine);
+    const header = JSON.parse(
+      readFileSync(sessionFile, "utf8").split("\n", 1)[0],
+    );
     return header?.type === "session" && isNonemptyString(header.id)
       ? header.id
       : undefined;
@@ -592,8 +592,7 @@ function nativeSessionId(sessionFile: string): string | undefined {
     return undefined;
   }
 }
-
-/** One-way compatibility reader; historical tool-result recovery is deferred. */
+/** Narrow one-way reader for pre-registry snapshots. It never writes snapshots. */
 function migrateLegacySnapshots(
   header: { id?: unknown } | null,
   managerSessionId: string,
@@ -606,48 +605,47 @@ function migrateLegacySnapshots(
     if (
       !isPlainObject(entry) ||
       entry.type !== "custom" ||
-      entry.customType !== RESUMABLE_SNAPSHOT_CUSTOM_TYPE
+      entry.customType !== RESUMABLE_SNAPSHOT_CUSTOM_TYPE ||
+      !isPlainObject(entry.data) ||
+      entry.data.version !== 1 ||
+      entry.data.ownerSessionId !== managerSessionId ||
+      !Array.isArray(entry.data.records)
     )
       continue;
-    const envelope = validateSnapshotEnvelope(entry.data);
-    if (!envelope || envelope.ownerSessionId !== managerSessionId) continue;
-    for (const value of envelope.records) {
-      const record = validateResumableRecord(value, existsSync);
-      if (!record) continue;
-      const childSessionId = nativeSessionId(record.launchProfile.sessionFile);
+    for (const record of entry.data.records) {
+      if (
+        !isPlainObject(record) ||
+        !isNonemptyString(record.name) ||
+        !isPlainObject(record.launchProfile) ||
+        !isNonemptyString(record.launchProfile.sessionFile)
+      )
+        continue;
+      const sessionFile = record.launchProfile.sessionFile;
+      const childSessionId = nativeSessionId(sessionFile);
       if (
         !childSessionId ||
         existing.has(childSessionId) ||
         recovered.has(childSessionId)
       )
         continue;
-      const cwd = nativeSessionId(record.launchProfile.sessionFile)
-        ? (() => {
-            try {
-              return JSON.parse(
-                readFileSync(record.launchProfile.sessionFile, "utf8").split(
-                  "\n",
-                  1,
-                )[0],
-              ).cwd;
-            } catch {
-              return undefined;
-            }
-          })()
-        : undefined;
-      if (!isNonemptyString(cwd)) continue;
-      recovered.set(childSessionId, {
-        managerSessionId,
-        childSessionId,
-        name: record.name,
-        ...(record.agent ? { agent: record.agent } : {}),
-        cwd,
-      });
+      try {
+        const childHeader = JSON.parse(
+          readFileSync(sessionFile, "utf8").split("\n", 1)[0],
+        );
+        if (isNonemptyString(childHeader.cwd))
+          recovered.set(childSessionId, {
+            managerSessionId,
+            childSessionId,
+            name: record.name,
+            ...(isNonemptyString(record.agent) ? { agent: record.agent } : {}),
+            cwd: childHeader.cwd,
+          });
+      } catch {}
     }
   }
   return [...recovered.values()];
 }
-
+/** Recover only recognized manager-side historical subagent result entries. */
 function migrateHistoricalToolResults(
   header: { id?: unknown } | null,
   managerSessionId: string,
@@ -656,195 +654,52 @@ function migrateHistoricalToolResults(
 ): ChildSession[] {
   if (header?.id !== managerSessionId) return [];
   const recovered = new Map<string, ChildSession>();
-  const visit = (value: unknown): void => {
-    if (!isPlainObject(value)) return;
-    const sessionFile = value.sessionFile;
-    if (isNonemptyString(sessionFile)) {
-      const childSessionId = nativeSessionId(sessionFile);
-      if (
-        childSessionId &&
-        !existing.has(childSessionId) &&
-        !recovered.has(childSessionId)
-      ) {
-        try {
-          const childHeader = JSON.parse(
-            readFileSync(sessionFile, "utf8").split("\n", 1)[0],
-          );
-          if (isNonemptyString(childHeader.cwd)) {
-            recovered.set(childSessionId, {
-              managerSessionId,
-              childSessionId,
-              name: isNonemptyString(value.name)
-                ? value.name
-                : "Recovered child",
-              ...(isNonemptyString(value.agent) ? { agent: value.agent } : {}),
-              cwd: childHeader.cwd,
-            });
-          }
-        } catch {}
-      }
-    }
-    for (const nested of Object.values(value)) {
-      if (Array.isArray(nested)) nested.forEach(visit);
-      else if (isPlainObject(nested)) visit(nested);
-    }
-  };
-  for (const entry of branch) visit(entry);
-  return [...recovered.values()];
-}
-
-interface ResumableRecordV1 {
-  id: string;
-  name: string;
-  task: string;
-  agent?: string;
-  firstStartTime: number;
-  accumulatedActiveMs: number;
-  launchProfile: Readonly<ResolvedPiLaunchProfile>;
-}
-
-interface ResumableSnapshotV1 {
-  version: 1;
-  ownerSessionId: string;
-  records: ResumableRecordV1[];
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== "object") return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-function isNonemptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function copyLaunchProfile(
-  value: unknown,
-  fileExists: (path: string) => boolean,
-): Readonly<ResolvedPiLaunchProfile> | undefined {
-  if (!isPlainObject(value)) return undefined;
-  if (
-    !isNonemptyString(value.sessionFile) ||
-    !isNonemptyString(value.activityFile) ||
-    !isNonemptyString(value.cwdPrefix) ||
-    !Array.isArray(value.environment) ||
-    !value.environment.every((item) => typeof item === "string") ||
-    !Array.isArray(value.arguments) ||
-    !value.arguments.every((item) => typeof item === "string") ||
-    !Array.isArray(value.selectedSkills) ||
-    !value.selectedSkills.every((item) => typeof item === "string") ||
-    !fileExists(value.sessionFile)
-  ) {
-    return undefined;
-  }
-
-  return Object.freeze({
-    sessionFile: value.sessionFile,
-    activityFile: value.activityFile,
-    cwdPrefix: value.cwdPrefix,
-    environment: Object.freeze([...value.environment]),
-    arguments: Object.freeze([...value.arguments]),
-    selectedSkills: Object.freeze([...value.selectedSkills]),
-  });
-}
-
-function validateSnapshotEnvelope(
-  value: unknown,
-): { ownerSessionId: string; records: unknown[] } | undefined {
-  if (
-    !isPlainObject(value) ||
-    value.version !== 1 ||
-    !isNonemptyString(value.ownerSessionId) ||
-    !Array.isArray(value.records)
-  ) {
-    return undefined;
-  }
-  return { ownerSessionId: value.ownerSessionId, records: value.records };
-}
-
-function validateResumableRecord(
-  value: unknown,
-  fileExists: (path: string) => boolean,
-): ResumableRecordV1 | undefined {
-  if (
-    !isPlainObject(value) ||
-    !isNonemptyString(value.id) ||
-    !isNonemptyString(value.name) ||
-    !isNonemptyString(value.task) ||
-    (value.agent !== undefined && typeof value.agent !== "string") ||
-    typeof value.firstStartTime !== "number" ||
-    !Number.isFinite(value.firstStartTime) ||
-    value.firstStartTime < 0 ||
-    typeof value.accumulatedActiveMs !== "number" ||
-    !Number.isFinite(value.accumulatedActiveMs) ||
-    value.accumulatedActiveMs < 0
-  ) {
-    return undefined;
-  }
-  const launchProfile = copyLaunchProfile(value.launchProfile, fileExists);
-  if (!launchProfile) return undefined;
-
-  return {
-    id: value.id,
-    name: value.name,
-    task: value.task,
-    ...(value.agent === undefined ? {} : { agent: value.agent }),
-    firstStartTime: value.firstStartTime,
-    accumulatedActiveMs: value.accumulatedActiveMs,
-    launchProfile,
-  };
-}
-
-function selectActiveBranchSnapshot(
-  branch: readonly unknown[],
-  ownerSessionId: string,
-  fileExists: (path: string) => boolean = existsSync,
-): ResumableRecordV1[] {
-  for (let index = branch.length - 1; index >= 0; index--) {
-    const entry = branch[index];
+  for (const entry of branch) {
     if (
       !isPlainObject(entry) ||
       entry.type !== "custom" ||
-      entry.customType !== RESUMABLE_SNAPSHOT_CUSTOM_TYPE
-    ) {
+      (entry.customType !== "subagent_result" &&
+        entry.customType !== "subagent_ping") ||
+      !isPlainObject(entry.details)
+    )
       continue;
-    }
-    const envelope = validateSnapshotEnvelope(entry.data);
-    if (!envelope) continue;
-    if (envelope.ownerSessionId !== ownerSessionId) return [];
-
-    const seenIds = new Set<string>();
-    const records: ResumableRecordV1[] = [];
-    for (const candidate of envelope.records) {
-      const record = validateResumableRecord(candidate, fileExists);
-      if (!record || seenIds.has(record.id)) continue;
-      seenIds.add(record.id);
-      records.push(record);
-    }
-    return records;
+    const details = entry.details;
+    if (
+      !isNonemptyString(details.sessionFile) ||
+      !isNonemptyString(details.name)
+    )
+      continue;
+    const childSessionId = nativeSessionId(details.sessionFile);
+    if (
+      !childSessionId ||
+      childSessionId === managerSessionId ||
+      existing.has(childSessionId) ||
+      recovered.has(childSessionId)
+    )
+      continue;
+    try {
+      const childHeader = JSON.parse(
+        readFileSync(details.sessionFile, "utf8").split("\n", 1)[0],
+      );
+      if (isNonemptyString(childHeader.cwd))
+        recovered.set(childSessionId, {
+          managerSessionId,
+          childSessionId,
+          name: details.name,
+          ...(isNonemptyString(details.agent) ? { agent: details.agent } : {}),
+          cwd: childHeader.cwd,
+        });
+    } catch {}
   }
-  return [];
+  return [...recovered.values()];
 }
-
-function restoreSnapshotRecords(
-  header: { id?: unknown } | null,
-  sessionId: string,
-  branch: readonly unknown[],
-  fileExists: (path: string) => boolean = existsSync,
-): ResumableRecordV1[] {
-  if (header?.id !== sessionId) return [];
-  return selectActiveBranchSnapshot(branch, sessionId, fileExists);
-}
-
 interface PiLaunchRun {
   surface: string;
   promptArguments: readonly string[];
   originalLaunch: boolean;
 }
-
 function buildPiLaunchCommand(
-  profile: ResolvedPiLaunchProfile,
+  profile: PiLaunchProfile,
   run: PiLaunchRun,
 ): string {
   const environment = [
@@ -858,7 +713,6 @@ function buildPiLaunchCommand(
     `${profile.cwdPrefix}${environment.join(" ")} ${profile.arguments.join(" ")} ${run.promptArguments.map(shellEscape).join(" ")}`.trim();
   return `${command}; echo '__SUBAGENT_DONE_'$?'__'`;
 }
-
 interface RunningSubagent {
   id: string;
   name: string;
@@ -866,16 +720,10 @@ interface RunningSubagent {
   agent?: string;
   surface: string;
   startTime: number;
-  firstStartTime: number;
-  accumulatedActiveMs: number;
-  processState?: "active" | "resumable";
-  runId?: number;
-  explicitlyStopped?: boolean;
-  shutdownCancelled?: boolean;
   sessionFile: string;
   launchScriptFile?: string;
   activityFile?: string;
-  launchProfile?: Readonly<ResolvedPiLaunchProfile>;
+  launchProfile?: PiLaunchProfile;
   activity?: SubagentActivityState;
   activityRead?: {
     ok: boolean;
@@ -883,176 +731,30 @@ interface RunningSubagent {
     error?: string;
   };
   abortController?: AbortController;
-  cli?: string;
-  sentinelFile?: string;
+  explicitlyStopped?: boolean;
+  shutdownCancelled?: boolean;
   statusState: SubagentStatusState;
 }
-
-/** All currently running subagents, keyed by native Pi session id. */
 const runningSubagents = new Map<string, RunningSubagent>();
-/** Every child registered on the active manager branch, including idle children. */
 const childrenBySessionId = new Map<string, ChildSession>();
-
-function serializeResumableSnapshot(
-  ownerSessionId: string,
-  agents: Iterable<RunningSubagent>,
-  excludedId?: string,
-): ResumableSnapshotV1 {
-  const records: ResumableRecordV1[] = [];
-  for (const running of agents) {
-    if (
-      running.id === excludedId ||
-      running.processState !== "resumable" ||
-      running.cli === "claude" ||
-      !running.launchProfile ||
-      !isNonemptyString(running.id) ||
-      !isNonemptyString(running.name) ||
-      !isNonemptyString(running.task) ||
-      !Number.isFinite(running.firstStartTime) ||
-      running.firstStartTime < 0 ||
-      !Number.isFinite(running.accumulatedActiveMs) ||
-      running.accumulatedActiveMs < 0
-    ) {
-      continue;
-    }
-    const launchProfile = copyLaunchProfile(running.launchProfile, () => true);
-    if (!launchProfile) continue;
-    records.push({
-      id: running.id,
-      name: running.name,
-      task: running.task,
-      ...(running.agent === undefined ? {} : { agent: running.agent }),
-      firstStartTime: running.firstStartTime,
-      accumulatedActiveMs: running.accumulatedActiveMs,
-      launchProfile: {
-        sessionFile: launchProfile.sessionFile,
-        activityFile: launchProfile.activityFile,
-        cwdPrefix: launchProfile.cwdPrefix,
-        environment: [...launchProfile.environment],
-        arguments: [...launchProfile.arguments],
-        selectedSkills: [...launchProfile.selectedSkills],
-      },
-    });
-  }
-  return { version: 1, ownerSessionId, records };
+function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
+  return !running.explicitlyStopped && !running.shutdownCancelled;
 }
-
-const PERSISTENCE_WARNING_PREFIX =
-  "Persistence warning: child remains resumable here but is not restart-durable";
-
-function persistenceWarning(error: unknown): string {
-  return `${PERSISTENCE_WARNING_PREFIX}: ${error instanceof Error ? error.message : String(error)}`;
+function cleanupFailedWatcherRun(running: RunningSubagent): void {
+  runningSubagents.delete(running.id);
 }
-
+function appendPersistenceWarning(
+  content: string,
+  _warning: string | undefined,
+): string {
+  return content;
+}
 function completeWakeTransition(actions: {
-  persist?: () => void;
   update: () => void;
   wake: (warning?: string) => void;
 }): void {
-  let warning: string | undefined;
-  try {
-    actions.persist?.();
-  } catch (error) {
-    warning = persistenceWarning(error);
-  }
   actions.update();
-  actions.wake(warning);
-}
-
-function commitResumedTransition(actions: {
-  persistRemoval: () => void;
-  close: () => void;
-  commit: () => void;
-  startWatcher: () => void;
-  update: () => void;
-}): { ok: true } | { error: string } {
-  try {
-    actions.persistRemoval();
-  } catch (error) {
-    try {
-      actions.close();
-    } catch {}
-    return { error: persistenceWarning(error) };
-  }
-  actions.commit();
-  actions.startWatcher();
-  actions.update();
-  return { ok: true };
-}
-
-function restoreRunningSubagents(
-  records: readonly ResumableRecordV1[],
-  target: Map<string, RunningSubagent>,
-): void {
-  for (const record of records) {
-    const launchProfile = record.launchProfile;
-    target.set(record.id, {
-      id: record.id,
-      name: record.name,
-      task: record.task,
-      ...(record.agent === undefined ? {} : { agent: record.agent }),
-      surface: "",
-      startTime: record.firstStartTime,
-      firstStartTime: record.firstStartTime,
-      accumulatedActiveMs: record.accumulatedActiveMs,
-      processState: "resumable",
-      sessionFile: launchProfile.sessionFile,
-      activityFile: launchProfile.activityFile,
-      launchProfile,
-      statusState: createStatusState({
-        source: "pi",
-        startTimeMs: record.firstStartTime,
-      }),
-    });
-  }
-}
-
-function stopTrackedSubagent(
-  running: RunningSubagent,
-  actions: {
-    persistRemoval: () => void;
-    close: (surface: string) => void;
-    remove: (id: string) => void;
-    update: () => void;
-  },
-): { ok: true } | { error: string } {
-  if (running.processState === "resumable") {
-    try {
-      actions.persistRemoval();
-    } catch (error) {
-      return { error: persistenceWarning(error) };
-    }
-  }
-
-  running.explicitlyStopped = true;
-  running.runId = (running.runId ?? 1) + 1;
-  running.abortController?.abort();
-  if (running.processState !== "resumable") {
-    try {
-      actions.close(running.surface);
-    } catch {}
-  }
-  actions.remove(running.id);
-  actions.update();
-  return { ok: true };
-}
-
-function appendPersistenceWarning(
-  content: string,
-  warning: string | undefined,
-): string {
-  return warning ? `${content}\n\n${warning}` : content;
-}
-
-function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
-  return (
-    running.explicitlyStopped !== true && running.shutdownCancelled !== true
-  );
-}
-
-function cleanupFailedWatcherRun(running: RunningSubagent): void {
-  if (!existsSync(running.sessionFile)) runningSubagents.delete(running.id);
-  else running.processState = "resumable";
+  actions.wake();
 }
 
 // ── Widget management ──
@@ -1067,24 +769,7 @@ let widgetInterval: ReturnType<typeof setInterval> | null = null;
 let statusInterval: ReturnType<typeof setInterval> | null = null;
 
 function getActiveRuntimeMs(running: RunningSubagent, now: number): number {
-  return running.processState === "resumable"
-    ? running.accumulatedActiveMs
-    : running.accumulatedActiveMs + Math.max(0, now - running.startTime);
-}
-
-function finalizeActiveRun(
-  running: RunningSubagent,
-  ownedRunId: number,
-  now: number,
-): boolean {
-  if (
-    (running.runId ?? 1) !== ownedRunId ||
-    running.processState === "resumable"
-  ) {
-    return false;
-  }
-  running.accumulatedActiveMs += Math.max(0, now - running.startTime);
-  return true;
+  return Math.max(0, now - running.startTime);
 }
 
 function formatLocalStartTime(timestamp: number): string {
@@ -1169,11 +854,8 @@ function renderSubagentWidgetLines(
   now = Date.now(),
 ): string[] {
   const count = agents.length;
-  const active = agents.filter(
-    (agent) => agent.processState !== "resumable",
-  ).length;
   const title = "Subagents";
-  const info = `${count} tracked · ${active} active`;
+  const info = `${count} active`;
 
   const lines: string[] = [borderTop(title, info, width)];
 
@@ -1182,15 +864,10 @@ function renderSubagentWidgetLines(
     const agentTag = agent.agent ? ` (${agent.agent})` : "";
     const left = ` ${elapsed}  ${agent.name}${agentTag} `;
     const snapshot = classifyStatus(agent.statusState, now);
-    const startLabel = formatLocalStartTime(agent.firstStartTime);
-    const status =
-      agent.processState === "resumable"
-        ? "stopped · resumable"
-        : statusConfig.enabled
-          ? formatWidgetRightLabel(snapshot).trim()
-          : agent.cli === "claude"
-            ? "running…"
-            : "starting…";
+    const startLabel = formatLocalStartTime(agent.startTime);
+    const status = statusConfig.enabled
+      ? formatWidgetRightLabel(snapshot).trim()
+      : "running…";
     const right = ` ${status} · ${startLabel} `;
 
     lines.push(borderLine(left, right, width));
@@ -1355,8 +1032,6 @@ function observeRunningSubagent(
   running: RunningSubagent,
   observedAt = Date.now(),
 ) {
-  if (running.cli === "claude") return;
-
   const activityFile = running.activityFile;
   const read: ActivityReadResult = activityFile
     ? readSubagentActivityFile(activityFile, running.id)
@@ -1454,6 +1129,20 @@ function resolveRunningTarget(
 
 const resolveAttachTarget = resolveRunningTarget;
 
+async function selectHumanCatalogTarget(
+  children: ChildSession[],
+  select: (title: string, options: string[]) => Promise<string | undefined>,
+): Promise<ChildSession | undefined> {
+  if (children.length === 0) return undefined;
+  if (children.length === 1) return children[0];
+  const options = children.map(
+    (child) =>
+      `${child.name} · ${child.agent ?? "unconfigured"} · ${child.childSessionId.slice(0, 8)}`,
+  );
+  const selected = await select("Select a child session", options);
+  return selected ? children[options.indexOf(selected)] : undefined;
+}
+
 async function selectHumanTarget(
   agents: RunningSubagent[],
   target: string | undefined,
@@ -1540,21 +1229,6 @@ function handleSubagentInterrupt(
   }
 
   const running = resolved.running;
-  if (running.cli === "claude") {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: "Turn-only Escape interrupt is currently supported only for Pi-backed subagents. Claude-backed semantics have not been verified yet.",
-        },
-      ],
-      details: {
-        error: "claude interrupt unsupported",
-        id: running.id,
-        name: running.name,
-      },
-    };
-  }
 
   const now = Date.now();
   observeRunningSubagent(running, now);
@@ -1660,8 +1334,6 @@ export const __test__ = {
   resolveModelArgument,
   buildSystemPromptArguments,
   buildInitialTask,
-  getActiveRuntimeMs,
-  finalizeActiveRun,
   formatLocalStartTime,
   formatSubagentTaskCall,
   formatWidgetRightLabel,
@@ -1677,19 +1349,8 @@ export const __test__ = {
   handleSubagentInterrupt,
   resolveResultPresentation,
   shouldDeliverWatcherNotification,
-  appendPersistenceWarning,
-  commitResumedTransition,
-  completeWakeTransition,
-  restoreRunningSubagents,
-  restoreSnapshotRecords,
-  selectActiveBranchSnapshot,
-  serializeResumableSnapshot,
-  stopTrackedSubagent,
-  createWatcherOwner,
   cleanupFailedWatcherRun,
-  validateResumableRecord,
-  validateSnapshotEnvelope,
-  RESUMABLE_SNAPSHOT_CUSTOM_TYPE,
+  createWatcherOwner,
   CHILD_SESSION_CUSTOM_TYPE,
   validateChildSession,
   replayChildCatalog,
@@ -1798,88 +1459,6 @@ async function launchSubagent(
   mkdirSync(dirname(activityFile), { recursive: true });
   const fullTask = buildInitialTask(params.task);
   const denySet = resolveDenyTools(agentDefs);
-  // ── Claude Code CLI path ──
-  if (agentDefs?.cli === "claude") {
-    const sentinelFile = `/tmp/pi-claude-${id}-done`;
-    const pluginDir = join(SUBAGENTS_DIR, "plugin");
-
-    const cmdParts: string[] = [];
-    cmdParts.push(`PI_CLAUDE_SENTINEL=${shellEscape(sentinelFile)}`);
-    cmdParts.push("claude");
-    cmdParts.push("--dangerously-skip-permissions");
-
-    if (existsSync(pluginDir)) {
-      cmdParts.push("--plugin-dir", shellEscape(pluginDir));
-    }
-
-    if (effectiveModel) {
-      cmdParts.push("--model", shellEscape(effectiveModel));
-    }
-
-    const sp = params.systemPrompt ?? agentDefs.body;
-    if (sp) {
-      cmdParts.push("--append-system-prompt", shellEscape(sp));
-    }
-
-    if (params.resumeSessionId) {
-      cmdParts.push("--resume", shellEscape(params.resumeSessionId));
-    }
-
-    // Always pass the task as the prompt — even for resumed sessions,
-    // the caller's task is the follow-up instruction.
-    cmdParts.push(shellEscape(params.task));
-
-    const cdPrefix = effectiveCwd ? `cd ${shellEscape(effectiveCwd)} && ` : "";
-    const command = `${cdPrefix}${cmdParts.join(" ")}; echo '__SUBAGENT_DONE_'$?'__'`;
-
-    const launchScriptName = `${
-      (params.name || "subagent")
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "") || "subagent"
-    }-${id}.sh`;
-    const launchScriptFile = join(
-      artifactDir,
-      "subagent-scripts",
-      launchScriptName,
-    );
-
-    sendLongCommand(surface, command, {
-      scriptPath: launchScriptFile,
-      scriptPreamble: [
-        `# Claude Code subagent launch script for ${params.name}`,
-        `# Generated: ${new Date().toISOString()}`,
-        `# Surface: ${surface}`,
-      ].join("\n"),
-    });
-
-    const running: RunningSubagent = {
-      id,
-      name: params.name,
-      task: params.task,
-      agent: params.agent,
-      surface,
-      startTime,
-      firstStartTime: startTime,
-      accumulatedActiveMs: 0,
-      sessionFile: subagentSessionFile,
-      launchScriptFile,
-      cli: "claude",
-      sentinelFile,
-      processState: "active",
-      runId: 1,
-      statusState: createStatusState({
-        source: "claude",
-        startTimeMs: startTime,
-      }),
-    };
-
-    runningSubagents.set(id, running);
-    return running;
-  }
-
   // ── Pi CLI path ──
 
   // Build pi command
@@ -2047,14 +1626,10 @@ async function launchSubagent(
     agent: params.agent,
     surface,
     startTime,
-    firstStartTime: startTime,
-    accumulatedActiveMs: 0,
     sessionFile: subagentSessionFile,
     launchScriptFile,
     activityFile,
     launchProfile,
-    processState: "active",
-    runId: 1,
     statusState: createStatusState({
       source: "pi",
       startTimeMs: startTime,
@@ -2070,38 +1645,12 @@ async function launchSubagent(
  * the summary from the session file, cleans up the surface,
  * and removes the entry from runningSubagents.
  */
-const CLAUDE_SESSIONS_DIR = join(
-  process.env.HOME ?? "/tmp",
-  ".pi",
-  "agent",
-  "sessions",
-  "claude-code",
-);
-
-function copyClaudeSession(sentinelFile: string): string | null {
-  try {
-    const transcriptFile = sentinelFile + ".transcript";
-    if (!existsSync(transcriptFile)) return null;
-    const transcriptPath = readFileSync(transcriptFile, "utf-8").trim();
-    if (!transcriptPath || !existsSync(transcriptPath)) return null;
-    mkdirSync(CLAUDE_SESSIONS_DIR, { recursive: true });
-    const filename =
-      transcriptPath.split("/").pop() ?? `claude-${Date.now()}.jsonl`;
-    const dest = join(CLAUDE_SESSIONS_DIR, filename);
-    copyFileSync(transcriptPath, dest);
-    return filename;
-  } catch {
-    return null;
-  }
-}
-
 async function watchSubagent(
   running: RunningSubagent,
   signal: AbortSignal,
   ownerSignal: AbortSignal,
 ): Promise<SubagentResult> {
   const { name, task, surface, startTime, sessionFile } = running;
-  const ownedRunId = running.runId ?? 1;
 
   try {
     const result = await pollForExit(
@@ -2110,7 +1659,6 @@ async function watchSubagent(
       {
         interval: 1000,
         sessionFile,
-        sentinelFile: running.sentinelFile,
         onTick() {
           observeRunningSubagent(running);
         },
@@ -2118,54 +1666,6 @@ async function watchSubagent(
     );
 
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-
-    if (running.cli === "claude") {
-      // Claude Code result extraction
-      let summary = "";
-
-      if (running.sentinelFile) {
-        try {
-          summary = readFileSync(running.sentinelFile, "utf-8").trim();
-        } catch {}
-      }
-
-      if (!summary) {
-        summary = readScreen(surface, 200)
-          .replace(/__SUBAGENT_DONE_\d+__/, "")
-          .trimEnd();
-      }
-
-      if (!summary) {
-        summary =
-          result.exitCode !== 0
-            ? `Claude Code exited with code ${result.exitCode}`
-            : "Claude Code exited without output";
-      }
-
-      // Copy Claude session transcript
-      let sessionId: string | null = null;
-      if (running.sentinelFile) {
-        sessionId = copyClaudeSession(running.sentinelFile);
-        try {
-          unlinkSync(running.sentinelFile);
-        } catch {}
-        try {
-          unlinkSync(running.sentinelFile + ".transcript");
-        } catch {}
-      }
-
-      closeSurface(surface);
-      runningSubagents.delete(running.id);
-
-      return {
-        name,
-        task,
-        summary,
-        exitCode: result.exitCode,
-        elapsed,
-        ...(sessionId ? { claudeSessionId: sessionId } : {}),
-      };
-    }
 
     // Pi subagent result extraction
     let summary: string;
@@ -2186,9 +1686,6 @@ async function watchSubagent(
           : "Sub-agent exited without output";
     }
 
-    if (!finalizeActiveRun(running, ownedRunId, Date.now())) {
-      throw new Error("Stale subagent watcher.");
-    }
     runningSubagents.delete(running.id);
     closeSurface(surface);
     // A completed turn ends only this process. The durable catalog entry remains.
@@ -2205,7 +1702,6 @@ async function watchSubagent(
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
   } catch (err: any) {
-    if (!finalizeActiveRun(running, ownedRunId, Date.now())) throw err;
     try {
       closeSurface(surface);
     } catch {}
@@ -2221,8 +1717,8 @@ async function watchSubagent(
         sessionFile,
       };
     }
-    // A launch-side infrastructure failure can occur before Pi writes a
-    // session. Do not retain a resumable record that cannot be resumed.
+    // A launch-side infrastructure failure removes only transient active state.
+    // The durable child registration remains available for inspection.
     runningSubagents.delete(running.id);
     return {
       name,
@@ -2443,9 +1939,6 @@ export default function subagentsExtension(pi: ExtensionAPI) {
                       sessionFile: result.sessionFile,
                       ...(result.errorMessage
                         ? { errorMessage: result.errorMessage }
-                        : {}),
-                      ...(result.claudeSessionId
-                        ? { claudeSessionId: result.claudeSessionId }
                         : {}),
                     },
                   },
@@ -2671,6 +2164,27 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         agentDefs?.thinking,
       );
       if (model) parts.push("--model", shellEscape(model));
+      const promptDir = join(
+        getArtifactDir(
+          ctx.sessionManager.getSessionDir(),
+          ctx.sessionManager.getSessionId(),
+        ),
+        "context",
+      );
+      if (agentDefs?.body) {
+        mkdirSync(promptDir, { recursive: true });
+        const rolePrompt = join(promptDir, `${child.childSessionId}-agent.md`);
+        writeFileSync(rolePrompt, agentDefs.body, "utf8");
+        parts.push(
+          ...buildSystemPromptArguments({
+            agentBodyPath: rolePrompt,
+            agentMode: agentDefs.systemPromptMode,
+          }),
+        );
+      }
+      const toolAllowlist = buildSubagentToolAllowlist(agentDefs?.tools);
+      if (toolAllowlist) parts.push("--tools", shellEscape(toolAllowlist));
+      const denySet = resolveDenyTools(agentDefs);
       const env = [
         `PI_CODING_AGENT_DIR=${shellEscape(agentDir)}`,
         `PI_SUBAGENT_NAME=${shellEscape(child.name)}`,
@@ -2680,7 +2194,9 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       ];
       if (child.agent)
         env.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent)}`);
-      const profile: ResolvedPiLaunchProfile = {
+      if (denySet.size > 0)
+        env.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
+      const profile: PiLaunchProfile = {
         sessionFile,
         activityFile,
         cwdPrefix: `cd ${shellEscape(child.cwd)} && `,
@@ -2705,10 +2221,6 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         ...(child.agent ? { agent: child.agent } : {}),
         surface,
         startTime,
-        firstStartTime: startTime,
-        accumulatedActiveMs: 0,
-        processState: "active",
-        runId: 1,
         sessionFile,
         activityFile,
         launchProfile: profile,
@@ -2738,7 +2250,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
     pi.registerTool({
       name: "subagent_steer",
       label: "Steer Subagent",
-      description: "Send one message to an active or resumable Pi subagent.",
+      description: "Send one message to an active or idle child session.",
       parameters: Type.Object({
         target: Type.String(),
         message: Type.String(),
@@ -2940,10 +2452,11 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       async execute() {
         const children = [...childrenBySessionId.values()].map((child) => ({
           ...child,
-          // Idle children are resumable by contract; controls validate files when used.
           status: runningSubagents.has(child.childSessionId)
-            ? "running"
-            : "idle",
+            ? "active"
+            : findChildSessionFile(child)
+              ? "idle"
+              : "unavailable",
         }));
         if (children.length === 0)
           return {
@@ -3008,18 +2521,13 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         );
         return;
       }
-      const selected = await selectHumanTarget(
-        Array.from(runningSubagents.values()),
-        typedTarget,
+      const selected = await selectHumanCatalogTarget(
+        Array.from(childrenBySessionId.values()),
         (title, options) => ctx.ui.select(title, options),
       );
       if (!selected) {
-        if (runningSubagents.size === 0)
-          ctx.ui.notify("No subagents are running.", "info");
-        return;
-      }
-      if ("error" in selected) {
-        ctx.ui.notify(selected.error, "error");
+        if (childrenBySessionId.size === 0)
+          ctx.ui.notify("No child sessions are registered.", "info");
         return;
       }
       let message = words.join(" ");
@@ -3027,7 +2535,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         message =
           (await ctx.ui.input("Steer message", "Message for the subagent")) ??
           "";
-      const result = await steer(selected.running.id, message, ctx);
+      const result = await steer(selected.childSessionId, message, ctx);
       ctx.ui.notify(
         "error" in result
           ? result.error
@@ -3086,17 +2594,16 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         return;
       }
       const running = selected.running;
-      const stopped = stopTrackedSubagent(running, {
-        persistRemoval: () => {},
-        close: closeSurface,
-        remove: (id) => runningSubagents.delete(id),
-        update: updateWidget,
-      });
+      running.explicitlyStopped = true;
+      running.abortController?.abort();
+      try {
+        closeSurface(running.surface);
+      } catch {}
+      runningSubagents.delete(running.id);
+      updateWidget();
       ctx.ui.notify(
-        "error" in stopped
-          ? stopped.error
-          : `Stopped subagent "${running.name}".`,
-        "error" in stopped ? "error" : "info",
+        `Stopped active subagent "${running.name}"; history was retained.`,
+        "info",
       );
     },
   });
@@ -3141,13 +2648,6 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         return;
       }
       const running = selected.running;
-      if (running.processState === "resumable") {
-        ctx.ui.notify(
-          `Subagent "${running.name}" is stopped and resumable. Use /steer ${running.id} <message>.`,
-          "info",
-        );
-        return;
-      }
       try {
         const result = attachTmuxPane(running.surface, managerPane);
         ctx.ui.notify(

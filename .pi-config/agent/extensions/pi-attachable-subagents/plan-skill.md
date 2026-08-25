@@ -10,7 +10,7 @@ description: >-
 
 # Plan
 
-Every child calls `caller_ping` when blocked and `subagent_done` when complete.
+Ordinary planning questions settle the child and automatically wake the manager. The manager replies with `subagent_steer` and repeats this loop. Use `caller_ping` only for an exceptional blocker or required manager action; use `subagent_done` only for the final deliverable.
 
 A planning workflow. A scout maps the relevant codebase, then an planner clarifies intent + requirements and designs the technical approach, producing a `plan.md` and todos.
 
@@ -104,7 +104,7 @@ Create todos tagged with: <name>`,
 
 **The user works with the planner.** It will clarify requirements lightly (1-2 rounds of questions, not a deep spec session), propose approaches, validate the design, run a premortem, write the plan, and create todos with mandatory code examples.
 
-When done, the user presses Ctrl+D and the plan + todos are returned to the main session.
+Settlement → manager-mediated `subagent_steer` is the default interactive workflow. `/attach` and Ctrl+D are optional human takeover, not required to continue planning.
 
 ### The planner may spawn its own specialists
 

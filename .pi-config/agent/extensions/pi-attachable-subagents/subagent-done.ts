@@ -419,8 +419,8 @@ export default function (pi: ExtensionAPI) {
     name: "subagent_done",
     label: "Subagent Done",
     description:
-      "Call this tool when you have completed your task. " +
-      "It will close this session and return your results to the main session. " +
+      "Call this tool when the current task is complete. " +
+      "It ends this child run and wakes the manager with your result; it does not delete the durable child session. " +
       "Your LAST assistant message before calling this becomes the summary returned to the caller.",
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
@@ -434,7 +434,12 @@ export default function (pi: ExtensionAPI) {
       recorder.subagentDone();
       ctx.shutdown();
       return {
-        content: [{ type: "text", text: "Shutting down subagent session." }],
+        content: [
+          {
+            type: "text",
+            text: "Ending the current child run; the durable child session is retained.",
+          },
+        ],
         details: {},
       };
     },

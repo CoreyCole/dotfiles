@@ -1,24 +1,21 @@
 ---
 name: manager
-description: Coordinate Pi subagents with attachable active and resumable sessions.
+description: Coordinate durable Pi child sessions.
 ---
 
-# Manage Pi Subagents
+# Manage Pi Child Sessions
 
-Delegate independent, bounded work through a normal Pi-backed `subagent`.
+Use named `agent` values (`planner`, `scout`, `worker`, or `reviewer`) when the requested workflow requires that role. Normally omit `model` so the named-agent default applies.
 
-## Spawn defaults
+Every child session remains visible and resumable after settlement, `caller_ping`, `subagent_done`, provider error, or process error. `subagent_stop` stops only an active process. Never use it to discard history.
 
-- Always omit `agent` and `model`. The child uses the default model from its Pi configuration.
-- Never select bundled role agents or Claude-backed models.
-- Require every child to call `caller_ping` when blocked and `subagent_done` when complete.
-- Pass only the task-specific `cwd`, `skills`, `files`, and `tools` overrides that the child needs. The extension loads requested skills and files in the first child turn.
+Normal interaction is:
 
-`runningSubagents` contains active and resumable children. Use:
+```text
+child settles → manager wakes with its last assistant message
+→ manager replies with subagent_steer → child runs another turn
+```
 
-- `subagent_steer` to queue a message in an active child or resume a stopped child.
-- `subagent_peek` to inspect its persisted active context and exact known usage.
-- `subagent_stop` to abandon it without a completion wake.
-- `/attach` to enter an active tmux pane. A resumable child must be steered first.
+Repeat until the work is complete. `agent_settled` is the ordinary wake. Answer interactive questions with `subagent_steer`; do not require `caller_ping` for normal planner questions. `caller_ping` is another explicit wake mechanism for a blocker or requested action. It does not necessarily mean failure.
 
-A blocked child calls `caller_ping`. A completed child calls `subagent_done`. Ordinary settlement and errors also stop the process and wake the manager, but keep the session resumable. Wait for these automatic wakes. Do not poll session files or fabricate child results.
+Use `subagent_peek` after a wake to inspect context. It is inspection, not polling: do not poll active children. `/attach` is optional human takeover and only works for active children. Steer an idle child first.
