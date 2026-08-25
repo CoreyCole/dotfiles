@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { __test__ } from "./index.ts";
@@ -32,41 +32,75 @@ test("child registrations replay as a durable catalog", () => {
   );
 });
 
-test("historical migration accepts only manager subagent result shapes", () => {
+test("historical migration accepts only actual manager JSONL result shapes", () => {
   const dir = mkdtempSync(join(tmpdir(), "pi-child-"));
-  const child = join(dir, "child.jsonl");
+  const managerId = "01a0212e-0be4-7eee-8ae8-a489cee0e293";
+  const childId = "01a0212e-0be4-7eee-8ae8-a489cee0e294";
+  const child = join(dir, "2026-08-20T21-57-50-960Z_cbdaee4c-synthetic.jsonl");
   const manager = join(dir, "manager.jsonl");
   writeFileSync(
     child,
-    JSON.stringify({ type: "session", id: "child", cwd: "/work" }) + "\n",
+    JSON.stringify({ type: "session", version: 3, id: childId, cwd: "/work" }) +
+      "\n",
   );
   writeFileSync(
     manager,
-    JSON.stringify({ type: "session", id: "manager", cwd: "/work" }) + "\n",
+    JSON.stringify({
+      type: "session",
+      version: 3,
+      id: managerId,
+      cwd: "/work",
+    }) + "\n",
   );
+  const details = {
+    id: "cbdaee4c",
+    name: "Worker",
+    agent: "worker",
+    sessionFile: child,
+  };
   try {
     const recovered = __test__.migrateHistoricalToolResults(
-      { id: "manager" },
-      "manager",
+      { id: managerId },
+      managerId,
       [
-        { type: "message", details: { sessionFile: child, name: "unrelated" } },
+        { type: "custom_message", customType: "subagent_result", details },
+        { type: "custom_message", customType: "unrelated", details },
         {
-          type: "custom",
-          customType: "subagent_result",
-          details: { sessionFile: manager, name: "manager" },
+          type: "message",
+          message: {
+            role: "toolResult",
+            toolName: "read",
+            details: { ...details, status: "started" },
+          },
         },
         {
-          type: "custom",
-          customType: "subagent_result",
-          details: { sessionFile: child, name: "Worker", agent: "worker" },
+          type: "message",
+          message: {
+            role: "toolResult",
+            toolName: "subagent",
+            details: { ...details, status: "failed" },
+          },
+        },
+        {
+          type: "message",
+          message: {
+            role: "toolResult",
+            toolName: "subagent",
+            details: { ...details, status: "started" },
+          },
+        },
+        {
+          type: "custom_message",
+          customType: "subagent_ping",
+          details: { ...details, sessionFile: manager, name: "manager" },
         },
       ],
       new Map(),
     );
     assert.deepEqual(recovered, [
       {
-        managerSessionId: "manager",
-        childSessionId: "child",
+        managerSessionId: managerId,
+        childSessionId: childId,
         name: "Worker",
         agent: "worker",
         cwd: "/work",
@@ -74,6 +108,56 @@ test("historical migration accepts only manager subagent result shapes", () => {
     ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("legacy synthetic filenames resolve by native session header UUID", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "pi-child-cwd-"));
+  const id = "01a0212e-0be4-7eee-8ae8-a489cee0e294";
+  const sessionDir = join(
+    cwd,
+    ".pi",
+    "agent",
+    "sessions",
+    `--${cwd.slice(1).replace(/[\\/:]/g, "-")}--`,
+  );
+  const sessionFile = join(
+    sessionDir,
+    "2026-08-20T21-57-50-960Z_cbdaee4c-synthetic.jsonl",
+  );
+  try {
+    mkdirSync(sessionDir, { recursive: true });
+    writeFileSync(
+      sessionFile,
+      JSON.stringify({ type: "session", version: 3, id, cwd }) + "\n",
+      { encoding: "utf8", flag: "w" },
+    );
+    assert.equal(
+      __test__.findChildSessionFile({
+        managerSessionId: "manager",
+        childSessionId: id,
+        name: "Worker",
+        cwd,
+      }),
+      sessionFile,
+    );
+    assert.equal(
+      "child" in
+        __test__.resolveCatalogTarget(
+          [
+            {
+              managerSessionId: "manager",
+              childSessionId: id,
+              name: "Worker",
+              cwd,
+            },
+          ],
+          id.slice(0, 8),
+        ),
+      true,
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
   }
 });
 

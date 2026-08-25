@@ -580,12 +580,18 @@ function replayChildCatalog(
   }
   return catalog;
 }
+const NATIVE_SESSION_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function nativeSessionId(sessionFile: string): string | undefined {
   try {
     const header = JSON.parse(
       readFileSync(sessionFile, "utf8").split("\n", 1)[0],
     );
-    return header?.type === "session" && isNonemptyString(header.id)
+    return header?.type === "session" &&
+      isNonemptyString(header.id) &&
+      NATIVE_SESSION_ID.test(header.id) &&
+      isNonemptyString(header.cwd)
       ? header.id
       : undefined;
   } catch {
@@ -645,7 +651,7 @@ function migrateLegacySnapshots(
   }
   return [...recovered.values()];
 }
-/** Recover only recognized manager-side historical subagent result entries. */
+/** Recover only actual historical manager-side subagent entries. */
 function migrateHistoricalToolResults(
   header: { id?: unknown } | null,
   managerSessionId: string,
@@ -654,21 +660,13 @@ function migrateHistoricalToolResults(
 ): ChildSession[] {
   if (header?.id !== managerSessionId) return [];
   const recovered = new Map<string, ChildSession>();
-  for (const entry of branch) {
+  const add = (details: unknown) => {
     if (
-      !isPlainObject(entry) ||
-      entry.type !== "custom" ||
-      (entry.customType !== "subagent_result" &&
-        entry.customType !== "subagent_ping") ||
-      !isPlainObject(entry.details)
-    )
-      continue;
-    const details = entry.details;
-    if (
+      !isPlainObject(details) ||
       !isNonemptyString(details.sessionFile) ||
       !isNonemptyString(details.name)
     )
-      continue;
+      return;
     const childSessionId = nativeSessionId(details.sessionFile);
     if (
       !childSessionId ||
@@ -676,20 +674,40 @@ function migrateHistoricalToolResults(
       existing.has(childSessionId) ||
       recovered.has(childSessionId)
     )
-      continue;
+      return;
     try {
       const childHeader = JSON.parse(
         readFileSync(details.sessionFile, "utf8").split("\n", 1)[0],
       );
-      if (isNonemptyString(childHeader.cwd))
-        recovered.set(childSessionId, {
-          managerSessionId,
-          childSessionId,
-          name: details.name,
-          ...(isNonemptyString(details.agent) ? { agent: details.agent } : {}),
-          cwd: childHeader.cwd,
-        });
+      recovered.set(childSessionId, {
+        managerSessionId,
+        childSessionId,
+        name: details.name,
+        ...(isNonemptyString(details.agent) ? { agent: details.agent } : {}),
+        cwd: childHeader.cwd,
+      });
     } catch {}
+  };
+
+  for (const entry of branch) {
+    if (!isPlainObject(entry)) continue;
+    if (
+      entry.type === "custom_message" &&
+      (entry.customType === "subagent_result" ||
+        entry.customType === "subagent_ping")
+    ) {
+      add(entry.details);
+      continue;
+    }
+    if (
+      entry.type === "message" &&
+      isPlainObject(entry.message) &&
+      entry.message.role === "toolResult" &&
+      entry.message.toolName === "subagent" &&
+      isPlainObject(entry.message.details) &&
+      entry.message.details.status === "started"
+    )
+      add(entry.message.details);
   }
   return [...recovered.values()];
 }
@@ -1098,8 +1116,7 @@ function findChildSessionFile(child: ChildSession): string | undefined {
   const dir = getDefaultSessionDirFor(child.cwd, agentDir);
   try {
     for (const file of readdirSync(dir)) {
-      if (!file.endsWith(".jsonl") || !file.includes(child.childSessionId))
-        continue;
+      if (!file.endsWith(".jsonl")) continue;
       const path = join(dir, file);
       if (nativeSessionId(path) === child.childSessionId) return path;
     }
@@ -1433,26 +1450,23 @@ async function launchSubagent(
     new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23) + "Z";
   const subagentSessionFile = join(sessionDir, `${timestamp}_${id}.jsonl`);
 
-  // Use pre-created surface (parallel mode) or create a new one.
-  // For new surfaces, pause briefly so the shell is ready before sending the command.
-  const surfacePreCreated = !!options?.surface;
-  const surface = options?.surface ?? createSurface(params.name);
-  if (!surfacePreCreated) {
-    await new Promise<void>((resolve) =>
-      setTimeout(resolve, getShellReadyDelayMs()),
-    );
-  }
-
   const launchBehavior = resolveLaunchBehavior(params, agentDefs);
 
-  // Pi must have its durable native session before the pane receives a command.
-  // Standalone children use lineage-only rather than relying on Pi to create it.
+  // Materialize and register durable identity before any multiplexer operation.
+  // A later pane or dispatch failure leaves this valid child idle in the catalog.
   seedSubagentSessionFile({
     mode: launchBehavior.seededSessionMode ?? "lineage-only",
     parentSessionFile: sessionFile,
     childSessionFile: subagentSessionFile,
     childCwd: targetCwdForSession,
     childSessionId: id,
+  });
+  options?.registerChild?.({
+    managerSessionId: ctx.sessionManager.getSessionId(),
+    childSessionId: id,
+    name: params.name,
+    ...(params.agent ? { agent: params.agent } : {}),
+    cwd: targetCwdForSession,
   });
 
   const activityFile = getSubagentActivityFile(artifactDir, id);
@@ -1575,18 +1589,6 @@ async function launchSubagent(
     arguments: Object.freeze([...parts]),
     selectedSkills: Object.freeze([...effectiveSkills]),
   });
-  const command = buildPiLaunchCommand(launchProfile, {
-    surface,
-    promptArguments,
-    originalLaunch: true,
-  });
-  options?.registerChild?.({
-    managerSessionId: ctx.sessionManager.getSessionId(),
-    childSessionId: id,
-    name: params.name,
-    ...(params.agent ? { agent: params.agent } : {}),
-    cwd: targetCwdForSession,
-  });
   const launchScriptName = `${
     (params.name || "subagent")
       .toLowerCase()
@@ -1600,7 +1602,21 @@ async function launchSubagent(
     "subagent-scripts",
     launchScriptName,
   );
+
+  // Create the pane only after all materialization and registration work.
+  const surfacePreCreated = !!options?.surface;
+  const surface = options?.surface ?? createSurface(params.name);
   try {
+    if (!surfacePreCreated) {
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, getShellReadyDelayMs()),
+      );
+    }
+    const command = buildPiLaunchCommand(launchProfile, {
+      surface,
+      promptArguments,
+      originalLaunch: true,
+    });
     sendLongCommand(surface, command, {
       scriptPath: launchScriptFile,
       scriptPreamble: [
