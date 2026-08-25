@@ -1146,6 +1146,17 @@ function buildSubagentToolAllowlist(effectiveTools?: string): string | null {
   return [...allow].join(",");
 }
 
+function formatSubagentSteerCall(
+  target: string,
+  message: string,
+  expanded: boolean,
+) {
+  return {
+    target: target.trim() || "(unknown)",
+    ...formatSubagentTaskCall(message, expanded),
+  };
+}
+
 function formatSubagentTaskCall(task: string, expanded: boolean) {
   const lines = task.split("\n");
   if (expanded) {
@@ -1705,6 +1716,7 @@ export const __test__ = {
   formatLocalStartTime,
   formatLocalCatalogStartTime,
   formatSubagentTaskCall,
+  formatSubagentSteerCall,
   formatWidgetRightLabel,
   formatWidgetStatusMarker,
   observeRunningSubagent,
@@ -2627,9 +2639,48 @@ export default function subagentsExtension(
           content: [{ type: "text", text }],
           details:
             "error" in result
-              ? { error: result.error }
-              : { id: result.running.id },
+              ? { target: params.target, status: "error", error: result.error }
+              : {
+                  id: result.running.id,
+                  target: params.target,
+                  name: result.running.name,
+                  status: "steered",
+                },
         };
+      },
+      renderCall(args, theme, context) {
+        const call = formatSubagentSteerCall(
+          typeof args.target === "string" ? args.target : "",
+          typeof args.message === "string" ? args.message : "",
+          context.expanded,
+        );
+        let text =
+          "▸ " +
+          theme.fg("toolTitle", theme.bold(call.target)) +
+          theme.fg("dim", " — steer");
+        if (call.body) text += "\n" + theme.fg("toolOutput", call.body);
+        if (!context.expanded && call.lineCount > 1)
+          text += theme.fg("muted", ` (${call.lineCount} lines)`);
+        if (call.expandable) text += theme.fg("muted", " (Ctrl+O to expand)");
+        return new Text(text, 0, 0);
+      },
+      renderResult(result, _opts, theme) {
+        const details = result.details as {
+          target?: string;
+          name?: string;
+          status?: string;
+          error?: string;
+        };
+        const target = details?.name ?? details?.target ?? "subagent";
+        const failed = details?.status === "error";
+        return new Text(
+          theme.fg("accent", "▸") +
+            " " +
+            theme.fg("toolTitle", theme.bold(target)) +
+            theme.fg("dim", failed ? " — steer failed" : " — steered"),
+          0,
+          0,
+        );
       },
     });
 

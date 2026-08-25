@@ -6,6 +6,7 @@ import { join } from "node:path";
 import subagentsExtension, { __test__ } from "./index.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createStatusState, observeStatus } from "./status.ts";
+import { shouldAppendToolBorder } from "../tool-border.ts";
 
 test("child registrations replay as a durable catalog", () => {
   const entry = (id: string, owner = "manager") => ({
@@ -846,6 +847,64 @@ test("widget marks idle, provider, and streaming children", () => {
     lines.find((line) => line.includes("Streaming"))!,
     /🟢 streaming/,
   );
+});
+
+test("subagent steer renderer displays collapsed and expanded prompts", () => {
+  let steerTool: any;
+  const pi = {
+    on() {},
+    registerTool(tool: any) {
+      if (tool.name === "subagent_steer") steerTool = tool;
+    },
+    registerCommand() {},
+    registerMessageRenderer() {},
+  } as unknown as ExtensionAPI;
+  subagentsExtension(pi);
+  const theme = {
+    fg: (_color: string, text: string) => text,
+    bold: (text: string) => text,
+  };
+  const message = "First line\nSecond line with the full steer prompt.";
+  const collapsed = steerTool
+    .renderCall({ target: "child-123", message }, theme, { expanded: false })
+    .render(120)
+    .join("\n");
+  assert.match(collapsed, /child-123/);
+  assert.match(collapsed, /First line/);
+  assert.match(collapsed, /2 lines/);
+  assert.match(collapsed, /Ctrl\+O to expand/);
+
+  const expanded = steerTool
+    .renderCall({ target: "child-123", message }, theme, { expanded: true })
+    .render(120)
+    .join("\n");
+  assert.match(expanded, /Second line with the full steer prompt/);
+  assert.doesNotMatch(expanded, /Ctrl\+O to expand/);
+
+  const success = steerTool
+    .renderResult(
+      { details: { target: "child-123", name: "Worker", status: "steered" } },
+      {},
+      theme,
+    )
+    .render(120)
+    .join("\n");
+  const failure = steerTool
+    .renderResult(
+      { details: { target: "child-123", status: "error", error: "failed" } },
+      {},
+      theme,
+    )
+    .render(120)
+    .join("\n");
+  assert.match(success, /Worker — steered/);
+  assert.match(failure, /child-123 — steer failed/);
+});
+
+test("subagent steer skips only the generic tool divider", () => {
+  assert.equal(shouldAppendToolBorder("subagent_steer"), false);
+  assert.equal(shouldAppendToolBorder("subagent"), true);
+  assert.equal(shouldAppendToolBorder("bash"), true);
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {

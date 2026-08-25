@@ -42,6 +42,10 @@ function subtleBorder(width: number): string {
   return TOOL_DISPLAY.border("─".repeat(Math.max(1, width)));
 }
 
+export function shouldAppendToolBorder(toolName: string): boolean {
+  return toolName !== "subagent_steer";
+}
+
 const LOAD_PATH_ANCHORS = ["thoughts", "chestnut-flake"];
 
 function anchoredPath(filePath: string): string | undefined {
@@ -472,7 +476,12 @@ function patchToolExecutionBorder() {
 
     const content = trimTrailingBlankLines(trimLeadingBlankLines(lines));
     const docs = deterministicDocsSummary(this.result, width, this.cwd);
-    return truncateLines([...content, ...docs, subtleBorder(width)], width);
+    return truncateLines(
+      shouldAppendToolBorder(this.toolName)
+        ? [...content, ...docs, subtleBorder(width)]
+        : [...content, ...docs],
+      width,
+    );
   };
 }
 
