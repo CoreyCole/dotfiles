@@ -734,7 +734,12 @@ test("widget, list, and picker sort durable children newest-first", async () => 
     __test__.sortChildCatalog(children).map((child) => child.name),
     ["New", "Middle", "Old"],
   );
-  const lines = __test__.renderSubagentWidgetLines(children, new Map(), 100);
+  const lines = __test__.renderSubagentWidgetLines(
+    children,
+    new Map(),
+    100,
+    new Date(2026, 7, 26, 10, 18).getTime(),
+  );
   assert.match(lines[0], /3 tracked · 0 active/);
   assert.ok(
     lines.findIndex((line) => line.includes("New")) <
@@ -780,6 +785,47 @@ test("widget, list, and picker sort durable children newest-first", async () => 
     activeOptions.map((option) => option.split(" · ")[0]),
     ["New", "Middle", "Old"],
   );
+});
+
+test("widget uses local calendar dates and no status-time separator", () => {
+  const now = new Date(2026, 11, 31, 10, 18).getTime();
+  assert.equal(
+    __test__.formatLocalCatalogStartTime(
+      new Date(2026, 11, 31, 9, 56).getTime(),
+      now,
+    ),
+    "09:56",
+  );
+  assert.equal(
+    __test__.formatLocalCatalogStartTime(
+      new Date(2026, 11, 30, 12, 53).getTime(),
+      now,
+    ),
+    "Dec 30 12:53",
+  );
+  assert.equal(
+    __test__.formatLocalCatalogStartTime(
+      new Date(2026, 0, 1, 12, 53).getTime(),
+      now,
+    ),
+    "Jan 1 12:53",
+  );
+  const lines = __test__.renderSubagentWidgetLines(
+    [
+      {
+        managerSessionId: "m",
+        childSessionId: "idle",
+        name: "Idle",
+        cwd: "/",
+        startedAt: new Date(2026, 11, 30, 12, 53).getTime(),
+      },
+    ],
+    new Map(),
+    100,
+    now,
+  );
+  assert.match(lines.find((line) => line.includes("Idle"))!, /🔴 Dec 30 12:53/);
+  assert.doesNotMatch(lines.find((line) => line.includes("Idle"))!, /·/);
 });
 
 test("widget marks idle, provider, and streaming children", () => {
@@ -842,11 +888,18 @@ test("widget marks idle, provider, and streaming children", () => {
   ] as any) as any;
   const lines = __test__.renderSubagentWidgetLines(children, active, 100, now);
   assert.match(lines.find((line) => line.includes("Idle"))!, /🔴/);
-  assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 provider/);
-  assert.match(
-    lines.find((line) => line.includes("Streaming"))!,
-    /🟢 streaming/,
+  assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 10:18/);
+  assert.match(lines.find((line) => line.includes("Streaming"))!, /🟢 10:18/);
+  assert.doesNotMatch(
+    lines.find((line) => line.includes("Provider"))!,
+    /provider/,
   );
+  assert.doesNotMatch(
+    lines.find((line) => line.includes("Streaming"))!,
+    /streaming/,
+  );
+  assert.doesNotMatch(lines.find((line) => line.includes("Provider"))!, /·/);
+  assert.doesNotMatch(lines.find((line) => line.includes("Streaming"))!, /·/);
 });
 
 test("resumed active child retains its durable catalog timestamp", () => {

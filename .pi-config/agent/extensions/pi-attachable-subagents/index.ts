@@ -459,11 +459,9 @@ function formatWidgetRightLabel(snapshot: StatusSnapshot): string {
 }
 
 function formatWidgetStatusMarker(snapshot: StatusSnapshot): string {
-  if (snapshot.kind === "active" && snapshot.activeScope === "provider")
-    return "🟡 provider";
-  if (snapshot.kind === "active" && snapshot.activeScope === "streaming")
-    return "🟢 streaming";
-  return `🟡 ${formatWidgetRightLabel(snapshot).trim()}`;
+  return snapshot.kind === "active" && snapshot.activeScope === "streaming"
+    ? "🟢"
+    : "🟡";
 }
 
 function resolveResultPresentation(
@@ -936,10 +934,21 @@ function formatLocalStartTime(timestamp: number): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function formatLocalCatalogStartTime(timestamp: number): string {
+function formatLocalCatalogStartTime(
+  timestamp: number,
+  now = Date.now(),
+): string {
   if (!Number.isFinite(timestamp)) return "??? ?? ??:??";
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "??? ?? ??:??";
+  const current = new Date(now);
+  if (Number.isNaN(current.getTime())) return "??? ?? ??:??";
+  if (
+    date.getFullYear() === current.getFullYear() &&
+    date.getMonth() === current.getMonth() &&
+    date.getDate() === current.getDate()
+  )
+    return formatLocalStartTime(timestamp);
   const month = [
     "Jan",
     "Feb",
@@ -1062,7 +1071,7 @@ function renderSubagentWidgetLines(
     lines.push(
       borderLine(
         left,
-        ` ${status} · ${formatLocalCatalogStartTime(startedAt)} `,
+        ` ${status} ${formatLocalCatalogStartTime(startedAt, now)} `,
         width,
       ),
     );
