@@ -262,12 +262,13 @@ test("session reload replays registrations with no active runs and no snapshot w
     },
   );
   assert.equal(active.size, 0);
-  assert.equal(starting.size, 0);
+  assert.equal(starting.size, 1);
   assert.equal(catalog.get("child")?.name, "Planner");
   assert.equal(
     appended.includes("pi-attachable-subagents/resumable-snapshot"),
     false,
   );
+  starting.clear();
   catalog.clear();
 });
 
@@ -554,6 +555,7 @@ test("idle steering reserves each child before asynchronous launch", async () =>
   });
   const active = new Map<string, Running>();
   const starting = new Map<string, symbol>();
+  const lifecycle = __test__.createExtensionLifecycle();
   let surfaces = 0;
   let dispatches = 0;
   let release!: () => void;
@@ -570,12 +572,14 @@ test("idle steering reserves each child before asynchronous launch", async () =>
   const first = __test__.startIdleChild({
     activeRuns: active,
     startingRuns: starting,
+    lifecycle,
     child: child("one"),
     start: () => start("one"),
   });
   const second = await __test__.startIdleChild({
     activeRuns: active,
     startingRuns: starting,
+    lifecycle,
     child: child("one"),
     start: () => start("duplicate"),
   });
@@ -586,6 +590,7 @@ test("idle steering reserves each child before asynchronous launch", async () =>
   const other = __test__.startIdleChild({
     activeRuns: active,
     startingRuns: starting,
+    lifecycle,
     child: child("two"),
     start: () => start("two"),
   });
@@ -602,6 +607,7 @@ test("idle steering reserves each child before asynchronous launch", async () =>
     __test__.startIdleChild({
       activeRuns: active,
       startingRuns: starting,
+      lifecycle,
       child: child("retry"),
       async start() {
         attempts += 1;
@@ -614,6 +620,7 @@ test("idle steering reserves each child before asynchronous launch", async () =>
   const retry = await __test__.startIdleChild({
     activeRuns: active,
     startingRuns: starting,
+    lifecycle,
     child: child("retry"),
     async start() {
       attempts += 1;
@@ -622,6 +629,123 @@ test("idle steering reserves each child before asynchronous launch", async () =>
   });
   assert.equal(retry.kind, "active");
   assert.equal(attempts, 2);
+});
+
+test("lifecycle reservation cleanup preserves other owners and cancels its own delayed start", async () => {
+  type Running =
+    Parameters<typeof __test__.startIdleChild>[0]["activeRuns"] extends Map<
+      string,
+      infer Value
+    >
+      ? Value
+      : never;
+  const child = {
+    managerSessionId: "manager",
+    childSessionId: "child",
+    name: "Worker",
+    cwd: "/work",
+  };
+  const active = new Map<string, Running>();
+  const starting = new Map<string, symbol>();
+  const oldLifecycle = __test__.createExtensionLifecycle();
+  const newLifecycle = __test__.createExtensionLifecycle();
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const newStart = __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    lifecycle: newLifecycle,
+    child,
+    async start() {
+      await delayed;
+      return { id: child.childSessionId, surface: "%new" } as Running;
+    },
+  });
+  __test__.shutdownLifecycle(oldLifecycle, active, undefined, starting);
+  release();
+  const newResult = await newStart;
+  assert.equal(newResult.kind, "active");
+  assert.equal(active.get(child.childSessionId), newResult.running);
+
+  let cancelRelease!: () => void;
+  const cancelDelay = new Promise<void>((resolve) => {
+    cancelRelease = resolve;
+  });
+  const closed: string[] = [];
+  const cancelledStart = __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    lifecycle: newLifecycle,
+    child: { ...child, childSessionId: "cancelled" },
+    async start() {
+      await cancelDelay;
+      return { id: "cancelled", surface: "%cancelled" } as Running;
+    },
+    close: (surface) => closed.push(surface),
+  });
+  __test__.shutdownLifecycle(newLifecycle, active, undefined, starting);
+  cancelRelease();
+  assert.deepEqual(await cancelledStart, { kind: "cancelled" });
+  assert.deepEqual(closed, ["%cancelled"]);
+  assert.equal(active.has("cancelled"), false);
+});
+
+test("stale reservation cleanup cannot remove a replacement token", () => {
+  const lifecycle = __test__.createExtensionLifecycle();
+  const active = new Map();
+  const starting = new Map<string, symbol>();
+  const original = Symbol("original");
+  const replacement = Symbol("replacement");
+  lifecycle.ownedStartReservations.set("child", original);
+  starting.set("child", replacement);
+  __test__.shutdownLifecycle(lifecycle, active, undefined, starting);
+  assert.equal(starting.get("child"), replacement);
+});
+
+test("widget and catalog sort durable children newest-first", () => {
+  const children = [
+    {
+      managerSessionId: "m",
+      childSessionId: "old",
+      name: "Old",
+      cwd: "/",
+      startedAt: Date.parse("2026-08-24T23:55:00Z"),
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "new",
+      name: "New",
+      cwd: "/",
+      startedAt: Date.parse("2026-08-25T00:05:00Z"),
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "middle",
+      name: "Middle",
+      cwd: "/",
+      startedAt: Date.parse("2026-08-25T00:00:00Z"),
+    },
+  ];
+  assert.deepEqual(
+    __test__.sortChildCatalog(children).map((child) => child.name),
+    ["New", "Middle", "Old"],
+  );
+  const lines = __test__.renderSubagentWidgetLines(children, new Map(), 100);
+  assert.match(lines[0], /3 tracked · 0 active/);
+  assert.ok(
+    lines.findIndex((line) => line.includes("New")) <
+      lines.findIndex((line) => line.includes("Middle")),
+  );
+  assert.ok(
+    lines.findIndex((line) => line.includes("Middle")) <
+      lines.findIndex((line) => line.includes("Old")),
+  );
+  assert.match(
+    lines.find((line) => line.includes("Old"))!,
+    /stopped\/resumable/,
+  );
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {

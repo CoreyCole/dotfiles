@@ -527,6 +527,7 @@ interface ChildSession {
   name: string;
   agent?: string;
   cwd: string;
+  startedAt?: number;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -554,6 +555,9 @@ function validateChildSession(value: unknown): ChildSession | undefined {
     name: value.name,
     ...(value.agent === undefined ? {} : { agent: value.agent }),
     cwd: value.cwd,
+    ...(typeof value.startedAt === "number" && Number.isFinite(value.startedAt)
+      ? { startedAt: value.startedAt }
+      : {}),
   };
 }
 function replayChildCatalog(
@@ -576,7 +580,14 @@ function replayChildCatalog(
       child.managerSessionId === managerSessionId &&
       !catalog.has(child.childSessionId)
     )
-      catalog.set(child.childSessionId, child);
+      catalog.set(child.childSessionId, {
+        ...child,
+        ...(child.startedAt === undefined &&
+        typeof entry.timestamp === "string" &&
+        Number.isFinite(Date.parse(entry.timestamp))
+          ? { startedAt: Date.parse(entry.timestamp) }
+          : {}),
+      });
   }
   return catalog;
 }
@@ -645,6 +656,10 @@ function migrateLegacySnapshots(
             name: record.name,
             ...(isNonemptyString(record.agent) ? { agent: record.agent } : {}),
             cwd: childHeader.cwd,
+            ...(typeof childHeader.timestamp === "string" &&
+            Number.isFinite(Date.parse(childHeader.timestamp))
+              ? { startedAt: Date.parse(childHeader.timestamp) }
+              : {}),
           });
       } catch {}
     }
@@ -685,6 +700,10 @@ function migrateHistoricalToolResults(
         name: details.name,
         ...(isNonemptyString(details.agent) ? { agent: details.agent } : {}),
         cwd: childHeader.cwd,
+        ...(typeof childHeader.timestamp === "string" &&
+        Number.isFinite(Date.parse(childHeader.timestamp))
+          ? { startedAt: Date.parse(childHeader.timestamp) }
+          : {}),
       });
     } catch {}
   };
@@ -760,10 +779,15 @@ const childrenBySessionId = new Map<string, ChildSession>();
 export interface ExtensionLifecycle {
   watcherOwner: ReturnType<typeof createWatcherOwner>;
   ownedRuns: Set<RunningSubagent>;
+  ownedStartReservations: Map<string, symbol>;
 }
 
 function createExtensionLifecycle(): ExtensionLifecycle {
-  return { watcherOwner: createWatcherOwner(), ownedRuns: new Set() };
+  return {
+    watcherOwner: createWatcherOwner(),
+    ownedRuns: new Set(),
+    ownedStartReservations: new Map(),
+  };
 }
 
 type LaunchStage = "seed" | "registration" | "surface" | "dispatch";
@@ -843,8 +867,17 @@ function shutdownLifecycle(
   lifecycle: ExtensionLifecycle,
   activeRuns: Map<string, RunningSubagent>,
   close: (surface: string) => void = closeSurface,
+  startingRuns: Map<string, symbol> = startingSubagents,
 ): void {
   lifecycle.watcherOwner.abort();
+  for (const [
+    childSessionId,
+    reservation,
+  ] of lifecycle.ownedStartReservations) {
+    if (startingRuns.get(childSessionId) === reservation)
+      startingRuns.delete(childSessionId);
+  }
+  lifecycle.ownedStartReservations.clear();
   for (const running of lifecycle.ownedRuns) {
     running.shutdownCancelled = true;
     running.abortController?.abort();
@@ -964,29 +997,50 @@ function borderBottom(width: number): string {
   return `${ACCENT}╰${"─".repeat(inner)}╯${RST}`;
 }
 
+function sortChildCatalog(children: Iterable<ChildSession>): ChildSession[] {
+  return [...children].sort(
+    (left, right) =>
+      (right.startedAt ?? 0) - (left.startedAt ?? 0) ||
+      right.childSessionId.localeCompare(left.childSessionId),
+  );
+}
+
 function renderSubagentWidgetLines(
-  agents: RunningSubagent[],
+  children: ChildSession[],
+  activeRuns: ReadonlyMap<string, RunningSubagent>,
   width: number,
   now = Date.now(),
 ): string[] {
-  const count = agents.length;
-  const title = "Subagents";
-  const info = `${count} active`;
+  const activeCount = activeRuns.size;
+  const lines: string[] = [
+    borderTop(
+      "Subagents",
+      `${children.length} tracked · ${activeCount} active`,
+      width,
+    ),
+  ];
 
-  const lines: string[] = [borderTop(title, info, width)];
-
-  for (const agent of agents) {
-    const elapsed = formatElapsedMMSS(getActiveRuntimeMs(agent, now));
-    const agentTag = agent.agent ? ` (${agent.agent})` : "";
-    const left = ` ${elapsed}  ${agent.name}${agentTag} `;
-    const snapshot = classifyStatus(agent.statusState, now);
-    const startLabel = formatLocalStartTime(agent.startTime);
-    const status = statusConfig.enabled
-      ? formatWidgetRightLabel(snapshot).trim()
-      : "running…";
-    const right = ` ${status} · ${startLabel} `;
-
-    lines.push(borderLine(left, right, width));
+  for (const child of sortChildCatalog(children)) {
+    const running = activeRuns.get(child.childSessionId);
+    const agentTag = child.agent ? ` (${child.agent})` : "";
+    const startedAt = running?.startTime ?? child.startedAt ?? 0;
+    const left = running
+      ? ` ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${child.name}${agentTag} `
+      : ` ${child.name}${agentTag} `;
+    const status = running
+      ? statusConfig.enabled
+        ? formatWidgetRightLabel(
+            classifyStatus(running.statusState, now),
+          ).trim()
+        : "running…"
+      : "stopped/resumable";
+    lines.push(
+      borderLine(
+        left,
+        ` ${status} · ${formatLocalStartTime(startedAt)} `,
+        width,
+      ),
+    );
   }
 
   lines.push(borderBottom(width));
@@ -996,7 +1050,7 @@ function renderSubagentWidgetLines(
 function updateWidget() {
   if (!latestCtx?.hasUI) return;
 
-  if (runningSubagents.size === 0) {
+  if (childrenBySessionId.size === 0) {
     latestCtx.ui.setWidget("subagent-status", undefined);
     if (widgetInterval) {
       clearInterval(widgetInterval);
@@ -1013,7 +1067,8 @@ function updateWidget() {
         invalidate() {},
         render(width: number) {
           return renderSubagentWidgetLines(
-            Array.from(runningSubagents.values()),
+            Array.from(childrenBySessionId.values()),
+            runningSubagents,
             width,
           );
         },
@@ -1021,6 +1076,11 @@ function updateWidget() {
     },
     { placement: "aboveEditor" },
   );
+  if (runningSubagents.size === 0 && widgetInterval) {
+    clearInterval(widgetInterval);
+    widgetInterval = null;
+    (globalThis as any)[WIDGET_INTERVAL_KEY] = null;
+  }
 }
 
 /**
@@ -1251,6 +1311,7 @@ type IdleStartResult =
 async function startIdleChild(params: {
   activeRuns: Map<string, RunningSubagent>;
   startingRuns: Map<string, symbol>;
+  lifecycle: ExtensionLifecycle;
   child: ChildSession;
   start: () => Promise<RunningSubagent>;
   close?: (surface: string) => void;
@@ -1264,6 +1325,22 @@ async function startIdleChild(params: {
 
   const reservation = Symbol(params.child.childSessionId);
   params.startingRuns.set(params.child.childSessionId, reservation);
+  params.lifecycle.ownedStartReservations.set(
+    params.child.childSessionId,
+    reservation,
+  );
+  const release = () => {
+    if (params.startingRuns.get(params.child.childSessionId) === reservation)
+      params.startingRuns.delete(params.child.childSessionId);
+    if (
+      params.lifecycle.ownedStartReservations.get(
+        params.child.childSessionId,
+      ) === reservation
+    )
+      params.lifecycle.ownedStartReservations.delete(
+        params.child.childSessionId,
+      );
+  };
   try {
     const running = await params.start();
     if (params.startingRuns.get(params.child.childSessionId) !== reservation) {
@@ -1273,20 +1350,25 @@ async function startIdleChild(params: {
       return { kind: "cancelled" };
     }
     params.activeRuns.set(running.id, running);
-    params.startingRuns.delete(params.child.childSessionId);
+    release();
     return { kind: "active", running };
   } catch (error) {
-    if (params.startingRuns.get(params.child.childSessionId) === reservation)
-      params.startingRuns.delete(params.child.childSessionId);
+    release();
     throw error;
   }
 }
 
 function cancelIdleStart(
   startingRuns: Map<string, symbol>,
+  lifecycle: ExtensionLifecycle,
   childSessionId: string,
 ): boolean {
-  return startingRuns.delete(childSessionId);
+  const reservation = lifecycle.ownedStartReservations.get(childSessionId);
+  if (!reservation) return false;
+  if (startingRuns.get(childSessionId) === reservation)
+    startingRuns.delete(childSessionId);
+  lifecycle.ownedStartReservations.delete(childSessionId);
+  return true;
 }
 
 function buildIdleLaunchProfile(params: {
@@ -1566,6 +1648,7 @@ export const __test__ = {
   borderLine,
   getShellReadyDelayMs,
   renderSubagentWidgetLines,
+  sortChildCatalog,
   loadAgentDefaults,
   discoverAgentDefinitions,
   resolveEffectiveSessionMode,
@@ -1844,6 +1927,7 @@ async function launchSubagent(
           name: params.name,
           ...(params.agent ? { agent: params.agent } : {}),
           cwd: targetCwdForSession,
+          startedAt: startTime,
         }),
       createSurface: () => options?.surface ?? createSurface(params.name),
       dispatch: async (createdSurface) => {
@@ -1995,7 +2079,6 @@ export default function subagentsExtension(
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
     runningSubagents.clear();
-    startingSubagents.clear();
     childrenBySessionId.clear();
     const header = ctx.sessionManager.getHeader();
     const currentSessionId = ctx.sessionManager.getSessionId();
@@ -2048,7 +2131,6 @@ export default function subagentsExtension(
       (globalThis as any)[STATUS_INTERVAL_KEY] = null;
     }
     shutdownLifecycle(lifecycle, runningSubagents);
-    startingSubagents.clear();
   });
 
   // Tools denied via PI_DENY_TOOLS env var (set by parent agent based on frontmatter)
@@ -2381,6 +2463,7 @@ export default function subagentsExtension(
       const result = await startIdleChild({
         activeRuns: runningSubagents,
         startingRuns: startingSubagents,
+        lifecycle,
         child,
         async start() {
           const sessionFile = findChildSessionFile(child);
@@ -2581,6 +2664,7 @@ export default function subagentsExtension(
         if (!running) {
           const starting = cancelIdleStart(
             startingSubagents,
+            lifecycle,
             child.childSessionId,
           );
           return {
@@ -2685,14 +2769,16 @@ export default function subagentsExtension(
       parameters: Type.Object({}),
 
       async execute() {
-        const children = [...childrenBySessionId.values()].map((child) => ({
-          ...child,
-          status: runningSubagents.has(child.childSessionId)
-            ? "active"
-            : findChildSessionFile(child)
-              ? "idle"
-              : "unavailable",
-        }));
+        const children = sortChildCatalog(childrenBySessionId.values()).map(
+          (child) => ({
+            ...child,
+            status: runningSubagents.has(child.childSessionId)
+              ? "active"
+              : findChildSessionFile(child)
+                ? "idle"
+                : "unavailable",
+          }),
+        );
         if (children.length === 0)
           return {
             content: [{ type: "text", text: "No child sessions registered." }],
@@ -2797,6 +2883,7 @@ export default function subagentsExtension(
         if (!active) {
           const starting = cancelIdleStart(
             startingSubagents,
+            lifecycle,
             resolved.child.childSessionId,
           );
           ctx.ui.notify(
