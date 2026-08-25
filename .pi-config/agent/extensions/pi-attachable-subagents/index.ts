@@ -755,6 +755,72 @@ interface RunningSubagent {
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const childrenBySessionId = new Map<string, ChildSession>();
+
+export interface ExtensionLifecycle {
+  watcherOwner: ReturnType<typeof createWatcherOwner>;
+  ownedRuns: Set<RunningSubagent>;
+}
+
+function createExtensionLifecycle(): ExtensionLifecycle {
+  return { watcherOwner: createWatcherOwner(), ownedRuns: new Set() };
+}
+
+async function runLaunchLifecycle(params: {
+  seed: () => void;
+  appendRegistration: () => void;
+  createSurface: () => string;
+  dispatch: (surface: string) => void | Promise<void>;
+  closeSurface: (surface: string) => void;
+}): Promise<string> {
+  params.seed();
+  params.appendRegistration();
+  const surface = params.createSurface();
+  try {
+    await params.dispatch(surface);
+    return surface;
+  } catch (error) {
+    try {
+      params.closeSurface(surface);
+    } catch {}
+    throw error;
+  }
+}
+
+function removeActiveRun(
+  activeRuns: Map<string, RunningSubagent>,
+  running: RunningSubagent,
+  close: (surface: string) => void = closeSurface,
+): void {
+  activeRuns.delete(running.id);
+  try {
+    close(running.surface);
+  } catch {}
+}
+
+function stopActiveRun(
+  activeRuns: Map<string, RunningSubagent>,
+  running: RunningSubagent,
+  close: (surface: string) => void = closeSurface,
+): void {
+  running.explicitlyStopped = true;
+  running.abortController?.abort();
+  removeActiveRun(activeRuns, running, close);
+}
+
+function shutdownLifecycle(
+  lifecycle: ExtensionLifecycle,
+  activeRuns: Map<string, RunningSubagent>,
+  close: (surface: string) => void = closeSurface,
+): void {
+  lifecycle.watcherOwner.abort();
+  for (const running of lifecycle.ownedRuns) {
+    running.shutdownCancelled = true;
+    running.abortController?.abort();
+    removeActiveRun(activeRuns, running, close);
+  }
+  lifecycle.ownedRuns.clear();
+}
+
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
   return !running.explicitlyStopped && !running.shutdownCancelled;
 }
@@ -1368,6 +1434,12 @@ export const __test__ = {
   shouldDeliverWatcherNotification,
   cleanupFailedWatcherRun,
   createWatcherOwner,
+  createExtensionLifecycle,
+  runLaunchLifecycle,
+  removeActiveRun,
+  stopActiveRun,
+  shutdownLifecycle,
+  completeWakeTransition,
   CHILD_SESSION_CUSTOM_TYPE,
   validateChildSession,
   replayChildCatalog,
@@ -1451,23 +1523,6 @@ async function launchSubagent(
   const subagentSessionFile = join(sessionDir, `${timestamp}_${id}.jsonl`);
 
   const launchBehavior = resolveLaunchBehavior(params, agentDefs);
-
-  // Materialize and register durable identity before any multiplexer operation.
-  // A later pane or dispatch failure leaves this valid child idle in the catalog.
-  seedSubagentSessionFile({
-    mode: launchBehavior.seededSessionMode ?? "lineage-only",
-    parentSessionFile: sessionFile,
-    childSessionFile: subagentSessionFile,
-    childCwd: targetCwdForSession,
-    childSessionId: id,
-  });
-  options?.registerChild?.({
-    managerSessionId: ctx.sessionManager.getSessionId(),
-    childSessionId: id,
-    name: params.name,
-    ...(params.agent ? { agent: params.agent } : {}),
-    cwd: targetCwdForSession,
-  });
 
   const activityFile = getSubagentActivityFile(artifactDir, id);
   mkdirSync(dirname(activityFile), { recursive: true });
@@ -1603,33 +1658,56 @@ async function launchSubagent(
     launchScriptName,
   );
 
-  // Create the pane only after all materialization and registration work.
+  // Materialize and register durable identity before any multiplexer operation.
+  // A later pane or dispatch failure leaves this valid child idle in the catalog.
   const surfacePreCreated = !!options?.surface;
-  const surface = options?.surface ?? createSurface(params.name);
+  let surface: string;
   try {
-    if (!surfacePreCreated) {
-      await new Promise<void>((resolve) =>
-        setTimeout(resolve, getShellReadyDelayMs()),
-      );
-    }
-    const command = buildPiLaunchCommand(launchProfile, {
-      surface,
-      promptArguments,
-      originalLaunch: true,
-    });
-    sendLongCommand(surface, command, {
-      scriptPath: launchScriptFile,
-      scriptPreamble: [
-        `# Subagent launch script for ${params.name}`,
-        `# Generated: ${new Date().toISOString()}`,
-        `# Session: ${subagentSessionFile}`,
-        `# Surface: ${surface}`,
-      ].join("\n"),
+    surface = await runLaunchLifecycle({
+      seed: () =>
+        seedSubagentSessionFile({
+          mode: launchBehavior.seededSessionMode ?? "lineage-only",
+          parentSessionFile: sessionFile,
+          childSessionFile: subagentSessionFile,
+          childCwd: targetCwdForSession,
+          childSessionId: id,
+        }),
+      appendRegistration: () =>
+        options?.registerChild?.({
+          managerSessionId: ctx.sessionManager.getSessionId(),
+          childSessionId: id,
+          name: params.name,
+          ...(params.agent ? { agent: params.agent } : {}),
+          cwd: targetCwdForSession,
+        }),
+      createSurface: () => options?.surface ?? createSurface(params.name),
+      dispatch: async (createdSurface) => {
+        if (!surfacePreCreated) {
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, getShellReadyDelayMs()),
+          );
+        }
+        sendLongCommand(
+          createdSurface,
+          buildPiLaunchCommand(launchProfile, {
+            surface: createdSurface,
+            promptArguments,
+            originalLaunch: true,
+          }),
+          {
+            scriptPath: launchScriptFile,
+            scriptPreamble: [
+              `# Subagent launch script for ${params.name}`,
+              `# Generated: ${new Date().toISOString()}`,
+              `# Session: ${subagentSessionFile}`,
+              `# Surface: ${createdSurface}`,
+            ].join("\n"),
+          },
+        );
+      },
+      closeSurface,
     });
   } catch (error) {
-    try {
-      closeSurface(surface);
-    } catch {}
     throw new Error(
       `Child ${id} is registered but not running: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -1702,8 +1780,7 @@ async function watchSubagent(
           : "Sub-agent exited without output";
     }
 
-    runningSubagents.delete(running.id);
-    closeSurface(surface);
+    removeActiveRun(runningSubagents, running);
     // A completed turn ends only this process. The durable catalog entry remains.
 
     return {
@@ -1718,9 +1795,7 @@ async function watchSubagent(
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
   } catch (err: any) {
-    try {
-      closeSurface(surface);
-    } catch {}
+    removeActiveRun(runningSubagents, running);
 
     if (signal.aborted || ownerSignal.aborted) {
       return {
@@ -1735,7 +1810,6 @@ async function watchSubagent(
     }
     // A launch-side infrastructure failure removes only transient active state.
     // The durable child registration remains available for inspection.
-    runningSubagents.delete(running.id);
     return {
       name,
       task,
@@ -1747,9 +1821,11 @@ async function watchSubagent(
   }
 }
 
-export default function subagentsExtension(pi: ExtensionAPI) {
-  const watcherOwner = createWatcherOwner();
-  const ownedRuns = new Set<RunningSubagent>();
+export default function subagentsExtension(
+  pi: ExtensionAPI,
+  lifecycle: ExtensionLifecycle = createExtensionLifecycle(),
+) {
+  const { watcherOwner, ownedRuns } = lifecycle;
   let managerSessionId: string | null = null;
 
   // Capture the UI context and restore only the active manager branch.
@@ -1807,17 +1883,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       statusInterval = null;
       (globalThis as any)[STATUS_INTERVAL_KEY] = null;
     }
-    watcherOwner.abort();
-    for (const agent of ownedRuns) {
-      agent.shutdownCancelled = true;
-      agent.abortController?.abort();
-      try {
-        closeSurface(agent.surface);
-      } catch {}
-      if (runningSubagents.get(agent.id) === agent)
-        runningSubagents.delete(agent.id);
-    }
-    ownedRuns.clear();
+    shutdownLifecycle(lifecycle, runningSubagents);
   });
 
   // Tools denied via PI_DENY_TOOLS env var (set by parent agent based on frontmatter)
@@ -2371,12 +2437,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
             ],
             details: { error: "", id: child.childSessionId },
           };
-        running.explicitlyStopped = true;
-        running.abortController?.abort();
-        try {
-          closeSurface(running.surface);
-        } catch {}
-        runningSubagents.delete(running.id);
+        stopActiveRun(runningSubagents, running);
         updateWidget();
         return {
           content: [
@@ -2582,12 +2643,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
           );
           return;
         }
-        active.explicitlyStopped = true;
-        active.abortController?.abort();
-        try {
-          closeSurface(active.surface);
-        } catch {}
-        runningSubagents.delete(active.id);
+        stopActiveRun(runningSubagents, active);
         updateWidget();
         ctx.ui.notify(
           `Stopped active subagent "${active.name}"; history was retained.`,
@@ -2610,12 +2666,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         return;
       }
       const running = selected.running;
-      running.explicitlyStopped = true;
-      running.abortController?.abort();
-      try {
-        closeSurface(running.surface);
-      } catch {}
-      runningSubagents.delete(running.id);
+      stopActiveRun(runningSubagents, running);
       updateWidget();
       ctx.ui.notify(
         `Stopped active subagent "${running.name}"; history was retained.`,
