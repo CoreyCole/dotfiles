@@ -1052,7 +1052,7 @@ function renderSubagentWidgetLines(
   for (const child of sortChildCatalog(children)) {
     const running = activeRuns.get(child.childSessionId);
     const agentTag = child.agent ? ` (${child.agent})` : "";
-    const startedAt = running?.startTime ?? child.startedAt ?? 0;
+    const startedAt = child.startedAt ?? 0;
     const left = running
       ? ` ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${child.name}${agentTag} `
       : ` ${child.name}${agentTag} `;

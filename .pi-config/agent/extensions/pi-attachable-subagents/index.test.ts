@@ -849,6 +849,54 @@ test("widget marks idle, provider, and streaming children", () => {
   );
 });
 
+test("resumed active child retains its durable catalog timestamp", () => {
+  const originalStart = new Date(2026, 7, 23, 11, 28).getTime();
+  const resumedAt = new Date(2026, 7, 27, 9, 56).getTime();
+  const newestStart = new Date(2026, 7, 25, 10, 18).getTime();
+  const children = [
+    {
+      managerSessionId: "m",
+      childSessionId: "old",
+      name: "Old resumed",
+      cwd: "/",
+      startedAt: originalStart,
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "new",
+      name: "New idle",
+      cwd: "/",
+      startedAt: newestStart,
+    },
+  ];
+  const active = new Map([
+    [
+      "old",
+      {
+        id: "old",
+        name: "Old resumed",
+        startTime: resumedAt,
+        statusState: createStatusState({
+          source: "pi",
+          startTimeMs: resumedAt,
+        }),
+      },
+    ],
+  ] as any) as any;
+  const lines = __test__.renderSubagentWidgetLines(
+    children,
+    active,
+    100,
+    resumedAt,
+  );
+  const newIndex = lines.findIndex((line) => line.includes("New idle"));
+  const oldIndex = lines.findIndex((line) => line.includes("Old resumed"));
+  assert.ok(newIndex < oldIndex);
+  assert.match(lines[newIndex], /Aug 25 10:18/);
+  assert.match(lines[oldIndex], /Aug 23 11:28/);
+  assert.doesNotMatch(lines[oldIndex], /Aug 27 09:56/);
+});
+
 test("subagent steer renderer displays collapsed and expanded prompts", () => {
   let steerTool: any;
   const pi = {
