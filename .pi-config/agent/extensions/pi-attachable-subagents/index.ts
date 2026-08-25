@@ -754,6 +754,7 @@ interface RunningSubagent {
   statusState: SubagentStatusState;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
+const startingSubagents = new Map<string, symbol>();
 const childrenBySessionId = new Map<string, ChildSession>();
 
 export interface ExtensionLifecycle {
@@ -1221,12 +1222,71 @@ function findChildSessionFile(child: ChildSession): string | undefined {
   return undefined;
 }
 
+type SteerDecision =
+  | { kind: "active"; running: RunningSubagent }
+  | { kind: "starting" }
+  | { kind: "idle" };
+
 function resolveSteerDecision(
   activeRuns: Map<string, RunningSubagent>,
+  startingRuns: ReadonlyMap<string, symbol>,
   child: ChildSession,
-): { kind: "active"; running: RunningSubagent } | { kind: "idle" } {
+): SteerDecision {
   const running = activeRuns.get(child.childSessionId);
-  return running ? { kind: "active", running } : { kind: "idle" };
+  if (running) return { kind: "active", running };
+  return startingRuns.has(child.childSessionId)
+    ? { kind: "starting" }
+    : { kind: "idle" };
+}
+
+type IdleStartResult =
+  | { kind: "active"; running: RunningSubagent }
+  | { kind: "starting" }
+  | { kind: "cancelled" };
+
+/**
+ * Reserve an idle child before its first asynchronous launch operation.
+ * Concurrent steering receives `starting`; its message is not delivered.
+ */
+async function startIdleChild(params: {
+  activeRuns: Map<string, RunningSubagent>;
+  startingRuns: Map<string, symbol>;
+  child: ChildSession;
+  start: () => Promise<RunningSubagent>;
+  close?: (surface: string) => void;
+}): Promise<IdleStartResult> {
+  const decision = resolveSteerDecision(
+    params.activeRuns,
+    params.startingRuns,
+    params.child,
+  );
+  if (decision.kind !== "idle") return decision;
+
+  const reservation = Symbol(params.child.childSessionId);
+  params.startingRuns.set(params.child.childSessionId, reservation);
+  try {
+    const running = await params.start();
+    if (params.startingRuns.get(params.child.childSessionId) !== reservation) {
+      try {
+        (params.close ?? closeSurface)(running.surface);
+      } catch {}
+      return { kind: "cancelled" };
+    }
+    params.activeRuns.set(running.id, running);
+    params.startingRuns.delete(params.child.childSessionId);
+    return { kind: "active", running };
+  } catch (error) {
+    if (params.startingRuns.get(params.child.childSessionId) === reservation)
+      params.startingRuns.delete(params.child.childSessionId);
+    throw error;
+  }
+}
+
+function cancelIdleStart(
+  startingRuns: Map<string, symbol>,
+  childSessionId: string,
+): boolean {
+  return startingRuns.delete(childSessionId);
 }
 
 function buildIdleLaunchProfile(params: {
@@ -1525,6 +1585,8 @@ export const __test__ = {
   resolveCatalogTarget,
   findChildSessionFile,
   resolveSteerDecision,
+  startIdleChild,
+  cancelIdleStart,
   buildIdleLaunchProfile,
   resolveRunningTarget,
   selectHumanTarget,
@@ -1550,6 +1612,7 @@ export const __test__ = {
   nativeSessionId,
   childrenBySessionId,
   runningSubagents,
+  startingSubagents,
   formatElapsed,
 };
 
@@ -1932,6 +1995,7 @@ export default function subagentsExtension(
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
     runningSubagents.clear();
+    startingSubagents.clear();
     childrenBySessionId.clear();
     const header = ctx.sessionManager.getHeader();
     const currentSessionId = ctx.sessionManager.getSessionId();
@@ -1984,6 +2048,7 @@ export default function subagentsExtension(
       (globalThis as any)[STATUS_INTERVAL_KEY] = null;
     }
     shutdownLifecycle(lifecycle, runningSubagents);
+    startingSubagents.clear();
   });
 
   // Tools denied via PI_DENY_TOOLS env var (set by parent agent based on frontmatter)
@@ -2291,7 +2356,11 @@ export default function subagentsExtension(
     const resolved = resolveControlTarget(target);
     if ("error" in resolved) return resolved;
     const child = resolved.child;
-    const decision = resolveSteerDecision(runningSubagents, child);
+    const decision = resolveSteerDecision(
+      runningSubagents,
+      startingSubagents,
+      child,
+    );
     if (decision.kind === "active") {
       try {
         sendPrompt(decision.running.surface, message);
@@ -2302,76 +2371,103 @@ export default function subagentsExtension(
         };
       }
     }
-
-    const sessionFile = findChildSessionFile(child);
-    if (!sessionFile)
+    if (decision.kind === "starting") {
       return {
-        error: `Child session "${child.name}" is unavailable: native session ${child.childSessionId} was not found.`,
+        error: `Subagent "${child.name}" is already starting; the new message was not sent. Retry after it becomes active.`,
       };
-    let surface: string | undefined;
+    }
+
     try {
-      const agentDefs = child.agent ? loadAgentDefaults(child.agent) : null;
-      if (child.agent && !agentDefs)
-        return {
-          error: `Child session "${child.name}" requires named agent "${child.agent}", which no longer exists.`,
-        };
-      const agentDir = existsSync(join(child.cwd, ".pi", "agent"))
-        ? join(child.cwd, ".pi", "agent")
-        : getAgentConfigDir();
-      const activityFile = getSubagentActivityFile(
-        getArtifactDir(
-          ctx.sessionManager.getSessionDir(),
-          ctx.sessionManager.getSessionId(),
-        ),
-        child.childSessionId,
-      );
-      mkdirSync(dirname(activityFile), { recursive: true });
-      surface = createSurface(child.name);
-      await new Promise<void>((resolve) =>
-        setTimeout(resolve, getShellReadyDelayMs()),
-      );
-      const promptDir = join(
-        getArtifactDir(
-          ctx.sessionManager.getSessionDir(),
-          ctx.sessionManager.getSessionId(),
-        ),
-        "context",
-      );
-      const profile = buildIdleLaunchProfile({
+      const result = await startIdleChild({
+        activeRuns: runningSubagents,
+        startingRuns: startingSubagents,
         child,
-        sessionFile,
-        activityFile,
-        agentDir,
-        agentDefs,
-        promptDir,
+        async start() {
+          const sessionFile = findChildSessionFile(child);
+          if (!sessionFile)
+            throw new Error(
+              `Child session "${child.name}" is unavailable: native session ${child.childSessionId} was not found.`,
+            );
+          const agentDefs = child.agent ? loadAgentDefaults(child.agent) : null;
+          if (child.agent && !agentDefs)
+            throw new Error(
+              `Child session "${child.name}" requires named agent "${child.agent}", which no longer exists.`,
+            );
+          const agentDir = existsSync(join(child.cwd, ".pi", "agent"))
+            ? join(child.cwd, ".pi", "agent")
+            : getAgentConfigDir();
+          const activityFile = getSubagentActivityFile(
+            getArtifactDir(
+              ctx.sessionManager.getSessionDir(),
+              ctx.sessionManager.getSessionId(),
+            ),
+            child.childSessionId,
+          );
+          mkdirSync(dirname(activityFile), { recursive: true });
+          let surface: string | undefined;
+          try {
+            surface = createSurface(child.name);
+            await new Promise<void>((resolve) =>
+              setTimeout(resolve, getShellReadyDelayMs()),
+            );
+            const promptDir = join(
+              getArtifactDir(
+                ctx.sessionManager.getSessionDir(),
+                ctx.sessionManager.getSessionId(),
+              ),
+              "context",
+            );
+            const profile = buildIdleLaunchProfile({
+              child,
+              sessionFile,
+              activityFile,
+              agentDir,
+              agentDefs,
+              promptDir,
+            });
+            sendLongCommand(
+              surface,
+              buildPiLaunchCommand(profile, {
+                surface,
+                promptArguments: [message],
+                originalLaunch: false,
+              }),
+            );
+            const startTime = Date.now();
+            const watcherAbort = new AbortController();
+            return {
+              id: child.childSessionId,
+              name: child.name,
+              task: message,
+              ...(child.agent ? { agent: child.agent } : {}),
+              surface,
+              startTime,
+              sessionFile,
+              activityFile,
+              launchProfile: profile,
+              abortController: watcherAbort,
+              statusState: createStatusState({
+                source: "pi",
+                startTimeMs: startTime,
+              }),
+            };
+          } catch (error) {
+            if (surface)
+              try {
+                closeSurface(surface);
+              } catch {}
+            throw error;
+          }
+        },
       });
-      sendLongCommand(
-        surface,
-        buildPiLaunchCommand(profile, {
-          surface,
-          promptArguments: [message],
-          originalLaunch: false,
-        }),
-      );
-      const startTime = Date.now();
-      const watcherAbort = new AbortController();
-      const running: RunningSubagent = {
-        id: child.childSessionId,
-        name: child.name,
-        task: message,
-        ...(child.agent ? { agent: child.agent } : {}),
-        surface,
-        startTime,
-        sessionFile,
-        activityFile,
-        launchProfile: profile,
-        abortController: watcherAbort,
-        statusState: createStatusState({
-          source: "pi",
-          startTimeMs: startTime,
-        }),
-      };
-      runningSubagents.set(running.id, running);
+      if (result.kind === "starting")
+        return {
+          error: `Subagent "${child.name}" is already starting; the new message was not sent. Retry after it becomes active.`,
+        };
+      if (result.kind === "cancelled")
+        return { error: `Subagent "${child.name}" start was cancelled.` };
+      const running = result.running;
+      const watcherAbort = running.abortController!;
       ownedRuns.add(running);
       deliverControlledRun(running, watcherAbort);
       startWidgetRefresh();
@@ -2379,10 +2475,6 @@ export default function subagentsExtension(
       updateWidget();
       return { running };
     } catch (error) {
-      if (surface)
-        try {
-          closeSurface(surface);
-        } catch {}
       return { error: error instanceof Error ? error.message : String(error) };
     }
   };
@@ -2486,16 +2578,23 @@ export default function subagentsExtension(
           };
         const child = resolved.child;
         const running = runningSubagents.get(child.childSessionId);
-        if (!running)
+        if (!running) {
+          const starting = cancelIdleStart(
+            startingSubagents,
+            child.childSessionId,
+          );
           return {
             content: [
               {
                 type: "text" as const,
-                text: `Subagent "${child.name}" is already idle; history was retained.`,
+                text: starting
+                  ? `Stopped starting subagent "${child.name}"; history was retained.`
+                  : `Subagent "${child.name}" is already idle; history was retained.`,
               },
             ],
             details: { error: "", id: child.childSessionId },
           };
+        }
         stopActiveRun(runningSubagents, running);
         updateWidget();
         return {
@@ -2696,8 +2795,14 @@ export default function subagentsExtension(
         }
         const active = runningSubagents.get(resolved.child.childSessionId);
         if (!active) {
+          const starting = cancelIdleStart(
+            startingSubagents,
+            resolved.child.childSessionId,
+          );
           ctx.ui.notify(
-            `Subagent "${resolved.child.name}" is already idle; history was retained.`,
+            starting
+              ? `Stopped starting subagent "${resolved.child.name}"; history was retained.`
+              : `Subagent "${resolved.child.name}" is already idle; history was retained.`,
             "info",
           );
           return;

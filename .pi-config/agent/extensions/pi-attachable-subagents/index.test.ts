@@ -233,8 +233,10 @@ test("session reload replays registrations with no active runs and no snapshot w
   } as unknown as ExtensionAPI;
   const lifecycle = __test__.createExtensionLifecycle();
   const active = __test__.runningSubagents;
+  const starting = __test__.startingSubagents;
   const catalog = __test__.childrenBySessionId;
   active.set("stale", { id: "stale" } as Parameters<typeof active.set>[1]);
+  starting.set("starting", Symbol("starting"));
   subagentsExtension(pi, lifecycle);
   handlers.get("session_start")?.(
     { reason: "reload" },
@@ -260,6 +262,7 @@ test("session reload replays registrations with no active runs and no snapshot w
     },
   );
   assert.equal(active.size, 0);
+  assert.equal(starting.size, 0);
   assert.equal(catalog.get("child")?.name, "Planner");
   assert.equal(
     appended.includes("pi-attachable-subagents/resumable-snapshot"),
@@ -526,10 +529,99 @@ test("idle launch profile reconstructs named role and active decision prevents d
     const active = new Map([
       [child.childSessionId, { id: child.childSessionId } as any],
     ]);
-    assert.equal(__test__.resolveSteerDecision(active, child).kind, "active");
+    assert.equal(
+      __test__.resolveSteerDecision(active, new Map(), child).kind,
+      "active",
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("idle steering reserves each child before asynchronous launch", async () => {
+  type Running =
+    Parameters<typeof __test__.startIdleChild>[0]["activeRuns"] extends Map<
+      string,
+      infer Value
+    >
+      ? Value
+      : never;
+  const child = (childSessionId: string) => ({
+    managerSessionId: "manager",
+    childSessionId,
+    name: childSessionId,
+    cwd: "/work",
+  });
+  const active = new Map<string, Running>();
+  const starting = new Map<string, symbol>();
+  let surfaces = 0;
+  let dispatches = 0;
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const start = async (id: string) => {
+    surfaces += 1;
+    await delayed;
+    dispatches += 1;
+    return { id, surface: `%${id}` } as Running;
+  };
+
+  const first = __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    child: child("one"),
+    start: () => start("one"),
+  });
+  const second = await __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    child: child("one"),
+    start: () => start("duplicate"),
+  });
+  assert.equal(second.kind, "starting");
+  assert.equal(surfaces, 1);
+  assert.equal(dispatches, 0);
+
+  const other = __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    child: child("two"),
+    start: () => start("two"),
+  });
+  assert.equal(surfaces, 2);
+  release();
+  const [firstResult, otherResult] = await Promise.all([first, other]);
+  assert.equal(firstResult.kind, "active");
+  assert.equal(otherResult.kind, "active");
+  assert.equal(dispatches, 2);
+  assert.equal(active.size, 2);
+
+  let attempts = 0;
+  await assert.rejects(
+    __test__.startIdleChild({
+      activeRuns: active,
+      startingRuns: starting,
+      child: child("retry"),
+      async start() {
+        attempts += 1;
+        throw new Error("dispatch failed");
+      },
+    }),
+    /dispatch failed/,
+  );
+  assert.equal(starting.has("retry"), false);
+  const retry = await __test__.startIdleChild({
+    activeRuns: active,
+    startingRuns: starting,
+    child: child("retry"),
+    async start() {
+      attempts += 1;
+      return { id: "retry", surface: "%retry" } as Running;
+    },
+  });
+  assert.equal(retry.kind, "active");
+  assert.equal(attempts, 2);
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {
