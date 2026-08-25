@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import subagentsExtension, { __test__ } from "./index.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createStatusState, observeStatus } from "./status.ts";
 
 test("child registrations replay as a durable catalog", () => {
   const entry = (id: string, owner = "manager") => ({
@@ -704,28 +705,28 @@ test("stale reservation cleanup cannot remove a replacement token", () => {
   assert.equal(starting.get("child"), replacement);
 });
 
-test("widget and catalog sort durable children newest-first", () => {
+test("widget, list, and picker sort durable children newest-first", async () => {
   const children = [
     {
       managerSessionId: "m",
       childSessionId: "old",
       name: "Old",
       cwd: "/",
-      startedAt: Date.parse("2026-08-24T23:55:00Z"),
+      startedAt: new Date(2026, 7, 23, 11, 28).getTime(),
     },
     {
       managerSessionId: "m",
       childSessionId: "new",
       name: "New",
       cwd: "/",
-      startedAt: Date.parse("2026-08-25T00:05:00Z"),
+      startedAt: new Date(2026, 7, 25, 9, 56).getTime(),
     },
     {
       managerSessionId: "m",
       childSessionId: "middle",
       name: "Middle",
       cwd: "/",
-      startedAt: Date.parse("2026-08-25T00:00:00Z"),
+      startedAt: new Date(2026, 7, 24, 11, 28).getTime(),
     },
   ];
   assert.deepEqual(
@@ -742,9 +743,108 @@ test("widget and catalog sort durable children newest-first", () => {
     lines.findIndex((line) => line.includes("Middle")) <
       lines.findIndex((line) => line.includes("Old")),
   );
+  assert.match(lines.find((line) => line.includes("Old"))!, /🔴.*Aug 23 11:28/);
+  assert.match(lines.find((line) => line.includes("New"))!, /Aug 25 09:56/);
+  assert.match(lines.find((line) => line.includes("Middle"))!, /Aug 24 11:28/);
+
+  let pickerOptions: string[] = [];
+  const selected = await __test__.selectHumanCatalogTarget(
+    children,
+    async (_title, options) => {
+      pickerOptions = options;
+      return options[0];
+    },
+  );
+  assert.deepEqual(
+    pickerOptions.map((option) => option.split(" · ")[0]),
+    ["New", "Middle", "Old"],
+  );
+  assert.equal(selected?.name, "New");
+
+  const activeOptions: string[] = [];
+  await __test__.selectHumanTarget(
+    [
+      { id: "old", name: "Old", startTime: 0 },
+      { id: "new", name: "New", startTime: 0 },
+      { id: "middle", name: "Middle", startTime: 0 },
+    ] as any,
+    undefined,
+    async (_title, options) => {
+      activeOptions.push(...options);
+      return undefined;
+    },
+    new Map(children.map((child) => [child.childSessionId, child])),
+  );
+  assert.deepEqual(
+    activeOptions.map((option) => option.split(" · ")[0]),
+    ["New", "Middle", "Old"],
+  );
+});
+
+test("widget marks idle, provider, and streaming children", () => {
+  const now = new Date(2026, 7, 25, 10, 18).getTime();
+  const activeState = (scope: "provider" | "streaming") =>
+    observeStatus(
+      createStatusState({ source: "pi", startTimeMs: now }),
+      {
+        snapshot: "present",
+        updatedAt: now,
+        sequence: 1,
+        phase: "active",
+        active: true,
+        activeScope: scope,
+      },
+      now,
+    );
+  const children = [
+    {
+      managerSessionId: "m",
+      childSessionId: "idle",
+      name: "Idle",
+      cwd: "/",
+      startedAt: now,
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "provider",
+      name: "Provider",
+      cwd: "/",
+      startedAt: now,
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "streaming",
+      name: "Streaming",
+      cwd: "/",
+      startedAt: now,
+    },
+  ];
+  const active = new Map([
+    [
+      "provider",
+      {
+        id: "provider",
+        name: "Provider",
+        startTime: now,
+        statusState: activeState("provider"),
+      },
+    ],
+    [
+      "streaming",
+      {
+        id: "streaming",
+        name: "Streaming",
+        startTime: now,
+        statusState: activeState("streaming"),
+      },
+    ],
+  ] as any) as any;
+  const lines = __test__.renderSubagentWidgetLines(children, active, 100, now);
+  assert.match(lines.find((line) => line.includes("Idle"))!, /🔴/);
+  assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 provider/);
   assert.match(
-    lines.find((line) => line.includes("Old"))!,
-    /stopped\/resumable/,
+    lines.find((line) => line.includes("Streaming"))!,
+    /🟢 streaming/,
   );
 });
 

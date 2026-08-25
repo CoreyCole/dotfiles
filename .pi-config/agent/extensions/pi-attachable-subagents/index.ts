@@ -458,6 +458,14 @@ function formatWidgetRightLabel(snapshot: StatusSnapshot): string {
   return ` stalled${detail}${duration} `;
 }
 
+function formatWidgetStatusMarker(snapshot: StatusSnapshot): string {
+  if (snapshot.kind === "active" && snapshot.activeScope === "provider")
+    return "🟡 provider";
+  if (snapshot.kind === "active" && snapshot.activeScope === "streaming")
+    return "🟢 streaming";
+  return `🟡 ${formatWidgetRightLabel(snapshot).trim()}`;
+}
+
 function resolveResultPresentation(
   result: Pick<
     SubagentResult,
@@ -928,6 +936,27 @@ function formatLocalStartTime(timestamp: number): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function formatLocalCatalogStartTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return "??? ?? ??:??";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "??? ?? ??:??";
+  const month = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ][date.getMonth()];
+  return `${month} ${date.getDate()} ${formatLocalStartTime(timestamp)}`;
+}
+
 function formatElapsedMMSS(elapsedMs: number): string {
   const seconds = Math.floor(elapsedMs / 1000);
   const m = Math.floor(seconds / 60);
@@ -1028,16 +1057,12 @@ function renderSubagentWidgetLines(
       ? ` ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${child.name}${agentTag} `
       : ` ${child.name}${agentTag} `;
     const status = running
-      ? statusConfig.enabled
-        ? formatWidgetRightLabel(
-            classifyStatus(running.statusState, now),
-          ).trim()
-        : "running…"
-      : "stopped/resumable";
+      ? formatWidgetStatusMarker(classifyStatus(running.statusState, now))
+      : "🔴";
     lines.push(
       borderLine(
         left,
-        ` ${status} · ${formatLocalStartTime(startedAt)} `,
+        ` ${status} · ${formatLocalCatalogStartTime(startedAt)} `,
         width,
       ),
     );
@@ -1457,26 +1482,44 @@ async function selectHumanCatalogTarget(
   children: ChildSession[],
   select: (title: string, options: string[]) => Promise<string | undefined>,
 ): Promise<ChildSession | undefined> {
-  if (children.length === 0) return undefined;
-  if (children.length === 1) return children[0];
-  const options = children.map(
+  const orderedChildren = sortChildCatalog(children);
+  if (orderedChildren.length === 0) return undefined;
+  if (orderedChildren.length === 1) return orderedChildren[0];
+  const options = orderedChildren.map(
     (child) =>
       `${child.name} · ${child.agent ?? "unconfigured"} · ${child.childSessionId.slice(0, 8)}`,
   );
   const selected = await select("Select a child session", options);
-  return selected ? children[options.indexOf(selected)] : undefined;
+  return selected ? orderedChildren[options.indexOf(selected)] : undefined;
 }
 
 async function selectHumanTarget(
   agents: RunningSubagent[],
   target: string | undefined,
   select: (title: string, options: string[]) => Promise<string | undefined>,
+  catalog: ReadonlyMap<string, ChildSession> = childrenBySessionId,
 ): Promise<{ running: RunningSubagent } | { error: string } | undefined> {
   const typed = target?.trim();
   if (typed) return resolveRunningTarget(agents, typed);
   if (agents.length === 0) return undefined;
-  if (agents.length === 1) return { running: agents[0] };
-  const choices = agents.map((running) => ({
+  const orderedAgents = sortChildCatalog(
+    agents.map((running) => {
+      const child = catalog.get(running.id);
+      return child
+        ? { ...child, startedAt: child.startedAt ?? running.startTime }
+        : {
+            managerSessionId: "",
+            childSessionId: running.id,
+            name: running.name,
+            cwd: "",
+            startedAt: running.startTime,
+          };
+    }),
+  ).map(
+    (child) => agents.find((running) => running.id === child.childSessionId)!,
+  );
+  if (orderedAgents.length === 1) return { running: orderedAgents[0] };
+  const choices = orderedAgents.map((running) => ({
     label: `${running.name} · ${running.agent ?? "unconfigured"} · ${running.id.slice(0, 8)}`,
     running,
   }));
@@ -1660,8 +1703,10 @@ export const __test__ = {
   buildSystemPromptArguments,
   buildInitialTask,
   formatLocalStartTime,
+  formatLocalCatalogStartTime,
   formatSubagentTaskCall,
   formatWidgetRightLabel,
+  formatWidgetStatusMarker,
   observeRunningSubagent,
   resolveDenyTools,
   resolveAttachTarget,
@@ -1672,6 +1717,7 @@ export const __test__ = {
   cancelIdleStart,
   buildIdleLaunchProfile,
   resolveRunningTarget,
+  selectHumanCatalogTarget,
   selectHumanTarget,
   resolveInterruptTarget,
   requestSubagentInterrupt,
