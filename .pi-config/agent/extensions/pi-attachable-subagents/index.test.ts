@@ -345,6 +345,33 @@ test("watcher cleanup removes active state for every terminal outcome and retain
   }
 });
 
+test("stale watcher and old lifecycle cleanup preserve replacement active run", () => {
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const active = new Map<string, Running>();
+  const oldController = new AbortController();
+  const oldRun = {
+    id: "child",
+    surface: "%old",
+    abortController: oldController,
+  } as Running;
+  const newRun = { id: "child", surface: "%new" } as Running;
+  active.set("child", newRun);
+  const closed: string[] = [];
+
+  __test__.removeActiveRun(active, oldRun, (surface) => closed.push(surface));
+  assert.equal(active.get("child"), newRun);
+  assert.deepEqual(closed, ["%old"]);
+
+  const lifecycle = __test__.createExtensionLifecycle();
+  lifecycle.ownedRuns.add(oldRun);
+  __test__.shutdownLifecycle(lifecycle, active, (surface) =>
+    closed.push(surface),
+  );
+  assert.equal(oldController.signal.aborted, true);
+  assert.equal(active.get("child"), newRun);
+  assert.deepEqual(closed, ["%old", "%old"]);
+});
+
 test("manager teardown cancels owned runs without deleting durable registrations", () => {
   type Running =
     Parameters<typeof __test__.shutdownLifecycle>[1] extends Map<
@@ -427,6 +454,82 @@ test("initial launch profile carries role model, prompts, controls, files, skill
   assert.match(command, /--system-prompt '\/role.md'/);
   assert.match(command, /--tools 'read,caller_ping,subagent_done'/);
   assert.match(command, /--model 'openai\/gpt:high'/);
+});
+
+test("launch failure reports the completed registration stage accurately", () => {
+  assert.match(
+    __test__.formatLaunchFailure("seed", false, new Error("disk full")).message,
+    /seed failed; child was not registered and cannot be steered: disk full/,
+  );
+  assert.match(
+    __test__.formatLaunchFailure("registration", false, "append failed")
+      .message,
+    /registration failed; child was not registered and cannot be steered: append failed/,
+  );
+  for (const stage of ["surface", "dispatch"] as const)
+    assert.match(
+      __test__.formatLaunchFailure(stage, true, new Error(stage)).message,
+      new RegExp(
+        `${stage} failed; child is registered but idle/not running: ${stage}`,
+      ),
+    );
+});
+
+test("idle launch profile reconstructs named role and active decision prevents duplicate process", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-idle-profile-"));
+  try {
+    const child = {
+      managerSessionId: "manager",
+      childSessionId: "01a0212e-0be4-7eee-8ae8-a489cee0e294",
+      name: "Worker",
+      agent: "worker",
+      cwd: "/work",
+    };
+    const profile = __test__.buildIdleLaunchProfile({
+      child,
+      sessionFile: "/sessions/child.jsonl",
+      activityFile: "/activity/child.json",
+      agentDir: dir,
+      agentDefs: {
+        model: "openai/gpt",
+        thinking: "high",
+        tools: "read,bash",
+        denyTools: "write",
+        spawning: false,
+        systemPromptMode: "replace",
+        body: "role instructions",
+      },
+      promptDir: dir,
+    });
+    assert.match(profile.arguments.join(" "), /--model 'openai\/gpt:high'/);
+    assert.match(profile.arguments.join(" "), /--system-prompt/);
+    assert.match(
+      profile.arguments.join(" "),
+      /read,bash,caller_ping,subagent_done/,
+    );
+    assert.match(
+      profile.environment.join(" "),
+      new RegExp(`PI_CODING_AGENT_DIR='${dir}'`),
+    );
+    assert.match(
+      profile.environment.join(" "),
+      /PI_DENY_TOOLS='subagent,subagent_interrupt,subagents_list,write'/,
+    );
+    assert.match(
+      profile.environment.join(" "),
+      /PI_SUBAGENT_SESSION='\/sessions\/child.jsonl'/,
+    );
+    assert.match(
+      profile.environment.join(" "),
+      /PI_SUBAGENT_ACTIVITY_FILE='\/activity\/child.json'/,
+    );
+    const active = new Map([
+      [child.childSessionId, { id: child.childSessionId } as any],
+    ]);
+    assert.equal(__test__.resolveSteerDecision(active, child).kind, "active");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {

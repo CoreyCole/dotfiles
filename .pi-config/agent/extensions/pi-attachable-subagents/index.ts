@@ -765,24 +765,55 @@ function createExtensionLifecycle(): ExtensionLifecycle {
   return { watcherOwner: createWatcherOwner(), ownedRuns: new Set() };
 }
 
+type LaunchStage = "seed" | "registration" | "surface" | "dispatch";
+
+function formatLaunchFailure(
+  stage: LaunchStage,
+  registered: boolean,
+  error: unknown,
+): Error {
+  const detail = error instanceof Error ? error.message : String(error);
+  const state = registered
+    ? "is registered but idle/not running"
+    : "was not registered and cannot be steered";
+  return new Error(`Child launch ${stage} failed; child ${state}: ${detail}`);
+}
+
 async function runLaunchLifecycle(params: {
   seed: () => void;
   appendRegistration: () => void;
   createSurface: () => string;
   dispatch: (surface: string) => void | Promise<void>;
   closeSurface: (surface: string) => void;
+  onStage?: (stage: LaunchStage, registered: boolean) => void;
 }): Promise<string> {
-  params.seed();
-  params.appendRegistration();
-  const surface = params.createSurface();
+  let registered = false;
+  let stage: LaunchStage = "seed";
   try {
-    await params.dispatch(surface);
-    return surface;
-  } catch (error) {
+    params.onStage?.(stage, registered);
+    params.seed();
+    stage = "registration";
+    params.onStage?.(stage, registered);
+    params.appendRegistration();
+    registered = true;
+    stage = "surface";
+    params.onStage?.(stage, registered);
+    const surface = params.createSurface();
     try {
-      params.closeSurface(surface);
-    } catch {}
-    throw error;
+      stage = "dispatch";
+      params.onStage?.(stage, registered);
+      await params.dispatch(surface);
+      return surface;
+    } catch (error) {
+      try {
+        params.closeSurface(surface);
+      } catch {}
+      throw formatLaunchFailure(stage, registered, error);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Child launch "))
+      throw error;
+    throw formatLaunchFailure(stage, registered, error);
   }
 }
 
@@ -791,7 +822,7 @@ function removeActiveRun(
   running: RunningSubagent,
   close: (surface: string) => void = closeSurface,
 ): void {
-  activeRuns.delete(running.id);
+  if (activeRuns.get(running.id) === running) activeRuns.delete(running.id);
   try {
     close(running.surface);
   } catch {}
@@ -1190,6 +1221,74 @@ function findChildSessionFile(child: ChildSession): string | undefined {
   return undefined;
 }
 
+function resolveSteerDecision(
+  activeRuns: Map<string, RunningSubagent>,
+  child: ChildSession,
+): { kind: "active"; running: RunningSubagent } | { kind: "idle" } {
+  const running = activeRuns.get(child.childSessionId);
+  return running ? { kind: "active", running } : { kind: "idle" };
+}
+
+function buildIdleLaunchProfile(params: {
+  child: ChildSession;
+  sessionFile: string;
+  activityFile: string;
+  agentDir: string;
+  agentDefs: AgentDefaults | null;
+  promptDir: string;
+}): PiLaunchProfile {
+  const { child, sessionFile, activityFile, agentDir, agentDefs, promptDir } =
+    params;
+  const parts = [
+    "pi",
+    "--session",
+    shellEscape(child.childSessionId),
+    "--session-dir",
+    shellEscape(getDefaultSessionDirFor(child.cwd, agentDir)),
+    "-e",
+    shellEscape(join(SUBAGENTS_DIR, "subagent-done.ts")),
+  ];
+  const model = resolveModelArgument(
+    undefined,
+    agentDefs?.model,
+    agentDefs?.thinking,
+  );
+  if (model) parts.push("--model", shellEscape(model));
+  if (agentDefs?.body) {
+    mkdirSync(promptDir, { recursive: true });
+    const rolePrompt = join(promptDir, `${child.childSessionId}-agent.md`);
+    writeFileSync(rolePrompt, agentDefs.body, "utf8");
+    parts.push(
+      ...buildSystemPromptArguments({
+        agentBodyPath: rolePrompt,
+        agentMode: agentDefs.systemPromptMode,
+      }),
+    );
+  }
+  const toolAllowlist = buildSubagentToolAllowlist(agentDefs?.tools);
+  if (toolAllowlist) parts.push("--tools", shellEscape(toolAllowlist));
+  const environment = [
+    `PI_CODING_AGENT_DIR=${shellEscape(agentDir)}`,
+    `PI_SUBAGENT_NAME=${shellEscape(child.name)}`,
+    `PI_SUBAGENT_SESSION=${shellEscape(sessionFile)}`,
+    `PI_SUBAGENT_ID=${shellEscape(child.childSessionId)}`,
+    `PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`,
+  ];
+  if (child.agent)
+    environment.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent)}`);
+  const denySet = resolveDenyTools(agentDefs);
+  if (denySet.size > 0)
+    environment.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
+  return {
+    sessionFile,
+    activityFile,
+    cwdPrefix: `cd ${shellEscape(child.cwd)} && `,
+    environment,
+    arguments: parts,
+    selectedSkills: [],
+  };
+}
+
 function resolveRunningTarget(
   agents: RunningSubagent[],
   query: string,
@@ -1425,6 +1524,8 @@ export const __test__ = {
   resolveAttachTarget,
   resolveCatalogTarget,
   findChildSessionFile,
+  resolveSteerDecision,
+  buildIdleLaunchProfile,
   resolveRunningTarget,
   selectHumanTarget,
   resolveInterruptTarget,
@@ -1436,6 +1537,7 @@ export const __test__ = {
   createWatcherOwner,
   createExtensionLifecycle,
   runLaunchLifecycle,
+  formatLaunchFailure,
   removeActiveRun,
   stopActiveRun,
   shutdownLifecycle,
@@ -1708,9 +1810,7 @@ async function launchSubagent(
       closeSurface,
     });
   } catch (error) {
-    throw new Error(
-      `Child ${id} is registered but not running: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw error;
   }
 
   const running: RunningSubagent = {
@@ -2191,11 +2291,11 @@ export default function subagentsExtension(
     const resolved = resolveControlTarget(target);
     if ("error" in resolved) return resolved;
     const child = resolved.child;
-    const active = runningSubagents.get(child.childSessionId);
-    if (active) {
+    const decision = resolveSteerDecision(runningSubagents, child);
+    if (decision.kind === "active") {
       try {
-        sendPrompt(active.surface, message);
-        return { running: active };
+        sendPrompt(decision.running.surface, message);
+        return { running: decision.running };
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
@@ -2218,7 +2318,6 @@ export default function subagentsExtension(
       const agentDir = existsSync(join(child.cwd, ".pi", "agent"))
         ? join(child.cwd, ".pi", "agent")
         : getAgentConfigDir();
-      const sessionDir = getDefaultSessionDirFor(child.cwd, agentDir);
       const activityFile = getSubagentActivityFile(
         getArtifactDir(
           ctx.sessionManager.getSessionDir(),
@@ -2231,21 +2330,6 @@ export default function subagentsExtension(
       await new Promise<void>((resolve) =>
         setTimeout(resolve, getShellReadyDelayMs()),
       );
-      const parts = [
-        "pi",
-        "--session",
-        shellEscape(child.childSessionId),
-        "--session-dir",
-        shellEscape(sessionDir),
-        "-e",
-        shellEscape(join(SUBAGENTS_DIR, "subagent-done.ts")),
-      ];
-      const model = resolveModelArgument(
-        undefined,
-        agentDefs?.model,
-        agentDefs?.thinking,
-      );
-      if (model) parts.push("--model", shellEscape(model));
       const promptDir = join(
         getArtifactDir(
           ctx.sessionManager.getSessionDir(),
@@ -2253,39 +2337,14 @@ export default function subagentsExtension(
         ),
         "context",
       );
-      if (agentDefs?.body) {
-        mkdirSync(promptDir, { recursive: true });
-        const rolePrompt = join(promptDir, `${child.childSessionId}-agent.md`);
-        writeFileSync(rolePrompt, agentDefs.body, "utf8");
-        parts.push(
-          ...buildSystemPromptArguments({
-            agentBodyPath: rolePrompt,
-            agentMode: agentDefs.systemPromptMode,
-          }),
-        );
-      }
-      const toolAllowlist = buildSubagentToolAllowlist(agentDefs?.tools);
-      if (toolAllowlist) parts.push("--tools", shellEscape(toolAllowlist));
-      const denySet = resolveDenyTools(agentDefs);
-      const env = [
-        `PI_CODING_AGENT_DIR=${shellEscape(agentDir)}`,
-        `PI_SUBAGENT_NAME=${shellEscape(child.name)}`,
-        `PI_SUBAGENT_SESSION=${shellEscape(sessionFile)}`,
-        `PI_SUBAGENT_ID=${shellEscape(child.childSessionId)}`,
-        `PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`,
-      ];
-      if (child.agent)
-        env.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent)}`);
-      if (denySet.size > 0)
-        env.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
-      const profile: PiLaunchProfile = {
+      const profile = buildIdleLaunchProfile({
+        child,
         sessionFile,
         activityFile,
-        cwdPrefix: `cd ${shellEscape(child.cwd)} && `,
-        environment: env,
-        arguments: parts,
-        selectedSkills: [],
-      };
+        agentDir,
+        agentDefs,
+        promptDir,
+      });
       sendLongCommand(
         surface,
         buildPiLaunchCommand(profile, {
