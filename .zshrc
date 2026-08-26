@@ -100,6 +100,8 @@ work() { "$HOME/dotfiles/tailscale-docker/ssh-work.sh" "${1:-default}"; }
 alias switch-home='tailscale switch ccoreycole@gmail.com'
 alias switch-work='tailscale switch chestnutfi.com'
 
+alias pr="gt branch info --no-interactive | grep -Eo 'https://app\.graphite\.com/[^[:space:]]+' | head -1"
+
 export PATH="$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
 
 if command -v chestnut >/dev/null 2>&1; then
