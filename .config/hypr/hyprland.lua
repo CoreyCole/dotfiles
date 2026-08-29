@@ -22,6 +22,12 @@ require("hypr.bindings")
 require("hypr.looknfeel")
 require("hypr.autostart")
 
+-- Keep Omarchy toolbar btop tiled instead of floating.
+o.window("org.omarchy.btop", {
+	tag = "-floating-window",
+	float = false,
+})
+
 -- Toggle config flags dynamically.
 require("default.hypr.toggles")
 

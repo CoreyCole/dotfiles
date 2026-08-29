@@ -12,6 +12,16 @@
 -- To disable all preinstalled app/webapp bindings, set:
 --   omarchy_preinstalled_bindings = false
 
+-- rcmd-style application activation and window cycling.
+o.bind("ALT + X", "Raise terminal windows", "~/.config/hypr/scripts/rcmd-focus.sh X '^com\\.mitchellh\\.ghostty$'")
+o.bind(
+	"ALT + SHIFT + X",
+	"Cycle terminal windows",
+	"~/.config/hypr/scripts/rcmd-focus.sh --cycle-window X '^com\\.mitchellh\\.ghostty$'"
+)
+o.bind("ALT + Z", "Raise Zen windows", "~/.config/hypr/scripts/rcmd-focus.sh Z '^zen$'")
+o.bind("ALT + SHIFT + Z", "Cycle browser windows", "~/.config/hypr/scripts/rcmd-focus.sh --cycle-window Z '^zen$'")
+
 -- Add a new binding.
 -- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
 

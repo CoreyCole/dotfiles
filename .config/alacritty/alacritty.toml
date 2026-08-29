@@ -10,7 +10,7 @@ osc52 = "CopyPaste"
 normal = { family = "Hasklug Nerd Font Mono", style = "Medium" }
 bold = { family = "Hasklug Nerd Font Mono", style = "Medium" }
 italic = { family = "Hasklug Nerd Font Mono", style = "Medium" }
-size = 9
+size = 11
 
 [window]
 padding.x = 14

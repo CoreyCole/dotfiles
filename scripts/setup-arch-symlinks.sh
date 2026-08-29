@@ -5,8 +5,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUP_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
 backed_up=0
 
-if [[ $(. /etc/os-release && printf '%s' "$ID") != "arch" ]]; then
-    echo "This setup is for Arch Linux; found a different operating system."
+. /etc/os-release
+if [[ "$ID" != "arch" && " ${ID_LIKE:-} " != *" arch "* ]]; then
+    echo "This setup is for Arch Linux or an Arch-based distribution; found $ID."
     exit 1
 fi
 
@@ -61,7 +62,8 @@ for config in profile conf/clipboard.conf conf/keyboard.conf conf/notifications.
     link "$REPO_DIR/.config/fcitx5/$config" "$HOME/.config/fcitx5/$config"
 done
 
-# Omarchy owns generated current-theme state; only link the tracked theme source.
+# Omarchy owns generated state; link only stable user configuration and sources.
+link "$REPO_DIR/.config/omarchy/shell.json" "$HOME/.config/omarchy/shell.json"
 link "$REPO_DIR/.config/omarchy/themes/tokyo-night-black" \
     "$HOME/.config/omarchy/themes/tokyo-night-black"
 link "$REPO_DIR/.config/omarchy/backgrounds/tokyo-night-black" \

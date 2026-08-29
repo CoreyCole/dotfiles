@@ -85,4 +85,13 @@ if [[ $mode == cycle-window ]]; then
     '{addresses: $addresses, index: $index}' >"$state_file"
 fi
 
-hyprctl dispatch focuswindow "address:$preferred_address" >/dev/null
+if [[ ! $preferred_address =~ ^0x[0-9a-fA-F]+$ ]]; then
+  printf 'Invalid Hyprland window address: %s\n' "$preferred_address" >&2
+  exit 1
+fi
+
+if hyprctl systeminfo | grep -q '^configProvider: lua$'; then
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$preferred_address\" })" >/dev/null
+else
+  hyprctl dispatch focuswindow "address:$preferred_address" >/dev/null
+fi

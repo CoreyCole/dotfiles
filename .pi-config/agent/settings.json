@@ -13,7 +13,7 @@
     "enabled": false
   },
   "hideThinkingBlock": false,
-  "theme": "dark",
+  "theme": "corey-dark",
   "defaultThinkingLevel": "high",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
