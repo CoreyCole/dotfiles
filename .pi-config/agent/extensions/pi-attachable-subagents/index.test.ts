@@ -205,6 +205,7 @@ test("cached extension factories isolate watcher ownership across session replac
     },
     registerTool() {},
     registerCommand() {},
+    registerShortcut() {},
     registerMessageRenderer() {},
   } as unknown as ExtensionAPI;
   const oldLifecycle = __test__.createExtensionLifecycle();
@@ -231,6 +232,7 @@ test("session reload replays registrations with no active runs and no snapshot w
     },
     registerTool() {},
     registerCommand() {},
+    registerShortcut() {},
     registerMessageRenderer() {},
   } as unknown as ExtensionAPI;
   const lifecycle = __test__.createExtensionLifecycle();
@@ -739,6 +741,7 @@ test("widget, list, and picker sort durable children newest-first", async () => 
     new Map(),
     100,
     new Date(2026, 7, 26, 10, 18).getTime(),
+    true,
   );
   assert.match(lines[0], /3 tracked · 0 active/);
   assert.ok(
@@ -823,9 +826,80 @@ test("widget uses local calendar dates and no status-time separator", () => {
     new Map(),
     100,
     now,
+    true,
   );
   assert.match(lines.find((line) => line.includes("Idle"))!, /🔴 Dec 30 12:53/);
   assert.doesNotMatch(lines.find((line) => line.includes("Idle"))!, /·/);
+});
+
+test("widget hides stopped children and collapses to a stopped count", () => {
+  const now = new Date(2026, 7, 25, 10, 18).getTime();
+  const children = [
+    {
+      managerSessionId: "m",
+      childSessionId: "older",
+      name: "Older stopped",
+      cwd: "/",
+      startedAt: now - 60_000,
+    },
+    {
+      managerSessionId: "m",
+      childSessionId: "newer",
+      name: "Newer stopped",
+      cwd: "/",
+      startedAt: now,
+    },
+  ];
+
+  const collapsed = __test__.renderSubagentWidgetLines(
+    children,
+    new Map(),
+    100,
+    now,
+  );
+  assert.equal(collapsed.length, 2);
+  assert.match(collapsed[0], /2 stopped · Ctrl\+Alt\+S show/);
+  assert.equal(collapsed.some((line) => line.includes("stopped")), true);
+  assert.equal(collapsed.some((line) => line.includes("Older stopped")), false);
+  assert.equal(collapsed.some((line) => line.includes("Newer stopped")), false);
+
+  const expanded = __test__.renderSubagentWidgetLines(
+    children,
+    new Map(),
+    100,
+    now,
+    true,
+  );
+  assert.match(
+    expanded[0],
+    /2 tracked · 0 active · Ctrl\+Alt\+S hide stopped/,
+  );
+  assert.ok(
+    expanded.findIndex((line) => line.includes("Newer stopped")) <
+      expanded.findIndex((line) => line.includes("Older stopped")),
+  );
+});
+
+test("subagent widget registers a distinct stopped-children shortcut", () => {
+  const shortcuts: Array<{ key: string; description?: string }> = [];
+  const pi = {
+    on() {},
+    registerTool() {},
+    registerCommand() {},
+    registerShortcut(key: string, options: { description?: string }) {
+      shortcuts.push({ key, description: options.description });
+    },
+    registerMessageRenderer() {},
+  } as unknown as ExtensionAPI;
+
+  subagentsExtension(pi);
+
+  assert.deepEqual(shortcuts, [
+    {
+      key: "ctrl+alt+s",
+      description: "Show or hide stopped subagents",
+    },
+  ]);
 });
 
 test("widget marks idle, provider, and streaming children", () => {
@@ -887,7 +961,8 @@ test("widget marks idle, provider, and streaming children", () => {
     ],
   ] as any) as any;
   const lines = __test__.renderSubagentWidgetLines(children, active, 100, now);
-  assert.match(lines.find((line) => line.includes("Idle"))!, /🔴/);
+  assert.match(lines[0], /2 active · 1 stopped · Ctrl\+Alt\+S show/);
+  assert.equal(lines.some((line) => line.includes("Idle")), false);
   assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 10:18/);
   assert.match(lines.find((line) => line.includes("Streaming"))!, /🟢 10:18/);
   assert.doesNotMatch(
@@ -941,6 +1016,7 @@ test("resumed active child retains its durable catalog timestamp", () => {
     active,
     100,
     resumedAt,
+    true,
   );
   const newIndex = lines.findIndex((line) => line.includes("New idle"));
   const oldIndex = lines.findIndex((line) => line.includes("Old resumed"));
@@ -958,6 +1034,7 @@ test("subagent steer renderer displays collapsed and expanded prompts", () => {
       if (tool.name === "subagent_steer") steerTool = tool;
     },
     registerCommand() {},
+    registerShortcut() {},
     registerMessageRenderer() {},
   } as unknown as ExtensionAPI;
   subagentsExtension(pi);

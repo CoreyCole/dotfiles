@@ -6,6 +6,7 @@ import { keyHint } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import {
   Box,
+  Key,
   Text,
   truncateToWidth,
   visibleWidth,
@@ -923,6 +924,8 @@ let widgetInterval: ReturnType<typeof setInterval> | null = null;
 /** Interval timer for status transition checks. */
 let statusInterval: ReturnType<typeof setInterval> | null = null;
 
+let showStoppedChildren = false;
+
 function getActiveRuntimeMs(running: RunningSubagent, now: number): number {
   return Math.max(0, now - running.startTime);
 }
@@ -975,6 +978,8 @@ function formatElapsedMMSS(elapsedMs: number): string {
 
 const ACCENT = "\x1b[38;2;77;163;255m";
 const RST = "\x1b[0m";
+const STOPPED_CHILDREN_SHORTCUT = Key.ctrlAlt("s");
+const STOPPED_CHILDREN_KEY_LABEL = "Ctrl+Alt+S";
 
 /**
  * Build a bordered content line: │left          right│
@@ -1048,18 +1053,28 @@ function renderSubagentWidgetLines(
   activeRuns: ReadonlyMap<string, RunningSubagent>,
   width: number,
   now = Date.now(),
+  showStopped = false,
 ): string[] {
-  const activeCount = activeRuns.size;
-  const lines: string[] = [
-    borderTop(
-      "Subagents",
-      `${children.length} tracked · ${activeCount} active`,
-      width,
-    ),
-  ];
+  const orderedChildren = sortChildCatalog(children);
+  const activeCount = orderedChildren.filter((child) =>
+    activeRuns.has(child.childSessionId),
+  ).length;
+  const stoppedCount = orderedChildren.length - activeCount;
+  let info: string;
+  if (stoppedCount === 0) {
+    info = `${orderedChildren.length} tracked · ${activeCount} active`;
+  } else if (showStopped) {
+    info = `${orderedChildren.length} tracked · ${activeCount} active · ${STOPPED_CHILDREN_KEY_LABEL} hide stopped`;
+  } else if (activeCount === 0) {
+    info = `${stoppedCount} stopped · ${STOPPED_CHILDREN_KEY_LABEL} show`;
+  } else {
+    info = `${activeCount} active · ${stoppedCount} stopped · ${STOPPED_CHILDREN_KEY_LABEL} show`;
+  }
+  const lines: string[] = [borderTop("Subagents", info, width)];
 
-  for (const child of sortChildCatalog(children)) {
+  for (const child of orderedChildren) {
     const running = activeRuns.get(child.childSessionId);
+    if (!running && !showStopped) continue;
     const agentTag = child.agent ? ` (${child.agent})` : "";
     const startedAt = child.startedAt ?? 0;
     const left = running
@@ -1104,6 +1119,8 @@ function updateWidget() {
             Array.from(childrenBySessionId.values()),
             runningSubagents,
             width,
+            Date.now(),
+            showStoppedChildren,
           );
         },
       };
@@ -2145,6 +2162,7 @@ export default function subagentsExtension(
   // Capture the UI context and restore only the active manager branch.
   pi.on("session_start", (_event, ctx) => {
     latestCtx = ctx;
+    showStoppedChildren = false;
     runningSubagents.clear();
     childrenBySessionId.clear();
     const header = ctx.sessionManager.getHeader();
@@ -2209,6 +2227,14 @@ export default function subagentsExtension(
   );
 
   const shouldRegister = (name: string) => !deniedTools.has(name);
+
+  pi.registerShortcut(STOPPED_CHILDREN_SHORTCUT, {
+    description: "Show or hide stopped subagents",
+    handler: () => {
+      showStoppedChildren = !showStoppedChildren;
+      updateWidget();
+    },
+  });
 
   // ── subagent tool ──
   if (shouldRegister("subagent"))
