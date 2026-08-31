@@ -24,6 +24,7 @@ source "$HOME/dotfiles/.zsh_aliases"
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 DISABLE_AUTO_TITLE="true"
+zstyle ':omz:update' mode disabled
 plugins=(git sudo extract fzf zsh-autosuggestions zsh-completions zsh-syntax-highlighting)
 source $ZSH/oh-my-zsh.sh
 export EDITOR=nvim
