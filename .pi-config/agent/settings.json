@@ -4,11 +4,7 @@
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"
   ],
-  "skills": [
-    "~/dotfiles/.agents/skills",
-    "~/cn/chestnut-flake/.agents/skills",
-    "~/cn/chestnut-flake/vamos/.pi/skills"
-  ],
+  "skills": ["~/dotfiles/.agents/skills", "~/cn/chestnut-flake/.agents/skills"],
   "compaction": {
     "enabled": false
   },

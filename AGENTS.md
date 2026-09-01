@@ -35,9 +35,11 @@ For Pi-specific agent behavior inside the tracked config, also read `.pi-config/
 
 The global `.pi-config` owns user-level, project-agnostic resources that must load for every Pi session. Provider performance telemetry is one example.
 
-Vamos owns all Vamos-specific skills, extensions, prompts, agents, launcher guidance, and Hermes-to-Pi behavior. The canonical staging source is `~/cn/chestnut-flake/vamos`; use its `docs/cli-launcher.md` for installation and repair.
+Dotfiles owns the global QRSPI `q-*` and `qrspi-*` skills, the `/q-ceo` prompt, and the generic `planner`, `scout`, `reviewer`, and `worker` profiles.
 
-Dotfiles owns only project-agnostic Pi configuration. Do not copy, symlink, or globally auto-load Vamos resources from `.pi-config`. Managed children must load them explicitly from the Vamos checkout selected by the stable launcher.
+Vamos owns runtime-specific extensions, launcher guidance, Hermes-to-Pi behavior, and web Agent Chat resources. The canonical staging source is `~/cn/chestnut-flake/vamos`; use its `docs/cli-launcher.md` for installation and repair.
+
+Do not globally auto-load Vamos project resources from `.pi-config`. Managed children load global QRSPI skills from dotfiles and project-specific resources from their trusted checkout.
 
 When editing `~/.pi/agent` or `.pi-config`, avoid duplicate extensions that register the same tool name from local and package sources.
 
