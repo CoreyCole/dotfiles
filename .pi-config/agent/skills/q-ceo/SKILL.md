@@ -28,7 +28,6 @@ Manager settlement wakes you. Do not poll or request raw specialist output.
 - On **Complete**, record the task outcome and report the durable evidence to the lead.
 - On **Blocked**, resolve the smallest action or escalate it to the lead.
 - On **Decision**, present the manager's options, tradeoffs, and recommendation to the lead.
-- On `In progress; no CEO action.`, wait for the next automatic wake.
 
 Send lead answers to the same manager with `subagent_steer`. Preserve exact child identities. Do not route by latest child or ambiguous display name. Start no replacement until the durable manager cannot continue.
 

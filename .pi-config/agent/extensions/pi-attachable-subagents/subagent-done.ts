@@ -375,6 +375,28 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerTool({
+    name: "subagent_wait",
+    label: "Subagent Wait",
+    description:
+      "Keep this child manager alive while its delegated children run. " +
+      "Call after launching a child when the parent needs no action. " +
+      "A delegated child result will start the next turn automatically.",
+    parameters: Type.Object({}),
+    async execute() {
+      discussMode = "locked";
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Wait mode enabled. Finish this turn; delegated child results can resume this session.",
+          },
+        ],
+        details: {},
+      };
+    },
+  });
+
+  pi.registerTool({
     name: "caller_ping",
     label: "Caller Ping",
     description:

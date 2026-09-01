@@ -36,7 +36,7 @@ The planner can spawn scouts for factual gaps. Reviewers stay read-only. Only on
 
 Give each child the active stage skill, exact plan directory, named inputs, output artifact or TODO, constraints, and final-response limit. The specialist writes its assigned artifact when its role permits it.
 
-A child ends with a concise status, artifact paths, evidence, and the smallest question or blocker. It does not choose a successor. Settlement wakes the manager, which steers the same durable child when more work is needed.
+A specialist ends with a concise status, artifact paths, evidence, and the smallest question or blocker. It does not choose a successor. The manager uses `subagent_wait` while specialists run, then steers the same durable child when more work is needed.
 
 ## Durable boundaries
 

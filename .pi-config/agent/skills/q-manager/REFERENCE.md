@@ -38,7 +38,7 @@ Report to the CEO only when:
 - work is blocked after bounded recovery;
 - a critical design decision needs lead judgment.
 
-Intermediate settlements use `In progress; no CEO action.`
+While specialists run, the manager uses `subagent_wait` and does not wake the CEO.
 
 ## Recovery
 

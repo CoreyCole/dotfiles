@@ -1,7 +1,7 @@
 ---
 name: q-manager
 description: Delegates one QRSPI task and reports completion, blockers, or critical design decisions to q-ceo.
-compatibility: 'Requires durable Pi child tools: subagent, subagent_steer, subagent_peek, and subagent_stop.'
+compatibility: Requires subagent, subagent_steer, subagent_peek, subagent_stop, subagent_wait, caller_ping, and subagent_done.
 ---
 
 # q-manager
@@ -29,7 +29,7 @@ Let the planner own the planning pipeline and durable planning artifacts. The pl
 
 ## Handle child settlement
 
-Child settlement wakes you. Do not poll, sleep, watch files, or repeatedly list children.
+After starting a specialist, call `subagent_wait` and finish the turn. Wait mode keeps this manager process alive so child settlement can start the next turn. Do not poll, sleep, watch files, or repeatedly list children.
 
 After each wake:
 
@@ -49,7 +49,7 @@ Report only these states:
 - **Blocked** — blocker, evidence, attempts, and the smallest action needed.
 - **Decision** — critical design choice, options, tradeoffs, recommendation, and decision deadline.
 
-For an intermediate wake, return one line: `In progress; no CEO action.` Do not send raw specialist output to the CEO.
+For **Blocked** or **Decision**, send the concise report with `caller_ping`; the CEO can steer this same manager with the answer. For **Complete**, give the concise final report, then call `subagent_done`. Do not send raw specialist output to the CEO.
 
 Preserve every human gate. Do not infer approval from child prose. Do not create manager state files, tmux orchestration, polling loops, result parsers, retries, graph transitions, or external settlement paths.
 

@@ -50,6 +50,44 @@ test("one-turn discussion suppresses one settlement", () => {
   });
 });
 
+test("subagent_wait keeps the child alive across settlement", async () => {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const tools = new Map<string, any>();
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool(tool: any) {
+      tools.set(tool.name, tool);
+    },
+  } as unknown as ExtensionAPI;
+  subagentDoneExtension(pi);
+
+  const result = await tools
+    .get("subagent_wait")
+    .execute("call", {}, undefined, undefined, {});
+  let shutdowns = 0;
+  await handlers.get("agent_settled")?.(
+    { type: "agent_settled" },
+    {
+      shutdown() {
+        shutdowns += 1;
+      },
+    },
+  );
+
+  assert.equal(shutdowns, 0);
+  assert.match(result.content[0].text, /Wait mode enabled/);
+});
+
 test("discussion queues a steer before arming one-turn suppression", () => {
   const calls: string[] = [];
   queueDiscussMessage(

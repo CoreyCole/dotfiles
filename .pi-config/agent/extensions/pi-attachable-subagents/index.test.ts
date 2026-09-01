@@ -178,7 +178,7 @@ test("named role launch arguments include model, role prompt, and control tools"
   );
   assert.equal(
     __test__.buildSubagentToolAllowlist("read,bash"),
-    "read,bash,caller_ping,subagent_done",
+    "read,bash,caller_ping,subagent_wait,subagent_done",
   );
 });
 
@@ -450,7 +450,7 @@ test("initial launch profile carries role model, prompts, controls, files, skill
         "--system-prompt",
         "'/role.md'",
         "--tools",
-        "'read,caller_ping,subagent_done'",
+        "'read,caller_ping,subagent_wait,subagent_done'",
       ],
       selectedSkills: ["q-outline"],
     },
@@ -460,7 +460,7 @@ test("initial launch profile carries role model, prompts, controls, files, skill
   assert.match(command, /PI_SUBAGENT_SKILLS='q-outline'/);
   assert.match(command, /PI_DENY_TOOLS='subagent'/);
   assert.match(command, /--system-prompt '\/role.md'/);
-  assert.match(command, /--tools 'read,caller_ping,subagent_done'/);
+  assert.match(command, /--tools 'read,caller_ping,subagent_wait,subagent_done'/);
   assert.match(command, /--model 'openai\/gpt:high'/);
 });
 
@@ -513,7 +513,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
     assert.match(profile.arguments.join(" "), /--system-prompt/);
     assert.match(
       profile.arguments.join(" "),
-      /read,bash,caller_ping,subagent_done/,
+      /read,bash,caller_ping,subagent_wait,subagent_done/,
     );
     assert.match(
       profile.environment.join(" "),
