@@ -43,6 +43,7 @@ import {
   detachTmuxPane,
 } from "./cmux.ts";
 
+import { PERSISTENT_STATUS_CUSTOM_TYPE } from "./subagent-done.ts";
 import {
   findLastAssistantMessage,
   inspectSession,
@@ -810,6 +811,7 @@ interface RunningSubagent {
   explicitlyStopped?: boolean;
   shutdownCancelled?: boolean;
   statusState: SubagentStatusState;
+  statusEntryCursor: number;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const startingSubagents = new Map<string, symbol>();
@@ -927,6 +929,35 @@ function shutdownLifecycle(
 
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
   return !running.explicitlyStopped && !running.shutdownCancelled;
+}
+function drainPersistentStatuses(
+  running: RunningSubagent,
+  deliver: (status: { kind: "status" | "error"; report: string }) => void,
+): void {
+  if (!existsSync(running.sessionFile)) return;
+  const entries = getNewEntries(running.sessionFile, running.statusEntryCursor);
+  running.statusEntryCursor += entries.length;
+  for (const entry of entries) {
+    if (
+      entry.type !== "custom" ||
+      (entry as { customType?: unknown }).customType !==
+        PERSISTENT_STATUS_CUSTOM_TYPE
+    )
+      continue;
+    const data = (entry as { data?: unknown }).data;
+    if (
+      !isPlainObject(data) ||
+      data.version !== 1 ||
+      data.childSessionId !== running.id
+    )
+      continue;
+    if (
+      (data.kind !== "status" && data.kind !== "error") ||
+      !isNonemptyString(data.report)
+    )
+      continue;
+    deliver({ kind: data.kind, report: data.report });
+  }
 }
 function cleanupFailedWatcherRun(running: RunningSubagent): void {
   runningSubagents.delete(running.id);
@@ -1821,6 +1852,7 @@ export const __test__ = {
   childrenBySessionId,
   runningSubagents,
   startingSubagents,
+  drainPersistentStatuses,
   formatElapsed,
 };
 
@@ -2104,6 +2136,7 @@ async function launchSubagent(
       source: "pi",
       startTimeMs: startTime,
     }),
+    statusEntryCursor: getNewEntries(subagentSessionFile, 0).length,
   };
 
   runningSubagents.set(id, running);
@@ -2119,6 +2152,7 @@ async function watchSubagent(
   running: RunningSubagent,
   signal: AbortSignal,
   ownerSignal: AbortSignal,
+  onStatus?: (status: { kind: "status" | "error"; report: string }) => void,
 ): Promise<SubagentResult> {
   const { name, task, surface, startTime, sessionFile } = running;
 
@@ -2131,6 +2165,7 @@ async function watchSubagent(
         sessionFile,
         onTick() {
           observeRunningSubagent(running);
+          if (onStatus) drainPersistentStatuses(running, onStatus);
         },
       },
     );
@@ -2281,6 +2316,21 @@ export default function subagentsExtension(
     },
   });
 
+  const deliverPersistentStatus = (
+    running: RunningSubagent,
+    status: { kind: "status" | "error"; report: string },
+  ) => {
+    pi.sendMessage(
+      {
+        customType: "subagent_status",
+        content: `Sub-agent "${running.name}" ${status.kind}:\n\n${status.report}`,
+        display: true,
+        details: { childSessionId: running.id, ...status },
+      },
+      { triggerTurn: true, deliverAs: "steer" },
+    );
+  };
+
   // ── subagent tool ──
   if (shouldRegister("subagent"))
     pi.registerTool({
@@ -2356,7 +2406,12 @@ export default function subagentsExtension(
         startStatusRefresh(pi);
 
         // Fire-and-forget: start watching in background
-        watchSubagent(running, watcherAbort.signal, watcherOwner.signal)
+        watchSubagent(
+          running,
+          watcherAbort.signal,
+          watcherOwner.signal,
+          (status) => deliverPersistentStatus(running, status),
+        )
           .then((result) => {
             ownedRuns.delete(running);
             if (!shouldDeliverWatcherNotification(running)) {
@@ -2521,7 +2576,9 @@ export default function subagentsExtension(
     running: RunningSubagent,
     watcherAbort: AbortController,
   ) => {
-    watchSubagent(running, watcherAbort.signal, watcherOwner.signal)
+    watchSubagent(running, watcherAbort.signal, watcherOwner.signal, (status) =>
+      deliverPersistentStatus(running, status),
+    )
       .then((result) => {
         ownedRuns.delete(running);
         if (!shouldDeliverWatcherNotification(running)) {
@@ -2671,6 +2728,7 @@ export default function subagentsExtension(
                 source: "pi",
                 startTimeMs: startTime,
               }),
+              statusEntryCursor: getNewEntries(sessionFile, 0).length,
             };
           } catch (error) {
             if (surface)

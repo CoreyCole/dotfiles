@@ -1133,6 +1133,51 @@ test("subagent steer skips only the generic tool divider", () => {
   assert.equal(shouldAppendToolBorder("bash"), true);
 });
 
+test("persistent status drain delivers valid entries once in session order", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-status-drain-"));
+  const sessionFile = join(dir, "child.jsonl");
+  const entry = (kind: "status" | "error", report: string) => ({
+    type: "custom",
+    customType: "pi-attachable-subagents/persistent-status",
+    data: { version: 1, childSessionId: "child", kind, report },
+  });
+  try {
+    writeFileSync(
+      sessionFile,
+      [
+        JSON.stringify({ type: "session", id: "child" }),
+        JSON.stringify(entry("status", "first")),
+        JSON.stringify({ type: "custom", customType: "other", data: {} }),
+        JSON.stringify(entry("error", "second")),
+      ].join("\n") + "\n",
+    );
+    const running = { id: "child", sessionFile, statusEntryCursor: 1 } as any;
+    const delivered: string[] = [];
+    __test__.drainPersistentStatuses(running, (status) =>
+      delivered.push(`${status.kind}:${status.report}`),
+    );
+    __test__.drainPersistentStatuses(running, (status) =>
+      delivered.push(`${status.kind}:${status.report}`),
+    );
+    writeFileSync(
+      sessionFile,
+      `${JSON.stringify(entry("status", "third"))}\n`,
+      { flag: "a" },
+    );
+    __test__.drainPersistentStatuses(running, (status) =>
+      delivered.push(`${status.kind}:${status.report}`),
+    );
+    assert.deepEqual(delivered, [
+      "status:first",
+      "error:second",
+      "status:third",
+    ]);
+    assert.equal(running.statusEntryCursor, 5);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("runtime launch profile is transient and does not write snapshots", () => {
   const command = __test__.buildPiLaunchCommand(
     {
