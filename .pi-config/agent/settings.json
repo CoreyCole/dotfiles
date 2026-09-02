@@ -11,7 +11,7 @@
   "hideThinkingBlock": false,
   "theme": "corey-dark",
   "defaultThinkingLevel": "high",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "xai",
+  "defaultModel": "grok-4.6",
   "transport": "sse"
 }
