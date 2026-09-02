@@ -21,17 +21,28 @@ test("child registrations replay as a durable catalog", () => {
       cwd: "/work",
     },
   });
-  assert.deepEqual(
-    [
-      ...__test__
-        .replayChildCatalog({ id: "manager" }, "manager", [
-          entry("one"),
-          entry("one"),
-          entry("foreign", "other"),
-        ])
-        .keys(),
-    ],
-    ["one"],
+  const catalog = __test__.replayChildCatalog({ id: "manager" }, "manager", [
+    entry("one"),
+    entry("one"),
+    entry("foreign", "other"),
+  ]);
+  assert.deepEqual([...catalog.keys()], ["one"]);
+  assert.equal(catalog.get("one")?.autoExit, true);
+});
+
+test("auto-exit defaults to true and persists an explicit false value", () => {
+  assert.equal(__test__.resolveAutoExit({}), true);
+  assert.equal(__test__.resolveAutoExit({ autoExit: false }), false);
+  assert.equal(
+    __test__.validateChildSession({
+      version: 1,
+      managerSessionId: "manager",
+      childSessionId: "child",
+      name: "Manager",
+      cwd: "/work",
+      autoExit: false,
+    })?.autoExit,
+    false,
   );
 });
 
@@ -107,6 +118,7 @@ test("historical migration accepts only actual manager JSONL result shapes", () 
         name: "Worker",
         agent: "worker",
         cwd: "/work",
+        autoExit: true,
       },
     ]);
   } finally {
@@ -457,7 +469,10 @@ test("initial launch profile carries role model, prompts, controls, files, skill
       sessionFile: "/session",
       activityFile: "/activity",
       cwdPrefix: "cd /work && ",
-      environment: ["PI_DENY_TOOLS='subagent'"],
+      environment: [
+        "PI_DENY_TOOLS='subagent'",
+        __test__.buildChildAutoExitEnvironment(false),
+      ],
       arguments: [
         "pi",
         "--model",
@@ -474,8 +489,12 @@ test("initial launch profile carries role model, prompts, controls, files, skill
   assert.match(command, /'@\/first\.md' '@task\.md'/);
   assert.match(command, /PI_SUBAGENT_SKILLS='q-outline'/);
   assert.match(command, /PI_DENY_TOOLS='subagent'/);
+  assert.match(command, /PI_SUBAGENT_AUTO_EXIT='false'/);
   assert.match(command, /--system-prompt '\/role.md'/);
-  assert.match(command, /--tools 'read,caller_ping,subagent_wait,subagent_done'/);
+  assert.match(
+    command,
+    /--tools 'read,caller_ping,subagent_wait,subagent_done'/,
+  );
   assert.match(command, /--model 'openai\/gpt:high'/);
 });
 
@@ -507,6 +526,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
       name: "Worker",
       agent: "worker",
       cwd: "/work",
+      autoExit: false,
     };
     const profile = __test__.buildIdleLaunchProfile({
       child,
@@ -545,6 +565,10 @@ test("idle launch profile reconstructs named role and active decision prevents d
     assert.match(
       profile.environment.join(" "),
       /PI_SUBAGENT_ACTIVITY_FILE='\/activity\/child.json'/,
+    );
+    assert.match(
+      profile.environment.join(" "),
+      /PI_SUBAGENT_AUTO_EXIT='false'/,
     );
     const active = new Map([
       [child.childSessionId, { id: child.childSessionId } as any],
@@ -874,9 +898,18 @@ test("widget hides stopped children and collapses to a stopped count", () => {
   );
   assert.equal(collapsed.length, 2);
   assert.match(collapsed[0], /2 stopped · Ctrl\+Alt\+S show/);
-  assert.equal(collapsed.some((line) => line.includes("stopped")), true);
-  assert.equal(collapsed.some((line) => line.includes("Older stopped")), false);
-  assert.equal(collapsed.some((line) => line.includes("Newer stopped")), false);
+  assert.equal(
+    collapsed.some((line) => line.includes("stopped")),
+    true,
+  );
+  assert.equal(
+    collapsed.some((line) => line.includes("Older stopped")),
+    false,
+  );
+  assert.equal(
+    collapsed.some((line) => line.includes("Newer stopped")),
+    false,
+  );
 
   const expanded = __test__.renderSubagentWidgetLines(
     children,
@@ -885,10 +918,7 @@ test("widget hides stopped children and collapses to a stopped count", () => {
     now,
     true,
   );
-  assert.match(
-    expanded[0],
-    /2 tracked · 0 active · Ctrl\+Alt\+S hide stopped/,
-  );
+  assert.match(expanded[0], /2 tracked · 0 active · Ctrl\+Alt\+S hide stopped/);
   assert.ok(
     expanded.findIndex((line) => line.includes("Newer stopped")) <
       expanded.findIndex((line) => line.includes("Older stopped")),
@@ -977,7 +1007,10 @@ test("widget marks idle, provider, and streaming children", () => {
   ] as any) as any;
   const lines = __test__.renderSubagentWidgetLines(children, active, 100, now);
   assert.match(lines[0], /2 active · 1 stopped · Ctrl\+Alt\+S show/);
-  assert.equal(lines.some((line) => line.includes("Idle")), false);
+  assert.equal(
+    lines.some((line) => line.includes("Idle")),
+    false,
+  );
   assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 10:18/);
   assert.match(lines.find((line) => line.includes("Streaming"))!, /🟢 10:18/);
   assert.doesNotMatch(

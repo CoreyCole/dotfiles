@@ -72,6 +72,11 @@ import {
 /** Absolute path to `pi-extension/subagents`. https://github.com/nodejs/node/issues/37845 */
 const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
 const FAST_DESIRED_HANDOFF_ENV = "PI_FAST_DESIRED";
+const AUTO_EXIT_ENV = "PI_SUBAGENT_AUTO_EXIT";
+
+function buildChildAutoExitEnvironment(autoExit: boolean): string {
+  return `${AUTO_EXIT_ENV}=${shellEscape(String(autoExit))}`;
+}
 
 function buildChildHandoffEnvironment(
   env: Readonly<Record<string, string | undefined>> = process.env,
@@ -163,9 +168,21 @@ const SubagentParams = Type.Object({
         "Force the full-context fork mode for this spawn. The sub-agent inherits the current session conversation, overriding any agent frontmatter session-mode.",
     }),
   ),
+  autoExit: Type.Optional(
+    Type.Boolean({
+      description:
+        "Whether the child exits after an ordinary settlement. Defaults to true.",
+    }),
+  ),
 });
 
 type SubagentSessionMode = "standalone" | "lineage-only" | "fork";
+
+function resolveAutoExit(
+  params: Pick<Static<typeof SubagentParams>, "autoExit">,
+): boolean {
+  return params.autoExit ?? true;
+}
 
 interface AgentDefaults {
   model?: string;
@@ -544,6 +561,7 @@ interface ChildSession {
   name: string;
   agent?: string;
   cwd: string;
+  autoExit?: boolean;
   startedAt?: number;
 }
 
@@ -563,7 +581,8 @@ function validateChildSession(value: unknown): ChildSession | undefined {
     !isNonemptyString(value.childSessionId) ||
     !isNonemptyString(value.name) ||
     !isNonemptyString(value.cwd) ||
-    (value.agent !== undefined && !isNonemptyString(value.agent))
+    (value.agent !== undefined && !isNonemptyString(value.agent)) ||
+    (value.autoExit !== undefined && typeof value.autoExit !== "boolean")
   )
     return undefined;
   return {
@@ -572,6 +591,7 @@ function validateChildSession(value: unknown): ChildSession | undefined {
     name: value.name,
     ...(value.agent === undefined ? {} : { agent: value.agent }),
     cwd: value.cwd,
+    autoExit: value.autoExit ?? true,
     ...(typeof value.startedAt === "number" && Number.isFinite(value.startedAt)
       ? { startedAt: value.startedAt }
       : {}),
@@ -673,6 +693,7 @@ function migrateLegacySnapshots(
             name: record.name,
             ...(isNonemptyString(record.agent) ? { agent: record.agent } : {}),
             cwd: childHeader.cwd,
+            autoExit: true,
             ...(typeof childHeader.timestamp === "string" &&
             Number.isFinite(Date.parse(childHeader.timestamp))
               ? { startedAt: Date.parse(childHeader.timestamp) }
@@ -717,6 +738,7 @@ function migrateHistoricalToolResults(
         name: details.name,
         ...(isNonemptyString(details.agent) ? { agent: details.agent } : {}),
         cwd: childHeader.cwd,
+        autoExit: true,
         ...(typeof childHeader.timestamp === "string" &&
         Number.isFinite(Date.parse(childHeader.timestamp))
           ? { startedAt: Date.parse(childHeader.timestamp) }
@@ -1492,6 +1514,7 @@ function buildIdleLaunchProfile(params: {
     `PI_SUBAGENT_SESSION=${shellEscape(sessionFile)}`,
     `PI_SUBAGENT_ID=${shellEscape(child.childSessionId)}`,
     `PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`,
+    buildChildAutoExitEnvironment(child.autoExit ?? true),
   ];
   if (child.agent)
     environment.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent)}`);
@@ -1748,10 +1771,12 @@ export const __test__ = {
   discoverAgentDefinitions,
   resolveEffectiveSessionMode,
   resolveLaunchBehavior,
+  resolveAutoExit,
   buildSubagentToolAllowlist,
   buildPiPromptArgs,
   buildPiLaunchCommand,
   buildChildHandoffEnvironment,
+  buildChildAutoExitEnvironment,
   resolveModelArgument,
   buildSystemPromptArguments,
   buildInitialTask,
@@ -1832,6 +1857,7 @@ async function launchSubagent(
   const startTime = Date.now();
   // This is the only manager-facing identity. Never manufacture a runtime ID.
   const id = randomUUID();
+  const autoExit = resolveAutoExit(params);
 
   const agentDefs = params.agent ? loadAgentDefaults(params.agent) : null;
   const effectiveModel = resolveModelArgument(
@@ -1950,6 +1976,7 @@ async function launchSubagent(
   envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
   envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
   envParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
+  envParts.push(buildChildAutoExitEnvironment(autoExit));
 
   // Pass task and context files in one initial turn. Requested skills are
   // expanded by subagent-done.ts during that turn's input event.
@@ -2028,6 +2055,7 @@ async function launchSubagent(
           name: params.name,
           ...(params.agent ? { agent: params.agent } : {}),
           cwd: targetCwdForSession,
+          autoExit,
           startedAt: startTime,
         }),
       createSurface: () => options?.surface ?? createSurface(params.name),
