@@ -461,6 +461,25 @@ test("explicit stop removes only active runtime state and suppresses watcher del
   assert.deepEqual(closed, ["%stop"]);
 });
 
+test("stopping one selected specialist retains its manager and sibling ownership", () => {
+  type Running = Parameters<typeof __test__.stopActiveRun>[1];
+  const active = new Map<string, Running>();
+  const manager = { id: "manager", surface: "%manager" } as Running;
+  const specialist = {
+    id: "specialist",
+    surface: "%specialist",
+    abortController: new AbortController(),
+  } as Running;
+  active.set(manager.id, manager);
+  active.set(specialist.id, specialist);
+  const closed: string[] = [];
+  __test__.stopActiveRun(active, specialist, (surface) => closed.push(surface));
+  assert.equal(active.get("manager"), manager);
+  assert.equal(active.has("specialist"), false);
+  assert.equal(specialist.abortController?.signal.aborted, true);
+  assert.deepEqual(closed, ["%specialist"]);
+});
+
 test("child launch environment propagates the Fast Mode preference", () => {
   assert.deepEqual(
     __test__.buildChildHandoffEnvironment({ PI_FAST_DESIRED: "1" }),
