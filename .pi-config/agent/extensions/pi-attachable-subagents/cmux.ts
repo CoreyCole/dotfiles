@@ -876,6 +876,13 @@ function createCmuxSplitSurface(
 
 export type TmuxCommand = (args: string[]) => string;
 
+export interface TmuxHiddenOwner {
+  sessionName: string;
+  keeperPaneId: string;
+}
+
+export const TMUX_HIDDEN_KEEPER_COMMAND = "tail -f /dev/null";
+
 const runTmux: TmuxCommand = (args) =>
   execFileSync("tmux", args, { encoding: "utf8" }).trim();
 
@@ -886,14 +893,80 @@ function requireTmuxPaneId(output: string, command: string): string {
   return pane;
 }
 
+export function tmuxHiddenSessionName(parentPiSessionId: string): string {
+  return `pi-hidden-${parentPiSessionId.replace(/[:.]/g, "-")}`;
+}
+
+function tmuxSessionExists(sessionName: string, execute: TmuxCommand): boolean {
+  try {
+    execute(["has-session", "-t", sessionName]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createTmuxHiddenOwnerSession(
+  sessionName: string,
+  execute: TmuxCommand,
+): TmuxHiddenOwner {
+  const keeperPaneId = requireTmuxPaneId(
+    execute([
+      "new-session",
+      "-d",
+      "-s",
+      sessionName,
+      "-n",
+      "keeper",
+      "-P",
+      "-F",
+      "#{pane_id}",
+      TMUX_HIDDEN_KEEPER_COMMAND,
+    ]),
+    "new-session",
+  );
+  return { sessionName, keeperPaneId };
+}
+
+export function ensureTmuxHiddenOwner(
+  sessionName: string,
+  existing: TmuxHiddenOwner | undefined,
+  execute: TmuxCommand = runTmux,
+): TmuxHiddenOwner {
+  if (!tmuxSessionExists(sessionName, execute))
+    return createTmuxHiddenOwnerSession(sessionName, execute);
+  if (existing?.sessionName === sessionName) return existing;
+  return { sessionName, keeperPaneId: existing?.keeperPaneId ?? "" };
+}
+
+export function createTmuxHiddenSurface(
+  name: string,
+  parentPiSessionId: string,
+  existing: TmuxHiddenOwner | undefined,
+  execute: TmuxCommand = runTmux,
+): { surface: string; owner: TmuxHiddenOwner } {
+  const owner = ensureTmuxHiddenOwner(
+    tmuxHiddenSessionName(parentPiSessionId),
+    existing,
+    execute,
+  );
+  return {
+    surface: createTmuxBackgroundWindow(name, owner, execute),
+    owner,
+  };
+}
+
 export function createTmuxBackgroundWindow(
   name: string,
+  owner: TmuxHiddenOwner,
   execute: TmuxCommand = runTmux,
 ): string {
   return requireTmuxPaneId(
     execute([
       "new-window",
       "-d",
+      "-t",
+      owner.sessionName,
       "-n",
       name,
       "-c",
@@ -938,12 +1011,34 @@ export function attachTmuxPane(
 
 export function detachTmuxPane(
   childPane: string,
+  owner: TmuxHiddenOwner,
+  windowName: string,
   execute: TmuxCommand = runTmux,
 ): string {
+  const liveOwner = ensureTmuxHiddenOwner(owner.sessionName, owner, execute);
   return requireTmuxPaneId(
-    execute(["break-pane", "-d", "-s", childPane, "-P", "-F", "#{pane_id}"]),
+    execute([
+      "break-pane",
+      "-d",
+      "-s",
+      childPane,
+      "-t",
+      `${liveOwner.sessionName}:`,
+      "-n",
+      windowName,
+      "-P",
+      "-F",
+      "#{pane_id}",
+    ]),
     "break-pane",
   );
+}
+
+export function destroyTmuxHiddenOwner(
+  owner: TmuxHiddenOwner,
+  execute: TmuxCommand = runTmux,
+): void {
+  execute(["kill-session", "-t", owner.sessionName]);
 }
 
 /**
@@ -952,12 +1047,15 @@ export function detachTmuxPane(
  * For cmux: the first call creates a right-split pane; subsequent calls add
  * tabs to that same pane (avoiding ever-narrower splits).
  * For zellij: chooses a tab-aware tiled or stacked placement.
- * For tmux: creates a detached background window.
+ * For tmux: creates a detached window in a hidden owner session.
  * For wezterm: falls back to split behavior.
  *
  * Returns an identifier (`surface:42` in cmux, `%12` in tmux, `pane:7` in zellij, `42` in wezterm).
  */
-export function createSurface(name: string): string {
+export function createSurface(
+  name: string,
+  tmuxHidden?: { parentPiSessionId: string; owner?: TmuxHiddenOwner },
+): string {
   const backend = getMuxBackend();
 
   if (backend === "cmux" && cmuxSubagentPane) {
@@ -986,7 +1084,18 @@ export function createSurface(name: string): string {
     return createZellijSurface(name);
   }
 
-  if (backend === "tmux") return createTmuxBackgroundWindow(name);
+  if (backend === "tmux") {
+    if (!tmuxHidden?.parentPiSessionId) {
+      throw new Error("tmux createSurface requires a parent Pi session id");
+    }
+    const created = createTmuxHiddenSurface(
+      name,
+      tmuxHidden.parentPiSessionId,
+      tmuxHidden.owner,
+    );
+    tmuxHidden.owner = created.owner;
+    return created.surface;
+  }
 
   return createSurfaceSplit(name, "right");
 }

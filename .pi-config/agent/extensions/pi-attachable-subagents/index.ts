@@ -42,6 +42,10 @@ import {
   readScreen,
   attachTmuxPane,
   detachTmuxPane,
+  createTmuxHiddenSurface,
+  destroyTmuxHiddenOwner,
+  tmuxHiddenSessionName,
+  type TmuxHiddenOwner,
 } from "./cmux.ts";
 
 import {
@@ -785,6 +789,7 @@ interface PiLaunchRun {
   surface: string;
   promptArguments: readonly string[];
   originalLaunch: boolean;
+  tmuxHiddenSession?: string;
 }
 function buildPiLaunchCommand(
   profile: PiLaunchProfile,
@@ -795,6 +800,10 @@ function buildPiLaunchCommand(
     `PI_SUBAGENT_SKILLS=${shellEscape(run.originalLaunch ? profile.selectedSkills.join(",") : "")}`,
     `PI_SUBAGENT_SURFACE=${shellEscape(run.surface)}`,
   ];
+  if (run.tmuxHiddenSession)
+    environment.push(
+      `PI_SUBAGENT_TMUX_HIDDEN_SESSION=${shellEscape(run.tmuxHiddenSession)}`,
+    );
   const command =
     `${profile.cwdPrefix}${environment.join(" ")} ${profile.arguments.join(" ")} ${run.promptArguments.map(shellEscape).join(" ")}`.trim();
   return `${command}; echo '__SUBAGENT_DONE_'$?'__'`;
@@ -805,6 +814,7 @@ interface RunningSubagent {
   task: string;
   agent?: string;
   surface: string;
+  tmuxHiddenOwner?: TmuxHiddenOwner;
   startTime: number;
   sessionFile: string;
   launchScriptFile?: string;
@@ -839,6 +849,7 @@ export interface ExtensionLifecycle {
   ownedRuns: Set<RunningSubagent>;
   ownedStartReservations: Map<string, symbol>;
   ownedDeliveryIds: Set<string>;
+  tmuxHiddenOwner?: TmuxHiddenOwner;
 }
 
 function createExtensionLifecycle(): ExtensionLifecycle {
@@ -848,6 +859,34 @@ function createExtensionLifecycle(): ExtensionLifecycle {
     ownedStartReservations: new Map(),
     ownedDeliveryIds: new Set(),
   };
+}
+
+function createLifecycleSurface(
+  lifecycle: ExtensionLifecycle,
+  name: string,
+  parentPiSessionId: string,
+): string {
+  if (getMuxBackend() === "tmux") {
+    const created = createTmuxHiddenSurface(
+      name,
+      parentPiSessionId,
+      lifecycle.tmuxHiddenOwner,
+    );
+    lifecycle.tmuxHiddenOwner = created.owner;
+    return created.surface;
+  }
+  return createSurface(name);
+}
+
+function releaseTmuxHiddenOwnerIfIdle(
+  lifecycle: ExtensionLifecycle,
+  destroy: (owner: TmuxHiddenOwner) => void = destroyTmuxHiddenOwner,
+): void {
+  if (lifecycle.ownedRuns.size > 0) return;
+  const owner = lifecycle.tmuxHiddenOwner;
+  if (!owner) return;
+  destroy(owner);
+  lifecycle.tmuxHiddenOwner = undefined;
 }
 
 function registerLaunchedDelivery(
@@ -941,6 +980,7 @@ function shutdownLifecycle(
   close: (surface: string) => void = closeSurface,
   startingRuns: Map<string, symbol> = startingSubagents,
   coordinator: DelegatorLivenessCoordinator = delegatorLiveness,
+  destroyTmuxOwner: (owner: TmuxHiddenOwner) => void = destroyTmuxHiddenOwner,
 ): void {
   for (const deliveryId of lifecycle.ownedDeliveryIds)
     coordinator.cancel(deliveryId);
@@ -967,6 +1007,7 @@ function shutdownLifecycle(
   }
   if (failures.length > 0)
     throw new AggregateError(failures, "Failed to close subagent surfaces");
+  releaseTmuxHiddenOwnerIfIdle(lifecycle, destroyTmuxOwner);
 }
 
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
@@ -1935,6 +1976,9 @@ export const __test__ = {
   cleanupFailedWatcherRun,
   createWatcherOwner,
   createExtensionLifecycle,
+  createLifecycleSurface,
+  releaseTmuxHiddenOwnerIfIdle,
+  tmuxHiddenSessionName,
   registerLaunchedDelivery,
   runLaunchLifecycle,
   formatLaunchFailure,
@@ -1985,6 +2029,7 @@ async function launchSubagent(
   options?: {
     surface?: string;
     registerChild?: (child: ChildSession) => void;
+    lifecycle?: ExtensionLifecycle;
   },
 ): Promise<RunningSubagent> {
   const startTime = Date.now();
@@ -2187,7 +2232,11 @@ async function launchSubagent(
           autoExit,
           startedAt: startTime,
         }),
-      createSurface: () => options?.surface ?? createSurface(params.name),
+      createSurface: () =>
+        options?.surface ??
+        (options?.lifecycle
+          ? createLifecycleSurface(options.lifecycle, params.name, sessionId)
+          : createSurface(params.name)),
       dispatch: async (createdSurface) => {
         if (!surfacePreCreated) {
           await new Promise<void>((resolve) =>
@@ -2200,6 +2249,7 @@ async function launchSubagent(
             surface: createdSurface,
             promptArguments,
             originalLaunch: true,
+            tmuxHiddenSession: options?.lifecycle?.tmuxHiddenOwner?.sessionName,
           }),
           {
             scriptPath: launchScriptFile,
@@ -2225,6 +2275,7 @@ async function launchSubagent(
     agent: params.agent,
     displayModel: effectiveModel?.split("/").pop()?.split(":")[0],
     surface,
+    tmuxHiddenOwner: options?.lifecycle?.tmuxHiddenOwner,
     startTime,
     sessionFile: subagentSessionFile,
     launchScriptFile,
@@ -2489,6 +2540,7 @@ export default function subagentsExtension(
 
         // Launch the subagent (creates pane, sends command)
         const running = await launchSubagent(params, ctx, {
+          lifecycle,
           registerChild(child) {
             if (!managerSessionId)
               throw new Error("manager session identity is unavailable");
@@ -2518,6 +2570,7 @@ export default function subagentsExtension(
         )
           .then((result) => {
             ownedRuns.delete(running);
+            releaseTmuxHiddenOwnerIfIdle(lifecycle);
             if (!shouldDeliverWatcherNotification(running)) {
               updateWidget();
               return;
@@ -2697,6 +2750,7 @@ export default function subagentsExtension(
     )
       .then((result) => {
         ownedRuns.delete(running);
+        releaseTmuxHiddenOwnerIfIdle(lifecycle);
         if (!shouldDeliverWatcherNotification(running)) {
           updateWidget();
           return;
@@ -2809,7 +2863,11 @@ export default function subagentsExtension(
           mkdirSync(dirname(activityFile), { recursive: true });
           let surface: string | undefined;
           try {
-            surface = createSurface(child.name);
+            surface = createLifecycleSurface(
+              lifecycle,
+              child.name,
+              ctx.sessionManager.getSessionId(),
+            );
             await new Promise<void>((resolve) =>
               setTimeout(resolve, getShellReadyDelayMs()),
             );
@@ -2834,6 +2892,7 @@ export default function subagentsExtension(
                 surface,
                 promptArguments: [message],
                 originalLaunch: false,
+                tmuxHiddenSession: lifecycle.tmuxHiddenOwner?.sessionName,
               }),
             );
             const startTime = Date.now();
@@ -2852,6 +2911,7 @@ export default function subagentsExtension(
                 .pop()
                 ?.split(":")[0],
               surface,
+              tmuxHiddenOwner: lifecycle.tmuxHiddenOwner,
               startTime,
               sessionFile,
               activityFile,
@@ -3351,10 +3411,11 @@ export default function subagentsExtension(
   });
 
   pi.registerCommand("detach", {
-    description: "Detach this tmux subagent into a background window",
+    description: "Detach this tmux subagent into its hidden owner session",
     handler: async (_args, ctx) => {
       const id = process.env.PI_SUBAGENT_ID;
       const surface = process.env.PI_SUBAGENT_SURFACE;
+      const hiddenSession = process.env.PI_SUBAGENT_TMUX_HIDDEN_SESSION;
       if (!id || !surface) {
         ctx.ui.notify(
           "/detach is available only inside a subagent session.",
@@ -3366,6 +3427,10 @@ export default function subagentsExtension(
         ctx.ui.notify("/detach requires tmux.", "error");
         return;
       }
+      if (!hiddenSession) {
+        ctx.ui.notify("/detach requires a hidden tmux owner session.", "error");
+        return;
+      }
       if (process.env.TMUX_PANE !== surface) {
         ctx.ui.notify(
           `Refusing to detach: current pane ${process.env.TMUX_PANE ?? "(unknown)"} does not match subagent pane ${surface}.`,
@@ -3374,9 +3439,13 @@ export default function subagentsExtension(
         return;
       }
       try {
-        detachTmuxPane(surface);
+        detachTmuxPane(
+          surface,
+          { sessionName: hiddenSession, keeperPaneId: "" },
+          process.env.PI_SUBAGENT_NAME || id,
+        );
         ctx.ui.notify(
-          `Detached subagent ${id} into a background tmux window.`,
+          `Detached subagent ${id} into hidden tmux session ${hiddenSession}.`,
           "info",
         );
       } catch (error) {

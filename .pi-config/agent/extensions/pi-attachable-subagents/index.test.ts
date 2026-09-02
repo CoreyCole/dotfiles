@@ -1615,3 +1615,283 @@ test("runtime launch profile is transient and does not write snapshots", () => {
   assert.match(command, /pi/);
   assert.equal(JSON.stringify(__test__).includes("resumable-snapshot"), false);
 });
+
+test("launch command records the hidden tmux owner for child detach", () => {
+  const command = __test__.buildPiLaunchCommand(
+    {
+      sessionFile: "/session",
+      activityFile: "/activity",
+      cwdPrefix: "cd /work && ",
+      environment: [],
+      arguments: ["pi"],
+      selectedSkills: [],
+    },
+    {
+      surface: "%1",
+      promptArguments: ["continue"],
+      originalLaunch: false,
+      tmuxHiddenSession: "pi-hidden-parent",
+    },
+  );
+  assert.match(command, /PI_SUBAGENT_TMUX_HIDDEN_SESSION='pi-hidden-parent'/);
+  assert.match(command, /PI_SUBAGENT_SURFACE='%1'/);
+});
+
+test("T10 nested delegators use distinct hidden tmux owners", () => {
+  const parent = __test__.tmuxHiddenSessionName("ceo-id");
+  const child = __test__.tmuxHiddenSessionName("manager-id");
+  assert.equal(parent, "pi-hidden-ceo-id");
+  assert.equal(child, "pi-hidden-manager-id");
+  assert.notEqual(parent, child);
+});
+
+test("failed dispatch keeps the hidden tmux owner", async () => {
+  const lifecycle = __test__.createExtensionLifecycle();
+  const owner = { sessionName: "pi-hidden-parent", keeperPaneId: "%0" };
+  lifecycle.tmuxHiddenOwner = owner;
+  await assert.rejects(
+    __test__.runLaunchLifecycle({
+      seed: () => {},
+      appendRegistration: () => {},
+      createSurface: () => {
+        lifecycle.tmuxHiddenOwner = owner;
+        return "%child";
+      },
+      dispatch: () => {
+        throw new Error("dispatch");
+      },
+      closeSurface: () => {},
+    }),
+    /dispatch/,
+  );
+  assert.equal(lifecycle.tmuxHiddenOwner, owner);
+  assert.equal(lifecycle.ownedRuns.size, 0);
+});
+
+test("T8 last owned-run close destroys the hidden tmux owner", () => {
+  const lifecycle = __test__.createExtensionLifecycle();
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const running = { id: "child", surface: "%1" } as Running;
+  lifecycle.ownedRuns.add(running);
+  lifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-parent",
+    keeperPaneId: "%0",
+  };
+  const destroyed: string[] = [];
+  lifecycle.ownedRuns.delete(running);
+  __test__.releaseTmuxHiddenOwnerIfIdle(lifecycle, (owner) =>
+    destroyed.push(owner.sessionName),
+  );
+  assert.deepEqual(destroyed, ["pi-hidden-parent"]);
+  assert.equal(lifecycle.tmuxHiddenOwner, undefined);
+});
+
+test("T8 a remaining owned pane keeps the hidden tmux owner", () => {
+  const lifecycle = __test__.createExtensionLifecycle();
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const kept = { id: "kept", surface: "%1" } as Running;
+  const closed = { id: "closed", surface: "%2" } as Running;
+  lifecycle.ownedRuns.add(kept);
+  lifecycle.ownedRuns.add(closed);
+  lifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-parent",
+    keeperPaneId: "%0",
+  };
+  const destroyed: string[] = [];
+  lifecycle.ownedRuns.delete(closed);
+  __test__.releaseTmuxHiddenOwnerIfIdle(lifecycle, (owner) =>
+    destroyed.push(owner.sessionName),
+  );
+  assert.deepEqual(destroyed, []);
+  assert.equal(lifecycle.tmuxHiddenOwner?.sessionName, "pi-hidden-parent");
+});
+
+test("T9 shutdown destroys the hidden owner after closing owned panes", () => {
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const lifecycle = __test__.createExtensionLifecycle();
+  const running = {
+    id: "child",
+    surface: "%shutdown",
+    abortController: new AbortController(),
+  } as Running;
+  const active = new Map<string, Running>([["child", running]]);
+  lifecycle.ownedRuns.add(running);
+  lifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-parent",
+    keeperPaneId: "%0",
+  };
+  const closed: string[] = [];
+  const destroyed: string[] = [];
+  __test__.shutdownLifecycle(
+    lifecycle,
+    active,
+    (surface) => closed.push(surface),
+    new Map(),
+    __test__.delegatorLiveness,
+    (owner) => destroyed.push(owner.sessionName),
+  );
+  assert.deepEqual(closed, ["%shutdown"]);
+  assert.deepEqual(destroyed, ["pi-hidden-parent"]);
+  assert.equal(lifecycle.tmuxHiddenOwner, undefined);
+  assert.equal(lifecycle.ownedRuns.size, 0);
+});
+
+test("T9 close failure retains the hidden tmux owner", () => {
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const lifecycle = __test__.createExtensionLifecycle();
+  const running = { id: "child", surface: "%leak" } as Running;
+  const active = new Map<string, Running>([["child", running]]);
+  lifecycle.ownedRuns.add(running);
+  lifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-parent",
+    keeperPaneId: "%0",
+  };
+  const destroyed: string[] = [];
+  assert.throws(
+    () =>
+      __test__.shutdownLifecycle(
+        lifecycle,
+        active,
+        () => {
+          throw new Error("close failed");
+        },
+        new Map(),
+        __test__.delegatorLiveness,
+        (owner) => destroyed.push(owner.sessionName),
+      ),
+    /Failed to close subagent surfaces/,
+  );
+  assert.deepEqual(destroyed, []);
+  assert.equal(lifecycle.tmuxHiddenOwner?.sessionName, "pi-hidden-parent");
+  assert.equal(lifecycle.ownedRuns.has(running), true);
+});
+
+test("T9 replacement shutdown destroys only the old hidden owner", () => {
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const oldLifecycle = __test__.createExtensionLifecycle();
+  const newLifecycle = __test__.createExtensionLifecycle();
+  const oldRun = { id: "old", surface: "%old" } as Running;
+  const newRun = { id: "new", surface: "%new" } as Running;
+  oldLifecycle.ownedRuns.add(oldRun);
+  newLifecycle.ownedRuns.add(newRun);
+  oldLifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-old",
+    keeperPaneId: "%0",
+  };
+  newLifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-new",
+    keeperPaneId: "%1",
+  };
+  const active = new Map<string, Running>([
+    ["old", oldRun],
+    ["new", newRun],
+  ]);
+  const destroyed: string[] = [];
+  __test__.shutdownLifecycle(
+    oldLifecycle,
+    active,
+    () => {},
+    new Map(),
+    __test__.delegatorLiveness,
+    (owner) => destroyed.push(owner.sessionName),
+  );
+  assert.deepEqual(destroyed, ["pi-hidden-old"]);
+  assert.equal(oldLifecycle.tmuxHiddenOwner, undefined);
+  assert.equal(newLifecycle.tmuxHiddenOwner?.sessionName, "pi-hidden-new");
+  assert.equal(active.get("new"), newRun);
+});
+
+function captureCommands() {
+  const commands = new Map<
+    string,
+    { handler: (args: string, ctx: unknown) => Promise<void> }
+  >();
+  const pi = {
+    on() {},
+    registerTool() {},
+    registerCommand(
+      name: string,
+      command: { handler: (args: string, ctx: unknown) => Promise<void> },
+    ) {
+      commands.set(name, command);
+    },
+    registerShortcut() {},
+    registerMessageRenderer() {},
+  } as unknown as ExtensionAPI;
+  subagentsExtension(pi);
+  return commands;
+}
+
+test("T7 attach outside tmux is a no-op with an error", async () => {
+  const previousMux = process.env.PI_SUBAGENT_MUX;
+  const previousTmux = process.env.TMUX;
+  const previousPane = process.env.TMUX_PANE;
+  delete process.env.PI_SUBAGENT_MUX;
+  delete process.env.TMUX;
+  delete process.env.TMUX_PANE;
+  const notifications: Array<{ message: string; level?: string }> = [];
+  try {
+    const commands = captureCommands();
+    await commands.get("attach")!.handler("child", {
+      ui: {
+        notify(message: string, level?: string) {
+          notifications.push({ message, level });
+        },
+      },
+    });
+    assert.deepEqual(notifications, [
+      { message: "/attach requires tmux.", level: "error" },
+    ]);
+  } finally {
+    if (previousMux == null) delete process.env.PI_SUBAGENT_MUX;
+    else process.env.PI_SUBAGENT_MUX = previousMux;
+    if (previousTmux == null) delete process.env.TMUX;
+    else process.env.TMUX = previousTmux;
+    if (previousPane == null) delete process.env.TMUX_PANE;
+    else process.env.TMUX_PANE = previousPane;
+  }
+});
+
+test("T7 idle-child attach is rejected without moving a pane", async () => {
+  const previousMux = process.env.PI_SUBAGENT_MUX;
+  const previousTmux = process.env.TMUX;
+  const previousPane = process.env.TMUX_PANE;
+  const previousCmux = process.env.CMUX_SOCKET_PATH;
+  process.env.PI_SUBAGENT_MUX = "tmux";
+  process.env.TMUX = process.env.TMUX || "test";
+  process.env.TMUX_PANE = "%1";
+  delete process.env.CMUX_SOCKET_PATH;
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  __test__.childrenBySessionId.set("child", {
+    managerSessionId: "manager",
+    childSessionId: "child",
+    name: "Idle planner",
+    cwd: "/work",
+  });
+  const notifications: Array<{ message: string; level?: string }> = [];
+  try {
+    const commands = captureCommands();
+    await commands.get("attach")!.handler("child", {
+      ui: {
+        notify(message: string, level?: string) {
+          notifications.push({ message, level });
+        },
+      },
+    });
+    assert.equal(notifications.length, 1);
+    assert.match(notifications[0]!.message, /idle/);
+    assert.equal(notifications[0]!.level, "info");
+  } finally {
+    __test__.childrenBySessionId.clear();
+    __test__.runningSubagents.clear();
+    if (previousMux == null) delete process.env.PI_SUBAGENT_MUX;
+    else process.env.PI_SUBAGENT_MUX = previousMux;
+    if (previousTmux == null) delete process.env.TMUX;
+    else process.env.TMUX = previousTmux;
+    if (previousPane == null) delete process.env.TMUX_PANE;
+    else process.env.TMUX_PANE = previousPane;
+    if (previousCmux == null) delete process.env.CMUX_SOCKET_PATH;
+    else process.env.CMUX_SOCKET_PATH = previousCmux;
+  }
+});
