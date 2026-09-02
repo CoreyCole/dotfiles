@@ -1183,6 +1183,16 @@ test("persistent status drain delivers valid entries once in session order", () 
       [
         JSON.stringify({ type: "session", id: "child" }),
         JSON.stringify(entry("status", "first")),
+        JSON.stringify({
+          type: "custom",
+          customType: "pi-attachable-subagents/persistent-status",
+          data: {
+            version: 1,
+            childSessionId: "other",
+            kind: "status",
+            report: "ignored",
+          },
+        }),
         JSON.stringify({ type: "custom", customType: "other", data: {} }),
         JSON.stringify(entry("error", "second")),
       ].join("\n") + "\n",
@@ -1208,7 +1218,7 @@ test("persistent status drain delivers valid entries once in session order", () 
       "error:second",
       "status:third",
     ]);
-    assert.equal(running.statusEntryCursor, 5);
+    assert.equal(running.statusEntryCursor, 6);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
