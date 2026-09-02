@@ -301,6 +301,9 @@
     darwinConfigurations."Coreys-MacBook-Pro-2" = nix-darwin.lib.darwinSystem {
       modules = darwinModules;
     };
+    darwinConfigurations."Coreys-MacBook-Pro-211" = nix-darwin.lib.darwinSystem {
+      modules = darwinModules;
+    };
     darwinConfigurations."swarms-MacBook-Pro" = nix-darwin.lib.darwinSystem {
       modules =
         darwinModules

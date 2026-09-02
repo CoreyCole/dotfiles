@@ -91,12 +91,13 @@ Use both checks before applying changes:
 nix flake check ./nix-darwin-config --no-build
 
 # 2. Full Darwin system evaluation/build plan for the active host
-nix build ./nix-darwin-config#darwinConfigurations.Coreys-MacBook-Pro.config.system.build.toplevel --dry-run
+nix build ./nix-darwin-config#darwinConfigurations.Coreys-MacBook-Pro-211.config.system.build.toplevel --dry-run
 ```
 
 For the other configured hosts, change the Darwin configuration name:
 
 ```bash
+nix build ./nix-darwin-config#darwinConfigurations.Coreys-MacBook-Pro.config.system.build.toplevel --dry-run
 nix build ./nix-darwin-config#darwinConfigurations.Coreys-MacBook-Pro-2.config.system.build.toplevel --dry-run
 nix build ./nix-darwin-config#darwinConfigurations.swarms-MacBook-Pro.config.system.build.toplevel --dry-run
 ```
