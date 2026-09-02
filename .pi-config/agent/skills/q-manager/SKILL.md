@@ -1,7 +1,7 @@
 ---
 name: q-manager
 description: Delegates one QRSPI task and reports completion, blockers, or critical design decisions to q-ceo.
-compatibility: Requires subagent, subagent_steer, subagent_peek, subagent_stop, subagent_wait, caller_ping, and subagent_done.
+compatibility: Requires subagent, subagent_steer, subagent_peek, subagent_stop, caller_ping, and subagent_done.
 ---
 
 # q-manager
@@ -29,7 +29,7 @@ Let the planner own the planning pipeline and durable planning artifacts. The pl
 
 ## Handle child settlement
 
-After starting a specialist, call `subagent_wait` and finish the turn. Wait mode keeps this manager process alive so child settlement can start the next turn. Do not poll, sleep, watch files, or repeatedly list children.
+After starting a specialist, finish the turn. Its settlement wakes this persistent manager automatically. Do not poll, sleep, watch files, or repeatedly list children.
 
 After each wake:
 

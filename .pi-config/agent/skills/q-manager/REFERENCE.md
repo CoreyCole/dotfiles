@@ -38,7 +38,7 @@ Report to the CEO only when:
 - work is blocked after bounded recovery;
 - a critical design decision needs lead judgment.
 
-While specialists run, the manager uses `subagent_wait` and does not wake the CEO.
+While specialists run, the persistent manager finishes its turn; specialist settlement wakes that manager, not the CEO.
 
 ## Recovery
 

@@ -16,7 +16,7 @@ Own the lead engineer's task set. Start one durable `q-manager` child for each i
 1. Start independent managers in parallel.
 1. Start each manager with:
    - no specialist `agent` value;
-   - `skills: "q-manager,qrspi-planning"`;
+   - `skills: "q-manager,qrspi-planning"` and `autoExit: false`;
    - the repository or prepared workspace as `cwd`;
    - the explicit task, constraints, and plan directory, or a bootstrap instruction.
 1. Omit `model` so the manager uses the session default.
