@@ -17,9 +17,9 @@
   "license": "MIT",
   "packageManager": "pnpm@10.32.1",
   "dependencies": {
-    "@earendil-works/pi-ai": "0.83.0",
-    "@earendil-works/pi-coding-agent": "0.83.0",
-    "@earendil-works/pi-tui": "0.83.0",
+    "@earendil-works/pi-ai": "0.82.1",
+    "@earendil-works/pi-coding-agent": "0.82.1",
+    "@earendil-works/pi-tui": "0.82.1",
     "typebox": "^1.1.38",
     "yaml": "^2.9.0"
   },
