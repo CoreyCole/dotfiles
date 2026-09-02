@@ -21,6 +21,7 @@ import {
   mkdirSync,
   copyFileSync,
   unlinkSync,
+  statSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -63,6 +64,10 @@ import {
   observeStatus,
   loadStatusConfig,
 } from "./status.ts";
+import {
+  requestStatsSidecarPath,
+  validateRequestStatsAggregate,
+} from "../request-stats.ts";
 import {
   getSubagentActivityFile,
   readSubagentActivityFile,
@@ -811,7 +816,10 @@ interface RunningSubagent {
   statusState: SubagentStatusState;
   statusEntryCursor: number;
   displayModel?: string;
+  displayProvider?: string;
   displayTps?: number;
+  requestStatsSignature?: string;
+  requestStatsCheckedAt?: number;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const startingSubagents = new Map<string, symbol>();
@@ -1333,66 +1341,60 @@ function activityLabel(activity: SubagentActivityState): string | undefined {
   return activity.activeScope;
 }
 
-function parseCsvRow(row: string): string[] | undefined {
-  const cells: string[] = [];
-  let cell = "";
-  let quoted = false;
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i];
-    if (quoted && char === '"' && row[i + 1] === '"') {
-      cell += char;
-      i++;
-      continue;
-    }
-    if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === "," && !quoted) {
-      cells.push(cell);
-      cell = "";
-      continue;
-    }
-    cell += char;
-  }
-  if (quoted) return undefined;
-  cells.push(cell);
-  return cells;
-}
+function refreshDisplaySnapshot(
+  running: RunningSubagent,
+  now = Date.now(),
+): void {
+  let peek: ReturnType<typeof inspectSession> | undefined;
+  try {
+    peek = inspectSession(running.sessionFile);
+    running.displayProvider = peek.provider;
+    running.displayModel = peek.model ?? running.displayModel;
+  } catch {}
 
-function refreshDisplaySnapshot(running: RunningSubagent): void {
+  // The renderer only consumes this memory snapshot. Both watcher and status
+  // observations share this per-run one-second cadence.
+  if (
+    running.requestStatsCheckedAt !== undefined &&
+    now - running.requestStatsCheckedAt < 1000
+  )
+    return;
+  running.requestStatsCheckedAt = now;
+  const provider = peek?.provider;
+  const model = peek?.model;
+  if (!provider || !model) {
+    running.displayTps = undefined;
+    return;
+  }
   try {
-    const peek = inspectSession(running.sessionFile);
-    if (peek.model) running.displayModel = peek.model;
-  } catch {}
-  try {
-    const rows = readFileSync(
-      join(homedir(), ".local", "state", "pi", "request-stats.csv"),
-      "utf8",
-    )
-      .trim()
-      .split(/\r?\n/);
-    const header = parseCsvRow(rows.shift() ?? "") ?? [];
-    const session = header.indexOf("x_client_request_id");
-    const tps = header.indexOf("output_tokens_per_second");
-    if (session < 0 || tps < 0) return;
-    for (const row of rows.reverse()) {
-      const cells = parseCsvRow(row);
-      if (!cells || cells[session] !== running.id) continue;
-      const value = Number(cells[tps]);
-      if (Number.isFinite(value)) {
-        running.displayTps = value;
-        return;
-      }
-    }
-  } catch {}
+    const file = requestStatsSidecarPath(running.id);
+    const metadata = statSync(file);
+    const signature = `${metadata.mtimeMs}:${metadata.size}`;
+    if (signature === running.requestStatsSignature) return;
+    running.requestStatsSignature = signature;
+    const aggregate = validateRequestStatsAggregate(
+      JSON.parse(readFileSync(file, "utf8")),
+      running.id,
+    );
+    const bucket = aggregate?.buckets.find(
+      (candidate) =>
+        candidate.provider === provider && candidate.model === model,
+    );
+    running.displayTps =
+      bucket && bucket.generationMs > 0
+        ? bucket.outputTokens / (bucket.generationMs / 1000)
+        : undefined;
+  } catch {
+    running.requestStatsSignature = undefined;
+    running.displayTps = undefined;
+  }
 }
 
 function observeRunningSubagent(
   running: RunningSubagent,
   observedAt = Date.now(),
 ) {
-  refreshDisplaySnapshot(running);
+  refreshDisplaySnapshot(running, observedAt);
   const activityFile = running.activityFile;
   const read: ActivityReadResult = activityFile
     ? readSubagentActivityFile(activityFile, running.id)
@@ -1872,6 +1874,7 @@ export const __test__ = {
   formatWidgetRightLabel,
   formatWidgetStatusMarker,
   observeRunningSubagent,
+  refreshDisplaySnapshot,
   resolveDenyTools,
   resolveAttachTarget,
   resolveCatalogTarget,
@@ -1907,7 +1910,6 @@ export const __test__ = {
   runningSubagents,
   startingSubagents,
   drainPersistentStatuses,
-  parseCsvRow,
   formatElapsed,
 };
 

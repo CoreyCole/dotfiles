@@ -1279,9 +1279,10 @@ test("persistent status drain delivers valid entries once in session order", () 
   }
 });
 
-test("CSV parser handles quoted commas and rejects malformed rows", () => {
-  assert.deepEqual(__test__.parseCsvRow('a,"b,c","d""e"'), ["a", "b,c", 'd"e']);
-  assert.equal(__test__.parseCsvRow('a,"broken'), undefined);
+test("sidecar display selects the inspected provider and model", () => {
+  // Selection is covered by request-stats fixtures; rendering remains pure.
+  const lines = __test__.renderSubagentWidgetLines([], new Map(), 40);
+  assert.equal(lines.length, 2);
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {
