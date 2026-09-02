@@ -36,18 +36,22 @@ test("failed sidecar persistence does not mark terminal intent", () => {
   assert.equal(marked, false);
 });
 
-test("one-turn discussion suppresses one settlement", () => {
-  assert.deepEqual(settleDiscussMode("next-turn"), {
+test("discussion consumes one settlement and restores the configured lifecycle", () => {
+  assert.deepEqual(settleDiscussMode("next-turn", true), {
     mode: "normal",
-    suppress: true,
+    disposition: "suppress",
   });
-  assert.deepEqual(settleDiscussMode("normal"), {
+  assert.deepEqual(settleDiscussMode("normal", true), {
     mode: "normal",
-    suppress: false,
+    disposition: "auto-exit",
   });
-  assert.deepEqual(settleDiscussMode("locked"), {
+  assert.deepEqual(settleDiscussMode("normal", false), {
+    mode: "normal",
+    disposition: "persistent-status",
+  });
+  assert.deepEqual(settleDiscussMode("locked", true), {
     mode: "locked",
-    suppress: true,
+    disposition: "suppress",
   });
 });
 
@@ -235,6 +239,7 @@ test("persistent provider errors append an error status without exiting", async 
   process.env.PI_SUBAGENT_ID = "manager";
 
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const commands = new Map<string, any>();
   const entries: Array<{ type: string; data: unknown }> = [];
   const pi = {
     on(name: string, handler: (...args: unknown[]) => unknown) {
@@ -243,13 +248,16 @@ test("persistent provider errors append an error status without exiting", async 
     appendEntry(type: string, data: unknown) {
       entries.push({ type, data });
     },
+    sendUserMessage() {},
     getAllTools() {
       return [];
     },
     getCommands() {
       return [];
     },
-    registerCommand() {},
+    registerCommand(name: string, command: unknown) {
+      commands.set(name, command);
+    },
     registerShortcut() {},
     registerTool() {},
   } as unknown as ExtensionAPI;
@@ -257,6 +265,7 @@ test("persistent provider errors append an error status without exiting", async 
 
   try {
     subagentDoneExtension(pi);
+    await commands.get("discuss").handler("explain", { ui: { notify() {} } });
     await handlers.get("agent_end")?.({
       messages: [
         {
@@ -310,6 +319,7 @@ test("terminal tools remain terminal for persistent children", async () => {
       ["subagent_done", {}, "done"],
     ] as const) {
       const handlers = new Map<string, (...args: unknown[]) => unknown>();
+      const commands = new Map<string, any>();
       const tools = new Map<string, any>();
       const entries: unknown[] = [];
       const pi = {
@@ -319,13 +329,16 @@ test("terminal tools remain terminal for persistent children", async () => {
         appendEntry(_type: string, data: unknown) {
           entries.push(data);
         },
+        sendUserMessage() {},
         getAllTools() {
           return [];
         },
         getCommands() {
           return [];
         },
-        registerCommand() {},
+        registerCommand(command: string, options: unknown) {
+          commands.set(command, options);
+        },
         registerShortcut() {},
         registerTool(tool: any) {
           tools.set(tool.name, tool);
@@ -333,6 +346,7 @@ test("terminal tools remain terminal for persistent children", async () => {
       } as unknown as ExtensionAPI;
       let shutdowns = 0;
       subagentDoneExtension(pi);
+      await commands.get("discuss").handler("explain", { ui: { notify() {} } });
       await tools.get(name).execute("call", params, undefined, undefined, {
         shutdown() {
           shutdowns += 1;

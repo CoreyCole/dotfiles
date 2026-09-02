@@ -16,12 +16,19 @@ export function shouldMarkUserTookOver(agentStarted: boolean): boolean {
 
 export type DiscussMode = "normal" | "next-turn" | "locked";
 
-export function settleDiscussMode(mode: DiscussMode): {
+export function settleDiscussMode(
+  mode: DiscussMode,
+  autoExit: boolean,
+): {
   mode: DiscussMode;
-  suppress: boolean;
+  disposition: "suppress" | "auto-exit" | "persistent-status";
 } {
-  if (mode === "next-turn") return { mode: "normal", suppress: true };
-  return { mode, suppress: mode === "locked" };
+  if (mode === "next-turn") return { mode: "normal", disposition: "suppress" };
+  if (mode === "locked") return { mode, disposition: "suppress" };
+  return {
+    mode,
+    disposition: autoExit ? "auto-exit" : "persistent-status",
+  };
 }
 
 export function queueDiscussMessage(
@@ -324,10 +331,10 @@ export default function (pi: ExtensionAPI) {
       ctx.shutdown();
       return;
     }
-    const decision = settleDiscussMode(discussMode);
+    const decision = settleDiscussMode(discussMode, autoExit);
     discussMode = decision.mode;
-    if (decision.suppress) return;
-    if (!autoExit) {
+    if (decision.disposition === "suppress") return;
+    if (decision.disposition === "persistent-status") {
       persistStatus("status", findLatestAssistantReport(latestMessages));
       return;
     }
