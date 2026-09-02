@@ -365,6 +365,23 @@ test("watcher cleanup removes active state for every terminal outcome and retain
   }
 });
 
+test("close failures retain active ownership until a later reap succeeds", () => {
+  type Running = Parameters<typeof __test__.removeActiveRun>[1];
+  const active = new Map<string, Running>();
+  const running = { id: "child", surface: "%child" } as Running;
+  active.set("child", running);
+  assert.throws(
+    () =>
+      __test__.removeActiveRun(active, running, () => {
+        throw new Error("close failed");
+      }),
+    /close failed/,
+  );
+  assert.equal(active.get("child"), running);
+  __test__.removeActiveRun(active, running, () => {});
+  assert.equal(active.has("child"), false);
+});
+
 test("stale watcher and old lifecycle cleanup preserve replacement active run", () => {
   type Running = Parameters<typeof __test__.removeActiveRun>[1];
   const active = new Map<string, Running>();

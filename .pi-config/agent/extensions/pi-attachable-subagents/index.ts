@@ -888,10 +888,8 @@ function removeActiveRun(
   running: RunningSubagent,
   close: (surface: string) => void = closeSurface,
 ): void {
+  close(running.surface);
   if (activeRuns.get(running.id) === running) activeRuns.delete(running.id);
-  try {
-    close(running.surface);
-  } catch {}
 }
 
 function stopActiveRun(
