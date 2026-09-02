@@ -1279,6 +1279,11 @@ test("persistent status drain delivers valid entries once in session order", () 
   }
 });
 
+test("CSV parser handles quoted commas and rejects malformed rows", () => {
+  assert.deepEqual(__test__.parseCsvRow('a,"b,c","d""e"'), ["a", "b,c", 'd"e']);
+  assert.equal(__test__.parseCsvRow('a,"broken'), undefined);
+});
+
 test("runtime launch profile is transient and does not write snapshots", () => {
   const command = __test__.buildPiLaunchCommand(
     {

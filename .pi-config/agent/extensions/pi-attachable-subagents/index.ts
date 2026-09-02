@@ -781,9 +781,7 @@ function buildPiLaunchCommand(
 ): string {
   const environment = [
     ...profile.environment,
-    ...(run.originalLaunch && profile.selectedSkills.length > 0
-      ? [`PI_SUBAGENT_SKILLS=${shellEscape(profile.selectedSkills.join(","))}`]
-      : []),
+    `PI_SUBAGENT_SKILLS=${shellEscape(run.originalLaunch ? profile.selectedSkills.join(",") : "")}`,
     `PI_SUBAGENT_SURFACE=${shellEscape(run.surface)}`,
   ];
   const command =
@@ -919,12 +917,19 @@ function shutdownLifecycle(
       startingRuns.delete(childSessionId);
   }
   lifecycle.ownedStartReservations.clear();
-  for (const running of lifecycle.ownedRuns) {
+  const failures: unknown[] = [];
+  for (const running of [...lifecycle.ownedRuns]) {
     running.shutdownCancelled = true;
     running.abortController?.abort();
-    removeActiveRun(activeRuns, running, close);
+    try {
+      removeActiveRun(activeRuns, running, close);
+      lifecycle.ownedRuns.delete(running);
+    } catch (error) {
+      failures.push(error);
+    }
   }
-  lifecycle.ownedRuns.clear();
+  if (failures.length > 0)
+    throw new AggregateError(failures, "Failed to close subagent surfaces");
 }
 
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
@@ -1140,9 +1145,7 @@ function renderSubagentWidgetLines(
     if (!running && !showStopped) continue;
     const agentTag = child.agent ? ` (${child.agent})` : "";
     const startedAt = child.startedAt ?? 0;
-    const left = running
-      ? ` ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${child.name}${agentTag} `
-      : ` ${child.name}${agentTag} `;
+    const left = ` ${child.name}${agentTag} `;
     const status = running
       ? formatWidgetStatusMarker(classifyStatus(running.statusState, now))
       : "🔴";
@@ -1330,6 +1333,33 @@ function activityLabel(activity: SubagentActivityState): string | undefined {
   return activity.activeScope;
 }
 
+function parseCsvRow(row: string): string[] | undefined {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (quoted && char === '"' && row[i + 1] === '"') {
+      cell += char;
+      i++;
+      continue;
+    }
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+      continue;
+    }
+    cell += char;
+  }
+  if (quoted) return undefined;
+  cells.push(cell);
+  return cells;
+}
+
 function refreshDisplaySnapshot(running: RunningSubagent): void {
   try {
     const peek = inspectSession(running.sessionFile);
@@ -1342,13 +1372,13 @@ function refreshDisplaySnapshot(running: RunningSubagent): void {
     )
       .trim()
       .split(/\r?\n/);
-    const header = rows.shift()?.split(",") ?? [];
+    const header = parseCsvRow(rows.shift() ?? "") ?? [];
     const session = header.indexOf("x_client_request_id");
     const tps = header.indexOf("output_tokens_per_second");
     if (session < 0 || tps < 0) return;
     for (const row of rows.reverse()) {
-      const cells = row.split(",");
-      if (cells[session] !== running.id) continue;
+      const cells = parseCsvRow(row);
+      if (!cells || cells[session] !== running.id) continue;
       const value = Number(cells[tps]);
       if (Number.isFinite(value)) {
         running.displayTps = value;
@@ -1877,6 +1907,7 @@ export const __test__ = {
   runningSubagents,
   startingSubagents,
   drainPersistentStatuses,
+  parseCsvRow,
   formatElapsed,
 };
 
@@ -2146,6 +2177,7 @@ async function launchSubagent(
     name: params.name,
     task: params.task,
     agent: params.agent,
+    displayModel: effectiveModel?.split("/").pop()?.split(":")[0],
     surface,
     startTime,
     sessionFile: subagentSessionFile,
@@ -2191,6 +2223,7 @@ async function watchSubagent(
     );
 
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    if (onStatus) drainPersistentStatuses(running, onStatus);
 
     // Pi subagent result extraction
     let summary: string;
@@ -2738,6 +2771,14 @@ export default function subagentsExtension(
               name: child.name,
               task: message,
               ...(child.agent ? { agent: child.agent } : {}),
+              displayModel: resolveModelArgument(
+                undefined,
+                agentDefs?.model,
+                agentDefs?.thinking,
+              )
+                ?.split("/")
+                .pop()
+                ?.split(":")[0],
               surface,
               startTime,
               sessionFile,
