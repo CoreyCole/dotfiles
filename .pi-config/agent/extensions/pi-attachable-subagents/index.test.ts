@@ -888,6 +888,38 @@ test("widget, list, and picker sort durable children newest-first", async () => 
   );
 });
 
+test("widget orders active display status, time, runtime, model, and TPS", () => {
+  const now = new Date(2026, 7, 25, 10, 18).getTime();
+  const child = {
+    managerSessionId: "m",
+    childSessionId: "child",
+    name: "Manager",
+    cwd: "/",
+    startedAt: now,
+  };
+  const active = new Map([
+    [
+      "child",
+      {
+        id: "child",
+        name: "Manager",
+        startTime: now - 42_000,
+        displayModel: "actual-model",
+        displayTps: 25.5,
+        statusState: createStatusState({ source: "pi", startTimeMs: now }),
+      },
+    ],
+  ] as any) as any;
+  const line = __test__.renderSubagentWidgetLines(
+    [child],
+    active,
+    140,
+    now,
+    true,
+  )[1];
+  assert.match(line, /🟡 10:18  00:42  actual-model  25.5 tok\/s/);
+});
+
 test("widget uses local calendar dates and no status-time separator", () => {
   const now = new Date(2026, 11, 31, 10, 18).getTime();
   assert.equal(

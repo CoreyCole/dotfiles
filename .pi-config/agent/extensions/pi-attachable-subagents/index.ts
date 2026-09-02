@@ -812,6 +812,8 @@ interface RunningSubagent {
   shutdownCancelled?: boolean;
   statusState: SubagentStatusState;
   statusEntryCursor: number;
+  displayModel?: string;
+  displayTps?: number;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const startingSubagents = new Map<string, symbol>();
@@ -1144,13 +1146,10 @@ function renderSubagentWidgetLines(
     const status = running
       ? formatWidgetStatusMarker(classifyStatus(running.statusState, now))
       : "🔴";
-    lines.push(
-      borderLine(
-        left,
-        ` ${status} ${formatLocalCatalogStartTime(startedAt, now)} `,
-        width,
-      ),
-    );
+    const right = running
+      ? ` ${status} ${formatLocalCatalogStartTime(startedAt, now)}  ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${running.displayModel ?? "—"}  ${running.displayTps == null ? "—" : `${running.displayTps.toFixed(1)} tok/s`} `
+      : ` ${status} ${formatLocalCatalogStartTime(startedAt, now)} `;
+    lines.push(borderLine(left, right, width));
   }
 
   lines.push(borderBottom(width));
@@ -1331,10 +1330,39 @@ function activityLabel(activity: SubagentActivityState): string | undefined {
   return activity.activeScope;
 }
 
+function refreshDisplaySnapshot(running: RunningSubagent): void {
+  try {
+    const peek = inspectSession(running.sessionFile);
+    if (peek.model) running.displayModel = peek.model;
+  } catch {}
+  try {
+    const rows = readFileSync(
+      join(homedir(), ".local", "state", "pi", "request-stats.csv"),
+      "utf8",
+    )
+      .trim()
+      .split(/\r?\n/);
+    const header = rows.shift()?.split(",") ?? [];
+    const session = header.indexOf("x_client_request_id");
+    const tps = header.indexOf("output_tokens_per_second");
+    if (session < 0 || tps < 0) return;
+    for (const row of rows.reverse()) {
+      const cells = row.split(",");
+      if (cells[session] !== running.id) continue;
+      const value = Number(cells[tps]);
+      if (Number.isFinite(value)) {
+        running.displayTps = value;
+        return;
+      }
+    }
+  } catch {}
+}
+
 function observeRunningSubagent(
   running: RunningSubagent,
   observedAt = Date.now(),
 ) {
+  refreshDisplaySnapshot(running);
   const activityFile = running.activityFile;
   const read: ActivityReadResult = activityFile
     ? readSubagentActivityFile(activityFile, running.id)
