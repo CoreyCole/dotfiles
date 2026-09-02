@@ -1,10 +1,21 @@
-import { AssistantMessageComponent, getMarkdownTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Container, Markdown, Spacer, Text, truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import {
+  AssistantMessageComponent,
+  getMarkdownTheme,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
+import {
+  Container,
+  Markdown,
+  Spacer,
+  Text,
+  truncateToWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
 
 const OSC133_ZONE_START = "\x1b]133;A\x07";
 const OSC133_ZONE_END = "\x1b]133;B\x07";
 const OSC133_ZONE_FINAL = "\x1b]133;C\x07";
-const PATCHED = Symbol.for("corey.thinkingQuotePatched");
+const PATCHED = Symbol.for("corey.assistantRendererPatched");
 
 class ThinkingQuoteBlock {
   constructor(private text: string) {}
@@ -29,7 +40,7 @@ class ThinkingQuoteBlock {
   }
 }
 
-function patchAssistantThinking() {
+function patchAssistantRenderer() {
   const proto = AssistantMessageComponent.prototype as any;
   if (proto[PATCHED]) return;
   proto[PATCHED] = true;
@@ -60,7 +71,7 @@ function patchAssistantThinking() {
       const content = message.content[i];
       if (content.type === "text" && content.text.trim()) {
         this.contentContainer.addChild(
-          new Markdown(content.text.trim(), 1, 0, markdownTheme),
+          new Markdown(content.text.trim(), 0, 0, markdownTheme),
         );
       } else if (content.type === "thinking" && content.thinking.trim()) {
         const hasVisibleContentAfter = message.content
@@ -72,18 +83,23 @@ function patchAssistantThinking() {
           );
 
         if (this.hideThinkingBlock) {
-          this.contentContainer.addChild(new Text(this.hiddenThinkingLabel, 1, 0));
+          this.contentContainer.addChild(
+            new Text(this.hiddenThinkingLabel, 0, 0),
+          );
         } else {
           this.contentContainer.addChild(
             new ThinkingQuoteBlock(content.thinking.trim()),
           );
         }
 
-        if (hasVisibleContentAfter) this.contentContainer.addChild(new Spacer(1));
+        if (hasVisibleContentAfter)
+          this.contentContainer.addChild(new Spacer(1));
       }
     }
 
-    const hasToolCalls = message.content.some((c: any) => c.type === "toolCall");
+    const hasToolCalls = message.content.some(
+      (c: any) => c.type === "toolCall",
+    );
     this.hasToolCalls = hasToolCalls;
     if (hasToolCalls) return;
 
@@ -93,15 +109,15 @@ function patchAssistantThinking() {
           ? message.errorMessage
           : "Operation aborted";
       this.contentContainer.addChild(new Spacer(1));
-      this.contentContainer.addChild(new Text(abortMessage, 1, 0));
+      this.contentContainer.addChild(new Text(abortMessage, 0, 0));
     } else if (message.stopReason === "error") {
       const errorMsg = message.errorMessage || "Unknown error";
       this.contentContainer.addChild(new Spacer(1));
-      this.contentContainer.addChild(new Text(`Error: ${errorMsg}`, 1, 0));
+      this.contentContainer.addChild(new Text(`Error: ${errorMsg}`, 0, 0));
     }
   };
 }
 
 export default function (_pi: ExtensionAPI) {
-  patchAssistantThinking();
+  patchAssistantRenderer();
 }
