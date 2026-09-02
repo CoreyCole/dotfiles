@@ -3,7 +3,13 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { readFileSync, statSync } from "node:fs";
 import { FAST_STATUS_KEY } from "./pi-fast/src/capabilities.ts";
+import {
+  requestStatsSidecarPath,
+  validateRequestStatsAggregate,
+  type RequestStatsAggregate,
+} from "./request-stats.ts";
 
 const ANSI_SGR_PATTERN = /\x1b\[[0-?]*[ -/]*m/g;
 
@@ -86,6 +92,18 @@ function formatContextBar(percent: number): string {
   return `${"■".repeat(filledBlocks)}${"□".repeat(5 - filledBlocks)}`;
 }
 
+function formatAverageOutputTps(
+  aggregate: RequestStatsAggregate | undefined,
+  provider: string | undefined,
+  model: string | undefined,
+): string {
+  const bucket = aggregate?.buckets.find(
+    (candidate) => candidate.provider === provider && candidate.model === model,
+  );
+  if (!bucket || !(bucket.generationMs > 0)) return "—";
+  return `${(bucket.outputTokens / (bucket.generationMs / 1000)).toFixed(1)} tok/s`;
+}
+
 function renderPaddedLine(left: string, right: string, width: number): string {
   const leftWidth = visibleWidth(left);
   const rightWidth = visibleWidth(right);
@@ -126,12 +144,45 @@ function totalUsage(ctx: ExtensionContext) {
   return { input, output, cost };
 }
 
-function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
+function installFooter(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  stateDir?: string,
+): void {
   if (!ctx.hasUI) return;
 
   const sessionStartTime = parseSessionStartTime(
     ctx.sessionManager.getHeader()?.timestamp,
   );
+  const sessionId = ctx.sessionManager.getSessionId();
+  let requestStatsAggregate: RequestStatsAggregate | undefined;
+  let requestStatsSignature: string | undefined;
+  let requestStatsCheckedAt: number | undefined;
+
+  function refreshRequestStatsSnapshot(now = Date.now()): void {
+    if (
+      requestStatsCheckedAt !== undefined &&
+      now - requestStatsCheckedAt < 1000
+    )
+      return;
+    requestStatsCheckedAt = now;
+    try {
+      const file = requestStatsSidecarPath(sessionId, stateDir);
+      const metadata = statSync(file);
+      const signature = `${metadata.mtimeMs}:${metadata.size}`;
+      if (signature === requestStatsSignature) return;
+      requestStatsSignature = signature;
+      requestStatsAggregate = validateRequestStatsAggregate(
+        JSON.parse(readFileSync(file, "utf8")),
+        sessionId,
+      );
+    } catch {
+      requestStatsSignature = undefined;
+      requestStatsAggregate = undefined;
+    }
+  }
+
+  refreshRequestStatsSnapshot();
 
   ctx.ui.setFooter((tui, theme, footerData) => {
     const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
@@ -139,11 +190,26 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
       sessionStartTime === undefined
         ? undefined
         : setInterval(() => tui.requestRender(), 60_000);
+    const statsRefreshInterval = setInterval(() => {
+      const previous = formatAverageOutputTps(
+        requestStatsAggregate,
+        ctx.model?.provider,
+        ctx.model?.id,
+      );
+      refreshRequestStatsSnapshot();
+      const next = formatAverageOutputTps(
+        requestStatsAggregate,
+        ctx.model?.provider,
+        ctx.model?.id,
+      );
+      if (next !== previous) tui.requestRender();
+    }, 1000);
 
     return {
       dispose() {
         unsubscribe();
         if (refreshInterval !== undefined) clearInterval(refreshInterval);
+        clearInterval(statsRefreshInterval);
       },
       invalidate() {},
       render(width: number): string[] {
@@ -193,6 +259,11 @@ function installFooter(pi: ExtensionAPI, ctx: ExtensionContext): void {
           ctx.model?.id ?? "no-model",
           pi.getThinkingLevel(),
           extensionStatuses.get(FAST_STATUS_KEY),
+          formatAverageOutputTps(
+            requestStatsAggregate,
+            ctx.model?.provider,
+            ctx.model?.id,
+          ),
         ]
           .filter((part): part is string => Boolean(part))
           .join(" • ");

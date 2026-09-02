@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import type {
   ExtensionAPI,
@@ -6,6 +9,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { __test__ } from "../custom-footer.ts";
+import { FAST_STATUS_KEY } from "../pi-fast/src/capabilities.ts";
 
 test("session helpers format local start and wall-clock duration", () => {
   const previousTz = process.env.TZ;
@@ -80,16 +84,52 @@ type FooterFactory = (
   },
 ) => FooterComponent;
 
-function createFooter(statuses: Map<string, string>) {
+type FooterOptions = {
+  sessionId?: string;
+  provider?: string;
+  model?: string;
+  stateDir?: string;
+};
+
+function writeAggregate(
+  stateDir: string,
+  sessionId: string,
+  buckets: {
+    provider: string;
+    model: string;
+    outputTokens: number;
+    generationMs: number;
+  }[],
+) {
+  mkdirSync(join(stateDir, "sessions"), { recursive: true });
+  writeFileSync(
+    join(stateDir, "sessions", `${sessionId}.json`),
+    `${JSON.stringify({ version: 1, sessionId, buckets })}\n`,
+  );
+}
+
+function createFooter(
+  statuses: Map<string, string>,
+  options: FooterOptions = {},
+) {
   let factory: FooterFactory | undefined;
   const start = Date.now() - 90 * 60_000;
+  const sessionId = options.sessionId ?? "footer-test-session";
+  const stateDir = options.stateDir;
   const ctx = {
     hasUI: true,
-    model: { id: "test-model", contextWindow: 100_000 },
+    model: {
+      id: options.model ?? "test-model",
+      provider: options.provider ?? "openai",
+      contextWindow: 100_000,
+    },
     getContextUsage() {
       return { tokens: 1_000, contextWindow: 100_000, percent: 1 };
     },
     sessionManager: {
+      getSessionId() {
+        return sessionId;
+      },
       getHeader() {
         return { timestamp: new Date(start).toISOString() };
       },
@@ -109,7 +149,7 @@ function createFooter(statuses: Map<string, string>) {
     },
   } as unknown as ExtensionAPI;
 
-  __test__.installFooter(pi, ctx);
+  __test__.installFooter(pi, ctx, stateDir);
   assert.ok(factory);
 
   let branchDisposed = false;
@@ -152,7 +192,7 @@ test("footer places the session line directly above stats and filters MCP status
     assert.doesNotMatch(__test__.stripAnsiSgr(lines[0]), /MCP: 0\/2/);
     assert.match(lines[1].trim(), /^\d{2}:\d{2} \(01h 30m\)$/);
     assert.equal(visibleWidth(lines[1]), 100);
-    assert.match(lines[2], /test-model • high/);
+    assert.match(lines[2], /test-model • high • —/);
 
     for (const width of [100, 20, 1]) {
       for (const line of footer.component.render(width)) {
@@ -167,28 +207,203 @@ test("footer places the session line directly above stats and filters MCP status
 test("footer clears its minute interval and branch subscription on dispose", () => {
   const originalSetInterval = globalThis.setInterval;
   const originalClearInterval = globalThis.clearInterval;
-  let intervalCallback: (() => void) | undefined;
-  let cleared = false;
+  let nextTimer = 1;
+  const timers = new Map<number, { callback: () => void; delay: number }>();
   globalThis.setInterval = ((callback: () => void, delay: number) => {
-    assert.equal(delay, 60_000);
-    intervalCallback = callback;
-    return 123 as unknown as ReturnType<typeof setInterval>;
+    const id = nextTimer++;
+    timers.set(id, { callback, delay });
+    return id as unknown as ReturnType<typeof setInterval>;
   }) as typeof setInterval;
   globalThis.clearInterval = ((timer: ReturnType<typeof setInterval>) => {
-    assert.equal(timer, 123);
-    cleared = true;
+    timers.delete(timer as unknown as number);
   }) as typeof clearInterval;
 
   try {
     const footer = createFooter(new Map());
-    assert.ok(intervalCallback);
-    intervalCallback();
+    const delays = [...timers.values()]
+      .map((timer) => timer.delay)
+      .sort((left, right) => left - right);
+    assert.deepEqual(delays, [1000, 60_000]);
+    const sessionCallback = [...timers.values()].find(
+      (timer) => timer.delay === 60_000,
+    )?.callback;
+    assert.ok(sessionCallback);
+    sessionCallback();
     assert.equal(footer.renders, 1);
     footer.component.dispose();
-    assert.equal(cleared, true);
+    assert.equal(timers.size, 0);
     assert.equal(footer.branchDisposed, true);
   } finally {
     globalThis.setInterval = originalSetInterval;
     globalThis.clearInterval = originalClearInterval;
+  }
+});
+
+test("missing, invalid, and other-model aggregates show an em dash", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  try {
+    const missing = createFooter(new Map(), {
+      sessionId: "missing",
+      stateDir: root,
+    });
+    try {
+      assert.match(
+        missing.component.render(100).at(-1) ?? "",
+        /test-model • high • —/,
+      );
+    } finally {
+      missing.component.dispose();
+    }
+
+    mkdirSync(join(root, "sessions"), { recursive: true });
+    writeFileSync(
+      join(root, "sessions", "invalid.json"),
+      JSON.stringify({ version: 2, sessionId: "invalid", buckets: [] }),
+    );
+    const invalid = createFooter(new Map(), {
+      sessionId: "invalid",
+      stateDir: root,
+    });
+    try {
+      assert.match(
+        invalid.component.render(100).at(-1) ?? "",
+        /test-model • high • —/,
+      );
+    } finally {
+      invalid.component.dispose();
+    }
+
+    writeAggregate(root, "other", [
+      {
+        provider: "openai",
+        model: "other-model",
+        outputTokens: 255,
+        generationMs: 10_000,
+      },
+    ]);
+    const other = createFooter(new Map(), {
+      sessionId: "other",
+      stateDir: root,
+    });
+    try {
+      assert.match(
+        other.component.render(100).at(-1) ?? "",
+        /test-model • high • —/,
+      );
+    } finally {
+      other.component.dispose();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("current provider/model bucket 255 tokens / 10000 ms shows 25.5 tok/s", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  try {
+    writeAggregate(root, "current", [
+      {
+        provider: "openai",
+        model: "test-model",
+        outputTokens: 255,
+        generationMs: 10_000,
+      },
+    ]);
+    const footer = createFooter(new Map(), {
+      sessionId: "current",
+      stateDir: root,
+    });
+    try {
+      const stats = footer.component.render(100).at(-1) ?? "";
+      assert.match(stats, /test-model • high • 25\.5 tok\/s/);
+    } finally {
+      footer.component.dispose();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("TPS is last after model, thinking, and optional fast", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  try {
+    writeAggregate(root, "fast", [
+      {
+        provider: "openai",
+        model: "test-model",
+        outputTokens: 255,
+        generationMs: 10_000,
+      },
+    ]);
+    const footer = createFooter(new Map([[FAST_STATUS_KEY, "fast"]]), {
+      sessionId: "fast",
+      stateDir: root,
+    });
+    try {
+      assert.match(
+        footer.component.render(100).at(-1) ?? "",
+        /test-model • high • fast • 25\.5 tok\/s/,
+      );
+    } finally {
+      footer.component.dispose();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("cached render performs no filesystem I/O", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  try {
+    writeAggregate(root, "cached", [
+      {
+        provider: "openai",
+        model: "test-model",
+        outputTokens: 255,
+        generationMs: 10_000,
+      },
+    ]);
+    const footer = createFooter(new Map(), {
+      sessionId: "cached",
+      stateDir: root,
+    });
+    try {
+      assert.match(footer.component.render(100).at(-1) ?? "", /25\.5 tok\/s/);
+      writeFileSync(join(root, "sessions", "cached.json"), "{");
+      assert.match(footer.component.render(100).at(-1) ?? "", /25\.5 tok\/s/);
+    } finally {
+      footer.component.dispose();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("narrow widths keep the stats line within the terminal width", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  try {
+    writeAggregate(root, "width", [
+      {
+        provider: "openai",
+        model: "test-model",
+        outputTokens: 255,
+        generationMs: 10_000,
+      },
+    ]);
+    const footer = createFooter(new Map([[FAST_STATUS_KEY, "fast"]]), {
+      sessionId: "width",
+      stateDir: root,
+    });
+    try {
+      for (const width of [100, 20, 1]) {
+        for (const line of footer.component.render(width)) {
+          assert.ok(visibleWidth(line) <= Math.max(1, width));
+        }
+      }
+    } finally {
+      footer.component.dispose();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
