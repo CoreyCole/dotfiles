@@ -3,7 +3,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { FAST_STATUS_KEY } from "./pi-openai-fast/src/capabilities.ts";
+import { FAST_STATUS_KEY } from "./pi-fast/src/capabilities.ts";
 
 const ANSI_SGR_PATTERN = /\x1b\[[0-?]*[ -/]*m/g;
 

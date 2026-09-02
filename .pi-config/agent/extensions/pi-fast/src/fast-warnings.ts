@@ -49,7 +49,7 @@ export function createFastWarningCollector(): FastWarningCollector {
 }
 
 export function formatFastWarning(warning: Pick<FastWarning, "message">): string {
-  return `[pi-openai-fast] ${warning.message}`;
+  return `[pi-fast] ${warning.message}`;
 }
 
 export function warnToConsole(warning: Pick<FastWarning, "message">): void {

@@ -10,6 +10,10 @@ export const DEFAULT_SUPPORTED_MODELS = [
   "openai/gpt-5.5",
   "openai-codex/gpt-5.4",
   "openai-codex/gpt-5.5",
+  "xai/grok-4.3",
+  "xai/grok-4.5",
+  "xai/grok-4.6",
+  "xai/grok-build-0.1",
 ] as const;
 
 export type FooterMode = "replace" | "status" | "off";
@@ -494,7 +498,7 @@ async function readConfigRecord(path: string, warn: FastConfigWarningSink): Prom
     emitWarning(warn, {
       code: "config-read-failed",
       path,
-      message: `Could not read pi-openai-fast config at ${path}; using defaults for that config layer.`,
+      message: `Could not read pi-fast config at ${path}; using defaults for that config layer.`,
       cause: error,
     });
     return { kind: "failed" };
@@ -533,7 +537,7 @@ async function writeConfigRecord(
     emitWarning(warn, {
       code,
       path,
-      message: `Could not write pi-openai-fast config at ${path}; the config update was not saved.`,
+      message: `Could not write pi-fast config at ${path}; the config update was not saved.`,
       cause: error,
     });
     return false;
@@ -563,8 +567,8 @@ export class FastConfigStore implements FastConfigRepository {
 
   paths(cwd: string): FastConfigPaths {
     return {
-      project: join(cwd, ".pi", "extensions", "pi-openai-fast.json"),
-      global: join(this.home, ".pi", "agent", "extensions", "pi-openai-fast.json"),
+      project: join(cwd, ".pi", "extensions", "pi-fast.json"),
+      global: join(this.home, ".pi", "agent", "extensions", "pi-fast.json"),
     };
   }
 

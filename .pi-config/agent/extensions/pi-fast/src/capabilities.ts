@@ -7,4 +7,4 @@ export type FastExtensionCapability = (typeof FAST_EXTENSION_CAPABILITIES)[numbe
 
 export const FAST_COMMAND = "fast";
 export const FAST_FLAG = "fast";
-export const FAST_STATUS_KEY = "pi-openai-fast";
+export const FAST_STATUS_KEY = "pi-fast";

@@ -24,7 +24,7 @@ import { resolveStartupDesiredActive } from "./startup-fast-resolution.ts";
 
 type ModelSelectEvent = Extract<ExtensionEvent, { type: "model_select" }>;
 
-export interface PiOpenAIFastRuntimeOptions {
+export interface PiFastRuntimeOptions {
   configStore?: FastConfigRepository;
   stateEngine?: FastStateEngine;
   serviceTierInjector?: ServiceTierInjector;
@@ -47,7 +47,7 @@ function cloneDefaultConfig(): FastConfig {
  * leaving command parsing, state derivation, config persistence, and payload
  * mutation in their own modules.
  */
-export function registerPiOpenAIFast(pi: ExtensionAPI, options: PiOpenAIFastRuntimeOptions = {}): void {
+export function registerPiFast(pi: ExtensionAPI, options: PiFastRuntimeOptions = {}): void {
   const configStore = options.configStore ?? new FastConfigStore();
   const stateEngine =
     options.stateEngine ??
@@ -215,8 +215,8 @@ export function registerPiOpenAIFast(pi: ExtensionAPI, options: PiOpenAIFastRunt
     }
   });
 
-  pi.on("before_provider_request", (event: BeforeProviderRequestEvent) => {
-    const nextPayload = serviceTierInjector.inject(event.payload, stateEngine.snapshot());
+  pi.on("before_provider_request", (event: BeforeProviderRequestEvent, ctx: ExtensionContext) => {
+    const nextPayload = serviceTierInjector.inject(event.payload, stateEngine.snapshot(), ctx.model);
     return nextPayload === event.payload ? undefined : nextPayload;
   });
 }

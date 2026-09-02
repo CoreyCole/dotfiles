@@ -432,6 +432,21 @@ test("explicit stop removes only active runtime state and suppresses watcher del
   assert.deepEqual(closed, ["%stop"]);
 });
 
+test("child launch environment propagates the Fast Mode preference", () => {
+  assert.deepEqual(
+    __test__.buildChildHandoffEnvironment({ PI_FAST_DESIRED: "1" }),
+    ["PI_FAST_DESIRED='1'"],
+  );
+  assert.deepEqual(
+    __test__.buildChildHandoffEnvironment({ PI_FAST_DESIRED: "0" }),
+    ["PI_FAST_DESIRED='0'"],
+  );
+  assert.deepEqual(
+    __test__.buildChildHandoffEnvironment({ PI_FAST_DESIRED: "invalid" }),
+    [],
+  );
+});
+
 test("initial launch profile carries role model, prompts, controls, files, skills, and deny policy", () => {
   const prompt = __test__.buildPiPromptArgs({
     files: ["/first.md"],

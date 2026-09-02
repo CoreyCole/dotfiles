@@ -71,6 +71,16 @@ import {
 
 /** Absolute path to `pi-extension/subagents`. https://github.com/nodejs/node/issues/37845 */
 const SUBAGENTS_DIR = dirname(fileURLToPath(import.meta.url));
+const FAST_DESIRED_HANDOFF_ENV = "PI_FAST_DESIRED";
+
+function buildChildHandoffEnvironment(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string[] {
+  const fastDesired = env[FAST_DESIRED_HANDOFF_ENV];
+  return fastDesired === "1" || fastDesired === "0"
+    ? [`${FAST_DESIRED_HANDOFF_ENV}=${shellEscape(fastDesired)}`]
+    : [];
+}
 
 // Survive /reload: clear timers and abort poll loops from the previous module load.
 // /reload re-imports this file, giving fresh module-level state, but closures from
@@ -1477,6 +1487,7 @@ function buildIdleLaunchProfile(params: {
   if (toolAllowlist) parts.push("--tools", shellEscape(toolAllowlist));
   const environment = [
     `PI_CODING_AGENT_DIR=${shellEscape(agentDir)}`,
+    ...buildChildHandoffEnvironment(),
     `PI_SUBAGENT_NAME=${shellEscape(child.name)}`,
     `PI_SUBAGENT_SESSION=${shellEscape(sessionFile)}`,
     `PI_SUBAGENT_ID=${shellEscape(child.childSessionId)}`,
@@ -1740,6 +1751,7 @@ export const __test__ = {
   buildSubagentToolAllowlist,
   buildPiPromptArgs,
   buildPiLaunchCommand,
+  buildChildHandoffEnvironment,
   resolveModelArgument,
   buildSystemPromptArguments,
   buildInitialTask,
@@ -1926,6 +1938,7 @@ async function launchSubagent(
   const envParts: string[] = [];
 
   envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(effectiveAgentDir)}`);
+  envParts.push(...buildChildHandoffEnvironment());
 
   if (denySet.size > 0) {
     envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
