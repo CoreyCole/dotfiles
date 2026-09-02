@@ -55,13 +55,10 @@ test("discussion consumes one settlement and restores the configured lifecycle",
   });
 });
 
-test("subagent_wait keeps the child alive across settlement", async () => {
-  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+test("default children register one-settlement subagent_wait", () => {
   const tools = new Map<string, any>();
   const pi = {
-    on(name: string, handler: (...args: unknown[]) => unknown) {
-      handlers.set(name, handler);
-    },
+    on() {},
     getAllTools() {
       return [];
     },
@@ -70,27 +67,19 @@ test("subagent_wait keeps the child alive across settlement", async () => {
     },
     registerCommand() {},
     registerShortcut() {},
-    registerTool(tool: any) {
+    registerTool(tool: { name: string }) {
       tools.set(tool.name, tool);
     },
   } as unknown as ExtensionAPI;
   subagentDoneExtension(pi);
-
-  const result = await tools
+  assert.equal(tools.has("subagent_wait"), true);
+  assert.equal(tools.has("subagent_done"), true);
+  return tools
     .get("subagent_wait")
-    .execute("call", {}, undefined, undefined, {});
-  let shutdowns = 0;
-  await handlers.get("agent_settled")?.(
-    { type: "agent_settled" },
-    {
-      shutdown() {
-        shutdowns += 1;
-      },
-    },
-  );
-
-  assert.equal(shutdowns, 0);
-  assert.match(result.content[0].text, /Wait mode enabled/);
+    .execute("call", {}, undefined, undefined, {})
+    .then((result: any) => {
+      assert.match(result.content[0].text, /one delegated child settlement/);
+    });
 });
 
 test("persistent managers do not register subagent_wait", () => {

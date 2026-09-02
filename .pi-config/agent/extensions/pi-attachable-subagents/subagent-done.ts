@@ -449,17 +449,16 @@ export default function (pi: ExtensionAPI) {
       name: "subagent_wait",
       label: "Subagent Wait",
       description:
-        "Keep this child manager alive while its delegated children run. " +
-        "Call after launching a child when the parent needs no action. " +
-        "A delegated child result will start the next turn automatically.",
+        "Suppress exactly the current ordinary settlement while a delegated child runs. " +
+        "Its result resumes this parent; the next ordinary settlement follows configured auto-exit.",
       parameters: Type.Object({}),
       async execute() {
-        discussMode = "locked";
+        discussMode = "next-turn";
         return {
           content: [
             {
               type: "text",
-              text: "Wait mode enabled. Finish this turn; delegated child results can resume this session.",
+              text: "Waiting for one delegated child settlement.",
             },
           ],
           details: {},
