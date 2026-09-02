@@ -93,6 +93,34 @@ test("subagent_wait keeps the child alive across settlement", async () => {
   assert.match(result.content[0].text, /Wait mode enabled/);
 });
 
+test("persistent managers do not register subagent_wait", () => {
+  const previous = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+  const tools = new Map<string, unknown>();
+  const pi = {
+    on() {},
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool(tool: { name: string }) {
+      tools.set(tool.name, tool);
+    },
+  } as unknown as ExtensionAPI;
+  try {
+    subagentDoneExtension(pi);
+    assert.equal(tools.has("subagent_wait"), false);
+    assert.equal(tools.has("subagent_done"), true);
+  } finally {
+    if (previous == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previous;
+  }
+});
+
 test("default settlement writes one terminal sidecar and exits", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "pi-subagent-settlement-"));
   const sessionFile = join(tempDir, "child.jsonl");
