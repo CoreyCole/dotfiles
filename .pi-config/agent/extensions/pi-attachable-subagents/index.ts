@@ -44,7 +44,12 @@ import {
   detachTmuxPane,
 } from "./cmux.ts";
 
-import { PERSISTENT_STATUS_CUSTOM_TYPE } from "./subagent-done.ts";
+import {
+  PERSISTENT_STATUS_CUSTOM_TYPE,
+  createDelegatorLivenessCoordinator,
+  delegatorLiveness,
+  type DelegatorLivenessCoordinator,
+} from "./subagent-done.ts";
 import {
   findLastAssistantMessage,
   inspectSession,
@@ -823,6 +828,7 @@ interface RunningSubagent {
   requestStatsCheckedAt?: number;
   requestStatsSelection?: string;
   requestStatsAggregate?: RequestStatsAggregate;
+  deliveryId?: string;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const startingSubagents = new Map<string, symbol>();
@@ -832,6 +838,7 @@ export interface ExtensionLifecycle {
   watcherOwner: ReturnType<typeof createWatcherOwner>;
   ownedRuns: Set<RunningSubagent>;
   ownedStartReservations: Map<string, symbol>;
+  ownedDeliveryIds: Set<string>;
 }
 
 function createExtensionLifecycle(): ExtensionLifecycle {
@@ -839,7 +846,20 @@ function createExtensionLifecycle(): ExtensionLifecycle {
     watcherOwner: createWatcherOwner(),
     ownedRuns: new Set(),
     ownedStartReservations: new Map(),
+    ownedDeliveryIds: new Set(),
   };
+}
+
+function registerLaunchedDelivery(
+  running: RunningSubagent,
+  lifecycle: ExtensionLifecycle,
+  coordinator: DelegatorLivenessCoordinator = delegatorLiveness,
+): string {
+  const deliveryId = running.deliveryId ?? randomUUID();
+  running.deliveryId = deliveryId;
+  coordinator.registerRunning(deliveryId);
+  lifecycle.ownedDeliveryIds.add(deliveryId);
+  return deliveryId;
 }
 
 type LaunchStage = "seed" | "registration" | "surface" | "dispatch";
@@ -907,7 +927,9 @@ function stopActiveRun(
   activeRuns: Map<string, RunningSubagent>,
   running: RunningSubagent,
   close: (surface: string) => void = closeSurface,
+  coordinator: DelegatorLivenessCoordinator = delegatorLiveness,
 ): void {
+  if (running.deliveryId) coordinator.cancel(running.deliveryId);
   running.explicitlyStopped = true;
   running.abortController?.abort();
   removeActiveRun(activeRuns, running, close);
@@ -918,7 +940,11 @@ function shutdownLifecycle(
   activeRuns: Map<string, RunningSubagent>,
   close: (surface: string) => void = closeSurface,
   startingRuns: Map<string, symbol> = startingSubagents,
+  coordinator: DelegatorLivenessCoordinator = delegatorLiveness,
 ): void {
+  for (const deliveryId of lifecycle.ownedDeliveryIds)
+    coordinator.cancel(deliveryId);
+  lifecycle.ownedDeliveryIds.clear();
   lifecycle.watcherOwner.abort();
   for (const [
     childSessionId,
@@ -984,12 +1010,20 @@ function appendPersistenceWarning(
 ): string {
   return content;
 }
-function completeWakeTransition(actions: {
-  update: () => void;
-  wake: (warning?: string) => void;
-}): void {
+function completeWakeTransition(
+  actions: {
+    deliveryId?: string;
+    update: () => void;
+    wake: (warning?: string) => void;
+  },
+  coordinator: DelegatorLivenessCoordinator = delegatorLiveness,
+): boolean {
+  if (actions.deliveryId && !coordinator.beginWake(actions.deliveryId))
+    return false;
   actions.update();
   actions.wake();
+  if (actions.deliveryId) coordinator.markDelivered(actions.deliveryId);
+  return true;
 }
 
 // ── Widget management ──
@@ -1220,11 +1254,7 @@ function updateWidget() {
  * first positional message so that /skill: args land in messages[1..] and arrive
  * as standalone prompts in the child session.
  */
-const SUBAGENT_CONTROL_TOOLS = [
-  "caller_ping",
-  "subagent_wait",
-  "subagent_done",
-] as const;
+const SUBAGENT_CONTROL_TOOLS = ["caller_ping", "subagent_done"] as const;
 
 /**
  * Build the child --tools allowlist.
@@ -1905,12 +1935,15 @@ export const __test__ = {
   cleanupFailedWatcherRun,
   createWatcherOwner,
   createExtensionLifecycle,
+  registerLaunchedDelivery,
   runLaunchLifecycle,
   formatLaunchFailure,
   removeActiveRun,
   stopActiveRun,
   shutdownLifecycle,
   completeWakeTransition,
+  createDelegatorLivenessCoordinator,
+  delegatorLiveness,
   CHILD_SESSION_CUSTOM_TYPE,
   validateChildSession,
   replayChildCatalog,
@@ -2257,6 +2290,8 @@ async function watchSubagent(
           : "Sub-agent exited without output";
     }
 
+    if (running.deliveryId)
+      delegatorLiveness.markPendingDelivery(running.deliveryId);
     removeActiveRun(runningSubagents, running);
     // A completed turn ends only this process. The durable catalog entry remains.
 
@@ -2272,6 +2307,8 @@ async function watchSubagent(
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
   } catch (err: any) {
+    if (running.deliveryId)
+      delegatorLiveness.markPendingDelivery(running.deliveryId);
     removeActiveRun(runningSubagents, running);
 
     if (signal.aborted || ownerSignal.aborted) {
@@ -2460,6 +2497,7 @@ export default function subagentsExtension(
             childrenBySessionId.set(child.childSessionId, child);
           },
         });
+        registerLaunchedDelivery(running, lifecycle);
 
         // Create a separate AbortController for the watcher
         // (the tool's signal completes when we return)
@@ -2485,6 +2523,7 @@ export default function subagentsExtension(
               return;
             }
             completeWakeTransition({
+              deliveryId: running.deliveryId,
               update: updateWidget,
               wake(warning) {
                 if (result.ping) {
@@ -2502,6 +2541,7 @@ export default function subagentsExtension(
                         message: result.ping.message,
                         agent: running.agent,
                         sessionFile: result.sessionFile,
+                        deliveryId: running.deliveryId,
                       },
                     },
                     { triggerTurn: true, deliverAs: "steer" },
@@ -2525,6 +2565,7 @@ export default function subagentsExtension(
                       exitCode: result.exitCode,
                       elapsed: result.elapsed,
                       sessionFile: result.sessionFile,
+                      deliveryId: running.deliveryId,
                       ...(result.errorMessage
                         ? { errorMessage: result.errorMessage }
                         : {}),
@@ -2536,21 +2577,30 @@ export default function subagentsExtension(
             });
           })
           .catch((err) => {
-            updateWidget();
-            if (!shouldDeliverWatcherNotification(running)) return;
-            pi.sendMessage(
-              {
-                customType: "subagent_result",
-                content: `Sub-agent "${running.name}" error: ${err?.message ?? String(err)}`,
-                display: true,
-                details: {
-                  name: running.name,
-                  task: running.task,
-                  error: err?.message,
-                },
+            if (!shouldDeliverWatcherNotification(running)) {
+              updateWidget();
+              return;
+            }
+            completeWakeTransition({
+              deliveryId: running.deliveryId,
+              update: updateWidget,
+              wake() {
+                pi.sendMessage(
+                  {
+                    customType: "subagent_result",
+                    content: `Sub-agent "${running.name}" error: ${err?.message ?? String(err)}`,
+                    display: true,
+                    details: {
+                      name: running.name,
+                      task: running.task,
+                      error: err?.message,
+                      deliveryId: running.deliveryId,
+                    },
+                  },
+                  { triggerTurn: true, deliverAs: "steer" },
+                );
               },
-              { triggerTurn: true, deliverAs: "steer" },
-            );
+            });
           });
 
         // Return immediately
@@ -2652,6 +2702,7 @@ export default function subagentsExtension(
           return;
         }
         completeWakeTransition({
+          deliveryId: running.deliveryId,
           update: updateWidget,
           wake(warning) {
             const content = result.ping
@@ -2666,6 +2717,7 @@ export default function subagentsExtension(
                   name: running.name,
                   sessionFile: running.sessionFile,
                   reason: result.reason,
+                  deliveryId: running.deliveryId,
                 },
               },
               { triggerTurn: true, deliverAs: "steer" },
@@ -2674,15 +2726,22 @@ export default function subagentsExtension(
         });
       })
       .catch((error) => {
-        if (shouldDeliverWatcherNotification(running))
-          pi.sendMessage(
-            {
-              customType: "subagent_result",
-              content: `Sub-agent "${running.name}" error: ${error instanceof Error ? error.message : String(error)}`,
-              display: true,
-            },
-            { triggerTurn: true, deliverAs: "steer" },
-          );
+        if (!shouldDeliverWatcherNotification(running)) return;
+        completeWakeTransition({
+          deliveryId: running.deliveryId,
+          update: updateWidget,
+          wake() {
+            pi.sendMessage(
+              {
+                customType: "subagent_result",
+                content: `Sub-agent "${running.name}" error: ${error instanceof Error ? error.message : String(error)}`,
+                display: true,
+                details: { deliveryId: running.deliveryId },
+              },
+              { triggerTurn: true, deliverAs: "steer" },
+            );
+          },
+        });
       });
   };
 
@@ -2821,6 +2880,7 @@ export default function subagentsExtension(
         return { error: `Subagent "${child.name}" start was cancelled.` };
       const running = result.running;
       const watcherAbort = running.abortController!;
+      registerLaunchedDelivery(running, lifecycle);
       ownedRuns.add(running);
       deliverControlledRun(running, watcherAbort);
       startWidgetRefresh();

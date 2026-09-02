@@ -135,6 +135,153 @@ export function persistTerminalOutcome(
   markIntent();
 }
 
+export type DelegatorDeliveryPhase =
+  | "running"
+  | "completed-pending-delivery"
+  | "delivered-pending-consumption"
+  | "consumed"
+  | "cancelled";
+
+const UNRESOLVED_DELIVERY_PHASES: ReadonlySet<DelegatorDeliveryPhase> = new Set(
+  ["running", "completed-pending-delivery", "delivered-pending-consumption"],
+);
+
+const CHILD_WAKE_CUSTOM_TYPES = new Set(["subagent_result", "subagent_ping"]);
+
+export function deliveryIdsInMessages(
+  messages: unknown[] | undefined,
+): string[] {
+  if (!messages) return [];
+  const ids: string[] = [];
+  for (const message of messages) {
+    if (!message || typeof message !== "object") continue;
+    const record = message as Record<string, unknown>;
+    if (
+      typeof record.customType !== "string" ||
+      !CHILD_WAKE_CUSTOM_TYPES.has(record.customType)
+    )
+      continue;
+    const details = record.details;
+    if (!details || typeof details !== "object") continue;
+    const deliveryId = (details as Record<string, unknown>).deliveryId;
+    if (typeof deliveryId === "string" && deliveryId.length > 0)
+      ids.push(deliveryId);
+  }
+  return ids;
+}
+
+export function createDelegatorLivenessCoordinator() {
+  const deliveries = new Map<
+    string,
+    { phase: DelegatorDeliveryPhase; wakeQueued: boolean }
+  >();
+
+  function record(deliveryId: string) {
+    return deliveries.get(deliveryId);
+  }
+
+  function markConsumed(deliveryId: string): boolean {
+    const current = record(deliveryId);
+    if (!current || current.phase !== "delivered-pending-consumption")
+      return false;
+    current.phase = "consumed";
+    return true;
+  }
+
+  return {
+    registerRunning(deliveryId: string): void {
+      const current = record(deliveryId);
+      if (
+        current &&
+        current.phase !== "cancelled" &&
+        current.phase !== "consumed"
+      )
+        return;
+      deliveries.set(deliveryId, { phase: "running", wakeQueued: false });
+    },
+    markPendingDelivery(deliveryId: string): boolean {
+      const current = record(deliveryId);
+      if (
+        !current ||
+        current.phase === "cancelled" ||
+        current.phase === "consumed"
+      )
+        return false;
+      if (current.phase === "running")
+        current.phase = "completed-pending-delivery";
+      return current.phase === "completed-pending-delivery";
+    },
+    beginWake(deliveryId: string): boolean {
+      const current = record(deliveryId);
+      if (
+        !current ||
+        current.phase === "cancelled" ||
+        current.phase === "consumed"
+      )
+        return false;
+      if (current.wakeQueued) return false;
+      if (
+        current.phase !== "running" &&
+        current.phase !== "completed-pending-delivery"
+      )
+        return false;
+      current.wakeQueued = true;
+      if (current.phase === "running")
+        current.phase = "completed-pending-delivery";
+      return true;
+    },
+    markDelivered(deliveryId: string): boolean {
+      const current = record(deliveryId);
+      if (
+        !current ||
+        current.phase === "cancelled" ||
+        current.phase === "consumed"
+      )
+        return false;
+      if (
+        current.phase === "running" ||
+        current.phase === "completed-pending-delivery"
+      )
+        current.phase = "delivered-pending-consumption";
+      return current.phase === "delivered-pending-consumption";
+    },
+    markConsumed,
+    consumeFromMessages(messages: unknown[] | undefined): string[] {
+      const consumed: string[] = [];
+      for (const deliveryId of deliveryIdsInMessages(messages)) {
+        if (markConsumed(deliveryId)) consumed.push(deliveryId);
+      }
+      return consumed;
+    },
+    cancel(deliveryId: string): void {
+      const current = record(deliveryId);
+      if (!current) return;
+      current.phase = "cancelled";
+    },
+    cancelAll(): void {
+      for (const current of deliveries.values()) current.phase = "cancelled";
+    },
+    hasUnresolved(): boolean {
+      for (const current of deliveries.values()) {
+        if (UNRESOLVED_DELIVERY_PHASES.has(current.phase)) return true;
+      }
+      return false;
+    },
+    phaseOf(deliveryId: string): DelegatorDeliveryPhase | undefined {
+      return record(deliveryId)?.phase;
+    },
+    reset(): void {
+      deliveries.clear();
+    },
+  };
+}
+
+export type DelegatorLivenessCoordinator = ReturnType<
+  typeof createDelegatorLivenessCoordinator
+>;
+
+export const delegatorLiveness = createDelegatorLivenessCoordinator();
+
 export default function (pi: ExtensionAPI) {
   let toolNames: string[] = [];
   let denied: string[] = [];
@@ -308,18 +455,23 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("agent_end", (event) => {
     latestMessages = (event as any).messages as any[] | undefined;
+    delegatorLiveness.consumeFromMessages(latestMessages);
     recorder.agentEndWaiting();
     userTookOver = false;
   });
 
   pi.on("agent_settled", (_event, ctx) => {
-    if (terminalIntent) return;
+    if (terminalIntent) {
+      delegatorLiveness.cancelAll();
+      return;
+    }
     const errorInfo = findLatestAssistantError(latestMessages);
     if (errorInfo) {
       if (!autoExit) {
         persistStatus("error", errorInfo.errorMessage);
         return;
       }
+      delegatorLiveness.cancelAll();
       persistTerminalOutcome(
         process.env.PI_SUBAGENT_SESSION,
         { type: "error", ...errorInfo },
@@ -338,6 +490,7 @@ export default function (pi: ExtensionAPI) {
       persistStatus("status", findLatestAssistantReport(latestMessages));
       return;
     }
+    if (delegatorLiveness.hasUnresolved()) return;
     persistTerminalOutcome(
       process.env.PI_SUBAGENT_SESSION,
       { type: "settlement" },
@@ -443,28 +596,6 @@ export default function (pi: ExtensionAPI) {
       renderWidget(ctx, null);
     },
   });
-
-  if (autoExit)
-    pi.registerTool({
-      name: "subagent_wait",
-      label: "Subagent Wait",
-      description:
-        "Suppress exactly the current ordinary settlement while a delegated child runs. " +
-        "Its result resumes this parent; the next ordinary settlement follows configured auto-exit.",
-      parameters: Type.Object({}),
-      async execute() {
-        discussMode = "next-turn";
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Waiting for one delegated child settlement.",
-            },
-          ],
-          details: {},
-        };
-      },
-    });
 
   pi.registerTool({
     name: "caller_ping",

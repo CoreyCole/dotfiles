@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import {
   existsSync,
   mkdtempSync,
@@ -12,12 +12,17 @@ import { tmpdir } from "node:os";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import subagentDoneExtension, {
   PERSISTENT_STATUS_CUSTOM_TYPE,
+  delegatorLiveness,
   persistTerminalOutcome,
   queueDiscussMessage,
   settleDiscussMode,
 } from "./subagent-done.ts";
 import { inspectSession } from "./session.ts";
 import { __pollForExitTest__ } from "./cmux.ts";
+
+afterEach(() => {
+  delegatorLiveness.reset();
+});
 
 test("failed sidecar persistence does not mark terminal intent", () => {
   let marked = false;
@@ -55,7 +60,7 @@ test("discussion consumes one settlement and restores the configured lifecycle",
   });
 });
 
-test("default children register one-settlement subagent_wait", () => {
+test("default children do not register subagent_wait", () => {
   const tools = new Map<string, any>();
   const pi = {
     on() {},
@@ -72,14 +77,9 @@ test("default children register one-settlement subagent_wait", () => {
     },
   } as unknown as ExtensionAPI;
   subagentDoneExtension(pi);
-  assert.equal(tools.has("subagent_wait"), true);
+  assert.equal(tools.has("subagent_wait"), false);
   assert.equal(tools.has("subagent_done"), true);
-  return tools
-    .get("subagent_wait")
-    .execute("call", {}, undefined, undefined, {})
-    .then((result: any) => {
-      assert.match(result.content[0].text, /one delegated child settlement/);
-    });
+  assert.equal(tools.has("caller_ping"), true);
 });
 
 test("persistent managers do not register subagent_wait", () => {
@@ -107,6 +107,408 @@ test("persistent managers do not register subagent_wait", () => {
   } finally {
     if (previous == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
     else process.env.PI_SUBAGENT_AUTO_EXIT = previous;
+  }
+});
+
+function fakeDonePi() {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const commands = new Map<string, any>();
+  const tools = new Map<string, any>();
+  const entries: Array<{ type: string; data: unknown }> = [];
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    appendEntry(type: string, data: unknown) {
+      entries.push({ type, data });
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand(name: string, command: unknown) {
+      commands.set(name, command);
+    },
+    registerShortcut() {},
+    registerTool(tool: { name: string }) {
+      tools.set(tool.name, tool);
+    },
+    sendUserMessage() {},
+  } as unknown as ExtensionAPI;
+  return { pi, handlers, commands, tools, entries };
+}
+
+function childResultMessage(
+  deliveryId: string,
+  customType = "subagent_result",
+) {
+  return {
+    role: "custom",
+    customType,
+    content: "child finished",
+    display: true,
+    details: { deliveryId },
+  };
+}
+
+test("L2 active child prevents ordinary default auto-exit", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l2-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers } = fakeDonePi();
+  let shutdowns = 0;
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("run-1");
+    await handlers.get("agent_settled")?.(
+      { type: "agent_settled" },
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.equal(shutdowns, 0);
+    assert.equal(existsSync(`${sessionFile}.exit`), false);
+    assert.equal(delegatorLiveness.hasUnresolved(), true);
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L3 multiple children retain independent unresolved state", () => {
+  delegatorLiveness.registerRunning("a");
+  delegatorLiveness.registerRunning("b");
+  delegatorLiveness.registerRunning("c");
+  delegatorLiveness.cancel("a");
+  assert.equal(delegatorLiveness.phaseOf("a"), "cancelled");
+  assert.equal(delegatorLiveness.phaseOf("b"), "running");
+  assert.equal(delegatorLiveness.phaseOf("c"), "running");
+  assert.equal(delegatorLiveness.hasUnresolved(), true);
+  delegatorLiveness.cancel("b");
+  assert.equal(delegatorLiveness.hasUnresolved(), true);
+  delegatorLiveness.cancel("c");
+  assert.equal(delegatorLiveness.hasUnresolved(), false);
+});
+
+test("L5 fast completion before launch settlement does not exit", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l5-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers } = fakeDonePi();
+  let shutdowns = 0;
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("fast");
+    assert.equal(delegatorLiveness.markPendingDelivery("fast"), true);
+    assert.equal(delegatorLiveness.beginWake("fast"), true);
+    assert.equal(delegatorLiveness.markDelivered("fast"), true);
+    await handlers.get("agent_settled")?.(
+      { type: "agent_settled" },
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.equal(shutdowns, 0);
+    assert.equal(
+      delegatorLiveness.phaseOf("fast"),
+      "delivered-pending-consumption",
+    );
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L6 result queued during an active turn stays pending until processed", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l6-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers } = fakeDonePi();
+  let shutdowns = 0;
+  const ctx = {
+    shutdown() {
+      shutdowns += 1;
+    },
+  };
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("queued");
+    delegatorLiveness.markPendingDelivery("queued");
+    delegatorLiveness.beginWake("queued");
+    delegatorLiveness.markDelivered("queued");
+    await handlers.get("agent_end")?.(
+      {
+        type: "agent_end",
+        messages: [
+          { role: "assistant", content: [{ type: "text", text: "launching" }] },
+        ],
+      },
+      ctx,
+    );
+    await handlers.get("agent_settled")?.({ type: "agent_settled" }, ctx);
+    assert.equal(shutdowns, 0);
+    assert.equal(
+      delegatorLiveness.phaseOf("queued"),
+      "delivered-pending-consumption",
+    );
+    await handlers.get("agent_end")?.(
+      { type: "agent_end", messages: [childResultMessage("queued")] },
+      ctx,
+    );
+    assert.equal(delegatorLiveness.phaseOf("queued"), "consumed");
+    await handlers.get("agent_settled")?.({ type: "agent_settled" }, ctx);
+    assert.equal(shutdowns, 1);
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L9 one consumed result cannot hide another active child", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l9-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers } = fakeDonePi();
+  let shutdowns = 0;
+  const ctx = {
+    shutdown() {
+      shutdowns += 1;
+    },
+  };
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("done-child");
+    delegatorLiveness.registerRunning("still-running");
+    delegatorLiveness.markPendingDelivery("done-child");
+    delegatorLiveness.beginWake("done-child");
+    delegatorLiveness.markDelivered("done-child");
+    await handlers.get("agent_end")?.(
+      { type: "agent_end", messages: [childResultMessage("done-child")] },
+      ctx,
+    );
+    assert.equal(delegatorLiveness.phaseOf("done-child"), "consumed");
+    assert.equal(delegatorLiveness.phaseOf("still-running"), "running");
+    await handlers.get("agent_settled")?.({ type: "agent_settled" }, ctx);
+    assert.equal(shutdowns, 0);
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L10 final processed result permits the next ordinary exit", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l10-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers } = fakeDonePi();
+  let shutdowns = 0;
+  const ctx = {
+    shutdown() {
+      shutdowns += 1;
+    },
+  };
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("last");
+    delegatorLiveness.markPendingDelivery("last");
+    delegatorLiveness.beginWake("last");
+    delegatorLiveness.markDelivered("last");
+    await handlers.get("agent_end")?.(
+      { type: "agent_end", messages: [childResultMessage("last")] },
+      ctx,
+    );
+    await handlers.get("agent_settled")?.({ type: "agent_settled" }, ctx);
+    assert.equal(shutdowns, 1);
+    assert.deepEqual(JSON.parse(readFileSync(`${sessionFile}.exit`, "utf8")), {
+      type: "settlement",
+    });
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L11 terminal overrides and provider errors cancel late delivery", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-liveness-l11-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  try {
+    {
+      const { pi, handlers, tools } = fakeDonePi();
+      let shutdowns = 0;
+      subagentDoneExtension(pi);
+      delegatorLiveness.registerRunning("owned");
+      await tools
+        .get("subagent_done")
+        .execute("call", {}, undefined, undefined, {
+          shutdown() {
+            shutdowns += 1;
+          },
+        });
+      await handlers.get("agent_settled")?.(
+        { type: "agent_settled" },
+        {
+          shutdown() {
+            shutdowns += 1;
+          },
+        },
+      );
+      assert.equal(delegatorLiveness.phaseOf("owned"), "cancelled");
+      assert.equal(delegatorLiveness.beginWake("owned"), false);
+      assert.equal(shutdowns, 1);
+    }
+    delegatorLiveness.reset();
+    {
+      const { pi, handlers } = fakeDonePi();
+      let shutdowns = 0;
+      subagentDoneExtension(pi);
+      delegatorLiveness.registerRunning("errored-parent");
+      await handlers.get("agent_end")?.(
+        {
+          type: "agent_end",
+          messages: [
+            {
+              role: "assistant",
+              stopReason: "error",
+              errorMessage: "provider down",
+            },
+          ],
+        },
+        {
+          shutdown() {
+            shutdowns += 1;
+          },
+        },
+      );
+      await handlers.get("agent_settled")?.(
+        { type: "agent_settled" },
+        {
+          shutdown() {
+            shutdowns += 1;
+          },
+        },
+      );
+      assert.equal(delegatorLiveness.phaseOf("errored-parent"), "cancelled");
+      assert.equal(delegatorLiveness.beginWake("errored-parent"), false);
+      assert.equal(shutdowns, 1);
+    }
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("L12 persistent managers ignore hold state and keep statuses", async () => {
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  const previousId = process.env.PI_SUBAGENT_ID;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+  process.env.PI_SUBAGENT_ID = "manager";
+  const { pi, handlers, entries } = fakeDonePi();
+  let shutdowns = 0;
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("specialist");
+    await handlers.get("agent_end")?.({
+      messages: [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "In progress" }],
+        },
+      ],
+    });
+    await handlers.get("agent_settled")?.(
+      {},
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.equal(shutdowns, 0);
+    assert.equal(delegatorLiveness.phaseOf("specialist"), "running");
+    assert.deepEqual(entries, [
+      {
+        type: PERSISTENT_STATUS_CUSTOM_TYPE,
+        data: {
+          version: 1,
+          childSessionId: "manager",
+          kind: "status",
+          report: "In progress",
+        },
+      },
+    ]);
+  } finally {
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    if (previousId == null) delete process.env.PI_SUBAGENT_ID;
+    else process.env.PI_SUBAGENT_ID = previousId;
+  }
+});
+
+test("discussion still remains open while unresolved children exist", async () => {
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  const { pi, handlers, commands } = fakeDonePi();
+  let shutdowns = 0;
+  try {
+    subagentDoneExtension(pi);
+    delegatorLiveness.registerRunning("child");
+    await commands.get("discuss").handler("stay open", { ui: { notify() {} } });
+    await handlers.get("agent_settled")?.(
+      {},
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.equal(shutdowns, 0);
+    assert.equal(delegatorLiveness.hasUnresolved(), true);
+  } finally {
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
   }
 });
 

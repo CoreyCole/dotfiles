@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,10 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createStatusState, observeStatus } from "./status.ts";
 import { shouldAppendToolBorder } from "../tool-border.ts";
 import { requestStatsTest } from "../request-stats.ts";
+
+afterEach(() => {
+  __test__.delegatorLiveness.reset();
+});
 
 test("child registrations replay as a durable catalog", () => {
   const entry = (id: string, owner = "manager") => ({
@@ -191,7 +195,7 @@ test("named role launch arguments include model, role prompt, and control tools"
   );
   assert.equal(
     __test__.buildSubagentToolAllowlist("read,bash"),
-    "read,bash,caller_ping,subagent_wait,subagent_done",
+    "read,bash,caller_ping,subagent_done",
   );
 });
 
@@ -331,6 +335,57 @@ test("launch lifecycle registers before dispatch and closes only created surface
   }
 });
 
+test("L1 successful dispatch registers one unresolved delivery before tool return", async () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  const lifecycle = __test__.createExtensionLifecycle();
+  type Running = Parameters<typeof __test__.registerLaunchedDelivery>[0];
+  const events: string[] = [];
+  await __test__.runLaunchLifecycle({
+    seed: () => events.push("seed"),
+    appendRegistration: () => events.push("append"),
+    createSurface: () => {
+      events.push("surface");
+      return "%child";
+    },
+    dispatch: () => {
+      events.push("dispatch");
+    },
+    closeSurface: () => events.push("close"),
+  });
+  const running = { id: "child", surface: "%child" } as Running;
+  __test__.registerLaunchedDelivery(running, lifecycle, coordinator);
+  events.push("registered");
+  assert.deepEqual(events, [
+    "seed",
+    "append",
+    "surface",
+    "dispatch",
+    "registered",
+  ]);
+  assert.equal(coordinator.hasUnresolved(), true);
+  assert.equal(coordinator.phaseOf(running.deliveryId!), "running");
+  assert.equal(lifecycle.ownedDeliveryIds.has(running.deliveryId!), true);
+});
+
+test("L8 launch failure creates no hold", async () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  const lifecycle = __test__.createExtensionLifecycle();
+  await assert.rejects(
+    __test__.runLaunchLifecycle({
+      seed: () => {},
+      appendRegistration: () => {},
+      createSurface: () => "%child",
+      dispatch: () => {
+        throw new Error("dispatch");
+      },
+      closeSurface: () => {},
+    }),
+    /dispatch/,
+  );
+  assert.equal(coordinator.hasUnresolved(), false);
+  assert.equal(lifecycle.ownedDeliveryIds.size, 0);
+});
+
 test("watcher cleanup removes active state for every terminal outcome and retains catalog", () => {
   const catalog = new Map([
     [
@@ -364,6 +419,96 @@ test("watcher cleanup removes active state for every terminal outcome and retain
     assert.equal(wakes, 1, outcome);
     assert.equal(catalog.has("child"), true, outcome);
   }
+});
+
+test("L4 out-of-order completions queue once in completion order", () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  coordinator.registerRunning("a");
+  coordinator.registerRunning("b");
+  coordinator.registerRunning("c");
+  const wakes: string[] = [];
+  coordinator.markPendingDelivery("b");
+  assert.equal(
+    __test__.completeWakeTransition(
+      {
+        deliveryId: "b",
+        update() {},
+        wake() {
+          wakes.push("b");
+        },
+      },
+      coordinator,
+    ),
+    true,
+  );
+  coordinator.markPendingDelivery("a");
+  assert.equal(
+    __test__.completeWakeTransition(
+      {
+        deliveryId: "a",
+        update() {},
+        wake() {
+          wakes.push("a");
+        },
+      },
+      coordinator,
+    ),
+    true,
+  );
+  assert.deepEqual(wakes, ["b", "a"]);
+  assert.equal(
+    __test__.completeWakeTransition(
+      {
+        deliveryId: "b",
+        update() {},
+        wake() {
+          wakes.push("b-dup");
+        },
+      },
+      coordinator,
+    ),
+    false,
+  );
+  assert.deepEqual(wakes, ["b", "a"]);
+  assert.equal(coordinator.phaseOf("b"), "delivered-pending-consumption");
+  assert.equal(coordinator.phaseOf("a"), "delivered-pending-consumption");
+  assert.equal(coordinator.phaseOf("c"), "running");
+});
+
+test("L7 each result ping and error wakes the parent once", () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  const wakes: string[] = [];
+  for (const id of ["result", "ping", "error"]) {
+    coordinator.registerRunning(id);
+    coordinator.markPendingDelivery(id);
+    assert.equal(
+      __test__.completeWakeTransition(
+        {
+          deliveryId: id,
+          update() {},
+          wake() {
+            wakes.push(id);
+          },
+        },
+        coordinator,
+      ),
+      true,
+    );
+    assert.equal(
+      __test__.completeWakeTransition(
+        {
+          deliveryId: id,
+          update() {},
+          wake() {
+            wakes.push(`${id}-dup`);
+          },
+        },
+        coordinator,
+      ),
+      false,
+    );
+  }
+  assert.deepEqual(wakes, ["result", "ping", "error"]);
 });
 
 test("close failures retain active ownership until a later reap succeeds", () => {
@@ -481,6 +626,98 @@ test("stopping one selected specialist retains its manager and sibling ownership
   assert.deepEqual(closed, ["%specialist"]);
 });
 
+test("L8 explicit child stop clears only its hold", () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  const lifecycle = __test__.createExtensionLifecycle();
+  type Running = Parameters<typeof __test__.stopActiveRun>[1];
+  const kept = { id: "kept", surface: "%kept", deliveryId: "kept" } as Running;
+  const stopped = {
+    id: "stopped",
+    surface: "%stopped",
+    deliveryId: "stopped",
+    abortController: new AbortController(),
+  } as Running;
+  __test__.registerLaunchedDelivery(kept, lifecycle, coordinator);
+  __test__.registerLaunchedDelivery(stopped, lifecycle, coordinator);
+  const active = new Map<string, Running>([
+    [kept.id, kept],
+    [stopped.id, stopped],
+  ]);
+  __test__.stopActiveRun(active, stopped, () => {}, coordinator);
+  assert.equal(coordinator.phaseOf("stopped"), "cancelled");
+  assert.equal(coordinator.phaseOf("kept"), "running");
+  assert.equal(coordinator.hasUnresolved(), true);
+  assert.equal(
+    __test__.completeWakeTransition(
+      {
+        deliveryId: "stopped",
+        update() {},
+        wake() {
+          throw new Error("late wake");
+        },
+      },
+      coordinator,
+    ),
+    false,
+  );
+  assert.equal(active.get("kept"), kept);
+});
+
+test("L11 shutdown and replacement cancel late delivery", () => {
+  const coordinator = __test__.createDelegatorLivenessCoordinator();
+  const oldLifecycle = __test__.createExtensionLifecycle();
+  const newLifecycle = __test__.createExtensionLifecycle();
+  type Running = Parameters<typeof __test__.stopActiveRun>[1];
+  const oldRun = {
+    id: "old",
+    surface: "%old",
+    deliveryId: "old",
+    abortController: new AbortController(),
+  } as Running;
+  const pending = {
+    id: "pending",
+    surface: "%pending",
+    deliveryId: "pending",
+  } as Running;
+  const replacement = {
+    id: "new",
+    surface: "%new",
+    deliveryId: "new",
+  } as Running;
+  __test__.registerLaunchedDelivery(oldRun, oldLifecycle, coordinator);
+  __test__.registerLaunchedDelivery(pending, oldLifecycle, coordinator);
+  coordinator.markPendingDelivery("pending");
+  oldLifecycle.ownedRuns.add(oldRun);
+  const active = new Map<string, Running>([["old", oldRun]]);
+  __test__.registerLaunchedDelivery(replacement, newLifecycle, coordinator);
+  active.set("new", replacement);
+  __test__.shutdownLifecycle(
+    oldLifecycle,
+    active,
+    () => {},
+    new Map(),
+    coordinator,
+  );
+  assert.equal(coordinator.phaseOf("old"), "cancelled");
+  assert.equal(coordinator.phaseOf("pending"), "cancelled");
+  assert.equal(coordinator.phaseOf("new"), "running");
+  assert.equal(
+    __test__.completeWakeTransition(
+      {
+        deliveryId: "pending",
+        update() {},
+        wake() {
+          throw new Error("late callback");
+        },
+      },
+      coordinator,
+    ),
+    false,
+  );
+  assert.equal(coordinator.hasUnresolved(), true);
+  assert.equal(active.get("new"), replacement);
+});
+
 test("child launch environment propagates the Fast Mode preference", () => {
   assert.deepEqual(
     __test__.buildChildHandoffEnvironment({ PI_FAST_DESIRED: "1" }),
@@ -517,7 +754,7 @@ test("initial launch profile carries role model, prompts, controls, files, skill
         "--system-prompt",
         "'/role.md'",
         "--tools",
-        "'read,caller_ping,subagent_wait,subagent_done'",
+        "'read,caller_ping,subagent_done'",
       ],
       selectedSkills: ["q-outline"],
     },
@@ -528,10 +765,7 @@ test("initial launch profile carries role model, prompts, controls, files, skill
   assert.match(command, /PI_DENY_TOOLS='subagent'/);
   assert.match(command, /PI_SUBAGENT_AUTO_EXIT='false'/);
   assert.match(command, /--system-prompt '\/role.md'/);
-  assert.match(
-    command,
-    /--tools 'read,caller_ping,subagent_wait,subagent_done'/,
-  );
+  assert.match(command, /--tools 'read,caller_ping,subagent_done'/);
   assert.match(command, /--model 'openai\/gpt:high'/);
 });
 
@@ -585,7 +819,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
     assert.match(profile.arguments.join(" "), /--system-prompt/);
     assert.match(
       profile.arguments.join(" "),
-      /read,bash,caller_ping,subagent_wait,subagent_done/,
+      /read,bash,caller_ping,subagent_done/,
     );
     assert.match(
       profile.environment.join(" "),
