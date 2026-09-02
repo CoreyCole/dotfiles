@@ -618,6 +618,29 @@ test("idle launch profile reconstructs named role and active decision prevents d
   }
 });
 
+test("unprofiled idle launches clear inherited role and deny variables", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-unprofiled-"));
+  try {
+    const profile = __test__.buildIdleLaunchProfile({
+      child: {
+        managerSessionId: "m",
+        childSessionId: "child",
+        name: "Manager",
+        cwd: dir,
+      },
+      sessionFile: "/session",
+      activityFile: "/activity",
+      agentDir: dir,
+      agentDefs: null,
+      promptDir: dir,
+    });
+    assert.match(profile.environment.join(" "), /PI_SUBAGENT_AGENT=''/);
+    assert.match(profile.environment.join(" "), /PI_DENY_TOOLS=''/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("idle steering reserves each child before asynchronous launch", async () => {
   type Running =
     Parameters<typeof __test__.startIdleChild>[0]["activeRuns"] extends Map<

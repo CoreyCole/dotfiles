@@ -1545,11 +1545,9 @@ function buildIdleLaunchProfile(params: {
     `PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`,
     buildChildAutoExitEnvironment(child.autoExit ?? true),
   ];
-  if (child.agent)
-    environment.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent)}`);
+  environment.push(`PI_SUBAGENT_AGENT=${shellEscape(child.agent ?? "")}`);
   const denySet = resolveDenyTools(agentDefs);
-  if (denySet.size > 0)
-    environment.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
+  environment.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
   return {
     sessionFile,
     activityFile,
@@ -1996,13 +1994,9 @@ async function launchSubagent(
   envParts.push(`PI_CODING_AGENT_DIR=${shellEscape(effectiveAgentDir)}`);
   envParts.push(...buildChildHandoffEnvironment());
 
-  if (denySet.size > 0) {
-    envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
-  }
+  envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
   envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
-  if (params.agent) {
-    envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(params.agent)}`);
-  }
+  envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(params.agent ?? "")}`);
   envParts.push(`PI_SUBAGENT_SESSION=${shellEscape(subagentSessionFile)}`);
   envParts.push(`PI_SUBAGENT_ID=${shellEscape(id)}`);
   envParts.push(`PI_SUBAGENT_ACTIVITY_FILE=${shellEscape(activityFile)}`);
