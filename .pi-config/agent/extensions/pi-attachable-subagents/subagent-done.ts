@@ -38,6 +38,48 @@ export interface SubagentErrorInfo {
   stopReason: "error";
 }
 
+export const PERSISTENT_STATUS_CUSTOM_TYPE =
+  "pi-attachable-subagents/persistent-status";
+
+export interface PersistentStatus {
+  version: 1;
+  childSessionId: string;
+  kind: "status" | "error";
+  report: string;
+}
+
+export function findLatestAssistantReport(messages: any[] | undefined): string {
+  if (!messages) return "Subagent settled without an assistant report.";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message?.role !== "assistant") continue;
+    const content = Array.isArray(message.content)
+      ? message.content
+          .filter(
+            (block: unknown): block is { type: string; text: string } =>
+              typeof block === "object" &&
+              block !== null &&
+              (block as { type?: unknown }).type === "text" &&
+              typeof (block as { text?: unknown }).text === "string",
+          )
+          .map((block: { type: string; text: string }) => block.text.trim())
+          .filter(Boolean)
+          .join("\n")
+      : typeof message.content === "string"
+        ? message.content.trim()
+        : "";
+    return content || "Subagent settled without an assistant report.";
+  }
+  return "Subagent settled without an assistant report.";
+}
+
+export function appendPersistentStatus(
+  pi: Pick<ExtensionAPI, "appendEntry">,
+  status: PersistentStatus,
+): void {
+  pi.appendEntry(PERSISTENT_STATUS_CUSTOM_TYPE, status);
+}
+
 /**
  * If the last assistant message in the turn ended with `stopReason: "error"`
  * (typically auto-retry exhausted on an overload / rate limit / server error),
@@ -96,10 +138,23 @@ export default function (pi: ExtensionAPI) {
   const subagentAgent = process.env.PI_SUBAGENT_AGENT ?? "";
   const deniedToolsValue = process.env.PI_DENY_TOOLS;
   const requestedSkills = parseDeniedTools(process.env.PI_SUBAGENT_SKILLS);
+  const childSessionId = process.env.PI_SUBAGENT_ID ?? "";
+  const autoExit = process.env.PI_SUBAGENT_AUTO_EXIT !== "false";
   const recorder = createSubagentActivityRecorder({
-    runningChildId: process.env.PI_SUBAGENT_ID,
+    runningChildId: childSessionId,
     activityFile: process.env.PI_SUBAGENT_ACTIVITY_FILE,
   });
+
+  function persistStatus(kind: PersistentStatus["kind"], report: string): void {
+    if (!childSessionId)
+      throw new Error("PI_SUBAGENT_ID environment variable is not set.");
+    appendPersistentStatus(pi, {
+      version: 1,
+      childSessionId,
+      kind,
+      report,
+    });
+  }
 
   function renderWidget(ctx: { ui: { setWidget: Function } }, _theme: any) {
     ctx.ui.setWidget(
@@ -254,6 +309,10 @@ export default function (pi: ExtensionAPI) {
     if (terminalIntent) return;
     const errorInfo = findLatestAssistantError(latestMessages);
     if (errorInfo) {
+      if (!autoExit) {
+        persistStatus("error", errorInfo.errorMessage);
+        return;
+      }
       persistTerminalOutcome(
         process.env.PI_SUBAGENT_SESSION,
         { type: "error", ...errorInfo },
@@ -268,6 +327,10 @@ export default function (pi: ExtensionAPI) {
     const decision = settleDiscussMode(discussMode);
     discussMode = decision.mode;
     if (decision.suppress) return;
+    if (!autoExit) {
+      persistStatus("status", findLatestAssistantReport(latestMessages));
+      return;
+    }
     persistTerminalOutcome(
       process.env.PI_SUBAGENT_SESSION,
       { type: "settlement" },

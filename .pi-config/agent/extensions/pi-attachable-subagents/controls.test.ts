@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import subagentDoneExtension, {
+  PERSISTENT_STATUS_CUSTOM_TYPE,
   persistTerminalOutcome,
   queueDiscussMessage,
   settleDiscussMode,
@@ -86,6 +87,281 @@ test("subagent_wait keeps the child alive across settlement", async () => {
 
   assert.equal(shutdowns, 0);
   assert.match(result.content[0].text, /Wait mode enabled/);
+});
+
+test("default settlement writes one terminal sidecar and exits", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-subagent-settlement-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool() {},
+  } as unknown as ExtensionAPI;
+  let shutdowns = 0;
+
+  try {
+    subagentDoneExtension(pi);
+    await handlers.get("agent_settled")?.(
+      { type: "agent_settled" },
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.deepEqual(JSON.parse(readFileSync(`${sessionFile}.exit`, "utf8")), {
+      type: "settlement",
+    });
+    assert.equal(shutdowns, 1);
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("persistent settlements append ordered statuses without exiting", async () => {
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  const previousId = process.env.PI_SUBAGENT_ID;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+  process.env.PI_SUBAGENT_ID = "manager";
+
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const entries: Array<{ type: string; data: unknown }> = [];
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    appendEntry(type: string, data: unknown) {
+      entries.push({ type, data });
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool() {},
+  } as unknown as ExtensionAPI;
+  let shutdowns = 0;
+
+  try {
+    subagentDoneExtension(pi);
+    await handlers.get("agent_end")?.({
+      messages: [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "First report" }],
+        },
+      ],
+    });
+    await handlers.get("agent_settled")?.(
+      {},
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    await handlers.get("agent_end")?.({
+      messages: [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Second report" }],
+        },
+      ],
+    });
+    await handlers.get("agent_settled")?.(
+      {},
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+
+    assert.deepEqual(entries, [
+      {
+        type: PERSISTENT_STATUS_CUSTOM_TYPE,
+        data: {
+          version: 1,
+          childSessionId: "manager",
+          kind: "status",
+          report: "First report",
+        },
+      },
+      {
+        type: PERSISTENT_STATUS_CUSTOM_TYPE,
+        data: {
+          version: 1,
+          childSessionId: "manager",
+          kind: "status",
+          report: "Second report",
+        },
+      },
+    ]);
+    assert.equal(shutdowns, 0);
+  } finally {
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    if (previousId == null) delete process.env.PI_SUBAGENT_ID;
+    else process.env.PI_SUBAGENT_ID = previousId;
+  }
+});
+
+test("persistent provider errors append an error status without exiting", async () => {
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  const previousId = process.env.PI_SUBAGENT_ID;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+  process.env.PI_SUBAGENT_ID = "manager";
+
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const entries: Array<{ type: string; data: unknown }> = [];
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    appendEntry(type: string, data: unknown) {
+      entries.push({ type, data });
+    },
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool() {},
+  } as unknown as ExtensionAPI;
+  let shutdowns = 0;
+
+  try {
+    subagentDoneExtension(pi);
+    await handlers.get("agent_end")?.({
+      messages: [
+        {
+          role: "assistant",
+          stopReason: "error",
+          errorMessage: "rate limited",
+        },
+      ],
+    });
+    await handlers.get("agent_settled")?.(
+      {},
+      {
+        shutdown() {
+          shutdowns += 1;
+        },
+      },
+    );
+    assert.deepEqual(entries, [
+      {
+        type: PERSISTENT_STATUS_CUSTOM_TYPE,
+        data: {
+          version: 1,
+          childSessionId: "manager",
+          kind: "error",
+          report: "rate limited",
+        },
+      },
+    ]);
+    assert.equal(shutdowns, 0);
+  } finally {
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    if (previousId == null) delete process.env.PI_SUBAGENT_ID;
+    else process.env.PI_SUBAGENT_ID = previousId;
+  }
+});
+
+test("terminal tools remain terminal for persistent children", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-subagent-terminal-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  const previousId = process.env.PI_SUBAGENT_ID;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+  process.env.PI_SUBAGENT_ID = "manager";
+
+  try {
+    for (const [name, params, expected] of [
+      ["caller_ping", { message: "Need approval" }, "ping"],
+      ["subagent_done", {}, "done"],
+    ] as const) {
+      const handlers = new Map<string, (...args: unknown[]) => unknown>();
+      const tools = new Map<string, any>();
+      const entries: unknown[] = [];
+      const pi = {
+        on(event: string, handler: (...args: unknown[]) => unknown) {
+          handlers.set(event, handler);
+        },
+        appendEntry(_type: string, data: unknown) {
+          entries.push(data);
+        },
+        getAllTools() {
+          return [];
+        },
+        getCommands() {
+          return [];
+        },
+        registerCommand() {},
+        registerShortcut() {},
+        registerTool(tool: any) {
+          tools.set(tool.name, tool);
+        },
+      } as unknown as ExtensionAPI;
+      let shutdowns = 0;
+      subagentDoneExtension(pi);
+      await tools.get(name).execute("call", params, undefined, undefined, {
+        shutdown() {
+          shutdowns += 1;
+        },
+      });
+      await handlers.get("agent_settled")?.(
+        {},
+        {
+          shutdown() {
+            shutdowns += 1;
+          },
+        },
+      );
+      assert.equal(
+        JSON.parse(readFileSync(`${sessionFile}.exit`, "utf8")).type,
+        expected,
+      );
+      assert.equal(entries.length, 0);
+      assert.equal(shutdowns, 1);
+    }
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    if (previousId == null) delete process.env.PI_SUBAGENT_ID;
+    else process.env.PI_SUBAGENT_ID = previousId;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("discussion queues a steer before arming one-turn suppression", () => {
