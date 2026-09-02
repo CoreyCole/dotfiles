@@ -7,6 +7,7 @@ import subagentsExtension, { __test__ } from "./index.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createStatusState, observeStatus } from "./status.ts";
 import { shouldAppendToolBorder } from "../tool-border.ts";
+import { requestStatsTest } from "../request-stats.ts";
 
 test("child registrations replay as a durable catalog", () => {
   const entry = (id: string, owner = "manager") => ({
@@ -1279,10 +1280,90 @@ test("persistent status drain delivers valid entries once in session order", () 
   }
 });
 
-test("sidecar display selects the inspected provider and model", () => {
-  // Selection is covered by request-stats fixtures; rendering remains pure.
-  const lines = __test__.renderSubagentWidgetLines([], new Map(), 40);
-  assert.equal(lines.length, 2);
+test("sidecar cache clears for a changed model, then selects its bucket and change-back", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-sidecar-display-"));
+  const sessionFile = join(dir, "child.jsonl");
+  const stateDir = join(dir, "state");
+  const writeSession = (model: string) =>
+    writeFileSync(
+      sessionFile,
+      [
+        JSON.stringify({ type: "session", id: "child" }),
+        JSON.stringify({
+          type: "model_change",
+          id: "model",
+          parentId: "child",
+          provider: "openai",
+          modelId: model,
+        }),
+      ].join("\n") + "\n",
+    );
+  try {
+    writeSession("first");
+    const sidecar = requestStatsTest.requestStatsSidecarPath("child", stateDir);
+    mkdirSync(join(stateDir, "sessions"), { recursive: true });
+    writeFileSync(
+      sidecar,
+      JSON.stringify({
+        version: 1,
+        sessionId: "child",
+        buckets: [
+          {
+            provider: "openai",
+            model: "first",
+            outputTokens: 20,
+            generationMs: 1000,
+          },
+          {
+            provider: "openai",
+            model: "second",
+            outputTokens: 30,
+            generationMs: 2000,
+          },
+        ],
+      }),
+    );
+    const running = { id: "child", sessionFile } as any;
+    __test__.refreshDisplaySnapshot(running, 1000, stateDir);
+    assert.equal(running.displayTps, 20);
+    writeFileSync(
+      sidecar,
+      JSON.stringify({
+        version: 1,
+        sessionId: "child",
+        buckets: [
+          {
+            provider: "openai",
+            model: "first",
+            outputTokens: 40,
+            generationMs: 1000,
+          },
+          {
+            provider: "openai",
+            model: "second",
+            outputTokens: 30,
+            generationMs: 2000,
+          },
+        ],
+      }),
+    );
+    __test__.refreshDisplaySnapshot(running, 1500, stateDir);
+    assert.equal(running.displayTps, 20);
+    __test__.refreshDisplaySnapshot(running, 2000, stateDir);
+    assert.equal(running.displayTps, 40);
+    writeSession("missing");
+    __test__.refreshDisplaySnapshot(running, 1001, stateDir);
+    assert.equal(running.displayModel, "missing");
+    assert.equal(running.displayTps, undefined);
+    writeSession("second");
+    __test__.refreshDisplaySnapshot(running, 1002, stateDir);
+    assert.equal(running.displayTps, 15);
+    writeSession("first");
+    __test__.refreshDisplaySnapshot(running, 1003, stateDir);
+    assert.equal(running.displayTps, 40);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("runtime launch profile is transient and does not write snapshots", () => {

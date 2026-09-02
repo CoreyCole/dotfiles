@@ -110,6 +110,21 @@ function migrateCsvColumns(content: string): string | undefined {
     for (const row of rows) row.splice(index, 0, UNAVAILABLE);
     changed = true;
   }
+  const transportIndex = header.indexOf("transport");
+  const fastModeIndex = header.indexOf("fast_mode_requested");
+  for (const row of rows) {
+    if (row.length === header.length - 2) {
+      row.splice(transportIndex, 0, UNAVAILABLE);
+      row.splice(fastModeIndex, 0, UNAVAILABLE);
+      changed = true;
+    } else if (row.length === header.length - 1) {
+      const missingIndex = ["true", "false"].includes(row[transportIndex])
+        ? transportIndex
+        : fastModeIndex;
+      row.splice(missingIndex, 0, UNAVAILABLE);
+      changed = true;
+    }
+  }
   return changed
     ? `${[header, ...rows].map((row) => row.join(",")).join("\n")}\n`
     : undefined;

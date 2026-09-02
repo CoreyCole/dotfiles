@@ -66,6 +66,7 @@ import {
 } from "./status.ts";
 import {
   requestStatsSidecarPath,
+  type RequestStatsAggregate,
   validateRequestStatsAggregate,
 } from "../request-stats.ts";
 import {
@@ -820,6 +821,8 @@ interface RunningSubagent {
   displayTps?: number;
   requestStatsSignature?: string;
   requestStatsCheckedAt?: number;
+  requestStatsSelection?: string;
+  requestStatsAggregate?: RequestStatsAggregate;
 }
 const runningSubagents = new Map<string, RunningSubagent>();
 const startingSubagents = new Map<string, symbol>();
@@ -1344,6 +1347,7 @@ function activityLabel(activity: SubagentActivityState): string | undefined {
 function refreshDisplaySnapshot(
   running: RunningSubagent,
   now = Date.now(),
+  stateDir?: string,
 ): void {
   let peek: ReturnType<typeof inspectSession> | undefined;
   try {
@@ -1351,6 +1355,25 @@ function refreshDisplaySnapshot(
     running.displayProvider = peek.provider;
     running.displayModel = peek.model ?? running.displayModel;
   } catch {}
+
+  const provider = peek?.provider;
+  const model = peek?.model;
+  const selection = provider && model ? `${provider}\u0000${model}` : undefined;
+  const updateRate = () => {
+    const bucket = running.requestStatsAggregate?.buckets.find(
+      (candidate) =>
+        candidate.provider === provider && candidate.model === model,
+    );
+    running.displayTps =
+      bucket && bucket.generationMs > 0
+        ? bucket.outputTokens / (bucket.generationMs / 1000)
+        : undefined;
+  };
+  if (selection !== running.requestStatsSelection) {
+    running.requestStatsSelection = selection;
+    updateRate();
+  }
+  if (!provider || !model) return;
 
   // The renderer only consumes this memory snapshot. Both watcher and status
   // observations share this per-run one-second cadence.
@@ -1360,32 +1383,20 @@ function refreshDisplaySnapshot(
   )
     return;
   running.requestStatsCheckedAt = now;
-  const provider = peek?.provider;
-  const model = peek?.model;
-  if (!provider || !model) {
-    running.displayTps = undefined;
-    return;
-  }
   try {
-    const file = requestStatsSidecarPath(running.id);
+    const file = requestStatsSidecarPath(running.id, stateDir);
     const metadata = statSync(file);
     const signature = `${metadata.mtimeMs}:${metadata.size}`;
     if (signature === running.requestStatsSignature) return;
     running.requestStatsSignature = signature;
-    const aggregate = validateRequestStatsAggregate(
+    running.requestStatsAggregate = validateRequestStatsAggregate(
       JSON.parse(readFileSync(file, "utf8")),
       running.id,
     );
-    const bucket = aggregate?.buckets.find(
-      (candidate) =>
-        candidate.provider === provider && candidate.model === model,
-    );
-    running.displayTps =
-      bucket && bucket.generationMs > 0
-        ? bucket.outputTokens / (bucket.generationMs / 1000)
-        : undefined;
+    updateRate();
   } catch {
     running.requestStatsSignature = undefined;
+    running.requestStatsAggregate = undefined;
     running.displayTps = undefined;
   }
 }

@@ -9,6 +9,31 @@ function stateRoot() {
   return mkdtempSync(join(tmpdir(), "pi-request-stats-"));
 }
 
+test("repairs current CSV headers with one and two missing historical columns", () => {
+  const header = requestStatsTest.CSV_HEADER.split(",");
+  const row = header.map((name) =>
+    name === "fast_mode_requested" ? "true" : name,
+  );
+  const oneMissing = [...row];
+  oneMissing.splice(header.indexOf("transport"), 1);
+  const twoMissing = [...row];
+  twoMissing.splice(header.indexOf("fast_mode_requested"), 1);
+  twoMissing.splice(header.indexOf("transport"), 1);
+  const migrated = requestStatsTest.migrateCsvColumns(
+    [header.join(","), oneMissing.join(","), twoMissing.join(",")].join("\n"),
+  );
+  assert.ok(migrated);
+  const rows = migrated
+    .trim()
+    .split("\n")
+    .map((line) => line.split(","));
+  assert.equal(rows[1].length, header.length);
+  assert.equal(rows[2].length, header.length);
+  assert.equal(rows[1][header.indexOf("transport")], "not_available");
+  assert.equal(rows[2][header.indexOf("transport")], "not_available");
+  assert.equal(rows[2][header.indexOf("fast_mode_requested")], "not_available");
+});
+
 test("accumulates exact weighted provider/model buckets across restart", async () => {
   const root = stateRoot();
   try {
