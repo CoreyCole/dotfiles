@@ -508,34 +508,56 @@ function formatWidgetStatusMarker(snapshot: StatusSnapshot): string {
     : "🟡";
 }
 
+const STEER_SAME_SESSION =
+  "The child session is idle and still exists. Do not spawn a replacement. " +
+  "Call subagent_steer on this same child (name or session id) to continue.";
+
 function resolveResultPresentation(
   result: Pick<
     SubagentResult,
-    "exitCode" | "elapsed" | "summary" | "sessionFile" | "errorMessage"
+    | "exitCode"
+    | "elapsed"
+    | "summary"
+    | "sessionFile"
+    | "errorMessage"
+    | "reason"
   >,
   name: string,
 ): string {
   const sessionRef = result.sessionFile
     ? `\n\nSession: ${result.sessionFile}\nResume: pi --session ${result.sessionFile}`
     : "";
+  const elapsed = formatElapsed(result.elapsed);
 
   if (result.errorMessage) {
     // Auto-retry exhausted or other agent-loop error. The subagent did not
-    // produce a usable result — surface the underlying provider/network
-    // failure so the orchestrator can decide whether to retry, resume, or
-    // change approach instead of silently treating the run as completed.
+    // produce a usable result. Prefer steering the same durable session.
     return (
-      `Sub-agent "${name}" failed after ${formatElapsed(result.elapsed)} ` +
+      `Sub-agent "${name}" failed after ${elapsed} ` +
       `(provider/agent error — auto-retry exhausted).\n\n` +
       `Error: ${result.errorMessage}\n\n` +
-      `The subagent did not produce a result. You can retry by spawning a new ` +
-      `subagent or steer the durable child session again.${sessionRef}`
+      `Steer the durable child session to retry the same run. ` +
+      `Spawn a new subagent only if the session file is missing.${sessionRef}`
     );
   }
 
-  return result.exitCode !== 0
-    ? `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n${result.summary}${sessionRef}`
-    : `Sub-agent "${name}" completed (${formatElapsed(result.elapsed)}).\n\n${result.summary}${sessionRef}`;
+  if (result.exitCode !== 0) {
+    return (
+      `Sub-agent "${name}" failed (exit code ${result.exitCode}).\n\n` +
+      `${result.summary}\n\n${STEER_SAME_SESSION}${sessionRef}`
+    );
+  }
+
+  if (result.reason === "done") {
+    return `Sub-agent "${name}" finished (${elapsed}) via subagent_done.\n\n${result.summary}${sessionRef}`;
+  }
+
+  // Ordinary end of turn (settlement / sentinel / unknown exit 0).
+  return (
+    `Sub-agent "${name}" settled (${elapsed}). ` +
+    `This is an ordinary end of turn, not task completion.\n\n` +
+    `${result.summary}\n\n${STEER_SAME_SESSION}${sessionRef}`
+  );
 }
 
 /**
@@ -2617,6 +2639,7 @@ export default function subagentsExtension(
                       agent: running.agent,
                       exitCode: result.exitCode,
                       elapsed: result.elapsed,
+                      reason: result.reason,
                       sessionFile: result.sessionFile,
                       deliveryId: running.deliveryId,
                       ...(result.errorMessage
@@ -2664,7 +2687,9 @@ export default function subagentsExtension(
               text:
                 `Sub-agent "${params.name}" launched and is now running in the background. ` +
                 `Do NOT generate or assume any results — you have no idea what the sub-agent will do or produce. ` +
-                `The results will be delivered to you automatically as a steer message when the sub-agent finishes. ` +
+                `A steer message arrives when the child settles or finishes. ` +
+                `Settlement is an ordinary end of turn: the child is idle in the same session. ` +
+                `Call subagent_steer to continue. Do not spawn a replacement. ` +
                 `Until then, move on to other work or tell the user you're waiting.`,
             },
           ],
@@ -2956,7 +2981,8 @@ export default function subagentsExtension(
     pi.registerTool({
       name: "subagent_steer",
       label: "Steer Subagent",
-      description: "Send one message to an active or idle child session.",
+      description:
+        "Send one message to an active or idle child session. After ordinary settlement, steer this same child instead of spawning a replacement.",
       parameters: Type.Object({
         target: Type.String(),
         message: Type.String(),
@@ -3520,11 +3546,15 @@ export default function subagentsExtension(
           ? (text: string) => theme.bg("toolErrorBg", text)
           : (text: string) => theme.bg("toolSuccessBg", text);
         const icon = failed ? theme.fg("error", "✗") : theme.fg("success", "✓");
+        const reason =
+          typeof details.reason === "string" ? details.reason : "";
         const status = errorMessage
           ? "failed (provider/agent error)"
           : failed
             ? `failed (exit ${exitCode})`
-            : "completed";
+            : reason === "done"
+              ? "finished"
+              : "settled (idle)";
         const agentTag = details.agent
           ? theme.fg("dim", ` (${details.agent})`)
           : "";
@@ -3537,6 +3567,14 @@ export default function subagentsExtension(
         const summary = rawContent
           .replace(/\n\nSession: .+\nResume: .+$/, "")
           .replace(`Sub-agent "${name}" completed (${elapsed}).\n\n`, "")
+          .replace(
+            `Sub-agent "${name}" finished (${elapsed}) via subagent_done.\n\n`,
+            "",
+          )
+          .replace(
+            `Sub-agent "${name}" settled (${elapsed}). This is an ordinary end of turn, not task completion.\n\n`,
+            "",
+          )
           .replace(
             `Sub-agent "${name}" failed (exit code ${exitCode}).\n\n`,
             "",

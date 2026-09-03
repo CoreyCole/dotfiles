@@ -1895,3 +1895,46 @@ test("T7 idle-child attach is rejected without moving a pane", async () => {
     else process.env.CMUX_SOCKET_PATH = previousCmux;
   }
 });
+
+test("settlement wake tells the manager to steer the same session", () => {
+  const settled = __test__.resolveResultPresentation(
+    {
+      exitCode: 0,
+      elapsed: 90,
+      summary: "Next I will write CODE_NOTES.md.",
+      sessionFile: "/tmp/child.jsonl",
+      reason: "settlement",
+    },
+    "intake-AI-265",
+  );
+  assert.match(settled, /settled \(1m 30s\)/);
+  assert.match(settled, /ordinary end of turn, not task completion/);
+  assert.match(settled, /Do not spawn a replacement/);
+  assert.match(settled, /Call subagent_steer/);
+  assert.doesNotMatch(settled, /completed/);
+
+  const finished = __test__.resolveResultPresentation(
+    {
+      exitCode: 0,
+      elapsed: 12,
+      summary: "Intake ready.",
+      reason: "done",
+    },
+    "intake-AI-265",
+  );
+  assert.match(finished, /finished \(12s\) via subagent_done/);
+  assert.doesNotMatch(finished, /Do not spawn a replacement/);
+
+  const failed = __test__.resolveResultPresentation(
+    {
+      exitCode: 0,
+      elapsed: 4,
+      summary: "",
+      errorMessage: "usage limit",
+      sessionFile: "/tmp/child.jsonl",
+    },
+    "intake-AI-265",
+  );
+  assert.match(failed, /Steer the durable child session/);
+  assert.doesNotMatch(failed, /You can retry by spawning a new/);
+});
