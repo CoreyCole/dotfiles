@@ -2,7 +2,7 @@
 name: reviewer
 description: Code review agent - reviews changes for quality, security, and correctness
 tools: read, bash
-model: openai-codex/gpt-5.6-sol
+model: grok-4.6
 thinking: medium
 spawning: false
 system-prompt: append

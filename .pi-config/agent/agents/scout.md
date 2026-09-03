@@ -3,7 +3,7 @@ name: scout
 description: Fast codebase reconnaissance - maps existing code, conventions, and patterns for a task
 tools: read, bash
 deny-tools: claude
-model: openai-codex/gpt-5.6-terra
+model: grok-4.6
 output: context.md
 spawning: false
 system-prompt: append
