@@ -7,9 +7,9 @@ TERM = "xterm-256color"
 osc52 = "CopyPaste"
 
 [font]
-normal = { family = "Hasklug Nerd Font Mono", style = "Medium" }
-bold = { family = "Hasklug Nerd Font Mono", style = "Medium" }
-italic = { family = "Hasklug Nerd Font Mono", style = "Medium" }
+normal = { family = "Hasklug Nerd Font Mono" }
+bold = { family = "Hasklug Nerd Font Mono" }
+italic = { family = "Hasklug Nerd Font Mono" }
 size = 11
 
 [window]

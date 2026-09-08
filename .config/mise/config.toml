@@ -1,0 +1,35 @@
+[tools]
+"aqua:Schniz/fnm" = "latest"
+node = "26.5.0"
+
+# Go toolchain. Chestnut is on go 1.25.7 (see monorepo go.mod and
+# chestnut-flake/flake.nix). Stay on 1.25.x — do not use go@latest (1.27).
+# omarchy-install-dev-env go installs latest and is the wrong command here.
+go = "1.25"
+
+# Editor / lint. golangci-lint 2.4.0 is what Chestnut justfiles and hooks install.
+golangci-lint = "2.4.0"
+golangci-lint-langserver = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+"go:github.com/go-delve/delve/cmd/dlv" = "latest"
+air = "latest"
+gotestsum = "latest"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
+"aqua:mvdan/gofumpt" = "latest"
+
+# Chestnut codegen — versions from monorepo/tools.versions (CI reads the same file).
+buf = "1.69.0"
+mockery = "3.7.2"
+sqlc = "1.31.1"
+"aqua:quarylabs/sqruff" = "0.38.0"
+"aqua:sudorandom/protoc-gen-connect-openapi" = "0.25.7"
+
+# Other flake Go/SQL/proto tools. templ/ifacemaker pins match chestnut-flake.
+"aqua:pressly/goose" = "latest"
+"go:github.com/a-h/templ/cmd/templ" = "0.3.1020"
+"go:github.com/vburenin/ifacemaker" = "1.3.0"
+oapi-codegen = "latest"
+yq = "latest"
+protolint = "latest"
+"aqua:coder3101/protols" = "latest"
+"go:github.com/sqls-server/sqls" = "latest"

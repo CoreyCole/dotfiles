@@ -20,6 +20,7 @@ Good candidates for file-level symlinks:
 
 - `btop/btop.conf`
 - `ghostty/config`
+- `herdr/config.toml`
 - `xdg-terminals.list`
 - `starship.toml`
 - `mimeapps.list`
@@ -91,7 +92,7 @@ If tracking fcitx5 config, symlink stable files individually, for example:
 ## Before symlinking new config
 
 1. Inspect both the live path and the dotfiles path.
-2. Identify whether the path contains generated/cache/session/current-state files.
-3. Prefer file-level symlinks when a directory mixes stable config with runtime state.
-4. Create timestamped backups before replacing live paths.
-5. Verify with `readlink -f`, checksums or `cmp`, and app-specific reload commands where appropriate.
+1. Identify whether the path contains generated/cache/session/current-state files.
+1. Prefer file-level symlinks when a directory mixes stable config with runtime state.
+1. Create timestamped backups before replacing live paths.
+1. Verify with `readlink -f`, checksums or `cmp`, and app-specific reload commands where appropriate.

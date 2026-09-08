@@ -54,6 +54,8 @@ application/x-extension-xhtml=zen.desktop
 application/x-extension-xht=zen.desktop
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/slack=slack.desktop
+x-scheme-handler/grokbot=grok-bot.desktop
+x-scheme-handler/sand=grok-bot.desktop
 
 [Added Associations]
 x-scheme-handler/http=zen.desktop;userapp-Zen-AYSVS3.desktop;

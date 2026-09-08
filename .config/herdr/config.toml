@@ -1,0 +1,16 @@
+# herdr configuration
+# Live path: ~/.config/herdr/config.toml -> ~/dotfiles/.config/herdr/config.toml
+#
+# Use the default prefix. Do not nest Herdr inside tmux.
+
+onboarding = false
+
+[keys]
+prefix = "ctrl+b"
+switch_tab = ["prefix+1..9", "alt+1..9"]
+
+[ui]
+status_indicators = "symbols"
+
+[ui.toast]
+delivery = "system"

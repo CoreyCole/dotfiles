@@ -31,10 +31,18 @@ export EDITOR=nvim
 export VISUAL=nvim
 
 # pnpm
-export PNPM_HOME="$HOME/Library/pnpm"
+if [[ "$OSTYPE" == darwin* ]]; then
+  export PNPM_HOME="$HOME/Library/pnpm"
+else
+  export PNPM_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"
+fi
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
 
@@ -116,5 +124,9 @@ hermes() {
       "MallocStackLogging: can't turn off malloc stack logging because it was not enabled." >&2)
 }
 
-# Pi
-export PATH="/home/coreycole/.local/share/mise/installs/node/26.5.0/bin:$PATH"
+# Omarchy's mise activate lives in bash init only. zsh needs this or you get
+# shims without the real install dirs on PATH.
+# https://mise.jdx.dev/getting-started.html
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi

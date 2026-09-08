@@ -18,7 +18,11 @@ const OSC133_ZONE_FINAL = "\x1b]133;C\x07";
 const PATCHED = Symbol.for("corey.assistantRendererPatched");
 
 class ThinkingQuoteBlock {
-  constructor(private text: string) {}
+  private text: string;
+
+  constructor(text: string) {
+    this.text = text;
+  }
 
   invalidate() {}
 
@@ -58,13 +62,6 @@ function patchAssistantRenderer() {
     this.lastMessage = message;
     this.contentContainer.clear();
 
-    const hasVisibleContent = message.content.some(
-      (c: any) =>
-        (c.type === "text" && c.text.trim()) ||
-        (c.type === "thinking" && c.thinking.trim()),
-    );
-    if (hasVisibleContent) this.contentContainer.addChild(new Spacer(1));
-
     const markdownTheme = this.markdownTheme ?? getMarkdownTheme();
 
     for (let i = 0; i < message.content.length; i++) {
@@ -73,7 +70,17 @@ function patchAssistantRenderer() {
         this.contentContainer.addChild(
           new Markdown(content.text.trim(), 0, 0, markdownTheme),
         );
-      } else if (content.type === "thinking" && content.thinking.trim()) {
+      } else if (content.type === "thinking") {
+        const thinkingBlocks: string[] = [];
+        for (; i < message.content.length; i++) {
+          const thinkingContent = message.content[i];
+          if (thinkingContent.type !== "thinking") break;
+          const thinking = thinkingContent.thinking.trim();
+          if (thinking) thinkingBlocks.push(thinking);
+        }
+        i--;
+        if (thinkingBlocks.length === 0) continue;
+
         const hasVisibleContentAfter = message.content
           .slice(i + 1)
           .some(
@@ -88,7 +95,7 @@ function patchAssistantRenderer() {
           );
         } else {
           this.contentContainer.addChild(
-            new ThinkingQuoteBlock(content.thinking.trim()),
+            new ThinkingQuoteBlock(thinkingBlocks.join("\n\n")),
           );
         }
 

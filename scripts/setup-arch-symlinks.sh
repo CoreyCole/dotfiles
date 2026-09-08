@@ -54,7 +54,9 @@ done
 
 # File-level links preserve application-generated state in their parent directories.
 link "$REPO_DIR/.config/btop/btop.conf" "$HOME/.config/btop/btop.conf"
+link "$REPO_DIR/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 link "$REPO_DIR/.config/mimeapps.list" "$HOME/.config/mimeapps.list"
+link "$REPO_DIR/.config/mise/config.toml" "$HOME/.config/mise/config.toml"
 link "$REPO_DIR/.config/starship.toml" "$HOME/.config/starship.toml"
 link "$REPO_DIR/.config/xdg-terminals.list" "$HOME/.config/xdg-terminals.list"
 
