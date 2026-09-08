@@ -3,7 +3,8 @@ name: scout
 description: Fast codebase reconnaissance - maps existing code, conventions, and patterns for a task
 tools: read, bash
 deny-tools: claude
-model: grok-4.6
+# SuperGrok subscription via xAI OAuth. Bare grok-4.6 resolves to vercel-ai-gateway.
+model: xai/grok-4.6
 output: context.md
 spawning: false
 system-prompt: append

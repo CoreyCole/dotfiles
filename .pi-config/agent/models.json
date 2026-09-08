@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "xai": {
+      "models": [
+        {
+          "id": "fast",
+          "name": "fast",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 500000,
+          "maxTokens": 500000,
+          "samplingParams": {
+            "model": "grok-4.6"
+          }
+        }
+      ]
+    }
+  }
+}

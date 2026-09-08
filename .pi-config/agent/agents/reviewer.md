@@ -2,7 +2,8 @@
 name: reviewer
 description: Code review agent - reviews changes for quality, security, and correctness
 tools: read, bash
-model: grok-4.6
+# SuperGrok subscription via xAI OAuth. Bare grok-4.6 resolves to vercel-ai-gateway.
+model: xai/grok-4.6
 thinking: medium
 spawning: false
 system-prompt: append

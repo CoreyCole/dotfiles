@@ -183,8 +183,23 @@ test("legacy synthetic filenames resolve by native session header UUID", () => {
 
 test("named role launch arguments include model, role prompt, and control tools", () => {
   assert.equal(
-    __test__.resolveModelArgument(undefined, "openai/gpt", "high"),
-    "openai/gpt:high",
+    __test__.resolveModelArgument(undefined, "xai/grok-4.6", "high"),
+    "xai/grok-4.6:high",
+  );
+  assert.equal(__test__.resolveModelArgument("fast"), "xai/grok-4.6");
+  assert.equal(__test__.resolveModelArgument("fast:high"), "xai/grok-4.6:high");
+  assert.equal(__test__.resolveModelArgument("grok-4.6"), "xai/grok-4.6");
+  assert.equal(
+    __test__.resolveModelArgument(undefined, "fast", "minimal"),
+    "xai/grok-4.6:minimal",
+  );
+  assert.throws(
+    () => __test__.resolveModelArgument("grok"),
+    /Invalid subagent model "grok"/,
+  );
+  assert.throws(
+    () => __test__.resolveModelArgument("zai\/glm-5.2-fast"),
+    /Invalid subagent model "zai\/glm-5.2-fast"/,
   );
   assert.deepEqual(
     __test__.buildSystemPromptArguments({
@@ -805,7 +820,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
       activityFile: "/activity/child.json",
       agentDir: dir,
       agentDefs: {
-        model: "openai/gpt",
+        model: "xai/grok-4.6",
         thinking: "high",
         tools: "read,bash",
         denyTools: "write",
@@ -815,7 +830,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
       },
       promptDir: dir,
     });
-    assert.match(profile.arguments.join(" "), /--model 'openai\/gpt:high'/);
+    assert.match(profile.arguments.join(" "), /--model 'xai\/grok-4.6:high'/);
     assert.match(profile.arguments.join(" "), /--system-prompt/);
     assert.match(
       profile.arguments.join(" "),

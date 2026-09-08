@@ -3,7 +3,8 @@ name: worker
 description: Implements tasks from todos - writes code, runs tests, commits with polished messages
 tools: read, bash, write, edit
 deny-tools: claude
-model: grok-4.6
+# SuperGrok subscription via xAI OAuth. Bare grok-4.6 resolves to vercel-ai-gateway.
+model: xai/grok-4.6
 thinking: minimal
 spawning: false
 system-prompt: append

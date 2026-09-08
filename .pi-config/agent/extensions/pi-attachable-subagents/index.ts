@@ -151,7 +151,10 @@ const SubagentParams = Type.Object({
     }),
   ),
   model: Type.Optional(
-    Type.String({ description: "Model override (overrides agent default)" }),
+    Type.String({
+      description:
+        "Exact provider/id override (overrides agent default). Unknown or partial names fail the spawn.",
+    }),
   ),
   skills: Type.Optional(
     Type.String({
@@ -1379,16 +1382,131 @@ const PI_REASONING_SUFFIXES = new Set([
   "max",
 ]);
 
+function configuredDefaultModelRef(): string {
+  try {
+    const settings = JSON.parse(
+      readFileSync(join(getAgentConfigDir(), "settings.json"), "utf8"),
+    ) as { defaultProvider?: string; defaultModel?: string };
+    if (settings.defaultProvider && settings.defaultModel) {
+      return `${settings.defaultProvider}/${settings.defaultModel}`;
+    }
+  } catch {
+    // use the pinned fallback below
+  }
+
+  return "xai/grok-4.6";
+}
+
+type CatalogModel = { provider: string; id: string };
+
+function loadConfiguredModels(agentDir: string): CatalogModel[] {
+  const found: CatalogModel[] = [];
+
+  try {
+    const store = JSON.parse(
+      readFileSync(join(agentDir, "models-store.json"), "utf8"),
+    ) as Record<string, { models?: Array<{ id?: string; provider?: string }> }>;
+    for (const [provider, entry] of Object.entries(store)) {
+      for (const model of entry.models ?? []) {
+        if (typeof model.id === "string" && model.id) {
+          found.push({
+            provider:
+              typeof model.provider === "string" && model.provider
+                ? model.provider
+                : provider,
+            id: model.id,
+          });
+        }
+      }
+    }
+  } catch {
+    // catalog file is optional
+  }
+
+  try {
+    const custom = JSON.parse(
+      readFileSync(join(agentDir, "models.json"), "utf8"),
+    ) as {
+      providers?: Record<string, { models?: Array<{ id?: string }> }>;
+    };
+    for (const [provider, entry] of Object.entries(custom.providers ?? {})) {
+      for (const model of entry.models ?? []) {
+        if (typeof model.id === "string" && model.id) {
+          found.push({ provider, id: model.id });
+        }
+      }
+    }
+  } catch {
+    // custom models file is optional
+  }
+
+  return found;
+}
+
+function splitThinkingSuffix(model: string): {
+  ref: string;
+  thinking?: string;
+} {
+  const colon = model.lastIndexOf(":");
+  if (colon === -1) return { ref: model };
+
+  const suffix = model.slice(colon + 1);
+  if (!PI_REASONING_SUFFIXES.has(suffix)) return { ref: model };
+
+  return { ref: model.slice(0, colon), thinking: suffix };
+}
+
+function findExactConfiguredModel(
+  ref: string,
+  catalog: CatalogModel[],
+): CatalogModel | undefined {
+  const normalized = ref.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  const canonical = catalog.filter(
+    (model) => `${model.provider}/${model.id}`.toLowerCase() === normalized,
+  );
+  if (canonical.length === 1) return canonical[0];
+  if (canonical.length > 1) return undefined;
+
+  const ids = catalog.filter((model) => model.id.toLowerCase() === normalized);
+
+  return ids.length === 1 ? ids[0] : undefined;
+}
+
+function invalidSubagentModelError(requested: string): Error {
+  return new Error(
+    `Invalid subagent model "${requested}". Use an exact provider/id from the configured catalog.`,
+  );
+}
+
 function resolveModelArgument(
   explicitModel?: string,
   agentModel?: string,
   agentThinking?: string,
 ): string | undefined {
-  if (explicitModel) return explicitModel;
-  if (!agentModel) return undefined;
-  const suffix = agentModel.slice(agentModel.lastIndexOf(":") + 1);
-  if (PI_REASONING_SUFFIXES.has(suffix)) return agentModel;
-  return agentThinking ? `${agentModel}:${agentThinking}` : agentModel;
+  const requested = explicitModel?.trim() || agentModel?.trim();
+  if (!requested) return undefined;
+
+  const { ref, thinking: refThinking } = splitThinkingSuffix(requested);
+  const thinking =
+    refThinking ??
+    (agentThinking && PI_REASONING_SUFFIXES.has(agentThinking)
+      ? agentThinking
+      : undefined);
+  const lookup =
+    ref.toLowerCase() === "fast" ? configuredDefaultModelRef() : ref;
+  const matched = findExactConfiguredModel(
+    lookup,
+    loadConfiguredModels(getAgentConfigDir()),
+  );
+  if (!matched) {
+    throw invalidSubagentModelError(requested);
+  }
+
+  const cli = `${matched.provider}/${matched.id}`;
+
+  return thinking ? `${cli}:${thinking}` : cli;
 }
 
 function buildSystemPromptArguments(params: {
@@ -2560,17 +2678,32 @@ export default function subagentsExtension(
           };
         }
 
-        // Launch the subagent (creates pane, sends command)
-        const running = await launchSubagent(params, ctx, {
-          lifecycle,
-          registerChild(child) {
-            if (!managerSessionId)
-              throw new Error("manager session identity is unavailable");
-            if (childrenBySessionId.has(child.childSessionId)) return;
-            pi.appendEntry(CHILD_SESSION_CUSTOM_TYPE, { version: 1, ...child });
-            childrenBySessionId.set(child.childSessionId, child);
-          },
-        });
+        let running: RunningSubagent;
+        try {
+          running = await launchSubagent(params, ctx, {
+            lifecycle,
+            registerChild(child) {
+              if (!managerSessionId)
+                throw new Error("manager session identity is unavailable");
+              if (childrenBySessionId.has(child.childSessionId)) return;
+              pi.appendEntry(CHILD_SESSION_CUSTOM_TYPE, {
+                version: 1,
+                ...child,
+              });
+              childrenBySessionId.set(child.childSessionId, child);
+            },
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (message.startsWith("Invalid subagent model")) {
+            return {
+              content: [{ type: "text", text: message }],
+              details: { error: "invalid model" },
+            };
+          }
+          throw error;
+        }
         registerLaunchedDelivery(running, lifecycle);
 
         // Create a separate AbortController for the watcher
@@ -3546,8 +3679,7 @@ export default function subagentsExtension(
           ? (text: string) => theme.bg("toolErrorBg", text)
           : (text: string) => theme.bg("toolSuccessBg", text);
         const icon = failed ? theme.fg("error", "✗") : theme.fg("success", "✓");
-        const reason =
-          typeof details.reason === "string" ? details.reason : "";
+        const reason = typeof details.reason === "string" ? details.reason : "";
         const status = errorMessage
           ? "failed (provider/agent error)"
           : failed

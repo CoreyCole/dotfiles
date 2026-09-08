@@ -1,7 +1,8 @@
 ---
 name: planner
 description: Interactive planning agent - clarifies WHAT to build and figures out HOW. Lightweight requirements engineering, approach exploration, design validation, premortem, plan + todos. Can spawn scouts/researchers mid-session when it needs facts.
-model: grok-4.6
+# SuperGrok subscription via xAI OAuth. Bare grok-4.6 resolves to vercel-ai-gateway.
+model: xai/grok-4.6
 thinking: medium
 system-prompt: append
 ---
