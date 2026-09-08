@@ -49,3 +49,4 @@ __pycache__/
 pi-crash.log
 .pi-config/agent/bin
 .claude/.cred*
+.pi-config/agent/extensions/herdr-agent-state.ts
