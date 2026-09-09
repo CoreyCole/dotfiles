@@ -9,6 +9,7 @@ import {
   detachTmuxPane,
   destroyTmuxHiddenOwner,
   ensureTmuxHiddenOwner,
+  interpretStartupPaneError,
   sendTmuxPrompt,
   TMUX_HIDDEN_KEEPER_COMMAND,
   tmuxHiddenSessionName,
@@ -389,4 +390,29 @@ test("T1-T10 disposable tmux socket smoke for hidden launch, split attach, and c
       execFileSync("tmux", ["-L", socket, "kill-server"], { stdio: "ignore" });
     } catch {}
   }
+});
+
+test("startup pane auth and model errors are detected", () => {
+  assert.equal(
+    interpretStartupPaneError(
+      "Error: No API key found for amazon-bedrock.\n\nUse /login to log into a provider via OAuth or API key.",
+    ),
+    "No API key found for amazon-bedrock",
+  );
+  assert.equal(
+    interpretStartupPaneError(
+      "Error: No model selected.\n\nUse /login to log into a provider via OAuth or API key.\n\nThen use /model to select a model.",
+    ),
+    "No model selected.",
+  );
+  assert.equal(
+    interpretStartupPaneError(
+      'Authentication failed for "amazon-bedrock". Credentials may have expired.',
+    ),
+    'Authentication failed for "amazon-bedrock"',
+  );
+  assert.equal(
+    interpretStartupPaneError("child discussed API keys in ordinary output"),
+    undefined,
+  );
 });

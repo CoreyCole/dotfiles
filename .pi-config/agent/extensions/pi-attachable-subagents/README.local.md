@@ -6,7 +6,7 @@ A catalog child is always resumable by its child-session UUID. `subagents_list` 
 
 `/attach` is active-only. Steer an idle child by UUID (or an unambiguous prefix) first. `/stop` and `subagent_stop` stop only an active process and retain durable history.
 
-Named children re-resolve their current named-agent definition when resumed, including its prompt, tools, deny policy, model, thinking, config directory, and cwd.
+Named children re-resolve their current named-agent definition when resumed, including its prompt, tools, deny policy, config directory, and cwd. Idle resume omits `--model` so the native session keeps its last provider and model.
 
 ## First-turn context
 

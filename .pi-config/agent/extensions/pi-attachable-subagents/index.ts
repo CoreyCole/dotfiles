@@ -1799,12 +1799,6 @@ function buildIdleLaunchProfile(params: {
     "-e",
     shellEscape(join(SUBAGENTS_DIR, "subagent-done.ts")),
   ];
-  const model = resolveModelArgument(
-    undefined,
-    agentDefs?.model,
-    agentDefs?.thinking,
-  );
-  if (model) parts.push("--model", shellEscape(model));
   if (agentDefs?.body) {
     mkdirSync(promptDir, { recursive: true });
     const rolePrompt = join(promptDir, `${child.childSessionId}-agent.md`);
@@ -2927,9 +2921,16 @@ export default function subagentsExtension(
                 display: true,
                 details: {
                   name: running.name,
-                  sessionFile: running.sessionFile,
+                  task: running.task,
+                  agent: running.agent,
+                  exitCode: result.exitCode,
+                  elapsed: result.elapsed,
                   reason: result.reason,
+                  sessionFile: running.sessionFile,
                   deliveryId: running.deliveryId,
+                  ...(result.errorMessage
+                    ? { errorMessage: result.errorMessage }
+                    : {}),
                 },
               },
               { triggerTurn: true, deliverAs: "steer" },
@@ -3055,19 +3056,20 @@ export default function subagentsExtension(
             );
             const startTime = Date.now();
             const watcherAbort = new AbortController();
+            let displayModel: string | undefined;
+            let displayProvider: string | undefined;
+            try {
+              const peek = inspectSession(sessionFile);
+              displayModel = peek.model;
+              displayProvider = peek.provider;
+            } catch {}
             return {
               id: child.childSessionId,
               name: child.name,
               task: message,
               ...(child.agent ? { agent: child.agent } : {}),
-              displayModel: resolveModelArgument(
-                undefined,
-                agentDefs?.model,
-                agentDefs?.thinking,
-              )
-                ?.split("/")
-                .pop()
-                ?.split(":")[0],
+              displayModel,
+              displayProvider,
               surface,
               tmuxHiddenOwner: lifecycle.tmuxHiddenOwner,
               startTime,

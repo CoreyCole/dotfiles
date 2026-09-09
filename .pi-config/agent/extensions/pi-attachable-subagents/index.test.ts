@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import subagentsExtension, { __test__ } from "./index.ts";
+import { interpretStartupPaneError } from "./cmux.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createStatusState, observeStatus } from "./status.ts";
 import { shouldAppendToolBorder } from "../tool-border.ts";
@@ -830,7 +831,7 @@ test("idle launch profile reconstructs named role and active decision prevents d
       },
       promptDir: dir,
     });
-    assert.match(profile.arguments.join(" "), /--model 'xai\/grok-4.6:high'/);
+    assert.doesNotMatch(profile.arguments.join(" "), /--model/);
     assert.match(profile.arguments.join(" "), /--system-prompt/);
     assert.match(
       profile.arguments.join(" "),
@@ -886,6 +887,40 @@ test("unprofiled idle launches clear inherited role and deny variables", () => {
     });
     assert.match(profile.environment.join(" "), /PI_SUBAGENT_AGENT=''/);
     assert.match(profile.environment.join(" "), /PI_DENY_TOOLS=''/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("idle resume omits bare agent model so the session keeps its provider", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-idle-no-model-"));
+  try {
+    const profile = __test__.buildIdleLaunchProfile({
+      child: {
+        managerSessionId: "manager",
+        childSessionId: "planner-design",
+        name: "planner-design",
+        agent: "planner",
+        cwd: "/work",
+      },
+      sessionFile: "/sessions/child.jsonl",
+      activityFile: "/activity/child.json",
+      agentDir: dir,
+      agentDefs: {
+        model: "grok-4.6",
+        thinking: "medium",
+        tools: "read",
+        spawning: false,
+        systemPromptMode: "append",
+        body: "plan",
+      },
+      promptDir: dir,
+    });
+    const args = profile.arguments.join(" ");
+    assert.doesNotMatch(args, /--model/);
+    assert.doesNotMatch(args, /grok-4\.6/);
+    assert.doesNotMatch(args, /amazon-bedrock/);
+    assert.match(args, /--session 'planner-design'/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1952,4 +1987,30 @@ test("settlement wake tells the manager to steer the same session", () => {
   );
   assert.match(failed, /Steer the durable child session/);
   assert.doesNotMatch(failed, /You can retry by spawning a new/);
+});
+
+test("startup auth pane error is a failed result, not a successful steer", () => {
+  const pane = [
+    "Error: No API key found for amazon-bedrock.",
+    "",
+    "Use /login to log into a provider via OAuth or API key.",
+  ].join("\n");
+  const error = interpretStartupPaneError(pane);
+  assert.equal(error, "No API key found for amazon-bedrock");
+  const presentation = __test__.resolveResultPresentation(
+    {
+      exitCode: 1,
+      elapsed: 2,
+      summary: `Subagent error: ${error}`,
+      errorMessage: error,
+      reason: "error",
+      sessionFile: "/tmp/child.jsonl",
+    },
+    "planner-design",
+  );
+  assert.match(presentation, /failed/);
+  assert.match(presentation, /No API key found for amazon-bedrock/);
+  assert.doesNotMatch(presentation, /settled/);
+  assert.doesNotMatch(presentation, /Steered/);
+  assert.equal(interpretStartupPaneError("ordinary child output"), undefined);
 });

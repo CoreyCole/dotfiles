@@ -1697,7 +1697,22 @@ function readExitSidecar(sessionFile?: string): PollResult | null {
   }
 }
 
-export const __pollForExitTest__ = { interpretExitSidecar, readExitSidecar };
+export function interpretStartupPaneError(screen: string): string | undefined {
+  const authFail = screen.match(/Authentication failed for "[^"]+"/);
+  if (authFail) return authFail[0];
+  if (!/Use \/login to log into a provider/.test(screen)) return undefined;
+  const apiKey = screen.match(/No API key found for [^\n\x1b.]+/);
+  if (apiKey) return apiKey[0].trim();
+  if (/No model selected/.test(screen)) return "No model selected.";
+  if (/No models available/.test(screen)) return "No models available.";
+  return undefined;
+}
+
+export const __pollForExitTest__ = {
+  interpretExitSidecar,
+  readExitSidecar,
+  interpretStartupPaneError,
+};
 
 /**
  * Poll until the subagent exits. Checks for a `.exit` sidecar file first
@@ -1739,8 +1754,9 @@ export async function pollForExit(
     }
 
     // Slow path: read terminal screen for sentinel (crash detection)
+    // and for auth/model startup errors that leave the TUI running.
     try {
-      const screen = await readScreenAsync(surface, 5);
+      const screen = await readScreenAsync(surface, 80);
       const match = screen.match(/__SUBAGENT_DONE_(\d+)__/);
       if (match) {
         return (
@@ -1749,6 +1765,14 @@ export async function pollForExit(
             exitCode: parseInt(match[1], 10),
           }
         );
+      }
+      const startupError = interpretStartupPaneError(screen);
+      if (startupError) {
+        return {
+          reason: "error",
+          exitCode: 1,
+          errorMessage: startupError,
+        };
       }
     } catch {
       const boundarySidecar = readExitSidecar(options.sessionFile);
