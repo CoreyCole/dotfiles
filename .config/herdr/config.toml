@@ -17,6 +17,7 @@ pane_gaps = false
 pane_outer_borders = false
 # Do not reserve the right-hand scrollbar gutter column.
 pane_scrollbars = false
+mouse_scroll_lines = 1
 
 [ui.toast]
 delivery = "system"
