@@ -11,6 +11,12 @@ switch_tab = ["prefix+1..9", "alt+1..9"]
 
 [ui]
 status_indicators = "symbols"
+# Share a single divider between splits instead of a two-cell gap.
+pane_gaps = false
+# No outer frame around the pane area (tmux-style internal splitters).
+pane_outer_borders = false
+# Do not reserve the right-hand scrollbar gutter column.
+pane_scrollbars = false
 
 [ui.toast]
 delivery = "system"
