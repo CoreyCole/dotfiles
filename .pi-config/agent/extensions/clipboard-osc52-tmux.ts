@@ -2,26 +2,46 @@ import { spawnSync } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const TMUX_OSC52_SSH_MARKER = "pi-tmux-osc52";
+const HERDR_OSC52_SSH_MARKER = "pi-herdr-osc52";
 const OSC52_CLIPBOARD_PATTERN = /\x1b\]52;[^;]*;([^\x07\x1b]*)(?:\x07|\x1b\\)/;
 const TMUX_OSC52_BRIDGE_INSTALLED = Symbol.for("pi.tmuxOsc52BridgeInstalled");
 
-function enableOsc52CopyInTmux() {
-  if (!process.env.TMUX) return;
-  if (
+function hasRemoteClipboardEnv(): boolean {
+  return Boolean(
     process.env.SSH_CONNECTION ||
     process.env.SSH_CLIENT ||
-    process.env.MOSH_CONNECTION
-  )
-    return;
+    process.env.MOSH_CONNECTION,
+  );
+}
 
-  process.env.SSH_CONNECTION = `${TMUX_OSC52_SSH_MARKER} 0 ${TMUX_OSC52_SSH_MARKER} 0`;
+function inHerdr(): boolean {
+  return Boolean(process.env.HERDR_ENV);
+}
+
+function enableOsc52Copy() {
+  if (hasRemoteClipboardEnv()) return;
+  if (!inHerdr() && !process.env.TMUX) return;
+
+  const marker = inHerdr() ? HERDR_OSC52_SSH_MARKER : TMUX_OSC52_SSH_MARKER;
+  process.env.SSH_CONNECTION = `${marker} 0 ${marker} 0`;
+}
+
+function shouldInstallTmuxOsc52Bridge(): boolean {
+  return Boolean(process.env.TMUX) && !inHerdr();
 }
 
 function installTmuxOsc52ClipboardBridge() {
-  if (!process.env.TMUX) return;
-  if ((process.stdout as unknown as Record<symbol, boolean>)[TMUX_OSC52_BRIDGE_INSTALLED]) return;
+  if (!shouldInstallTmuxOsc52Bridge()) return;
+  if (
+    (process.stdout as unknown as Record<symbol, boolean>)[
+      TMUX_OSC52_BRIDGE_INSTALLED
+    ]
+  )
+    return;
 
-  (process.stdout as unknown as Record<symbol, boolean>)[TMUX_OSC52_BRIDGE_INSTALLED] = true;
+  (process.stdout as unknown as Record<symbol, boolean>)[
+    TMUX_OSC52_BRIDGE_INSTALLED
+  ] = true;
   const originalWrite = process.stdout.write.bind(process.stdout);
 
   process.stdout.write = ((chunk: unknown, ...args: unknown[]) => {
@@ -48,6 +68,11 @@ function installTmuxOsc52ClipboardBridge() {
 }
 
 export default function clipboardOsc52Tmux(_pi: ExtensionAPI) {
-  enableOsc52CopyInTmux();
+  enableOsc52Copy();
   installTmuxOsc52ClipboardBridge();
 }
+
+export const clipboardOsc52Test = {
+  enableOsc52Copy,
+  shouldInstallTmuxOsc52Bridge,
+};
