@@ -34,6 +34,8 @@ Keep these local choices unless the user asks to change them:
 - Compact pane chrome: no pane gaps, no outer borders, no scrollbars
 - Agent status uses `symbols`
 - Toasts use system delivery
+- Desktop tab row is at the bottom (`tab_bar_position = "bottom"`)
+- Tab bar right shows the focused pane CWD and git branch via `~/dotfiles/scripts/herdr-tab-cwd.sh`
 
 ## After you edit config.toml
 

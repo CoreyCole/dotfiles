@@ -18,6 +18,12 @@ pane_outer_borders = false
 # Do not reserve the right-hand scrollbar gutter column.
 pane_scrollbars = false
 mouse_scroll_lines = 1
+# tmux-style tab row under the panes. Prefix/Navigate/Copy/Resize replace it while active.
+tab_bar_position = "bottom"
+# Focused-pane CWD and git branch on the right. Herdr strips ANSI, so this script prints plain text.
+tab_bar_right = [
+  { type = "command", command = "~/dotfiles/scripts/herdr-tab-cwd.sh", interval_seconds = 1, timeout_seconds = 2 },
+]
 
 [ui.toast]
 delivery = "system"
