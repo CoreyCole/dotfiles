@@ -93,8 +93,6 @@ export DIRENV_LOG_FORMAT=""
 export NIX_CONFIG="warn-dirty = false"
 export NIX_DIRENV_SILENT=0
 
-eval "$(direnv hook zsh)"
-
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
 

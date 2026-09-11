@@ -27,9 +27,7 @@
       environment.systemPackages = [
         pkgs.vim
         pkgs.go
-        pkgs.direnv # Directory-based environment variables
         pkgs.fzf # Command-line fuzzy finder (ctrl+r history, ctrl+t files, alt+c dirs)
-        pkgs.nix-direnv # Fast, persistent use_nix/use_flake for direnv
         pkgs.fd
         pkgs.ripgrep
         pkgs.codespell # Spell checker for source code
@@ -111,6 +109,8 @@
       #     experimental-features = ["nix-command" "flakes"];
       #   };
       # };
+
+      programs.direnv.enable = true;
 
       # Enable zsh with fzf integration for ctrl+r history search
       programs.zsh.enable = true;
@@ -262,10 +262,10 @@
           ];
 
           casks = [
-            "1password-cli"
+            # "1password-cli"  # brew 5.1.1: generate_completions_from_executable + bash/zsh/fish
             "arc"
             "finicky"
-            "orbstack"
+            # "orbstack"  # brew 5.1.1: undefined method postflight_steps
             "signal"
             "slack"
           ];
