@@ -3,8 +3,11 @@ import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
+  attachHerdrPane,
   attachTmuxPane,
+  createHerdrSurface,
   createTmuxBackgroundWindow,
+  detachHerdrPane,
   createTmuxHiddenSurface,
   detachTmuxPane,
   destroyTmuxHiddenOwner,
@@ -13,6 +16,8 @@ import {
   sendTmuxPrompt,
   TMUX_HIDDEN_KEEPER_COMMAND,
   tmuxHiddenSessionName,
+  getMuxBackend,
+  type HerdrCommand,
   type TmuxCommand,
   type TmuxHiddenOwner,
 } from "./cmux.ts";
@@ -415,4 +420,119 @@ test("startup pane auth and model errors are detected", () => {
     interpretStartupPaneError("child discussed API keys in ordinary output"),
     undefined,
   );
+});
+
+function ok(result: unknown) {
+  return JSON.stringify({ id: "t", result });
+}
+
+function fakeHerdr(handler: (args: string[]) => string) {
+  const calls: string[][] = [];
+  const execute: HerdrCommand = (args) => {
+    calls.push(args);
+    return handler(args);
+  };
+  return { calls, execute };
+}
+
+function paneGet(paneId: string, tabId: string) {
+  return ok({ pane: { pane_id: paneId, tab_id: tabId }, type: "pane_get" });
+}
+
+test("herdr createSurface uses a no-focus tab", () => {
+  const herdr = fakeHerdr(() =>
+    ok({
+      root_pane: { pane_id: "w1:p9" },
+      tab: { tab_id: "w1:t2" },
+      type: "tab_created",
+    }),
+  );
+  assert.equal(createHerdrSurface("Scout", herdr.execute), "w1:p9");
+  assert.equal(herdr.calls[0]?.[0], "tab");
+  assert.equal(herdr.calls[0]?.[1], "create");
+  assert.ok(herdr.calls[0]?.includes("--no-focus"));
+  assert.ok(herdr.calls[0]?.includes("Scout"));
+});
+
+test("herdr attach focuses a same-tab pane", () => {
+  const herdr = fakeHerdr((args) => {
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w1:t1");
+    }
+    return ok({ type: "ok" });
+  });
+  assert.equal(attachHerdrPane("w1:p2", "w1:p1", herdr.execute), "focused");
+  assert.deepEqual(herdr.calls.at(-1), ["agent", "focus", "w1:p2"]);
+  assert.equal(
+    herdr.calls.some((args) => args[0] === "pane" && args[1] === "move"),
+    false,
+  );
+});
+
+test("herdr attach moves a cross-tab pane beside the manager", () => {
+  const herdr = fakeHerdr((args) => {
+    if (args[0] === "pane" && args[1] === "get" && args[2] === "w1:p9") {
+      return paneGet("w1:p9", "w1:t2");
+    }
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w1:t1");
+    }
+    return ok({ type: "pane_move" });
+  });
+  assert.equal(attachHerdrPane("w1:p9", "w1:p1", herdr.execute), "moved");
+  assert.deepEqual(herdr.calls.at(-1), [
+    "pane",
+    "move",
+    "w1:p9",
+    "--tab",
+    "w1:t1",
+    "--target-pane",
+    "w1:p1",
+    "--split",
+    "right",
+    "--focus",
+  ]);
+});
+
+test("herdr detach parks the pane on a new tab", () => {
+  const herdr = fakeHerdr(() => ok({ type: "pane_move" }));
+  assert.equal(detachHerdrPane("w1:p9", "Scout", herdr.execute), "w1:p9");
+  assert.deepEqual(herdr.calls[0], [
+    "pane",
+    "move",
+    "w1:p9",
+    "--new-tab",
+    "--label",
+    "Scout",
+    "--no-focus",
+  ]);
+});
+
+test("herdr wins over leftover TMUX when HERDR_ENV is set", () => {
+  const previous = {
+    mux: process.env.PI_SUBAGENT_MUX,
+    tmux: process.env.TMUX,
+    herdr: process.env.HERDR_ENV,
+    pane: process.env.HERDR_PANE_ID,
+    cmux: process.env.CMUX_SOCKET_PATH,
+  };
+  delete process.env.PI_SUBAGENT_MUX;
+  delete process.env.CMUX_SOCKET_PATH;
+  process.env.TMUX = "leftover";
+  process.env.HERDR_ENV = "1";
+  process.env.HERDR_PANE_ID = "w1:p1";
+  try {
+    assert.equal(getMuxBackend(), "herdr");
+  } finally {
+    if (previous.mux == null) delete process.env.PI_SUBAGENT_MUX;
+    else process.env.PI_SUBAGENT_MUX = previous.mux;
+    if (previous.tmux == null) delete process.env.TMUX;
+    else process.env.TMUX = previous.tmux;
+    if (previous.herdr == null) delete process.env.HERDR_ENV;
+    else process.env.HERDR_ENV = previous.herdr;
+    if (previous.pane == null) delete process.env.HERDR_PANE_ID;
+    else process.env.HERDR_PANE_ID = previous.pane;
+    if (previous.cmux == null) delete process.env.CMUX_SOCKET_PATH;
+    else process.env.CMUX_SOCKET_PATH = previous.cmux;
+  }
 });

@@ -18,7 +18,7 @@ import { basename, dirname, join } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
-export type MuxBackend = "cmux" | "tmux" | "zellij" | "wezterm";
+export type MuxBackend = "cmux" | "herdr" | "tmux" | "zellij" | "wezterm";
 
 const commandAvailability = new Map<string, boolean>();
 
@@ -57,6 +57,7 @@ function muxPreference(): MuxBackend | null {
   const pref = (process.env.PI_SUBAGENT_MUX ?? "").trim().toLowerCase();
   if (
     pref === "cmux" ||
+    pref === "herdr" ||
     pref === "tmux" ||
     pref === "zellij" ||
     pref === "wezterm"
@@ -67,6 +68,14 @@ function muxPreference(): MuxBackend | null {
 
 function isCmuxRuntimeAvailable(): boolean {
   return !!process.env.CMUX_SOCKET_PATH && hasCommand("cmux");
+}
+
+function isHerdrRuntimeAvailable(): boolean {
+  return (
+    process.env.HERDR_ENV === "1" &&
+    !!process.env.HERDR_PANE_ID &&
+    (hasCommand("herdr") || !!process.env.HERDR_BIN_PATH)
+  );
 }
 
 function isTmuxRuntimeAvailable(): boolean {
@@ -88,6 +97,10 @@ export function isCmuxAvailable(): boolean {
   return isCmuxRuntimeAvailable();
 }
 
+export function isHerdrAvailable(): boolean {
+  return isHerdrRuntimeAvailable();
+}
+
 export function isTmuxAvailable(): boolean {
   return isTmuxRuntimeAvailable();
 }
@@ -103,11 +116,14 @@ export function isWezTermAvailable(): boolean {
 export function getMuxBackend(): MuxBackend | null {
   const pref = muxPreference();
   if (pref === "cmux") return isCmuxRuntimeAvailable() ? "cmux" : null;
+  if (pref === "herdr") return isHerdrRuntimeAvailable() ? "herdr" : null;
   if (pref === "tmux") return isTmuxRuntimeAvailable() ? "tmux" : null;
   if (pref === "zellij") return isZellijRuntimeAvailable() ? "zellij" : null;
   if (pref === "wezterm") return isWezTermRuntimeAvailable() ? "wezterm" : null;
 
   if (isCmuxRuntimeAvailable()) return "cmux";
+  // Prefer Herdr over a leftover TMUX env when we are actually inside Herdr.
+  if (isHerdrRuntimeAvailable()) return "herdr";
   if (isTmuxRuntimeAvailable()) return "tmux";
   if (isZellijRuntimeAvailable()) return "zellij";
   if (isWezTermRuntimeAvailable()) return "wezterm";
@@ -123,6 +139,9 @@ export function muxSetupHint(): string {
   if (pref === "cmux") {
     return "Start pi inside cmux (`cmux pi`).";
   }
+  if (pref === "herdr") {
+    return "Start pi inside Herdr (`herdr`).";
+  }
   if (pref === "tmux") {
     return "Start pi inside tmux (`tmux new -A -s pi 'pi'`).";
   }
@@ -132,7 +151,7 @@ export function muxSetupHint(): string {
   if (pref === "wezterm") {
     return "Start pi inside WezTerm.";
   }
-  return "Start pi inside cmux (`cmux pi`), tmux (`tmux new -A -s pi 'pi'`), zellij (`zellij --session pi`, then run `pi`), or WezTerm.";
+  return "Start pi inside Herdr (`herdr`), cmux (`cmux pi`), tmux (`tmux new -A -s pi 'pi'`), zellij (`zellij --session pi`, then run `pi`), or WezTerm.";
 }
 
 function requireMuxBackend(): MuxBackend {
@@ -1041,6 +1060,115 @@ export function destroyTmuxHiddenOwner(
   execute(["kill-session", "-t", owner.sessionName]);
 }
 
+export type HerdrCommand = (args: string[]) => string;
+
+const runHerdr: HerdrCommand = (args) =>
+  execFileSync(process.env.HERDR_BIN_PATH || "herdr", args, {
+    encoding: "utf8",
+  });
+
+function herdrResult(args: string[], execute: HerdrCommand = runHerdr): any {
+  const raw = execute(args).trim();
+  let payload: any;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw new Error(`Unexpected herdr ${args.join(" ")} output: ${raw || "(empty)"}`);
+  }
+  if (payload?.error) {
+    const err = payload.error;
+    throw new Error(
+      typeof err === "object" && err && "message" in err
+        ? String(err.message)
+        : JSON.stringify(err),
+    );
+  }
+  return payload?.result ?? payload;
+}
+
+function herdrPane(paneId: string, execute: HerdrCommand = runHerdr): {
+  pane_id: string;
+  tab_id: string;
+} {
+  const result = herdrResult(["pane", "get", paneId], execute);
+  const pane = result?.pane ?? result;
+  const id = pane?.pane_id;
+  const tabId = pane?.tab_id;
+  if (typeof id !== "string" || typeof tabId !== "string") {
+    throw new Error(`Unexpected herdr pane get output for ${paneId}`);
+  }
+  return { pane_id: id, tab_id: tabId };
+}
+
+export function createHerdrSurface(
+  name: string,
+  execute: HerdrCommand = runHerdr,
+): string {
+  const args = [
+    "tab",
+    "create",
+    "--label",
+    name,
+    "--cwd",
+    process.cwd(),
+    "--no-focus",
+  ];
+  if (process.env.HERDR_WORKSPACE_ID) {
+    args.push("--workspace", process.env.HERDR_WORKSPACE_ID);
+  }
+  const result = herdrResult(args, execute);
+  const paneId = result?.root_pane?.pane_id;
+  if (typeof paneId !== "string" || !paneId) {
+    throw new Error(`Unexpected herdr tab create output: ${paneId || "(empty)"}`);
+  }
+  return paneId;
+}
+
+export function attachHerdrPane(
+  childPane: string,
+  managerPane: string,
+  execute: HerdrCommand = runHerdr,
+): "focused" | "moved" {
+  const child = herdrPane(childPane, execute);
+  const manager = herdrPane(managerPane, execute);
+  if (child.tab_id === manager.tab_id) {
+    try {
+      herdrResult(["agent", "focus", childPane], execute);
+    } catch {
+      herdrResult(["tab", "focus", child.tab_id], execute);
+    }
+    return "focused";
+  }
+  herdrResult(
+    [
+      "pane",
+      "move",
+      childPane,
+      "--tab",
+      manager.tab_id,
+      "--target-pane",
+      managerPane,
+      "--split",
+      "right",
+      "--focus",
+    ],
+    execute,
+  );
+  return "moved";
+}
+
+export function detachHerdrPane(
+  childPane: string,
+  tabLabel: string,
+  execute: HerdrCommand = runHerdr,
+): string {
+  herdrResult(
+    ["pane", "move", childPane, "--new-tab", "--label", tabLabel, "--no-focus"],
+    execute,
+  );
+  return childPane;
+}
+
 /**
  * Create a new terminal surface for a subagent.
  *
@@ -1082,6 +1210,10 @@ export function createSurface(
 
   if (backend === "zellij") {
     return createZellijSurface(name);
+  }
+
+  if (backend === "herdr") {
+    return createHerdrSurface(name);
   }
 
   if (backend === "tmux") {
@@ -1141,6 +1273,25 @@ export function createSurfaceSplit(
 
   if (backend === "cmux") {
     return createCmuxSplitSurface(name, direction, fromSurface).surface;
+  }
+
+  if (backend === "herdr") {
+    const splitDirection =
+      direction === "up" || direction === "down" ? "down" : "right";
+    const args = ["pane", "split", "--direction", splitDirection, "--no-focus"];
+    if (fromSurface) args.push("--pane", fromSurface);
+    else args.push("--current");
+    const result = herdrResult(args);
+    const paneId = result?.pane?.pane_id;
+    if (typeof paneId !== "string" || !paneId) {
+      throw new Error(`Unexpected herdr pane split output: ${paneId || "(empty)"}`);
+    }
+    try {
+      herdrResult(["pane", "rename", paneId, name]);
+    } catch {
+      // Pane name is cosmetic.
+    }
+    return paneId;
   }
 
   if (backend === "tmux") {
@@ -1257,6 +1408,17 @@ export function renameCurrentTab(title: string): void {
     return;
   }
 
+  if (backend === "herdr") {
+    const paneId = process.env.HERDR_PANE_ID;
+    if (!paneId) return;
+    try {
+      herdrResult(["pane", "rename", paneId, title]);
+    } catch {
+      // Pane name is cosmetic.
+    }
+    return;
+  }
+
   if (backend === "tmux") {
     if (process.env.PI_SUBAGENT_RENAME_TMUX_WINDOW !== "1") {
       return;
@@ -1309,6 +1471,10 @@ export function renameWorkspace(title: string): void {
         encoding: "utf8",
       },
     );
+    return;
+  }
+
+  if (backend === "herdr") {
     return;
   }
 
@@ -1367,6 +1533,22 @@ export function sendCommand(surface: string, command: string): void {
         encoding: "utf8",
       },
     );
+    return;
+  }
+
+  if (backend === "herdr") {
+    execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
+      "pane",
+      "send-text",
+      surface,
+      command,
+    ]);
+    execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
+      "pane",
+      "send-keys",
+      surface,
+      "enter",
+    ]);
     return;
   }
 
@@ -1430,6 +1612,21 @@ export function sendPrompt(surface: string, message: string): void {
     sendTmuxPrompt(surface, message);
     return;
   }
+  if (backend === "herdr") {
+    execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
+      "pane",
+      "send-text",
+      surface,
+      message,
+    ]);
+    execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
+      "pane",
+      "send-keys",
+      surface,
+      "enter",
+    ]);
+    return;
+  }
   if (message.includes("\n"))
     throw new Error(
       `Multiline steer is not supported by the ${backend} backend.`,
@@ -1462,6 +1659,16 @@ export function sendEscape(surface: string): void {
     execFileSync("cmux", ["send", "--surface", surface, "\u001b"], {
       encoding: "utf8",
     });
+    return;
+  }
+
+  if (backend === "herdr") {
+    execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
+      "pane",
+      "send-keys",
+      surface,
+      "esc",
+    ]);
     return;
   }
 
@@ -1539,6 +1746,14 @@ export function readScreen(surface: string, lines = 50): string {
     );
   }
 
+  if (backend === "herdr") {
+    return execFileSync(
+      process.env.HERDR_BIN_PATH || "herdr",
+      ["pane", "read", surface, "--source", "recent", "--lines", String(lines)],
+      { encoding: "utf8" },
+    );
+  }
+
   if (backend === "tmux") {
     return execFileSync(
       "tmux",
@@ -1588,6 +1803,15 @@ export async function readScreenAsync(
     return stdout;
   }
 
+  if (backend === "herdr") {
+    const { stdout } = await execFileAsync(
+      process.env.HERDR_BIN_PATH || "herdr",
+      ["pane", "read", surface, "--source", "recent", "--lines", String(lines)],
+      { encoding: "utf8" },
+    );
+    return stdout;
+  }
+
   if (backend === "tmux") {
     const { stdout } = await execFileAsync(
       "tmux",
@@ -1626,6 +1850,11 @@ export function closeSurface(surface: string): void {
     execSync(`cmux close-surface --surface ${shellEscape(surface)}`, {
       encoding: "utf8",
     });
+    return;
+  }
+
+  if (backend === "herdr") {
+    herdrResult(["pane", "close", surface]);
     return;
   }
 

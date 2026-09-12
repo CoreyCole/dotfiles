@@ -1876,9 +1876,13 @@ test("T7 attach outside tmux is a no-op with an error", async () => {
   const previousMux = process.env.PI_SUBAGENT_MUX;
   const previousTmux = process.env.TMUX;
   const previousPane = process.env.TMUX_PANE;
+  const previousHerdrEnv = process.env.HERDR_ENV;
+  const previousHerdrPane = process.env.HERDR_PANE_ID;
   delete process.env.PI_SUBAGENT_MUX;
   delete process.env.TMUX;
   delete process.env.TMUX_PANE;
+  delete process.env.HERDR_ENV;
+  delete process.env.HERDR_PANE_ID;
   const notifications: Array<{ message: string; level?: string }> = [];
   try {
     const commands = captureCommands();
@@ -1890,7 +1894,7 @@ test("T7 attach outside tmux is a no-op with an error", async () => {
       },
     });
     assert.deepEqual(notifications, [
-      { message: "/attach requires tmux.", level: "error" },
+      { message: "/attach requires tmux or herdr.", level: "error" },
     ]);
   } finally {
     if (previousMux == null) delete process.env.PI_SUBAGENT_MUX;
@@ -1899,6 +1903,10 @@ test("T7 attach outside tmux is a no-op with an error", async () => {
     else process.env.TMUX = previousTmux;
     if (previousPane == null) delete process.env.TMUX_PANE;
     else process.env.TMUX_PANE = previousPane;
+    if (previousHerdrEnv == null) delete process.env.HERDR_ENV;
+    else process.env.HERDR_ENV = previousHerdrEnv;
+    if (previousHerdrPane == null) delete process.env.HERDR_PANE_ID;
+    else process.env.HERDR_PANE_ID = previousHerdrPane;
   }
 });
 

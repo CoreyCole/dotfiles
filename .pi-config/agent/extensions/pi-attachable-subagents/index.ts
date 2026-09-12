@@ -41,7 +41,9 @@ import {
   renameWorkspace,
   readScreen,
   attachTmuxPane,
+  attachHerdrPane,
   detachTmuxPane,
+  detachHerdrPane,
   createTmuxHiddenSurface,
   destroyTmuxHiddenOwner,
   tmuxHiddenSessionName,
@@ -3517,11 +3519,18 @@ export default function subagentsExtension(
   });
 
   pi.registerCommand("attach", {
-    description: "Attach a running tmux subagent: /attach [id-prefix-or-name]",
+    description: "Attach a running subagent: /attach [id-prefix-or-name]",
     handler: async (args, ctx) => {
-      const managerPane = process.env.TMUX_PANE;
-      if (getMuxBackend() !== "tmux" || !managerPane) {
-        ctx.ui.notify("/attach requires tmux.", "error");
+      const backend = getMuxBackend();
+      const managerPane =
+        backend === "herdr"
+          ? process.env.HERDR_PANE_ID
+          : process.env.TMUX_PANE;
+      if (
+        (backend !== "tmux" && backend !== "herdr") ||
+        !managerPane
+      ) {
+        ctx.ui.notify("/attach requires tmux or herdr.", "error");
         return;
       }
       const catalogTarget = args.trim()
@@ -3557,7 +3566,10 @@ export default function subagentsExtension(
       }
       const running = selected.running;
       try {
-        const result = attachTmuxPane(running.surface, managerPane);
+        const result =
+          backend === "herdr"
+            ? attachHerdrPane(running.surface, managerPane)
+            : attachTmuxPane(running.surface, managerPane);
         ctx.ui.notify(
           `${result === "moved" ? "Attached" : "Focused"} subagent "${running.name}".`,
           "info",
@@ -3572,11 +3584,12 @@ export default function subagentsExtension(
   });
 
   pi.registerCommand("detach", {
-    description: "Detach this tmux subagent into its hidden owner session",
+    description: "Detach this subagent into its own tab or hidden tmux session",
     handler: async (_args, ctx) => {
       const id = process.env.PI_SUBAGENT_ID;
       const surface = process.env.PI_SUBAGENT_SURFACE;
       const hiddenSession = process.env.PI_SUBAGENT_TMUX_HIDDEN_SESSION;
+      const backend = getMuxBackend();
       if (!id || !surface) {
         ctx.ui.notify(
           "/detach is available only inside a subagent session.",
@@ -3584,31 +3597,41 @@ export default function subagentsExtension(
         );
         return;
       }
-      if (getMuxBackend() !== "tmux") {
-        ctx.ui.notify("/detach requires tmux.", "error");
+      if (backend !== "tmux" && backend !== "herdr") {
+        ctx.ui.notify("/detach requires tmux or herdr.", "error");
         return;
       }
-      if (!hiddenSession) {
+      if (backend === "tmux" && !hiddenSession) {
         ctx.ui.notify("/detach requires a hidden tmux owner session.", "error");
         return;
       }
-      if (process.env.TMUX_PANE !== surface) {
+      const currentPane =
+        backend === "herdr" ? process.env.HERDR_PANE_ID : process.env.TMUX_PANE;
+      if (currentPane !== surface) {
         ctx.ui.notify(
-          `Refusing to detach: current pane ${process.env.TMUX_PANE ?? "(unknown)"} does not match subagent pane ${surface}.`,
+          `Refusing to detach: current pane ${currentPane ?? "(unknown)"} does not match subagent pane ${surface}.`,
           "error",
         );
         return;
       }
       try {
-        detachTmuxPane(
-          surface,
-          { sessionName: hiddenSession, keeperPaneId: "" },
-          process.env.PI_SUBAGENT_NAME || id,
-        );
-        ctx.ui.notify(
-          `Detached subagent ${id} into hidden tmux session ${hiddenSession}.`,
-          "info",
-        );
+        if (backend === "herdr") {
+          detachHerdrPane(surface, process.env.PI_SUBAGENT_NAME || id);
+          ctx.ui.notify(
+            `Detached subagent ${id} into its own Herdr tab.`,
+            "info",
+          );
+        } else {
+          detachTmuxPane(
+            surface,
+            { sessionName: hiddenSession!, keeperPaneId: "" },
+            process.env.PI_SUBAGENT_NAME || id,
+          );
+          ctx.ui.notify(
+            `Detached subagent ${id} into hidden tmux session ${hiddenSession}.`,
+            "info",
+          );
+        }
       } catch (error) {
         ctx.ui.notify(
           `Could not detach subagent: ${error instanceof Error ? error.message : String(error)}`,

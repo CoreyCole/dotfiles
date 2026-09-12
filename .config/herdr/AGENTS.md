@@ -35,7 +35,12 @@ Keep these local choices unless the user asks to change them:
 - Agent status uses `symbols`
 - Toasts use system delivery
 - Desktop tab row is at the bottom (`tab_bar_position = "bottom"`)
+- Tab bar fill is black (`theme.custom.panel_bg` / `surface0 = "#000000"`)
 - Tab bar right shows the focused pane CWD and git branch via `~/dotfiles/scripts/herdr-tab-cwd.sh`
+- Pane focus: `prefix+hjkl` and `alt+shift+hjkl` (no wrap)
+- Splits: `prefix+v` / `ctrl+alt+l` right, `prefix+minus` / `ctrl+alt+j` down
+- Even columns: `alt+shift+r` and `ctrl+alt+r` via `scripts/herdr-even-layout.py`
+- Even rows: `alt+r` via the same script
 
 ## After you edit config.toml
 

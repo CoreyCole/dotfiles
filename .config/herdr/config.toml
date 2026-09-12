@@ -5,9 +5,43 @@
 
 onboarding = false
 
+[theme.custom]
+# tmux status-style bg='#000000'. Also paints Prefix/Navigate/Copy/Resize bars.
+panel_bg = "#000000"
+# Flatten inactive tab pills onto the black bar (tmux inactive windows have no pill).
+surface0 = "#000000"
+
 [keys]
 prefix = "ctrl+b"
 switch_tab = ["prefix+1..9", "alt+1..9"]
+# tmux Alt+Shift+hjkl pane move (Herdr does not wrap).
+focus_pane_left = ["prefix+h", "alt+shift+h"]
+focus_pane_down = ["prefix+j", "alt+shift+j"]
+focus_pane_up = ["prefix+k", "alt+shift+k"]
+focus_pane_right = ["prefix+l", "alt+shift+l"]
+# tmux Ctrl+Alt+l/j: new pane right / down. Herdr cannot split left or up.
+split_vertical = ["prefix+v", "ctrl+alt+l"]
+split_horizontal = ["prefix+minus", "ctrl+alt+j"]
+
+# tmux Alt+Shift+r / Ctrl+Alt+r = even-horizontal (columns).
+[[keys.command]]
+key = "alt+shift+r"
+type = "shell"
+command = "python3 ~/dotfiles/scripts/herdr-even-layout.py columns"
+description = "even columns"
+
+[[keys.command]]
+key = "ctrl+alt+r"
+type = "shell"
+command = "python3 ~/dotfiles/scripts/herdr-even-layout.py columns"
+description = "even columns"
+
+# tmux Alt+r = even-vertical (rows).
+[[keys.command]]
+key = "alt+r"
+type = "shell"
+command = "python3 ~/dotfiles/scripts/herdr-even-layout.py rows"
+description = "even rows"
 
 [ui]
 status_indicators = "symbols"
