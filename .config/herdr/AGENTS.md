@@ -32,6 +32,7 @@ Keep these local choices unless the user asks to change them:
 - `onboarding = false`
 - `switch_tab` includes both `prefix+1..9` and `alt+1..9`
 - Compact pane chrome: no pane gaps, no outer borders, no scrollbars
+- Mobile single-column layout at 80 cols or below (`mobile_width_threshold = 80`) so the Titan 2 Elite stays mobile in both orientations
 - Agent status uses `symbols`
 - Toasts use system delivery
 - Desktop tab row is at the bottom (`tab_bar_position = "bottom"`)

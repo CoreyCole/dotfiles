@@ -45,6 +45,8 @@ description = "even rows"
 
 [ui]
 status_indicators = "symbols"
+# Titan 2 Elite is ~63 cols at the current font; ~70 in landscape. Keep it on the mobile layout.
+mobile_width_threshold = 80
 # Share a single divider between splits instead of a two-cell gap.
 pane_gaps = false
 # No outer frame around the pane area (tmux-style internal splitters).

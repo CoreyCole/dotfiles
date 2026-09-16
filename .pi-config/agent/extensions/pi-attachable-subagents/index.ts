@@ -1107,6 +1107,23 @@ let statusInterval: ReturnType<typeof setInterval> | null = null;
 
 let showStoppedChildren = false;
 
+const subagentWidget = {
+  invalidate() {},
+  render(width: number) {
+    if (childrenBySessionId.size === 0) return [];
+    return renderSubagentWidgetLines(
+      Array.from(childrenBySessionId.values()),
+      runningSubagents,
+      width,
+      Date.now(),
+      showStoppedChildren,
+    );
+  },
+};
+
+/** UI that currently owns the Subagents widget. Recreating it ghosts the old box. */
+let widgetHost: ExtensionContext | null = null;
+
 function getActiveRuntimeMs(running: RunningSubagent, now: number): number {
   return Math.max(0, now - running.startTime);
 }
@@ -1272,11 +1289,24 @@ function renderSubagentWidgetLines(
   return lines;
 }
 
+function clearSubagentWidget(host: ExtensionContext | null = widgetHost) {
+  if (!host?.hasUI) return;
+  host.ui.setWidget("subagent-status", undefined);
+  if (widgetHost === host) widgetHost = null;
+}
+
+function installSubagentWidget(ctx: ExtensionContext) {
+  ctx.ui.setWidget("subagent-status", () => subagentWidget, {
+    placement: "aboveEditor",
+  });
+  widgetHost = ctx;
+}
+
 function updateWidget() {
   if (!latestCtx?.hasUI) return;
 
   if (childrenBySessionId.size === 0) {
-    latestCtx.ui.setWidget("subagent-status", undefined);
+    clearSubagentWidget();
     if (widgetInterval) {
       clearInterval(widgetInterval);
       widgetInterval = null;
@@ -1285,24 +1315,11 @@ function updateWidget() {
     return;
   }
 
-  latestCtx.ui.setWidget(
-    "subagent-status",
-    (_tui: any, _theme: any) => {
-      return {
-        invalidate() {},
-        render(width: number) {
-          return renderSubagentWidgetLines(
-            Array.from(childrenBySessionId.values()),
-            runningSubagents,
-            width,
-            Date.now(),
-            showStoppedChildren,
-          );
-        },
-      };
-    },
-    { placement: "aboveEditor" },
-  );
+  if (widgetHost !== latestCtx) {
+    clearSubagentWidget();
+    installSubagentWidget(latestCtx);
+  }
+
   if (runningSubagents.size === 0 && widgetInterval) {
     clearInterval(widgetInterval);
     widgetInterval = null;
@@ -1895,8 +1912,8 @@ async function selectHumanTarget(
             startedAt: running.startTime,
           };
     }),
-  ).map(
-    (child) => agents.find((running) => running.id === child.childSessionId)!,
+  ).map((child) =>
+    agents.find((running) => running.id === child.childSessionId)!,
   );
   if (orderedAgents.length === 1) return { running: orderedAgents[0] };
   const choices = orderedAgents.map((running) => ({
@@ -2139,9 +2156,14 @@ export const __test__ = {
 
 function startWidgetRefresh() {
   if (widgetInterval) return;
-  updateWidget(); // immediate first render
+  updateWidget();
   widgetInterval = setInterval(() => {
-    updateWidget();
+    if (widgetHost === latestCtx && latestCtx?.hasUI) {
+      // Same component: request a frame for elapsed/TPS without stacking a second box.
+      installSubagentWidget(latestCtx);
+    } else {
+      updateWidget();
+    }
   }, 1000);
   (globalThis as any)[WIDGET_INTERVAL_KEY] = widgetInterval;
 }
@@ -2575,6 +2597,7 @@ export default function subagentsExtension(
   // Clean up on session shutdown
   pi.on("session_shutdown", (_event, _ctx) => {
     managerSessionId = null;
+    clearSubagentWidget();
     if (widgetInterval) {
       clearInterval(widgetInterval);
       widgetInterval = null;
@@ -3523,13 +3546,8 @@ export default function subagentsExtension(
     handler: async (args, ctx) => {
       const backend = getMuxBackend();
       const managerPane =
-        backend === "herdr"
-          ? process.env.HERDR_PANE_ID
-          : process.env.TMUX_PANE;
-      if (
-        (backend !== "tmux" && backend !== "herdr") ||
-        !managerPane
-      ) {
+        backend === "herdr" ? process.env.HERDR_PANE_ID : process.env.TMUX_PANE;
+      if ((backend !== "tmux" && backend !== "herdr") || !managerPane) {
         ctx.ui.notify("/attach requires tmux or herdr.", "error");
         return;
       }
