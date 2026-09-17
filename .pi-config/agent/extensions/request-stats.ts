@@ -16,18 +16,24 @@ const STATE_DIR = join(homedir(), ".local", "state", "pi", "request-stats");
 const CSV_PATH = join(homedir(), ".local", "state", "pi", "request-stats.csv");
 const UNAVAILABLE = "not_available";
 const NOT_APPLICABLE = "not_applicable";
-export const REQUEST_STATS_VERSION = 1;
+export const REQUEST_STATS_VERSION = 2;
 
 export type RequestStatsAggregate = {
-  version: 1;
+  version: 2;
   sessionId: string;
   buckets: {
     provider: string;
     model: string;
     outputTokens: number;
     generationMs: number;
+    waitMs: number;
+    requestCount: number;
   }[];
 };
+
+function isNonNegativeFinite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
 
 const CSV_HEADER = [
   "timestamp_utc",
@@ -166,7 +172,7 @@ export function validateRequestStatsAggregate(
     return undefined;
   const state = value as Record<string, unknown>;
   if (
-    state.version !== 1 ||
+    state.version !== REQUEST_STATS_VERSION ||
     state.sessionId !== sessionId ||
     !Array.isArray(state.buckets)
   )
@@ -177,23 +183,24 @@ export function validateRequestStatsAggregate(
     const b = bucket as Record<string, unknown>;
     return typeof b.provider === "string" &&
       typeof b.model === "string" &&
-      typeof b.outputTokens === "number" &&
-      Number.isFinite(b.outputTokens) &&
-      b.outputTokens >= 0 &&
-      typeof b.generationMs === "number" &&
-      Number.isFinite(b.generationMs) &&
-      b.generationMs >= 0
+      isNonNegativeFinite(b.outputTokens) &&
+      isNonNegativeFinite(b.generationMs) &&
+      isNonNegativeFinite(b.waitMs) &&
+      Number.isInteger(b.requestCount) &&
+      (b.requestCount as number) >= 0
       ? {
           provider: b.provider,
           model: b.model,
           outputTokens: b.outputTokens,
           generationMs: b.generationMs,
+          waitMs: b.waitMs,
+          requestCount: b.requestCount as number,
         }
       : undefined;
   });
   return buckets.every(Boolean)
     ? {
-        version: 1,
+        version: REQUEST_STATS_VERSION,
         sessionId,
         buckets: buckets as RequestStatsAggregate["buckets"],
       }
@@ -220,13 +227,14 @@ export async function updateRequestStatsAggregate(
   model: string,
   outputTokens: number,
   generationMs: number,
+  waitMs: number,
   stateDir = STATE_DIR,
 ): Promise<void> {
   if (
-    !Number.isFinite(outputTokens) ||
-    outputTokens < 0 ||
-    !Number.isFinite(generationMs) ||
-    generationMs <= 0
+    !isNonNegativeFinite(outputTokens) ||
+    !isNonNegativeFinite(generationMs) ||
+    !isNonNegativeFinite(waitMs) ||
+    (generationMs <= 0 && waitMs <= 0)
   )
     return;
   const file = requestStatsSidecarPath(sessionId, stateDir);
@@ -234,15 +242,27 @@ export async function updateRequestStatsAggregate(
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await chmod(directory, 0o700);
   let aggregate = await readRequestStatsAggregate(sessionId, stateDir);
-  if (!aggregate) aggregate = { version: 1, sessionId, buckets: [] };
+  if (!aggregate)
+    aggregate = { version: REQUEST_STATS_VERSION, sessionId, buckets: [] };
+  const recordedTokens = generationMs > 0 ? outputTokens : 0;
+  const recordedGenerationMs = generationMs > 0 ? generationMs : 0;
   const bucket = aggregate.buckets.find(
     (candidate) => candidate.provider === provider && candidate.model === model,
   );
   if (bucket) {
-    bucket.outputTokens += outputTokens;
-    bucket.generationMs += generationMs;
+    bucket.outputTokens += recordedTokens;
+    bucket.generationMs += recordedGenerationMs;
+    bucket.waitMs += waitMs;
+    bucket.requestCount += 1;
   } else
-    aggregate.buckets.push({ provider, model, outputTokens, generationMs });
+    aggregate.buckets.push({
+      provider,
+      model,
+      outputTokens: recordedTokens,
+      generationMs: recordedGenerationMs,
+      waitMs,
+      requestCount: 1,
+    });
   const temporary = join(directory, `.${sessionId}.${randomUUID()}.tmp`);
   try {
     await writeFile(temporary, `${JSON.stringify(aggregate)}\n`, {
@@ -303,6 +323,9 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
     activeRequest = undefined;
     const finishedAt = performance.now();
     const totalMs = Math.round(finishedAt - request.startedAt);
+    const waitMs = request.firstTokenAt
+      ? request.firstTokenAt - request.startedAt
+      : undefined;
     const generationMs = request.firstTokenAt
       ? finishedAt - request.firstTokenAt
       : undefined;
@@ -337,14 +360,15 @@ export default function requestStatsExtension(pi: ExtensionAPI) {
       csvInitialized = true;
     });
     const aggregate =
-      generationMs === undefined
+      waitMs === undefined
         ? Promise.resolve()
         : updateRequestStatsAggregate(
             request.sessionID,
             request.provider,
             request.model,
             outputTokens,
-            generationMs,
+            generationMs ?? 0,
+            waitMs,
           );
     const results = await Promise.allSettled([csv, aggregate]);
     const failed = results.find((result) => result.status === "rejected");

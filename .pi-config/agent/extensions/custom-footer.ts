@@ -42,9 +42,16 @@ function parseSessionStartTime(
   return startTime;
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tues", "Wed", "Thurs", "Fri", "Sat"] as const;
+const DAY_MS = 24 * 60 * 60_000;
+
 function formatLocalHHMM(timestamp: number): string {
   const date = new Date(timestamp);
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatLocalWeekday(timestamp: number): string {
+  return WEEKDAYS[new Date(timestamp).getDay()] ?? "";
 }
 
 function formatElapsedDuration(elapsedMs: number): string {
@@ -70,7 +77,34 @@ function formatSessionLine(
   ) {
     return undefined;
   }
-  return `${formatLocalHHMM(startTime)} ${formatElapsedDuration(now - startTime)}`;
+  const elapsed = now - startTime;
+  const clock = formatLocalHHMM(startTime);
+  const start =
+    elapsed >= DAY_MS ? `${formatLocalWeekday(startTime)} ${clock}` : clock;
+  return `${start} ${formatElapsedDuration(elapsed)}`;
+}
+
+function formatWaitDuration(ms: number): string {
+  const seconds = Math.max(0, ms) / 1000;
+  const tenths = Math.round(seconds * 10) / 10;
+  if (tenths < 10) return `${tenths.toFixed(1)}s`;
+  const totalSeconds = Math.round(seconds);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainder = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m ${remainder}s`;
+}
+
+function findStatsBucket(
+  aggregate: RequestStatsAggregate | undefined,
+  provider: string | undefined,
+  model: string | undefined,
+) {
+  return aggregate?.buckets.find(
+    (candidate) => candidate.provider === provider && candidate.model === model,
+  );
 }
 
 function formatCompactTokens(count: number): string {
@@ -92,16 +126,26 @@ function formatContextBar(percent: number): string {
   return `${"■".repeat(filledBlocks)}${"□".repeat(5 - filledBlocks)}`;
 }
 
-function formatAverageOutputTps(
+function formatSessionStats(
   aggregate: RequestStatsAggregate | undefined,
   provider: string | undefined,
   model: string | undefined,
-): string {
-  const bucket = aggregate?.buckets.find(
-    (candidate) => candidate.provider === provider && candidate.model === model,
-  );
-  if (!bucket || !(bucket.generationMs > 0)) return "—";
-  return `${(bucket.outputTokens / (bucket.generationMs / 1000)).toFixed(1)} tok/s`;
+): string | undefined {
+  const bucket = findStatsBucket(aggregate, provider, model);
+  if (!bucket) return undefined;
+  const parts: string[] = [];
+  if (bucket.generationMs > 0) {
+    parts.push(
+      `${(bucket.outputTokens / (bucket.generationMs / 1000)).toFixed(1)} tok/s`,
+    );
+  }
+  if (bucket.requestCount > 0) {
+    parts.push(`${formatWaitDuration(bucket.waitMs)} wait`);
+    parts.push(
+      `${formatWaitDuration(bucket.waitMs / bucket.requestCount)} avg`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" • ") : undefined;
 }
 
 function renderPaddedLine(left: string, right: string, width: number): string {
@@ -191,13 +235,13 @@ function installFooter(
         ? undefined
         : setInterval(() => tui.requestRender(), 60_000);
     const statsRefreshInterval = setInterval(() => {
-      const previous = formatAverageOutputTps(
+      const previous = formatSessionStats(
         requestStatsAggregate,
         ctx.model?.provider,
         ctx.model?.id,
       );
       refreshRequestStatsSnapshot();
-      const next = formatAverageOutputTps(
+      const next = formatSessionStats(
         requestStatsAggregate,
         ctx.model?.provider,
         ctx.model?.id,
@@ -259,11 +303,6 @@ function installFooter(
           ctx.model?.id ?? "no-model",
           pi.getThinkingLevel(),
           extensionStatuses.get(FAST_STATUS_KEY),
-          formatAverageOutputTps(
-            requestStatsAggregate,
-            ctx.model?.provider,
-            ctx.model?.id,
-          ),
         ]
           .filter((part): part is string => Boolean(part))
           .join(" • ");
@@ -288,10 +327,19 @@ function installFooter(
           }
         }
 
-        const sessionLine = formatSessionLine(sessionStartTime);
-        if (sessionLine) {
+        const sessionClock = formatSessionLine(sessionStartTime);
+        const sessionStats = formatSessionStats(
+          requestStatsAggregate,
+          ctx.model?.provider,
+          ctx.model?.id,
+        );
+        if (sessionClock || sessionStats) {
           lines.push(
-            renderPaddedLine("", theme.fg("dim", sessionLine), safeWidth),
+            renderPaddedLine(
+              theme.fg("dim", sessionStats ?? ""),
+              theme.fg("dim", sessionClock ?? ""),
+              safeWidth,
+            ),
           );
         }
         lines.push(statsLine);
@@ -304,7 +352,10 @@ function installFooter(
 export const __test__ = {
   formatElapsedDuration,
   formatLocalHHMM,
+  formatLocalWeekday,
   formatSessionLine,
+  formatSessionStats,
+  formatWaitDuration,
   installFooter,
   parseSessionStartTime,
   sanitizeStatusText,

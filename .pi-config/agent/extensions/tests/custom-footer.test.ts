@@ -43,6 +43,16 @@ test("session helpers format local start and wall-clock duration", () => {
       __test__.formatSessionLine(start, start + 121 * 60_000),
       "21:25 (02h 01m)",
     );
+    assert.equal(
+      __test__.formatSessionLine(start, start + 24 * 60 * 60_000),
+      "Fri 21:25 (1d 00h 00m)",
+    );
+    const tuesday = Date.UTC(2026, 7, 25, 17, 31);
+    assert.equal(__test__.formatLocalWeekday(tuesday), "Tues");
+    assert.equal(
+      __test__.formatSessionLine(tuesday, tuesday + 24 * 60 * 60_000),
+      "Tues 10:31 (1d 00h 00m)",
+    );
   } finally {
     if (previousTz === undefined) delete process.env.TZ;
     else process.env.TZ = previousTz;
@@ -99,12 +109,14 @@ function writeAggregate(
     model: string;
     outputTokens: number;
     generationMs: number;
+    waitMs: number;
+    requestCount: number;
   }[],
 ) {
   mkdirSync(join(stateDir, "sessions"), { recursive: true });
   writeFileSync(
     join(stateDir, "sessions", `${sessionId}.json`),
-    `${JSON.stringify({ version: 1, sessionId, buckets })}\n`,
+    `${JSON.stringify({ version: 2, sessionId, buckets })}\n`,
   );
 }
 
@@ -192,7 +204,8 @@ test("footer places the session line directly above stats and filters MCP status
     assert.doesNotMatch(__test__.stripAnsiSgr(lines[0]), /MCP: 0\/2/);
     assert.match(lines[1].trim(), /^\d{2}:\d{2} \(01h 30m\)$/);
     assert.equal(visibleWidth(lines[1]), 100);
-    assert.match(lines[2], /test-model • high • —/);
+    assert.match(lines[2], /test-model • high/);
+    assert.doesNotMatch(lines[2], /tok\/s|—/);
 
     for (const width of [100, 20, 1]) {
       for (const line of footer.component.render(width)) {
@@ -239,18 +252,21 @@ test("footer clears its minute interval and branch subscription on dispose", () 
   }
 });
 
-test("missing, invalid, and other-model aggregates show an em dash", () => {
+test("missing, invalid, and other-model aggregates omit session stats", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
+  const assertNoSessionStats = (footer: ReturnType<typeof createFooter>) => {
+    const lines = footer.component.render(100);
+    assert.match(lines[0].trim(), /^\d{2}:\d{2} \(01h 30m\)$/);
+    assert.match(lines.at(-1) ?? "", /test-model • high/);
+    assert.doesNotMatch(lines.join("\n"), /tok\/s|wait|avg/);
+  };
   try {
     const missing = createFooter(new Map(), {
       sessionId: "missing",
       stateDir: root,
     });
     try {
-      assert.match(
-        missing.component.render(100).at(-1) ?? "",
-        /test-model • high • —/,
-      );
+      assertNoSessionStats(missing);
     } finally {
       missing.component.dispose();
     }
@@ -258,17 +274,14 @@ test("missing, invalid, and other-model aggregates show an em dash", () => {
     mkdirSync(join(root, "sessions"), { recursive: true });
     writeFileSync(
       join(root, "sessions", "invalid.json"),
-      JSON.stringify({ version: 2, sessionId: "invalid", buckets: [] }),
+      JSON.stringify({ version: 1, sessionId: "invalid", buckets: [] }),
     );
     const invalid = createFooter(new Map(), {
       sessionId: "invalid",
       stateDir: root,
     });
     try {
-      assert.match(
-        invalid.component.render(100).at(-1) ?? "",
-        /test-model • high • —/,
-      );
+      assertNoSessionStats(invalid);
     } finally {
       invalid.component.dispose();
     }
@@ -279,6 +292,8 @@ test("missing, invalid, and other-model aggregates show an em dash", () => {
         model: "other-model",
         outputTokens: 255,
         generationMs: 10_000,
+        waitMs: 1500,
+        requestCount: 1,
       },
     ]);
     const other = createFooter(new Map(), {
@@ -286,10 +301,7 @@ test("missing, invalid, and other-model aggregates show an em dash", () => {
       stateDir: root,
     });
     try {
-      assert.match(
-        other.component.render(100).at(-1) ?? "",
-        /test-model • high • —/,
-      );
+      assertNoSessionStats(other);
     } finally {
       other.component.dispose();
     }
@@ -298,7 +310,19 @@ test("missing, invalid, and other-model aggregates show an em dash", () => {
   }
 });
 
-test("current provider/model bucket 255 tokens / 10000 ms shows 25.5 tok/s", () => {
+test("wait durations use tenths under 10s then minutes and hours", () => {
+  assert.equal(__test__.formatWaitDuration(0), "0.0s");
+  assert.equal(__test__.formatWaitDuration(1500), "1.5s");
+  assert.equal(__test__.formatWaitDuration(9960), "10s");
+  assert.equal(__test__.formatWaitDuration(12_000), "12s");
+  assert.equal(__test__.formatWaitDuration((3 * 60 + 12) * 1000), "3m 12s");
+  assert.equal(
+    __test__.formatWaitDuration((1 * 3600 + 12 * 60) * 1000),
+    "1h 12m",
+  );
+});
+
+test("current provider/model bucket shows tok/s and wait on the session line", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
   try {
     writeAggregate(root, "current", [
@@ -307,6 +331,8 @@ test("current provider/model bucket 255 tokens / 10000 ms shows 25.5 tok/s", () 
         model: "test-model",
         outputTokens: 255,
         generationMs: 10_000,
+        waitMs: 1500,
+        requestCount: 1,
       },
     ]);
     const footer = createFooter(new Map(), {
@@ -314,8 +340,11 @@ test("current provider/model bucket 255 tokens / 10000 ms shows 25.5 tok/s", () 
       stateDir: root,
     });
     try {
-      const stats = footer.component.render(100).at(-1) ?? "";
-      assert.match(stats, /test-model • high • 25\.5 tok\/s/);
+      const lines = footer.component.render(100);
+      assert.match(lines[0], /25\.5 tok\/s • 1\.5s wait • 1\.5s avg/);
+      assert.match(lines[0].trim(), /\d{2}:\d{2} \(01h 30m\)$/);
+      assert.match(lines.at(-1) ?? "", /test-model • high/);
+      assert.doesNotMatch(lines.at(-1) ?? "", /tok\/s/);
     } finally {
       footer.component.dispose();
     }
@@ -324,7 +353,7 @@ test("current provider/model bucket 255 tokens / 10000 ms shows 25.5 tok/s", () 
   }
 });
 
-test("TPS is last after model, thinking, and optional fast", () => {
+test("fast stays on the stats line after thinking, tok/s stays on the session line", () => {
   const root = mkdtempSync(join(tmpdir(), "pi-footer-"));
   try {
     writeAggregate(root, "fast", [
@@ -333,6 +362,8 @@ test("TPS is last after model, thinking, and optional fast", () => {
         model: "test-model",
         outputTokens: 255,
         generationMs: 10_000,
+        waitMs: 1500,
+        requestCount: 1,
       },
     ]);
     const footer = createFooter(new Map([[FAST_STATUS_KEY, "fast"]]), {
@@ -340,10 +371,10 @@ test("TPS is last after model, thinking, and optional fast", () => {
       stateDir: root,
     });
     try {
-      assert.match(
-        footer.component.render(100).at(-1) ?? "",
-        /test-model • high • fast • 25\.5 tok\/s/,
-      );
+      const lines = footer.component.render(100);
+      assert.match(lines[0], /25\.5 tok\/s • 1\.5s wait • 1\.5s avg/);
+      assert.match(lines.at(-1) ?? "", /test-model • high • fast/);
+      assert.doesNotMatch(lines.at(-1) ?? "", /tok\/s/);
     } finally {
       footer.component.dispose();
     }
@@ -361,6 +392,8 @@ test("cached render performs no filesystem I/O", () => {
         model: "test-model",
         outputTokens: 255,
         generationMs: 10_000,
+        waitMs: 1500,
+        requestCount: 1,
       },
     ]);
     const footer = createFooter(new Map(), {
@@ -368,9 +401,9 @@ test("cached render performs no filesystem I/O", () => {
       stateDir: root,
     });
     try {
-      assert.match(footer.component.render(100).at(-1) ?? "", /25\.5 tok\/s/);
+      assert.match(footer.component.render(100)[0] ?? "", /25\.5 tok\/s/);
       writeFileSync(join(root, "sessions", "cached.json"), "{");
-      assert.match(footer.component.render(100).at(-1) ?? "", /25\.5 tok\/s/);
+      assert.match(footer.component.render(100)[0] ?? "", /25\.5 tok\/s/);
     } finally {
       footer.component.dispose();
     }
@@ -388,6 +421,8 @@ test("narrow widths keep the stats line within the terminal width", () => {
         model: "test-model",
         outputTokens: 255,
         generationMs: 10_000,
+        waitMs: 1500,
+        requestCount: 1,
       },
     ]);
     const footer = createFooter(new Map([[FAST_STATUS_KEY, "fast"]]), {

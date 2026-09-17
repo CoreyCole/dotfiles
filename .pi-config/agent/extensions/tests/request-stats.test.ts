@@ -43,6 +43,7 @@ test("accumulates exact weighted provider/model buckets across restart", async (
       "a",
       10,
       1000,
+      500,
       root,
     );
     await requestStatsTest.updateRequestStatsAggregate(
@@ -51,6 +52,7 @@ test("accumulates exact weighted provider/model buckets across restart", async (
       "a",
       90,
       9000,
+      1500,
       root,
     );
     await requestStatsTest.updateRequestStatsAggregate(
@@ -59,6 +61,7 @@ test("accumulates exact weighted provider/model buckets across restart", async (
       "b",
       100,
       2000,
+      400,
       root,
     );
     await requestStatsTest.updateRequestStatsAggregate(
@@ -67,6 +70,7 @@ test("accumulates exact weighted provider/model buckets across restart", async (
       "a",
       100,
       4000,
+      800,
       root,
     );
     const state = await requestStatsTest.readRequestStatsAggregate("one", root);
@@ -76,9 +80,25 @@ test("accumulates exact weighted provider/model buckets across restart", async (
         model: "a",
         outputTokens: 100,
         generationMs: 10000,
+        waitMs: 2000,
+        requestCount: 2,
       },
-      { provider: "openai", model: "b", outputTokens: 100, generationMs: 2000 },
-      { provider: "other", model: "a", outputTokens: 100, generationMs: 4000 },
+      {
+        provider: "openai",
+        model: "b",
+        outputTokens: 100,
+        generationMs: 2000,
+        waitMs: 400,
+        requestCount: 1,
+      },
+      {
+        provider: "other",
+        model: "a",
+        outputTokens: 100,
+        generationMs: 4000,
+        waitMs: 800,
+        requestCount: 1,
+      },
     ]);
     assert.equal(
       state!.buckets[0].outputTokens / (state!.buckets[0].generationMs / 1000),
@@ -93,8 +113,24 @@ test("uses private atomic sidecars and isolates parallel sessions", async () => 
   const root = stateRoot();
   try {
     await Promise.all([
-      requestStatsTest.updateRequestStatsAggregate("one", "p", "m", 1, 1, root),
-      requestStatsTest.updateRequestStatsAggregate("two", "p", "m", 2, 2, root),
+      requestStatsTest.updateRequestStatsAggregate(
+        "one",
+        "p",
+        "m",
+        1,
+        1,
+        3,
+        root,
+      ),
+      requestStatsTest.updateRequestStatsAggregate(
+        "two",
+        "p",
+        "m",
+        2,
+        2,
+        4,
+        root,
+      ),
     ]);
     const one = requestStatsTest.requestStatsSidecarPath("one", root);
     const two = requestStatsTest.requestStatsSidecarPath("two", root);
@@ -115,7 +151,7 @@ test("invalid state is unavailable and is replaced by the next valid response", 
     await fs.mkdir(join(root, "sessions"), { recursive: true });
     for (const invalid of [
       "{",
-      JSON.stringify({ version: 2, sessionId: "one", buckets: [] }),
+      JSON.stringify({ version: 3, sessionId: "one", buckets: [] }),
       JSON.stringify({ version: 1, sessionId: "wrong", buckets: [] }),
       JSON.stringify({
         version: 1,
@@ -141,14 +177,54 @@ test("invalid state is unavailable and is replaced by the next valid response", 
         "m",
         3,
         4,
+        5,
         root,
       );
       assert.deepEqual(
         (await requestStatsTest.readRequestStatsAggregate("one", root))
           ?.buckets,
-        [{ provider: "p", model: "m", outputTokens: 3, generationMs: 4 }],
+        [
+          {
+            provider: "p",
+            model: "m",
+            outputTokens: 3,
+            generationMs: 4,
+            waitMs: 5,
+            requestCount: 1,
+          },
+        ],
       );
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("records wait when generation time is zero", async () => {
+  const root = stateRoot();
+  try {
+    await requestStatsTest.updateRequestStatsAggregate(
+      "one",
+      "p",
+      "m",
+      10,
+      0,
+      1500,
+      root,
+    );
+    assert.deepEqual(
+      (await requestStatsTest.readRequestStatsAggregate("one", root))?.buckets,
+      [
+        {
+          provider: "p",
+          model: "m",
+          outputTokens: 0,
+          generationMs: 0,
+          waitMs: 1500,
+          requestCount: 1,
+        },
+      ],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

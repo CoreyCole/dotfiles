@@ -1589,7 +1589,7 @@ test("sidecar cache clears for a changed model, then selects its bucket and chan
     writeFileSync(
       sidecar,
       JSON.stringify({
-        version: 1,
+        version: 2,
         sessionId: "child",
         buckets: [
           {
@@ -1597,12 +1597,16 @@ test("sidecar cache clears for a changed model, then selects its bucket and chan
             model: "first",
             outputTokens: 20,
             generationMs: 1000,
+            waitMs: 500,
+            requestCount: 1,
           },
           {
             provider: "openai",
             model: "second",
             outputTokens: 30,
             generationMs: 2000,
+            waitMs: 800,
+            requestCount: 1,
           },
         ],
       }),
@@ -1613,7 +1617,7 @@ test("sidecar cache clears for a changed model, then selects its bucket and chan
     writeFileSync(
       sidecar,
       JSON.stringify({
-        version: 1,
+        version: 2,
         sessionId: "child",
         buckets: [
           {
@@ -1621,12 +1625,16 @@ test("sidecar cache clears for a changed model, then selects its bucket and chan
             model: "first",
             outputTokens: 40,
             generationMs: 1000,
+            waitMs: 500,
+            requestCount: 1,
           },
           {
             provider: "openai",
             model: "second",
             outputTokens: 30,
             generationMs: 2000,
+            waitMs: 800,
+            requestCount: 1,
           },
         ],
       }),
