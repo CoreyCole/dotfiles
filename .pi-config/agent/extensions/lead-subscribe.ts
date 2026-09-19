@@ -132,10 +132,20 @@ export async function postLeadWebhook(
   url: string,
   event: LeadEvent,
   fetchImpl: typeof fetch = fetch,
+  authHeader = process.env.PI_LEAD_WEBHOOK_AUTH?.trim() ||
+    (process.env.PI_LEAD_WEBHOOK_KEY?.trim()
+      ? `Bearer ${process.env.PI_LEAD_WEBHOOK_KEY.trim()}`
+      : ""),
 ): Promise<void> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (authHeader) {
+    headers.authorization = authHeader;
+  }
   await fetchImpl(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify(event),
     signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
   });
