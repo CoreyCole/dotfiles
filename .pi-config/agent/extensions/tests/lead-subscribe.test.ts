@@ -7,6 +7,10 @@ import test from "node:test";
 import {
   appendLeadEvent,
   buildLeadEvent,
+  usageFlags,
+  TOKEN_HANDOFF_THRESHOLD,
+  writeHandoffStub,
+  handoffStubPath,
   classifySubagentCustomType,
   extractText,
   firstLine,
@@ -111,3 +115,43 @@ test("postLeadWebhook posts JSON and callers can ignore failures", async () => {
     );
   }
 });
+
+test("usageFlags: null tokens => flags false", () => {
+  const f = usageFlags({ tokens: null, contextWindow: 500000, percent: null });
+  assert.equal(f.tokensOver200k, false);
+  assert.equal(f.handoffSuggested, false);
+});
+
+test("usageFlags: tokens over 200k => flags true", () => {
+  const f = usageFlags({
+    tokens: TOKEN_HANDOFF_THRESHOLD + 1,
+    contextWindow: 500000,
+    percent: 40,
+  });
+  assert.equal(f.tokensOver200k, true);
+  assert.equal(f.handoffSuggested, true);
+});
+
+test("buildLeadEvent includes usage fields", () => {
+  const f = usageFlags({
+    tokens: 250000,
+    contextWindow: 500000,
+    percent: 50,
+  });
+  const event = buildLeadEvent({
+    kind: "agent_settled",
+    session: "s1",
+    cwd: "/tmp",
+    summary: "hi",
+    snippet: "hi",
+    ...f,
+    handoffPath: "/tmp/handoff.md",
+  });
+  assert.equal(event.tokens, 250000);
+  assert.equal(event.contextWindow, 500000);
+  assert.equal(event.percent, 50);
+  assert.equal(event.tokensOver200k, true);
+  assert.equal(event.handoffSuggested, true);
+  assert.equal(event.handoffPath, "/tmp/handoff.md");
+});
+

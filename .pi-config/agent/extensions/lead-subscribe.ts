@@ -2,7 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -18,7 +18,42 @@ export type LeadEvent = {
   cwd: string;
   summary: string;
   snippet: string;
+  tokens?: number | null;
+  contextWindow?: number | null;
+  percent?: number | null;
+  tokensOver200k?: boolean;
+  handoffSuggested?: boolean;
+  handoffPath?: string;
 };
+
+export const TOKEN_HANDOFF_THRESHOLD = 200_000;
+
+export type ContextUsage = {
+  tokens: number | null;
+  contextWindow: number | null;
+  percent: number | null;
+};
+
+export function usageFlags(usage: ContextUsage | null | undefined): {
+  tokens: number | null;
+  contextWindow: number | null;
+  percent: number | null;
+  tokensOver200k: boolean;
+  handoffSuggested: boolean;
+} {
+  const tokens = usage?.tokens ?? null;
+  const contextWindow = usage?.contextWindow ?? null;
+  const percent = usage?.percent ?? null;
+  const over =
+    typeof tokens === "number" && tokens > TOKEN_HANDOFF_THRESHOLD;
+  return {
+    tokens,
+    contextWindow,
+    percent,
+    tokensOver200k: over,
+    handoffSuggested: over,
+  };
+}
 
 type Subscription = {
   webhookUrl?: string;
@@ -46,6 +81,79 @@ export function agentDir(): string {
 
 export function leadInboxPath(root = agentDir()): string {
   return join(root, "lead-inbox", "events.jsonl");
+}
+
+
+export function leadHandoffsDir(root = agentDir()): string {
+  return join(root, "lead-inbox", "handoffs");
+}
+
+export function handoffStubPath(
+  session: string,
+  ts: string,
+  root = agentDir(),
+): string {
+  const safeSession = (session || "unknown").replace(/[^a-zA-Z0-9._-]+/g, "_");
+  const safeTs = ts.replace(/[:.]/g, "-");
+  return join(leadHandoffsDir(root), `${safeSession}-${safeTs}.md`);
+}
+
+export function writeHandoffStub(input: {
+  session: string;
+  cwd: string;
+  tokens: number | null;
+  percent: number | null;
+  contextWindow: number | null;
+  snippet: string;
+  ts?: string;
+  root?: string;
+}): string {
+  const ts = input.ts ?? new Date().toISOString();
+  const path = handoffStubPath(input.session, ts, input.root);
+  if (existsSync(path)) return path;
+  mkdirSync(dirname(path), { recursive: true });
+  const body = [
+    `# Pi handoff stub (>${TOKEN_HANDOFF_THRESHOLD} tokens)`,
+    "",
+    `- **ts:** ${ts}`,
+    `- **session:** ${input.session || "(unknown)"}`,
+    `- **cwd:** ${input.cwd}`,
+    `- **tokens:** ${input.tokens ?? "null"} / ${input.contextWindow ?? "?"}`,
+    `- **percent:** ${input.percent ?? "null"}`,
+    "",
+    "## Last assistant snippet",
+    "",
+    "```",
+    truncate(input.snippet || "(empty)", 600),
+    "```",
+    "",
+    "- Lead: tip Pi to expand/complete this handoff if thin.",
+    "- Pi manager: expand at next convenient settle; do not start unrelated work.",
+    "",
+  ].join("\n");
+  writeFileSync(path, body, "utf8");
+  return path;
+}
+
+export function readContextUsage(ctx: ExtensionContext): ContextUsage {
+  try {
+    const usage = (
+      ctx as ExtensionContext & {
+        getContextUsage?: () => {
+          tokens?: number | null;
+          contextWindow?: number | null;
+          percent?: number | null;
+        };
+      }
+    ).getContextUsage?.();
+    return {
+      tokens: usage?.tokens ?? null,
+      contextWindow: usage?.contextWindow ?? null,
+      percent: usage?.percent ?? null,
+    };
+  } catch {
+    return { tokens: null, contextWindow: null, percent: null };
+  }
 }
 
 export function classifySubagentCustomType(
@@ -109,8 +217,14 @@ export function buildLeadEvent(input: {
   summary: string;
   snippet: string;
   ts?: string;
+  tokens?: number | null;
+  contextWindow?: number | null;
+  percent?: number | null;
+  tokensOver200k?: boolean;
+  handoffSuggested?: boolean;
+  handoffPath?: string;
 }): LeadEvent {
-  return {
+  const event: LeadEvent = {
     ts: input.ts ?? new Date().toISOString(),
     kind: input.kind,
     session: input.session,
@@ -118,6 +232,13 @@ export function buildLeadEvent(input: {
     summary: firstLine(input.summary || input.snippet),
     snippet: truncate(input.snippet, SNIPPET_MAX),
   };
+  if (input.tokens !== undefined) event.tokens = input.tokens;
+  if (input.contextWindow !== undefined) event.contextWindow = input.contextWindow;
+  if (input.percent !== undefined) event.percent = input.percent;
+  if (input.tokensOver200k !== undefined) event.tokensOver200k = input.tokensOver200k;
+  if (input.handoffSuggested !== undefined) event.handoffSuggested = input.handoffSuggested;
+  if (input.handoffPath) event.handoffPath = input.handoffPath;
+  return event;
 }
 
 export function appendLeadEvent(
@@ -271,13 +392,37 @@ export default function (pi: ExtensionAPI) {
     if (!subscription || ctx.isIdle() !== true) return;
     scanSubagentEvents(ctx);
     const snippet = lastAssistantText(ctx);
+    const flags = usageFlags(readContextUsage(ctx));
+    let handoffPath: string | undefined;
+    if (flags.handoffSuggested) {
+      try {
+        handoffPath = writeHandoffStub({
+          session: sessionIdOf(ctx),
+          cwd: ctx.cwd,
+          tokens: flags.tokens,
+          percent: flags.percent,
+          contextWindow: flags.contextWindow,
+          snippet: snippet || "manager settled",
+        });
+      } catch {
+        handoffPath = undefined;
+      }
+    }
     deliver(
       buildLeadEvent({
         kind: "agent_settled",
         session: sessionIdOf(ctx),
         cwd: ctx.cwd,
-        summary: snippet ? firstLine(snippet) : "manager settled",
+        summary: flags.handoffSuggested
+          ? `HANDOFF SUGGESTED (>${TOKEN_HANDOFF_THRESHOLD} tokens): ${
+              snippet ? firstLine(snippet) : "manager settled"
+            }`
+          : snippet
+            ? firstLine(snippet)
+            : "manager settled",
         snippet: snippet || "manager settled",
+        ...flags,
+        handoffPath,
       }),
     );
   });
