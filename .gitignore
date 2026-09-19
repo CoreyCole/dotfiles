@@ -36,6 +36,7 @@ context/
 .pi-config/agent/trust.json
 .pi-config/agent/sessions/
 .pi-config/agent/run-history.jsonl
+.pi-config/agent/lead-inbox/
 .pi-config/agent/mcp*
 context/
 *.local*
