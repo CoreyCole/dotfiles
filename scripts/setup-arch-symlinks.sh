@@ -39,6 +39,7 @@ link() {
 
 # Shell and CLI configuration.
 link "$REPO_DIR/.gitconfig" "$HOME/.gitconfig"
+link "$REPO_DIR/.zshenv" "$HOME/.zshenv"
 link "$REPO_DIR/.zshrc" "$HOME/.zshrc"
 link "$REPO_DIR/.zsh_aliases" "$HOME/.zsh_aliases"
 link "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"

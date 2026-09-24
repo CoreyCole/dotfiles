@@ -21,6 +21,20 @@ fi
 
 source "$HOME/dotfiles/.zsh_aliases"
 
+# Same fpath for login and non-login shells. ~/.zprofile must not source
+# this file: macOS starts login shells, which would run compinit twice.
+if [[ -f "$HOME/.orbstack/shell/init.zsh" ]]; then
+  source "$HOME/.orbstack/shell/init.zsh"
+fi
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+# Drop dirs added above that do not exist, before compinit records fpath.
+fpath=(${^fpath}(N-/))
+
+# compaudit walks every fpath entry. These dirs are owned by this user.
+ZSH_DISABLE_COMPFIX=true
+
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 DISABLE_AUTO_TITLE="true"
@@ -45,11 +59,6 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
-
-# fnm Homebrew, needed if fnm comes from brew
-if [[ -x /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
 
 # fnm
 if command -v fnm >/dev/null 2>&1; then
