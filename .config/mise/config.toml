@@ -33,4 +33,8 @@ yq = "latest"
 protolint = "latest"
 "aqua:coder3101/protols" = "latest"
 "go:github.com/sqls-server/sqls" = "latest"
-herdr = "latest"
+gh = "latest"
+codex = "latest"
+
+[settings.upgrade]
+auto_prune = false
