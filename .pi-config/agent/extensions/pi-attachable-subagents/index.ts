@@ -11,6 +11,10 @@ import {
   truncateToWidth,
   visibleWidth,
 } from "@earendil-works/pi-tui";
+import {
+  configuredDefaultModelRef,
+  isFastModelRef,
+} from "../lib/default-model.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -144,7 +148,7 @@ const SubagentParams = Type.Object({
   agent: Type.Optional(
     Type.String({
       description:
-        "Agent name to load defaults from (e.g. 'worker', 'scout', 'reviewer'). Reads ~/.pi/agent/agents/<name>.md for model, tools, skills.",
+        "Agent name to load defaults from (e.g. 'worker', 'scout', 'reviewer'). Reads ~/.pi/agent/agents/<name>.md for tools and skills. Model follows Pi's default unless that file sets model.",
     }),
   ),
   systemPrompt: Type.Optional(
@@ -155,7 +159,7 @@ const SubagentParams = Type.Object({
   model: Type.Optional(
     Type.String({
       description:
-        "Exact provider/id override (overrides agent default). Unknown or partial names fail the spawn.",
+        "Exact provider/id override. Omit it to use Pi's default model. Unknown or partial names fail the spawn.",
     }),
   ),
   skills: Type.Optional(
@@ -1401,19 +1405,15 @@ const PI_REASONING_SUFFIXES = new Set([
   "max",
 ]);
 
-function configuredDefaultModelRef(): string {
-  try {
-    const settings = JSON.parse(
-      readFileSync(join(getAgentConfigDir(), "settings.json"), "utf8"),
-    ) as { defaultProvider?: string; defaultModel?: string };
-    if (settings.defaultProvider && settings.defaultModel) {
-      return `${settings.defaultProvider}/${settings.defaultModel}`;
-    }
-  } catch {
-    // use the pinned fallback below
+function buildModelLaunchArguments(
+  model: string | undefined,
+  thinking: string | undefined,
+): string[] {
+  if (model) return ["--model", shellEscape(model)];
+  if (thinking && PI_REASONING_SUFFIXES.has(thinking)) {
+    return ["--thinking", shellEscape(thinking)];
   }
-
-  return "xai/grok-4.6";
+  return [];
 }
 
 type CatalogModel = { provider: string; id: string };
@@ -1513,8 +1513,7 @@ function resolveModelArgument(
     (agentThinking && PI_REASONING_SUFFIXES.has(agentThinking)
       ? agentThinking
       : undefined);
-  const lookup =
-    ref.toLowerCase() === "fast" ? configuredDefaultModelRef() : ref;
+  const lookup = isFastModelRef(ref) ? configuredDefaultModelRef() : ref;
   const matched = findExactConfiguredModel(
     lookup,
     loadConfiguredModels(getAgentConfigDir()),
@@ -2100,6 +2099,8 @@ export const __test__ = {
   buildChildHandoffEnvironment,
   buildChildAutoExitEnvironment,
   resolveModelArgument,
+  configuredDefaultModelRef,
+  buildModelLaunchArguments,
   buildSystemPromptArguments,
   buildInitialTask,
   formatLocalStartTime,
@@ -2252,7 +2253,7 @@ async function launchSubagent(
   const subagentDonePath = join(SUBAGENTS_DIR, "subagent-done.ts");
   parts.push("-e", shellEscape(subagentDonePath));
 
-  if (effectiveModel) parts.push("--model", shellEscape(effectiveModel));
+  parts.push(...buildModelLaunchArguments(effectiveModel, agentDefs?.thinking));
 
   const promptTimestamp = new Date()
     .toISOString()

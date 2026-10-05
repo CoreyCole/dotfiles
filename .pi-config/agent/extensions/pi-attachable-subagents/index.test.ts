@@ -183,16 +183,27 @@ test("legacy synthetic filenames resolve by native session header UUID", () => {
 });
 
 test("named role launch arguments include model, role prompt, and control tools", () => {
+  const piDefault = __test__.configuredDefaultModelRef();
   assert.equal(
     __test__.resolveModelArgument(undefined, "xai/grok-4.6", "high"),
     "xai/grok-4.6:high",
   );
-  assert.equal(__test__.resolveModelArgument("fast"), "xai/grok-4.6");
-  assert.equal(__test__.resolveModelArgument("fast:high"), "xai/grok-4.6:high");
+  assert.equal(__test__.resolveModelArgument(undefined), undefined);
+  assert.equal(__test__.resolveModelArgument("fast"), piDefault);
+  assert.equal(__test__.resolveModelArgument("xai/fast"), piDefault);
+  assert.equal(__test__.resolveModelArgument("fast:high"), `${piDefault}:high`);
   assert.equal(__test__.resolveModelArgument("grok-4.6"), "xai/grok-4.6");
   assert.equal(
     __test__.resolveModelArgument(undefined, "fast", "minimal"),
-    "xai/grok-4.6:minimal",
+    `${piDefault}:minimal`,
+  );
+  assert.deepEqual(__test__.buildModelLaunchArguments(undefined, "minimal"), [
+    "--thinking",
+    "'minimal'",
+  ]);
+  assert.deepEqual(
+    __test__.buildModelLaunchArguments(`${piDefault}:high`, "minimal"),
+    ["--model", `'${piDefault}:high'`],
   );
   assert.throws(
     () => __test__.resolveModelArgument("grok"),
@@ -1135,9 +1146,18 @@ test("widget, list, and picker sort durable children newest-first", async () => 
     lines.findIndex((line) => line.includes("Middle")) <
       lines.findIndex((line) => line.includes("Old")),
   );
-  assert.match(lines.find((line) => line.includes("Old"))!, /🔴.*Aug 23 11:28/);
-  assert.match(lines.find((line) => line.includes("New"))!, /Aug 25 09:56/);
-  assert.match(lines.find((line) => line.includes("Middle"))!, /Aug 24 11:28/);
+  assert.match(
+    lines.find((line) => line.includes("Old"))!,
+    /🔴.*Aug 23 11:28/,
+  );
+  assert.match(
+    lines.find((line) => line.includes("New"))!,
+    /Aug 25 09:56/,
+  );
+  assert.match(
+    lines.find((line) => line.includes("Middle"))!,
+    /Aug 24 11:28/,
+  );
 
   let pickerOptions: string[] = [];
   const selected = await __test__.selectHumanCatalogTarget(
@@ -1243,8 +1263,14 @@ test("widget uses local calendar dates and no status-time separator", () => {
     now,
     true,
   );
-  assert.match(lines.find((line) => line.includes("Idle"))!, /🔴 Dec 30 12:53/);
-  assert.doesNotMatch(lines.find((line) => line.includes("Idle"))!, /·/);
+  assert.match(
+    lines.find((line) => line.includes("Idle"))!,
+    /🔴 Dec 30 12:53/,
+  );
+  assert.doesNotMatch(
+    lines.find((line) => line.includes("Idle"))!,
+    /·/,
+  );
 });
 
 test("widget hides stopped children and collapses to a stopped count", () => {
@@ -1387,8 +1413,14 @@ test("widget marks idle, provider, and streaming children", () => {
     lines.some((line) => line.includes("Idle")),
     false,
   );
-  assert.match(lines.find((line) => line.includes("Provider"))!, /🟡 10:18/);
-  assert.match(lines.find((line) => line.includes("Streaming"))!, /🟢 10:18/);
+  assert.match(
+    lines.find((line) => line.includes("Provider"))!,
+    /🟡 10:18/,
+  );
+  assert.match(
+    lines.find((line) => line.includes("Streaming"))!,
+    /🟢 10:18/,
+  );
   assert.doesNotMatch(
     lines.find((line) => line.includes("Provider"))!,
     /provider/,
@@ -1397,8 +1429,14 @@ test("widget marks idle, provider, and streaming children", () => {
     lines.find((line) => line.includes("Streaming"))!,
     /streaming/,
   );
-  assert.doesNotMatch(lines.find((line) => line.includes("Provider"))!, /·/);
-  assert.doesNotMatch(lines.find((line) => line.includes("Streaming"))!, /·/);
+  assert.doesNotMatch(
+    lines.find((line) => line.includes("Provider"))!,
+    /·/,
+  );
+  assert.doesNotMatch(
+    lines.find((line) => line.includes("Streaming"))!,
+    /·/,
+  );
 });
 
 test("resumed active child retains its durable catalog timestamp", () => {

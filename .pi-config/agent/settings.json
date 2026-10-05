@@ -4,10 +4,7 @@
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"
   ],
-  "skills": [
-    "~/dotfiles/.agents/skills",
-    "~/cn/chestnut-flake/.agents/skills"
-  ],
+  "skills": ["~/dotfiles/.agents/skills", "~/cn/chestnut-flake/.agents/skills"],
   "compaction": {
     "enabled": false
   },
@@ -15,9 +12,7 @@
   "theme": "corey-dark",
   "defaultThinkingLevel": "high",
   "defaultProvider": "xai",
-  "defaultModel": "grok-4.6",
-  "enabledModels": [
-    "xai/grok-4.6"
-  ],
+  "defaultModel": "grok-4.7",
+  "enabledModels": ["xai/grok-4.7"],
   "transport": "sse"
 }
