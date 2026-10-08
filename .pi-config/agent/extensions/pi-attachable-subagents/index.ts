@@ -862,6 +862,8 @@ interface RunningSubagent {
   shutdownCancelled?: boolean;
   statusState: SubagentStatusState;
   statusEntryCursor: number;
+  /** Texts this manager already sent. The watcher must not wake on them. */
+  managerSteers?: string[];
   displayModel?: string;
   displayProvider?: string;
   displayTps?: number;
@@ -1044,14 +1046,165 @@ function shutdownLifecycle(
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
   return !running.explicitlyStopped && !running.shutdownCancelled;
 }
-function drainPersistentStatuses(
-  running: RunningSubagent,
-  deliver: (status: { kind: "status" | "error"; report: string }) => void,
+function noteManagerSteer(
+  running: { managerSteers?: string[] },
+  message: string,
+): void {
+  (running.managerSteers ??= []).push(message);
+}
+
+function userMessageText(entry: {
+  type?: unknown;
+  message?: unknown;
+}): string | null {
+  if (entry.type !== "message") return null;
+  const message = (entry as { message?: unknown }).message;
+  if (!isPlainObject(message) || message.role !== "user") return null;
+  const content = message.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+  const text = content
+    .filter(
+      (block): block is { type: string; text: string } =>
+        isPlainObject(block) &&
+        block.type === "text" &&
+        typeof block.text === "string",
+    )
+    .map((block) => block.text)
+    .join("\n");
+  return text.length > 0 ? text : null;
+}
+
+function matchesManagerSteer(expected: string, actual: string): boolean {
+  if (!expected) return false;
+  if (actual === expected || actual.endsWith(`\n\n${expected}`)) return true;
+  // Launch and steer prompts can wrap the whole task. A short fragment must not match.
+  return actual.includes(`\n\n${expected}\n`);
+}
+
+export function formatManualSteerWake(
+  name: string,
+  sessionId: string,
+  text: string,
+): string {
+  return `Manual steer for "${name}" (session ${sessionId}):\n\n${text}`;
+}
+
+interface SteerWatch {
+  id: string;
+  name: string;
+  sessionFile: string;
+  statusEntryCursor: number;
+  managerSteers?: string[];
+}
+
+const settledSteerWatches = new Map<string, SteerWatch>();
+
+function armSettledSteerWatch(running: SteerWatch): void {
+  if (runningSubagents.has(running.id)) return;
+  const existing = settledSteerWatches.get(running.id);
+  if (existing && existing.statusEntryCursor > running.statusEntryCursor)
+    return;
+  settledSteerWatches.set(running.id, {
+    id: running.id,
+    name: running.name,
+    sessionFile: running.sessionFile,
+    statusEntryCursor: running.statusEntryCursor,
+    managerSteers: [...(running.managerSteers ?? [])],
+  });
+}
+
+function noteSettledManagerSteer(
+  childSessionId: string,
+  message: string,
+): void {
+  const watch = settledSteerWatches.get(childSessionId);
+  if (watch) noteManagerSteer(watch, message);
+}
+
+type SteerSource = "manager" | "human";
+
+/** Manager echoes are suppressed before send. Human wakes are delivered first. */
+export function steerWakePlan(source: SteerSource): {
+  noteBeforeSend: boolean;
+  deliverAfterSend: boolean;
+} {
+  return source === "manager"
+    ? { noteBeforeSend: true, deliverAfterSend: false }
+    : { noteBeforeSend: false, deliverAfterSend: true };
+}
+
+function finishHumanSteer(
+  running: { managerSteers?: string[] },
+  message: string,
+  deliver: (text: string) => void,
+): void {
+  deliver(message);
+  noteManagerSteer(running, message);
+}
+
+function pollSettledManualSteers(params: {
+  children: Iterable<ChildSession>;
+  activeIds: { has(id: string): boolean };
+  startingIds: { has(id: string): boolean };
+  watches: Map<string, SteerWatch>;
+  resolveFile: (child: ChildSession) => string | undefined;
+}): Array<{ name: string; sessionId: string; text: string }> {
+  const wakes: Array<{ name: string; sessionId: string; text: string }> = [];
+  for (const child of params.children) {
+    if (params.activeIds.has(child.childSessionId)) continue;
+    if (params.startingIds.has(child.childSessionId)) continue;
+    let watch = params.watches.get(child.childSessionId);
+    const sessionFile = watch?.sessionFile ?? params.resolveFile(child);
+    if (!sessionFile || !existsSync(sessionFile)) continue;
+    if (!watch) {
+      params.watches.set(child.childSessionId, {
+        id: child.childSessionId,
+        name: child.name,
+        sessionFile,
+        statusEntryCursor: getNewEntries(sessionFile, 0).length,
+        managerSteers: [],
+      });
+      continue;
+    }
+    watch.sessionFile = sessionFile;
+    drainChildSessionEntries(watch, {
+      onManualSteer(text) {
+        wakes.push({
+          name: child.name,
+          sessionId: child.childSessionId,
+          text,
+        });
+      },
+    });
+  }
+  return wakes;
+}
+
+function drainChildSessionEntries(
+  running: SteerWatch,
+  handlers: {
+    onStatus?: (status: { kind: "status" | "error"; report: string }) => void;
+    onManualSteer?: (text: string) => void;
+  },
 ): void {
   if (!existsSync(running.sessionFile)) return;
   const entries = getNewEntries(running.sessionFile, running.statusEntryCursor);
   running.statusEntryCursor += entries.length;
   for (const entry of entries) {
+    const steered = userMessageText(entry);
+    if (steered) {
+      const pending = running.managerSteers ?? [];
+      const managerIndex = pending.findIndex((expected) =>
+        matchesManagerSteer(expected, steered),
+      );
+      if (managerIndex >= 0) {
+        pending.splice(managerIndex, 1);
+      } else if (handlers.onManualSteer) {
+        handlers.onManualSteer(steered);
+      }
+    }
+    if (!handlers.onStatus) continue;
     if (
       entry.type !== "custom" ||
       (entry as { customType?: unknown }).customType !==
@@ -1070,8 +1223,15 @@ function drainPersistentStatuses(
       !isNonemptyString(data.report)
     )
       continue;
-    deliver({ kind: data.kind, report: data.report });
+    handlers.onStatus({ kind: data.kind, report: data.report });
   }
+}
+
+function drainPersistentStatuses(
+  running: RunningSubagent,
+  deliver: (status: { kind: "status" | "error"; report: string }) => void,
+): void {
+  drainChildSessionEntries(running, { onStatus: deliver });
 }
 function cleanupFailedWatcherRun(running: RunningSubagent): void {
   runningSubagents.delete(running.id);
@@ -1108,6 +1268,7 @@ let widgetInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Interval timer for status transition checks. */
 let statusInterval: ReturnType<typeof setInterval> | null = null;
+let settledSteerInterval: ReturnType<typeof setInterval> | null = null;
 
 let showStoppedChildren = false;
 
@@ -2026,6 +2187,34 @@ function handleSubagentInterrupt(
   };
 }
 
+function startSettledSteerRefresh(pi: ExtensionAPI) {
+  if (settledSteerInterval) return;
+  settledSteerInterval = setInterval(() => {
+    const wakes = pollSettledManualSteers({
+      children: childrenBySessionId.values(),
+      activeIds: runningSubagents,
+      startingIds: startingSubagents,
+      watches: settledSteerWatches,
+      resolveFile: findChildSessionFile,
+    });
+    for (const wake of wakes) {
+      pi.sendMessage(
+        {
+          customType: "subagent_manual_steer",
+          content: formatManualSteerWake(wake.name, wake.sessionId, wake.text),
+          display: true,
+          details: {
+            name: wake.name,
+            sessionId: wake.sessionId,
+            text: wake.text,
+          },
+        },
+        { triggerTurn: true, deliverAs: "steer" },
+      );
+    }
+  }, 1000);
+}
+
 function startStatusRefresh(pi: ExtensionAPI) {
   if (!statusConfig.enabled || statusInterval) return;
 
@@ -2152,6 +2341,12 @@ export const __test__ = {
   runningSubagents,
   startingSubagents,
   drainPersistentStatuses,
+  drainChildSessionEntries,
+  formatManualSteerWake,
+  noteManagerSteer,
+  pollSettledManualSteers,
+  steerWakePlan,
+  finishHumanSteer,
   formatElapsed,
 };
 
@@ -2445,6 +2640,7 @@ async function launchSubagent(
       startTimeMs: startTime,
     }),
     statusEntryCursor: getNewEntries(subagentSessionFile, 0).length,
+    managerSteers: [params.task],
   };
 
   runningSubagents.set(id, running);
@@ -2461,6 +2657,7 @@ async function watchSubagent(
   signal: AbortSignal,
   ownerSignal: AbortSignal,
   onStatus?: (status: { kind: "status" | "error"; report: string }) => void,
+  onManualSteer?: (text: string) => void,
 ): Promise<SubagentResult> {
   const { name, task, surface, startTime, sessionFile } = running;
 
@@ -2473,13 +2670,13 @@ async function watchSubagent(
         sessionFile,
         onTick() {
           observeRunningSubagent(running);
-          if (onStatus) drainPersistentStatuses(running, onStatus);
+          drainChildSessionEntries(running, { onStatus, onManualSteer });
         },
       },
     );
 
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    if (onStatus) drainPersistentStatuses(running, onStatus);
+    drainChildSessionEntries(running, { onStatus, onManualSteer });
 
     // Pi subagent result extraction
     let summary: string;
@@ -2542,6 +2739,9 @@ async function watchSubagent(
       elapsed: Math.floor((Date.now() - startTime) / 1000),
       error: err?.message ?? String(err),
     };
+  } finally {
+    if (runningSubagents.get(running.id) !== running)
+      armSettledSteerWatch(running);
   }
 }
 
@@ -2593,6 +2793,8 @@ export default function subagentsExtension(
     }
     if (runningSubagents.size > 0) startWidgetRefresh();
     else updateWidget();
+    settledSteerWatches.clear();
+    startSettledSteerRefresh(pi);
   });
 
   // Clean up on session shutdown
@@ -2609,6 +2811,11 @@ export default function subagentsExtension(
       statusInterval = null;
       (globalThis as any)[STATUS_INTERVAL_KEY] = null;
     }
+    if (settledSteerInterval) {
+      clearInterval(settledSteerInterval);
+      settledSteerInterval = null;
+    }
+    settledSteerWatches.clear();
     shutdownLifecycle(lifecycle, runningSubagents);
   });
 
@@ -2640,6 +2847,23 @@ export default function subagentsExtension(
         content: `Sub-agent "${running.name}" ${status.kind}:\n\n${status.report}`,
         display: true,
         details: { childSessionId: running.id, ...status },
+      },
+      { triggerTurn: true, deliverAs: "steer" },
+    );
+  };
+
+  const deliverManualSteer = (running: RunningSubagent, text: string) => {
+    if (!shouldDeliverWatcherNotification(running)) return;
+    pi.sendMessage(
+      {
+        customType: "subagent_manual_steer",
+        content: formatManualSteerWake(running.name, running.id, text),
+        display: true,
+        details: {
+          name: running.name,
+          sessionId: running.id,
+          text,
+        },
       },
       { triggerTurn: true, deliverAs: "steer" },
     );
@@ -2742,6 +2966,7 @@ export default function subagentsExtension(
           watcherAbort.signal,
           watcherOwner.signal,
           (status) => deliverPersistentStatus(running, status),
+          (text) => deliverManualSteer(running, text),
         )
           .then((result) => {
             ownedRuns.delete(running);
@@ -2923,8 +3148,12 @@ export default function subagentsExtension(
     running: RunningSubagent,
     watcherAbort: AbortController,
   ) => {
-    watchSubagent(running, watcherAbort.signal, watcherOwner.signal, (status) =>
-      deliverPersistentStatus(running, status),
+    watchSubagent(
+      running,
+      watcherAbort.signal,
+      watcherOwner.signal,
+      (status) => deliverPersistentStatus(running, status),
+      (text) => deliverManualSteer(running, text),
     )
       .then((result) => {
         ownedRuns.delete(running);
@@ -2988,6 +3217,7 @@ export default function subagentsExtension(
     target: string,
     message: string,
     ctx: ExtensionContext,
+    source: SteerSource,
   ) => {
     try {
       validatePrompt(message);
@@ -2997,6 +3227,9 @@ export default function subagentsExtension(
     const resolved = resolveControlTarget(target);
     if ("error" in resolved) return resolved;
     const child = resolved.child;
+    const wakePlan = steerWakePlan(source);
+    if (wakePlan.noteBeforeSend)
+      noteSettledManagerSteer(child.childSessionId, message);
     const decision = resolveSteerDecision(
       runningSubagents,
       startingSubagents,
@@ -3004,7 +3237,13 @@ export default function subagentsExtension(
     );
     if (decision.kind === "active") {
       try {
+        if (wakePlan.noteBeforeSend)
+          noteManagerSteer(decision.running, message);
         sendPrompt(decision.running.surface, message);
+        if (wakePlan.deliverAfterSend)
+          finishHumanSteer(decision.running, message, (text) =>
+            deliverManualSteer(decision.running, text),
+          );
         return { running: decision.running };
       } catch (error) {
         return {
@@ -3108,6 +3347,7 @@ export default function subagentsExtension(
                 startTimeMs: startTime,
               }),
               statusEntryCursor: getNewEntries(sessionFile, 0).length,
+              managerSteers: wakePlan.noteBeforeSend ? [message] : [],
             };
           } catch (error) {
             if (surface)
@@ -3128,6 +3368,10 @@ export default function subagentsExtension(
       const watcherAbort = running.abortController!;
       registerLaunchedDelivery(running, lifecycle);
       ownedRuns.add(running);
+      if (wakePlan.deliverAfterSend)
+        finishHumanSteer(running, message, (text) =>
+          deliverManualSteer(running, text),
+        );
       deliverControlledRun(running, watcherAbort);
       startWidgetRefresh();
       startStatusRefresh(pi);
@@ -3149,7 +3393,12 @@ export default function subagentsExtension(
         message: Type.String(),
       }),
       async execute(_id, params, _signal, _update, ctx) {
-        const result = await steer(params.target, params.message, ctx);
+        const result = await steer(
+          params.target,
+          params.message,
+          ctx,
+          "manager",
+        );
         const text =
           "error" in result
             ? result.error
@@ -3440,16 +3689,11 @@ export default function subagentsExtension(
     handler: async (args, ctx) => {
       const [typedTarget = "", ...words] = args.trim().split(/\s+/);
       if (typedTarget) {
-        const result = await steer(
-          typedTarget,
+        const message =
           words.join(" ") ||
-            ((await ctx.ui.input(
-              "Steer message",
-              "Message for the subagent",
-            )) ??
-              ""),
-          ctx,
-        );
+          ((await ctx.ui.input("Steer message", "Message for the subagent")) ??
+            "");
+        const result = await steer(typedTarget, message, ctx, "human");
         ctx.ui.notify(
           "error" in result
             ? result.error
@@ -3472,7 +3716,12 @@ export default function subagentsExtension(
         message =
           (await ctx.ui.input("Steer message", "Message for the subagent")) ??
           "";
-      const result = await steer(selected.childSessionId, message, ctx);
+      const result = await steer(
+        selected.childSessionId,
+        message,
+        ctx,
+        "human",
+      );
       ctx.ui.notify(
         "error" in result
           ? result.error
