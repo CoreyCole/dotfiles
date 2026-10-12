@@ -1656,7 +1656,7 @@ test("a human child-pane steer wakes the manager before settlement, but subagent
         ),
     });
     assert.deepEqual(wakes, [
-      `Manual steer for "bt5-q4-payout" (session ${sessionId}):\n\n${human}`,
+      `Human command to child "bt5-q4-payout" (session ${sessionId}):\n\n${human}\n\nThe human sent this command to the child, not to you. Do not act on it. Await the child's response.`,
     ]);
     assert.deepEqual(statuses, ["settled later"]);
     assert.deepEqual(running.managerSteers, []);
@@ -1724,7 +1724,9 @@ test("a settled child pane steer wakes the manager and a manager steer does not"
       wakes.map((wake) =>
         __test__.formatManualSteerWake(wake.name, wake.sessionId, wake.text),
       ),
-      [`Manual steer for "bt5-q4-payout" (session ${sessionId}):\n\n${human}`],
+      [
+        `Human command to child "bt5-q4-payout" (session ${sessionId}):\n\n${human}\n\nThe human sent this command to the child, not to you. Do not act on it. Await the child's response.`,
+      ],
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -1787,6 +1789,123 @@ test("a file-wrapped manager launch or steer stays quiet, but a fragment does no
     });
     assert.deepEqual(wakes, [human]);
     assert.deepEqual(running.managerSteers, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a file-tagged subagent_steer echo does not wake the parent", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-tool-steer-file-"));
+  const sessionFile = join(dir, "child.jsonl");
+  const sessionId = "538025be-423f-4eaa-a243-53145a59fb21";
+  const steer =
+    "Correction. The lead says the candidate pre-filter must keep only active entities.";
+  const tagged = `<file name="/tmp/bt6-q2-manager-b-steer.md">\n${steer}\n</file>\n`;
+  const human = "keep only active entities";
+  const user = (text: string) =>
+    JSON.stringify({
+      type: "message",
+      message: { role: "user", content: [{ type: "text", text }] },
+    });
+  try {
+    writeFileSync(
+      sessionFile,
+      JSON.stringify({ type: "session", id: sessionId }) + "\n",
+    );
+    const running = {
+      id: sessionId,
+      name: "bt6-q2-manager-b",
+      sessionFile,
+      statusEntryCursor: 1,
+      managerSteers: [] as string[],
+    } as any;
+    writeFileSync(sessionFile, [user(tagged), user(human)].join("\n") + "\n", {
+      flag: "a",
+    });
+    __test__.noteManagerSteer(running, steer);
+    const wakes: string[] = [];
+    __test__.drainChildSessionEntries(running, {
+      onManualSteer: (text) =>
+        wakes.push(
+          __test__.formatManualSteerWake(running.name, running.id, text),
+        ),
+    });
+    assert.equal(wakes.length, 1);
+    assert.match(wakes[0], /^Human command to child "bt6-q2-manager-b"/);
+    assert.match(wakes[0], new RegExp(human));
+    assert.equal(wakes[0].includes(steer), false);
+    assert.deepEqual(running.managerSteers, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an idle autoExit:false settled drain does not wake when a manager steer had no watch", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-idle-steer-miss-"));
+  const sessionFile = join(dir, "child.jsonl");
+  const sessionId = "c71caef1-e040-4fcf-b840-561944acd187";
+  const plain = "Lead accepted the triage. Do not override any row.";
+  const idle = "Keep this manager steer quiet on the idle child.";
+  const idlePrompt = [
+    "Complete your task autonomously. If blocked, call caller_ping. When finished, call subagent_done. Automatic settlement is only a fallback.",
+    idle,
+    "Your FINAL assistant message should summarize what you accomplished.",
+  ].join("\n\n");
+  const wrappedIdle = `<file name="/tmp/idle-relaunch.md">\n${idlePrompt}\n</file>\n`;
+  const human = "the human typed this in the child pane";
+  const child = {
+    managerSessionId: "manager",
+    childSessionId: sessionId,
+    name: "pro-9678-pr-comments",
+    cwd: dir,
+    autoExit: false,
+  };
+  const watches = new Map();
+  const user = (text: string) =>
+    JSON.stringify({
+      type: "message",
+      message: { role: "user", content: [{ type: "text", text }] },
+    });
+  const poll = () =>
+    __test__.pollSettledManualSteers({
+      children: [child],
+      activeIds: new Set(),
+      startingIds: new Set(),
+      watches,
+      resolveFile: () => sessionFile,
+    });
+  try {
+    writeFileSync(
+      sessionFile,
+      JSON.stringify({ type: "session", id: sessionId }) + "\n",
+    );
+    __test__.noteSettledManagerSteer(sessionId, plain);
+    __test__.noteSettledManagerSteer(sessionId, idle);
+    assert.deepEqual(poll(), []);
+    writeFileSync(
+      sessionFile,
+      [user(plain), user(wrappedIdle)].join("\n") + "\n",
+      { flag: "a" },
+    );
+    __test__.armSettledSteerWatch({
+      id: sessionId,
+      name: child.name,
+      sessionFile,
+      statusEntryCursor: 1,
+      managerSteers: [],
+    });
+    assert.deepEqual(poll(), []);
+    writeFileSync(sessionFile, user(human) + "\n", { flag: "a" });
+    const wakes = poll();
+    assert.deepEqual(
+      wakes.map((wake) =>
+        __test__.formatManualSteerWake(wake.name, wake.sessionId, wake.text),
+      ),
+      [
+        `Human command to child "pro-9678-pr-comments" (session ${sessionId}):\n\n${human}\n\nThe human sent this command to the child, not to you. Do not act on it. Await the child's response.`,
+      ],
+    );
+    assert.deepEqual(poll(), []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

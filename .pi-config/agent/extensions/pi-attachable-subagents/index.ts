@@ -1075,11 +1075,22 @@ function userMessageText(entry: {
   return text.length > 0 ? text : null;
 }
 
+function fileWrappedBodies(actual: string): string[] {
+  return [...actual.matchAll(/<file name="[^"]*">\n([\s\S]*?)\n<\/file>/g)].map(
+    (match) => match[1],
+  );
+}
+
 function matchesManagerSteer(expected: string, actual: string): boolean {
   if (!expected) return false;
   if (actual === expected || actual.endsWith(`\n\n${expected}`)) return true;
-  // Launch and steer prompts can wrap the whole task. A short fragment must not match.
-  return actual.includes(`\n\n${expected}\n`);
+  // A blank-line block or a whole file body. A short fragment must not match.
+  if (actual.includes(`\n\n${expected}\n`)) return true;
+  const idleRelaunch = buildInitialTask(expected);
+  if (actual === idleRelaunch) return true;
+  return fileWrappedBodies(actual).some(
+    (body) => body === expected || body === idleRelaunch,
+  );
 }
 
 export function formatManualSteerWake(
@@ -1087,7 +1098,13 @@ export function formatManualSteerWake(
   sessionId: string,
   text: string,
 ): string {
-  return `Manual steer for "${name}" (session ${sessionId}):\n\n${text}`;
+  return [
+    `Human command to child "${name}" (session ${sessionId}):`,
+    "",
+    text,
+    "",
+    "The human sent this command to the child, not to you. Do not act on it. Await the child's response.",
+  ].join("\n");
 }
 
 interface SteerWatch {
@@ -1099,18 +1116,36 @@ interface SteerWatch {
 }
 
 const settledSteerWatches = new Map<string, SteerWatch>();
+/** Survives a missing watch, a relaunch, and a later watch copy. */
+const pendingManagerSteers = new Map<string, string[]>();
+
+function rememberManagerSteer(childSessionId: string, message: string): void {
+  const pending = pendingManagerSteers.get(childSessionId) ?? [];
+  pending.push(message);
+  pendingManagerSteers.set(childSessionId, pending);
+}
 
 function armSettledSteerWatch(running: SteerWatch): void {
   if (runningSubagents.has(running.id)) return;
   const existing = settledSteerWatches.get(running.id);
-  if (existing && existing.statusEntryCursor > running.statusEntryCursor)
+  const managerSteers = [
+    ...(existing?.managerSteers ?? []),
+    ...(running.managerSteers ?? []),
+    ...(pendingManagerSteers.get(running.id) ?? []),
+  ];
+  if (existing && existing.statusEntryCursor > running.statusEntryCursor) {
+    existing.managerSteers = managerSteers;
     return;
+  }
   settledSteerWatches.set(running.id, {
     id: running.id,
     name: running.name,
     sessionFile: running.sessionFile,
-    statusEntryCursor: running.statusEntryCursor,
-    managerSteers: [...(running.managerSteers ?? [])],
+    statusEntryCursor: Math.max(
+      existing?.statusEntryCursor ?? 0,
+      running.statusEntryCursor,
+    ),
+    managerSteers,
   });
 }
 
@@ -1118,6 +1153,7 @@ function noteSettledManagerSteer(
   childSessionId: string,
   message: string,
 ): void {
+  rememberManagerSteer(childSessionId, message);
   const watch = settledSteerWatches.get(childSessionId);
   if (watch) noteManagerSteer(watch, message);
 }
@@ -1163,7 +1199,9 @@ function pollSettledManualSteers(params: {
         name: child.name,
         sessionFile,
         statusEntryCursor: getNewEntries(sessionFile, 0).length,
-        managerSteers: [],
+        managerSteers: [
+          ...(pendingManagerSteers.get(child.childSessionId) ?? []),
+        ],
       });
       continue;
     }
@@ -1181,6 +1219,32 @@ function pollSettledManualSteers(params: {
   return wakes;
 }
 
+function consumeManagerSteer(
+  running: { id: string; managerSteers?: string[] },
+  steered: string,
+): boolean {
+  const local = running.managerSteers ?? [];
+  const pending = pendingManagerSteers.get(running.id);
+  const localIndex = local.findIndex((expected) =>
+    matchesManagerSteer(expected, steered),
+  );
+  if (localIndex >= 0) {
+    const [expected] = local.splice(localIndex, 1);
+    if (pending) {
+      const pendingIndex = pending.indexOf(expected);
+      if (pendingIndex >= 0) pending.splice(pendingIndex, 1);
+    }
+    return true;
+  }
+  if (!pending) return false;
+  const pendingIndex = pending.findIndex((expected) =>
+    matchesManagerSteer(expected, steered),
+  );
+  if (pendingIndex < 0) return false;
+  pending.splice(pendingIndex, 1);
+  return true;
+}
+
 function drainChildSessionEntries(
   running: SteerWatch,
   handlers: {
@@ -1194,15 +1258,8 @@ function drainChildSessionEntries(
   for (const entry of entries) {
     const steered = userMessageText(entry);
     if (steered) {
-      const pending = running.managerSteers ?? [];
-      const managerIndex = pending.findIndex((expected) =>
-        matchesManagerSteer(expected, steered),
-      );
-      if (managerIndex >= 0) {
-        pending.splice(managerIndex, 1);
-      } else if (handlers.onManualSteer) {
+      if (!consumeManagerSteer(running, steered) && handlers.onManualSteer)
         handlers.onManualSteer(steered);
-      }
     }
     if (!handlers.onStatus) continue;
     if (
@@ -2345,6 +2402,8 @@ export const __test__ = {
   formatManualSteerWake,
   noteManagerSteer,
   pollSettledManualSteers,
+  noteSettledManagerSteer,
+  armSettledSteerWatch,
   steerWakePlan,
   finishHumanSteer,
   formatElapsed,
@@ -2794,6 +2853,7 @@ export default function subagentsExtension(
     if (runningSubagents.size > 0) startWidgetRefresh();
     else updateWidget();
     settledSteerWatches.clear();
+    pendingManagerSteers.clear();
     startSettledSteerRefresh(pi);
   });
 
@@ -2816,6 +2876,7 @@ export default function subagentsExtension(
       settledSteerInterval = null;
     }
     settledSteerWatches.clear();
+    pendingManagerSteers.clear();
     shutdownLifecycle(lifecycle, runningSubagents);
   });
 
