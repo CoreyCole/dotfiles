@@ -2,10 +2,10 @@
 "aqua:Schniz/fnm" = "latest"
 node = "26.5.0"
 
-# Go toolchain. Chestnut is on go 1.25.7 (see monorepo go.mod and
-# chestnut-flake/flake.nix). Stay on 1.25.x — do not use go@latest (1.27).
+# Go toolchain. Match chestnut-flake nixpkgs-go (go 1.27.1) and monorepo go.work.
+# Pin the patch, not go@latest, so this fallback cannot drift ahead of Nix.
 # omarchy-install-dev-env go installs latest and is the wrong command here.
-go = "1.25"
+go = "1.27.1"
 
 # Editor / lint. golangci-lint 2.4.0 is what Chestnut justfiles and hooks install.
 golangci-lint = "2.4.0"
