@@ -5,3 +5,58 @@ alias submit="gt submit --stack"
 alias yolo="gt submit --stack --no-verify"
 alias sync="cd $HOME/cn/chestnut-flake/monorepo && gt sync && cd db; just migrate up; cd .."
 alias cld="claude --dangerously-skip-permissions"
+
+# print a URL and copy it: Wayland, macOS, X11, then OSC 52 for an SSH terminal
+copyclip() {
+  local text="$1"
+  if [[ "$OSTYPE" == darwin* ]] && command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$text" | pbcopy
+  elif command -v wl-copy >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}${WAYLAND_SOCKET:-}" ]]; then
+    printf '%s' "$text" | wl-copy
+  elif command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$text" | pbcopy
+  elif command -v xclip >/dev/null 2>&1; then
+    printf '%s' "$text" | xclip -selection clipboard
+  elif command -v xsel >/dev/null 2>&1; then
+    printf '%s' "$text" | xsel --clipboard --input
+  else
+    printf '\033]52;c;%s\a' "$(printf '%s' "$text" | base64 | tr -d '\n')"
+  fi
+}
+
+# current branch PR as a Linear review link; prints it and copies it
+pr() {
+  local info graphite url
+  info=$(gt branch info --no-interactive) || return
+  graphite=$(printf '%s\n' "$info" | grep -Eo 'https://app\.graphite\.com/github/pr/[^[:space:]]+' | head -1)
+  if [[ -z "$graphite" ]]; then
+    echo "no PR for this branch" >&2
+    return 1
+  fi
+  url=$(printf '%s' "$graphite" | sed -E 's#https://app\.graphite\.com/github/pr/([^/]+)/([^/]+)/([0-9]+).*#https://linear.review/\1/\2/pull/\3#')
+  if [[ "$url" == "$graphite" ]]; then
+    echo "could not build a linear.review link from $graphite" >&2
+    return 1
+  fi
+  echo "$url"
+  copyclip "$url"
+}
+
+# latest EquiTrust release branch for this month: print the GitHub link and copy it
+eqrel() {
+  local repo="$HOME/cn/chestnut-flake/monorepo"
+  local month branch url refs
+  month=$(date +%Y-%m)
+  if ! refs=$(git -C "$repo" ls-remote --heads origin "equitrust-release/${month}*"); then
+    echo "failed to list equitrust-release/${month}* on origin" >&2
+    return 1
+  fi
+  branch=$(printf '%s\n' "$refs" | awk 'NF { sub(/^refs\/heads\//, "", $2); print $2 }' | sort -V | tail -n 1)
+  if [[ -z "$branch" ]]; then
+    echo "no equitrust-release/${month}* branch on origin" >&2
+    return 1
+  fi
+  url="https://github.com/premiumlabs/monorepo/tree/${branch}"
+  echo "$url"
+  copyclip "$url"
+}
