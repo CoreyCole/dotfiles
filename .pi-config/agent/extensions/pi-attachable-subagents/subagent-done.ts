@@ -16,6 +16,10 @@ export function shouldMarkUserTookOver(agentStarted: boolean): boolean {
 
 export type DiscussMode = "normal" | "next-turn" | "locked";
 
+export function callerPingShouldExit(autoExit: boolean): boolean {
+  return autoExit;
+}
+
 export function settleDiscussMode(
   mode: DiscussMode,
   autoExit: boolean,
@@ -601,8 +605,9 @@ export default function (pi: ExtensionAPI) {
     name: "caller_ping",
     label: "Caller Ping",
     description:
-      "Send a help request to the parent agent and exit this session. " +
-      "The parent will be notified with your message and can resume this session with a response. " +
+      "Send a help request to the parent agent. " +
+      "If autoExit is false, stay up so a running child can still finish. " +
+      "Otherwise exit this session. The parent can resume it with a response. " +
       "Use when you're stuck, need clarification, or need the parent to take action.",
     parameters: Type.Object({
       message: Type.String({ description: "What you need help with" }),
@@ -614,6 +619,19 @@ export default function (pi: ExtensionAPI) {
           "caller_ping is only available in subagent contexts. " +
             "PI_SUBAGENT_SESSION environment variable is not set.",
         );
+      }
+
+      if (!callerPingShouldExit(autoExit)) {
+        persistStatus("status", `Needs help:\n\n${params.message}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Ping sent. Session stays up because a child may still be running.",
+            },
+          ],
+          details: {},
+        };
       }
 
       const exitData = {

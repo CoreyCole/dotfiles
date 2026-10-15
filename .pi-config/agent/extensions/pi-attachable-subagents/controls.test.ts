@@ -722,7 +722,7 @@ test("persistent provider errors append an error status without exiting", async 
   }
 });
 
-test("terminal tools remain terminal for persistent children", async () => {
+test("persistent caller_ping stays up and subagent_done still exits", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "pi-subagent-terminal-"));
   const sessionFile = join(tempDir, "child.jsonl");
   const previousSession = process.env.PI_SUBAGENT_SESSION;
@@ -734,7 +734,7 @@ test("terminal tools remain terminal for persistent children", async () => {
 
   try {
     for (const [name, params, expected] of [
-      ["caller_ping", { message: "Need approval" }, "ping"],
+      ["caller_ping", { message: "Need approval" }, "persist"],
       ["subagent_done", {}, "done"],
     ] as const) {
       const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -779,6 +779,19 @@ test("terminal tools remain terminal for persistent children", async () => {
           },
         },
       );
+      if (expected === "persist") {
+        assert.equal(existsSync(`${sessionFile}.exit`), false);
+        assert.deepEqual(entries, [
+          {
+            version: 1,
+            childSessionId: "manager",
+            kind: "status",
+            report: "Needs help:\n\nNeed approval",
+          },
+        ]);
+        assert.equal(shutdowns, 0);
+        continue;
+      }
       assert.equal(
         JSON.parse(readFileSync(`${sessionFile}.exit`, "utf8")).type,
         expected,

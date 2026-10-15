@@ -1,10 +1,13 @@
 {
-  "lastChangelogVersion": "0.84.3",
+  "lastChangelogVersion": "1.0.3",
   "packages": [
     "git:github.com/CoreyCole/pi-deterministic-docs",
     "git:github.com/nicobailon/pi-mcp-adapter"
   ],
-  "skills": ["~/dotfiles/.agents/skills", "~/cn/chestnut-flake/.agents/skills"],
+  "skills": [
+    "~/dotfiles/.agents/skills",
+    "~/cn/chestnut-flake/.agents/skills"
+  ],
   "compaction": {
     "enabled": false
   },
@@ -13,6 +16,11 @@
   "defaultThinkingLevel": "high",
   "defaultProvider": "xai",
   "defaultModel": "grok-4.7",
-  "enabledModels": ["xai/grok-4.7"],
-  "transport": "sse"
+  "enabledModels": [
+    "xai/grok-4.7",
+    "openai-codex/gpt-6.1-sol"
+  ],
+  "transport": "sse",
+  "tuiMode": "regular",
+  "deviceId": "36850907-9f04-4ea2-ac90-49acad0454b8"
 }

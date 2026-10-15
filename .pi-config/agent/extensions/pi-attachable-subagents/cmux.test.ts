@@ -479,33 +479,67 @@ test("herdr attach moves a cross-tab pane beside the manager", () => {
     }
     return ok({ type: "pane_move" });
   });
-  assert.equal(attachHerdrPane("w1:p9", "w1:p1", herdr.execute), "moved");
-  assert.deepEqual(herdr.calls.at(-1), [
-    "pane",
-    "move",
-    "w1:p9",
-    "--tab",
-    "w1:t1",
-    "--target-pane",
-    "w1:p1",
-    "--split",
-    "right",
-    "--focus",
-  ]);
+  const calls: string[][] = [];
+  assert.equal(
+    attachHerdrPane("w1:p9", "w1:p1", (args) => {
+      calls.push(args);
+      if (args[1] === "move") {
+        return ok({
+          move_result: { pane: { pane_id: "w1:p9" } },
+          type: "pane_move",
+        });
+      }
+      return herdr.execute(args);
+    }),
+    "moved",
+  );
+  assert.deepEqual(
+    calls.find((args) => args[1] === "move"),
+    [
+      "pane",
+      "move",
+      "w1:p9",
+      "--tab",
+      "w1:t1",
+      "--target-pane",
+      "w1:p1",
+      "--split",
+      "right",
+      "--ratio",
+      "0.5",
+      "--focus",
+    ],
+  );
+  assert.equal(
+    calls.some((args) => args[1] === "resize"),
+    false,
+  );
+  assert.deepEqual(
+    calls.filter((args) => args[0] === "tab" && args[1] === "focus"),
+    [["tab", "focus", "w1:t1"]],
+  );
 });
 
-test("herdr detach parks the pane on a new tab", () => {
-  const herdr = fakeHerdr(() => ok({ type: "pane_move" }));
+test("herdr detach parks the pane on a new tab and claims the remaining tab", () => {
+  const herdr = fakeHerdr((args) => {
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w1:t1");
+    }
+    return ok({ type: "pane_move" });
+  });
   assert.equal(detachHerdrPane("w1:p9", "Scout", herdr.execute), "w1:p9");
-  assert.deepEqual(herdr.calls[0], [
-    "pane",
-    "move",
-    "w1:p9",
-    "--new-tab",
-    "--label",
-    "Scout",
-    "--no-focus",
-  ]);
+  assert.deepEqual(
+    herdr.calls.find((args) => args[1] === "move"),
+    ["pane", "move", "w1:p9", "--new-tab", "--label", "Scout", "--no-focus"],
+  );
+  assert.equal(
+    herdr.calls.some((args) => args[1] === "resize"),
+    false,
+  );
+  assert.deepEqual(
+    herdr.calls.filter((args) => args[0] === "tab" && args[1] === "focus"),
+    [["tab", "focus", "w1:t1"]],
+  );
 });
 
 test("herdr wins over leftover TMUX when HERDR_ENV is set", () => {

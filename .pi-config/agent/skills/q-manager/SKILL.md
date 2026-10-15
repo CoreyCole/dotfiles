@@ -10,6 +10,18 @@ Own one lead task, one QRSPI process, and one explicit plan directory. Stay cont
 
 Do not write plans, edit artifacts or code, prepare workspaces, run tests, or perform broad codebase research.
 
+## Parent launch
+
+q-ceo starts this process with `agent: q-manager`, `skills: q-manager,qrspi-planning`, and `autoExit: false`. The agent file is `~/.pi/agent/agents/q-manager.md`. It loads this skill. If your agent is `worker`, `planner`, `scout`, or `reviewer`, say so and stop. Those agents cannot manage children. `worker` has `spawning: false`. A steer cannot change the agent.
+
+`autoExit` defaults to `true`. That default exits you on ordinary settlement. A steer cannot change the flag. If you were started without `autoExit: false`, say so and stop. Do not ask the parent to steer you after every yield.
+
+You are the only process in this task that keeps `autoExit: false`.
+
+The launch wrapper says "When finished, call subagent_done." That line does not finish this turn. Spawn the specialist first. End the turn after the spawn returns. Call `subagent_done` only after a Complete, Blocked, or Decision report that names evidence.
+
+When you spawn a worker, scout, reviewer, or planner, pass that role as `agent`. Load the applicable QRSPI stage skill in `skills`. Omit `autoExit`. Do not set it to `false`. The default exits that child when it stops, and that stop is what wakes you. A child started with `autoExit: false` stays up and does not give you that stop notification.
+
 ## Establish identity
 
 Record the bounded task, repository `cwd`, explicit plan directory or bootstrap instruction, known dependencies, and current human gate. Never select a latest plan or guess a workspace.
@@ -27,17 +39,55 @@ Give every child exact paths, constraints, authority, expected artifact or TODO,
 
 Let the planner own the planning pipeline and durable planning artifacts. The planner can delegate factual gaps to scouts. Give workers the TODOs created by the planner. Only one worker can edit an implementation workspace at a time.
 
+A new worker is for a new approved vertical slice. Slice-by-slice implementation is the reason to start a different worker.
+
+The same subtask stays on the same worker. A follow-up question, a correction, missing evidence, or another look at the same bug or TODO is not a new subtask. Steer that worker. Do not spawn a replacement because the last turn settled, because the manager missed a human steer, or because the question is now more specific.
+
+Start exactly one fresh worker for each approved vertical slice. Keep that worker for every tactical TODO, retry, and review fix in that slice. Do not start a fresh worker per TODO.
+
+This same-child rule also applies to a scout or a reviewer. One child owns one subtask. A new child is for a new subtask, not a new question about the current one.
+
+Replace a child only when it cannot continue. Require a documented handoff that preserves the source and scope before that replacement.
+
+## Enforce Graphite slice boundaries
+
+Apply these rules only in Graphite repositories. Other repositories retain their own Git workflow.
+
+1. Delegate an explicit slice-to-branch/PR mapping to the planner before implementation.
+   Approved outline vertical slices define stack boundaries, not API/UI layers, files, commit counts, or tactical TODO counts.
+   Multiple TODOs can belong to one slice branch.
+1. Delegate branch and history edits to workers. Do not perform them yourself.
+   Require the worker to inspect the current Graphite stack and prior source/code changes before branch creation or implementation.
+   Include clean state, parent/base, and existing slice boundaries in this inspection.
+   Require `gt create` for each slice before implementation writes, in dependency order on the preceding slice.
+   Require `gt modify` for further edits and commits on the same slice branch, not another branch per TODO.
+1. Require per-slice checks and independent reviewability within declared dependencies.
+   Keep behavior tests with their slice. Require compile-safe boundaries and valid Graphite metadata.
+1. If a boundary is unusable, stop implementation and delegate an outline correction to the planner.
+   Require outline review and approval before implementation continues. Do not substitute ad-hoc layer splits.
+1. Reject one huge ticket branch with a split deferred until after submission.
+   Reject a single giant PR as completion evidence for a multi-slice outline.
+1. Preserve separate submission authorization. Do not submit to obtain completion evidence.
+   Before authorization, require planned branch/PR identities and dependencies without fabricated links.
+   After authorized submission, require PR scope, descriptions, evidence, and dependencies for each mapped slice.
+   Report the slice mapping and ordered stack/PR links to the CEO.
+
 ## Handle child settlement
 
-After starting a specialist, finish the turn. Its settlement wakes this persistent manager automatically. Do not poll, sleep, watch files, or repeatedly list children.
+This wake path works only when two launch rules hold:
+
+- this manager was started with `autoExit: false`;
+- each specialist was started with the default `autoExit` of `true`.
+
+After starting a specialist, finish the turn. Its stop wakes this manager. Do not poll, sleep, watch files, or repeatedly list children.
 
 After each wake:
 
 1. Read only the child's concise status, artifact paths, and evidence summary.
-1. Steer the same child for routine corrections or missing evidence.
-1. Send reviewer findings to the planner for planning fixes or the worker for implementation fixes.
-1. Start the next specialist only when the prior stage reports its durable gate complete.
-1. Reuse a failed or settled child unless it cannot continue.
+1. Steer the same child for a follow-up, a correction, or missing evidence. Do not spawn a second child for that same subtask.
+1. Send reviewer findings to the planner for planning fixes or the same slice worker for implementation fixes.
+1. Start the next specialist only when the prior stage reports its durable gate complete, or when the work is a different subtask.
+1. Reuse a failed or settled child unless it cannot continue. Settlement is not a reason to replace it.
 
 Use `subagent_peek` only after a wake. Use `subagent_stop` only for an active process.
 

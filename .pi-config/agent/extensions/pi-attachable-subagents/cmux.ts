@@ -1073,7 +1073,9 @@ function herdrResult(args: string[], execute: HerdrCommand = runHerdr): any {
   try {
     payload = JSON.parse(raw);
   } catch {
-    throw new Error(`Unexpected herdr ${args.join(" ")} output: ${raw || "(empty)"}`);
+    throw new Error(
+      `Unexpected herdr ${args.join(" ")} output: ${raw || "(empty)"}`,
+    );
   }
   if (payload?.error) {
     const err = payload.error;
@@ -1086,7 +1088,10 @@ function herdrResult(args: string[], execute: HerdrCommand = runHerdr): any {
   return payload?.result ?? payload;
 }
 
-function herdrPane(paneId: string, execute: HerdrCommand = runHerdr): {
+function herdrPane(
+  paneId: string,
+  execute: HerdrCommand = runHerdr,
+): {
   pane_id: string;
   tab_id: string;
 } {
@@ -1119,9 +1124,20 @@ export function createHerdrSurface(
   const result = herdrResult(args, execute);
   const paneId = result?.root_pane?.pane_id;
   if (typeof paneId !== "string" || !paneId) {
-    throw new Error(`Unexpected herdr tab create output: ${paneId || "(empty)"}`);
+    throw new Error(
+      `Unexpected herdr tab create output: ${paneId || "(empty)"}`,
+    );
   }
   return paneId;
+}
+
+/** Pane move updates the rect but does not ioctl the PTY. Tab focus does. */
+function claimHerdrTabGeometry(tabId: string, execute: HerdrCommand): void {
+  try {
+    herdrResult(["tab", "focus", tabId], execute);
+  } catch {
+    // The layout change already succeeded. A missed geometry claim is better than a failed attach or detach.
+  }
 }
 
 export function attachHerdrPane(
@@ -1150,10 +1166,13 @@ export function attachHerdrPane(
       managerPane,
       "--split",
       "right",
+      "--ratio",
+      "0.5",
       "--focus",
     ],
     execute,
   );
+  claimHerdrTabGeometry(manager.tab_id, execute);
   return "moved";
 }
 
@@ -1162,10 +1181,14 @@ export function detachHerdrPane(
   tabLabel: string,
   execute: HerdrCommand = runHerdr,
 ): string {
+  const origin = herdrPane(childPane, execute);
   herdrResult(
     ["pane", "move", childPane, "--new-tab", "--label", tabLabel, "--no-focus"],
     execute,
   );
+  // Moving the child removes the split, so the survivor's rect is the full tab.
+  // Tab focus ioctls that rect into the PTY. It does not change the ratio.
+  claimHerdrTabGeometry(origin.tab_id, execute);
   return childPane;
 }
 
@@ -1284,7 +1307,9 @@ export function createSurfaceSplit(
     const result = herdrResult(args);
     const paneId = result?.pane?.pane_id;
     if (typeof paneId !== "string" || !paneId) {
-      throw new Error(`Unexpected herdr pane split output: ${paneId || "(empty)"}`);
+      throw new Error(
+        `Unexpected herdr pane split output: ${paneId || "(empty)"}`,
+      );
     }
     try {
       herdrResult(["pane", "rename", paneId, name]);
