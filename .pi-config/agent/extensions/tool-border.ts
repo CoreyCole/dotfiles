@@ -448,7 +448,15 @@ function patchToolExecutionBorder() {
         : iconizeFirstContentLine(lines, "📝", "write");
     } else if (this.toolName === "read") {
       const pathLines = toolPathLines(this.args, this.cwd, "📖", width);
-      if (this.expanded) {
+      const hasImage = Array.isArray(this.result?.content)
+        ? this.result.content.some(
+            (block: { type?: string }) => block.type === "image",
+          )
+        : false;
+      // Expanded tool output must not reveal read file text.
+      const showBody =
+        this.result?.isError === true || (this.expanded && hasImage);
+      if (showBody) {
         lines = pathLines
           ? replaceFirstContentLineBlock(
               lines,

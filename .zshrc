@@ -2,6 +2,22 @@ export GPG_TTY=$(tty)
 # export TERM=screen-256color
 export XDG_CONFIG_HOME="$HOME/.config"
 
+# Herdr panes inherit the server environment. A server started over SSH has no
+# Wayland display, so Pi's own Ctrl+V cannot read the clipboard. Remote image
+# paste stays on Herdr's bridge; this only restores the local socket.
+if [[ -n ${HERDR_ENV-} && -z ${WAYLAND_DISPLAY-} ]]; then
+  herdr_runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  if [[ -d $herdr_runtime_dir ]]; then
+    for herdr_wayland_sock in "$herdr_runtime_dir"/wayland-*(N); do
+      [[ -S $herdr_wayland_sock ]] || continue
+      export XDG_RUNTIME_DIR="$herdr_runtime_dir"
+      export WAYLAND_DISPLAY="${herdr_wayland_sock:t}"
+      break
+    done
+  fi
+  unset herdr_runtime_dir herdr_wayland_sock
+fi
+
 # load machine-local secrets from an untracked file
 if [[ -f "$HOME/dotfiles/secrets.sh" ]]; then
   source "$HOME/dotfiles/secrets.sh"

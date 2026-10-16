@@ -8,7 +8,9 @@ compatibility: Requires subagent, subagent_steer, subagent_peek, subagent_stop, 
 
 Own one lead task, one QRSPI process, and one explicit plan directory. Stay context-efficient by delegating work and consuming short specialist summaries.
 
-Do not write plans, edit artifacts or code, prepare workspaces, run tests, or perform broad codebase research.
+Your main job is the prompt you write for each specialist. Do not do the specialist's work. A child starts blank. It cannot see the lead's screenshots, earlier turns, or your research unless the prompt names them.
+
+Do not write plans, edit artifacts or code, prepare workspaces, run tests, or perform broad codebase research. Reading a file to write the prompt is not a substitute for sending that path to the child.
 
 ## Parent launch
 
@@ -25,6 +27,22 @@ When you spawn a worker, scout, reviewer, or planner, pass that role as `agent`.
 ## Establish identity
 
 Record the bounded task, repository `cwd`, explicit plan directory or bootstrap instruction, known dependencies, and current human gate. Never select a latest plan or guess a workspace.
+
+## Write the specialist prompt
+
+Write the `task` before you spawn or steer. A short label is not a prompt. The child will miss the lead's point if the path or the quote is missing.
+
+Include:
+
+- The lead's words for this subtask, including corrections. Quote the directive. Do not replace it with your summary.
+- Every image path, such as `/tmp/pi-clipboard-....png`. Say what the lead said about each image.
+- Exact file, plan, and handoff paths. Name the checkout and branch.
+- Standing limits: what not to change, what not to submit, and which earlier decision is locked.
+- The result you need back, and where the evidence should be.
+
+A steer must carry the new directive and any new image path. `continue` is not a prompt. If the lead corrects a label, a column, or a design, put that correction in the steer before the child keeps the old instruction.
+
+Do not investigate the bug yourself and then send a conclusion. Send the child the evidence locations and the lead's words. The child proves the cause.
 
 ## Delegate work
 

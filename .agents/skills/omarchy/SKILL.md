@@ -103,6 +103,7 @@ See `references/` for detailed documentation:
 - [`references/manual-index.md`](references/manual-index.md) — Omarchy manual topic index (fetch from `https://learn.omacom.io` before answering "how do I" questions)
 - [`references/looknfeel.md`](references/looknfeel.md) — Custom window border and gap settings
 - [`references/monitors.md`](references/monitors.md) — desc:-based monitor matching for robust multi-monitor/DisplayLink setups
+- [`references/screensharing.md`](references/screensharing.md) — Firefox/Chromium screen-share permission errors, missing ScreenCast interface, portal environment diagnosis, and confirmed restart repair
 - [`references/dev-env-zsh.md`](references/dev-env-zsh.md) — mise is the node version manager; zsh users must add `eval "$(mise activate zsh)"` for `npm install -g` binaries to be on PATH
 - [`references/mise-go.md`](references/mise-go.md) — Chestnut Go toolchain via global mise; do not use `omarchy-install-dev-env go` (that is go@latest / 1.27)
 - [`references/fcitx5.md`](references/fcitx5.md) — fcitx5 input method config, keybinding format gotchas, and restart requirements

@@ -9,6 +9,24 @@ disable-model-invocation: true
 
 Own the lead engineer's task set. Start one durable `q-manager` child for each independent task. Keep one task, one manager, and one plan directory.
 
+Your main job is the prompt you write for each manager. Do not do the manager's work. Do not do a specialist's work. A manager cannot see this conversation, the lead's screenshots, or earlier directives unless your prompt names them.
+
+## Write the manager prompt
+
+The `task` argument is the handoff. Write it before you spawn. A short label is not a prompt.
+
+Include:
+
+- The lead's words for this task, including corrections. Quote the directive. Do not replace it with your summary.
+- Every image path the lead attached, such as `/tmp/pi-clipboard-....png`. Say what the lead said about each image.
+- Exact file, plan, and handoff paths. Say which checkout and branch to use.
+- Standing limits: what not to change, what not to submit, and which earlier decision is locked.
+- The result you need back, and where the evidence should be.
+
+A follow-up steer must carry the new directive and any new image path. `continue` is not a prompt.
+
+If the lead corrects a label, a column, or a design, put that correction in the next prompt before the child keeps the old instruction.
+
 ## Start managers
 
 You start every q-manager. A manager is a parent. It must stay alive when it yields for a specialist.
@@ -74,4 +92,4 @@ A manager started with `autoExit: false` stays up when it yields. Specialist set
 
 Send lead answers to the same manager with `subagent_steer`. Preserve exact child identities. Do not route by latest child or ambiguous display name. Start no replacement until the durable manager cannot continue.
 
-The manager owns QRSPI coordination. The CEO does not inspect implementation details, write plan artifacts, or direct specialists.
+The manager owns QRSPI coordination. The CEO does not inspect implementation details, write plan artifacts, or direct specialists. The CEO's work is the manager prompt: the lead's words, the image paths, and the limits.
