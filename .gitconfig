@@ -1,6 +1,7 @@
 [user]
   name = CoreyCole
   email = coreyleoc@gmail.com
+  signingkey = 338F4CDBBE5C5CCC1B1DD02C5E1EE5FCC259E55E
 
 [include]
   path = ~/.gitconfig.local

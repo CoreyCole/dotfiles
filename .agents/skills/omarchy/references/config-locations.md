@@ -2,48 +2,42 @@
 
 ### Hyprland (Window Manager)
 
+Omarchy Quattro configures Hyprland in Lua. User files load after Omarchy defaults:
+
 ```
 ~/.config/hypr/
-├── hyprland.conf      # Main config (sources others)
-├── bindings.conf      # Keybindings
-├── monitors.conf      # Display configuration
-├── input.conf         # Keyboard/mouse settings
-├── looknfeel.conf     # Appearance (gaps, borders, animations)
-├── envs.conf          # Environment variables
-├── autostart.conf     # Startup applications
-├── hypridle.conf      # Idle behavior (screen off, lock, suspend)
-├── hyprlock.conf      # Lock screen appearance
-└── hyprsunset.conf    # Night light / blue light filter
+├── hyprland.lua       # Main config (loads Omarchy defaults, then user files)
+├── bindings.lua       # Keybindings
+├── monitors.lua       # Display configuration
+├── input.lua          # Keyboard/mouse settings
+├── looknfeel.lua      # Appearance (gaps, borders, animations)
+├── autostart.lua      # Startup applications
+├── hyprsunset.conf    # Night light / blue light filter
+└── xdph.conf          # Screen sharing / desktop portal
 ```
 
 **Restart/Refresh:**
-- `omarchy-refresh-hyprland` - Reset to defaults
-- Hyprland auto-reloads on config save (no restart needed)
-- `omarchy-restart-hypridle` / `omarchy-restart-hyprsunset` for those services
+- Hyprland auto-reloads Lua on save; force with `hyprctl reload` and check `hyprctl configerrors`
+- `omarchy refresh hyprland` - Reset Lua config files to defaults
+- `omarchy restart hyprsunset` / `omarchy refresh hyprsunset` for night light
 
-### Waybar (Status Bar)
+Do not edit or relink retired Omarchy 3 files: `hyprland.conf`, `bindings.conf`, `monitors.conf`, `input.conf`, `looknfeel.conf`, `autostart.conf`, `hypridle.conf`, `hyprlock.conf`.
 
-```
-~/.config/waybar/
-├── config.jsonc       # Bar layout and modules (JSONC format)
-└── style.css          # Styling
-```
+### Omarchy Shell (Bar, Launcher, Lock, Idle)
 
-**Restart/Refresh:**
-- `omarchy-restart-waybar` - Restart waybar
-- `omarchy-refresh-waybar` - Reset to defaults
-- `omarchy-toggle-waybar` - Show/hide
-
-### Walker (App Launcher)
+One Quickshell process replaced Waybar, Walker, Mako, SwayOSD, hyprlock, and hypridle.
 
 ```
-~/.config/walker/
-└── config.toml        # Launcher configuration
+~/.config/omarchy/shell.json   # Bar layout, idle timings, plugins
+~/.config/omarchy/shell.toml   # Shell appearance and dimensions
 ```
 
-**Restart/Refresh:**
-- `omarchy-restart-walker`
-- `omarchy-refresh-walker`
+**Commands:**
+- `omarchy bar ...` - Position, transparency, widget layout
+- `omarchy toggle bar` - Show/hide
+- `omarchy restart shell` / `omarchy refresh shell`
+
+Do not track or symlink `~/.config/waybar` or `~/.config/walker`.
 
 ### Terminals
 
@@ -121,10 +115,18 @@ See [`references/fcitx5.md`](fcitx5.md) for keybinding details and config format
 
 ### Omarchy Data
 
+Package/core files (never edit):
+
 ```
-~/.local/share/omarchy/
-├── bin/               # All omarchy-* scripts
+/usr/share/omarchy/
+├── bin/               # omarchy-* commands
 ├── config/            # Default config templates
-├── themes/            # Installed themes
-└── version            # Current version info
+├── default/           # Default Hyprland Lua, UWSM env, etc.
+└── themes/            # Packaged themes
+```
+
+Generated current theme state (do not track):
+
+```
+~/.local/state/omarchy/current/
 ```

@@ -17,8 +17,8 @@ When explaining any topic, apply the 80/20 rule:
 
 1. **Lead with the vital 20%** — identify the small set of concepts, commands, or mental models that explain the vast majority of real-world behavior. Start there. Don't bury the essentials under exhaustive detail.
 
-   - Example: for Hyprland keybindings, the vital 20% is understanding that `~/.config/hypr/bindings.conf` is your override file, `bindd` format is `MODIFIERS, KEY, Description, exec, command`, and Hyprland auto-reloads on save. That covers ~80% of daily use.
-   - Example: for themes, the vital 20% is `omarchy-theme-list`, `omarchy-theme-set <name>`, and knowing themes live in `~/.local/share/omarchy/themes/` with overrides in `~/.config/omarchy/current/theme/`.
+   - Example: for Hyprland keybindings, the vital 20% is understanding that `~/.config/hypr/bindings.lua` is your override file, `o.bind(...)` adds a binding, and Hyprland auto-reloads on save. That covers ~80% of daily use.
+   - Example: for themes, the vital 20% is `omarchy-theme-list`, `omarchy-theme-set <name>`, and knowing user theme sources live in `~/.config/omarchy/themes/` while generated current-theme state lives in `~/.local/state/omarchy/current/`.
 
 1. **Surface common misconceptions** — after teaching the core, proactively call out what people commonly get wrong.
 
@@ -54,11 +54,11 @@ When explaining topics covered by Omarchy docs or the Arch Wiki, provide section
 
 ## NEVER MODIFY CORE FILES
 
-**DO NOT edit, write, or delete any files in `~/.local/share/omarchy/`**
+**DO NOT edit, write, or delete any files in `/usr/share/omarchy/`**
 
-This directory contains Omarchy's core system files. User configuration belongs in `~/.config/` instead.
+This directory contains Omarchy's packaged core files. User configuration belongs in `~/.config/` instead.
 
-If you need to change behavior controlled by a file in `~/.local/share/omarchy/`, find or create the corresponding override in `~/.config/`.
+If you need to change behavior controlled by a file in `/usr/share/omarchy/`, find or create the corresponding override in `~/.config/`.
 
 ## Discovery
 
@@ -82,8 +82,8 @@ cat $(which omarchy-theme-set)
 
 | Prefix | Purpose | Example |
 |--------|---------|---------|
-| `omarchy-refresh-*` | Reset config to Omarchy defaults (backs up first) | `omarchy-refresh-waybar` |
-| `omarchy-restart-*` | Restart a service/app | `omarchy-restart-waybar` |
+| `omarchy-refresh-*` | Reset config to Omarchy defaults (backs up first) | `omarchy refresh shell` |
+| `omarchy-restart-*` | Restart a service/app | `omarchy restart shell` |
 | `omarchy-toggle-*` | Toggle feature on/off | `omarchy-toggle-nightlight` |
 | `omarchy-theme-*` | Theme management | `omarchy-theme-set <name>` |
 | `omarchy-install-*` | Install optional software | `omarchy-install-docker-dbs` |
@@ -97,7 +97,7 @@ cat $(which omarchy-theme-set)
 
 See `references/` for detailed documentation:
 
-- [`references/config-locations.md`](references/config-locations.md) — Config file paths for Hyprland, Waybar, terminals, UWSM, etc.
+- [`references/config-locations.md`](references/config-locations.md) — Config file paths for Hyprland Lua, omarchy-shell, terminals, UWSM, etc.
 - [`references/safe-editing.md`](references/safe-editing.md) — Backup, edit, restart workflow for modifying configs
 - [`references/common-tasks.md`](references/common-tasks.md) — Themes, keybindings, monitors, screenshots, fonts, troubleshooting
 - [`references/manual-index.md`](references/manual-index.md) — Omarchy manual topic index (fetch from `https://learn.omacom.io` before answering "how do I" questions)
@@ -125,7 +125,7 @@ Omarchy runs on Arch Linux. For lower-level system tasks — pacman/yay package 
 - "Make the window gaps smaller"
 - "Set up night light to turn on at sunset"
 - "Show me what omarchy commands are available for bluetooth"
-- "Increase waybar height"
+- "Move the bar to the bottom"
 - "Change my terminal font"
 - "How do I install Steam?"
 - "How do I install Windows on Omarchy?"

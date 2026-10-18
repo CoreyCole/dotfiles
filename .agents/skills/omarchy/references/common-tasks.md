@@ -13,21 +13,18 @@ omarchy-theme-install <url>     # Install from git repo
 
 ### Keybindings
 
-Edit `~/.config/hypr/bindings.conf`. Format:
-```
-bind = SUPER, Return, exec, xdg-terminal-exec
-bind = SUPER, Q, killactive
-bind = SUPER SHIFT, E, exit
+Edit `~/.config/hypr/bindings.lua`. Format:
+```lua
+o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
 ```
 
-View current bindings: `omarchy-menu-keybindings`
+View current bindings: `omarchy menu keybindings --print`
 
 ### Display/Monitors
 
-Edit `~/.config/hypr/monitors.conf`. Format:
-```
-monitor = eDP-1, 1920x1080@60, 0x0, 1
-monitor = HDMI-A-1, 2560x1440@144, 1920x0, 1
+Edit `~/.config/hypr/monitors.lua`. Format:
+```lua
+hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })
 ```
 
 List monitors: `hyprctl monitors`

@@ -37,19 +37,45 @@ link() {
     echo "link: $destination -> $source_path"
 }
 
+copy_file() {
+    local source="$1"
+    local destination="$2"
+    local backup
+
+    if [[ -f "$destination" && ! -L "$destination" ]] && cmp -s "$source" "$destination"; then
+        echo "ok: $destination"
+        return
+    fi
+
+    if [[ -e "$destination" || -L "$destination" ]]; then
+        backup="$BACKUP_DIR/${destination#"$HOME/"}"
+        mkdir -p "$(dirname "$backup")"
+        mv "$destination" "$backup"
+        backed_up=1
+        echo "backup: $destination -> $backup"
+    fi
+
+    mkdir -p "$(dirname "$destination")"
+    cp "$source" "$destination"
+    echo "copy: $source -> $destination"
+}
+
 # Shell and CLI configuration.
 link "$REPO_DIR/.gitconfig" "$HOME/.gitconfig"
 link "$REPO_DIR/.zshenv" "$HOME/.zshenv"
 link "$REPO_DIR/.zshrc" "$HOME/.zshrc"
 link "$REPO_DIR/.zsh_aliases" "$HOME/.zsh_aliases"
 link "$REPO_DIR/.tmux.conf" "$HOME/.tmux.conf"
+# tmux 3.x prefers the XDG path when it exists, and Omarchy sources it on restart.
+link "$REPO_DIR/.tmux.conf" "$HOME/.config/tmux/tmux.conf"
 link "$REPO_DIR/.wezterm.lua" "$HOME/.wezterm.lua"
 link "$REPO_DIR/direnv.toml" "$HOME/.config/direnv/direnv.toml"
 link "$REPO_DIR/neovim-config" "$HOME/.config/nvim"
 link "$REPO_DIR/.pi-config" "$HOME/.pi"
 
 # Whole-directory XDG configurations that contain no generated state.
-for config in alacritty bat fastfetch ghostty hypr kitty lazygit usql uwsm walker waybar; do
+# Fastfetch, Waybar, and Walker are no longer managed here after the Quattro migration.
+for config in alacritty bat ghostty hypr kitty lazygit usql uwsm; do
     link "$REPO_DIR/.config/$config" "$HOME/.config/$config"
 done
 
@@ -65,8 +91,13 @@ for config in profile conf/clipboard.conf conf/keyboard.conf conf/notifications.
     link "$REPO_DIR/.config/fcitx5/$config" "$HOME/.config/fcitx5/$config"
 done
 
+# fcitx5 ignores symlinked Quick Phrase config, so install it as a regular file.
+copy_file "$REPO_DIR/.config/fcitx5/conf/quickphrase.conf" "$HOME/.config/fcitx5/conf/quickphrase.conf"
+
 # Omarchy owns generated state; link only stable user configuration and sources.
 link "$REPO_DIR/.config/omarchy/shell.json" "$HOME/.config/omarchy/shell.json"
+link "$REPO_DIR/.config/omarchy/shell.toml" "$HOME/.config/omarchy/shell.toml"
+link "$REPO_DIR/.config/omarchy/defaults/agent" "$HOME/.config/omarchy/defaults/agent"
 link "$REPO_DIR/.config/omarchy/themes/tokyo-night-black" \
     "$HOME/.config/omarchy/themes/tokyo-night-black"
 link "$REPO_DIR/.config/omarchy/backgrounds/tokyo-night-black" \

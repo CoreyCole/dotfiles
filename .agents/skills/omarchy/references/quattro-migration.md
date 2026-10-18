@@ -32,7 +32,7 @@ Before upgrading:
 5. Run the upgrader against those live copies.
 6. After a successful first Quattro boot, port intent into tracked Lua/shell files and restore only reviewed Quattro symlinks.
 
-Do not relink retired Waybar, Walker, Mako, hypridle, or hyprlock directories after migration.
+Do not relink retired Waybar, Walker, Mako, hypridle, or hyprlock directories after migration. Remove them from the dotfiles repo and from `scripts/setup-arch-symlinks.sh`. Hyprland user config is Lua (`hyprland.lua`, `bindings.lua`, and siblings); do not keep the old `*.conf` counterparts except `hyprsunset.conf` and `xdph.conf`.
 
 ## Snapshot warning
 

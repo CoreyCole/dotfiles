@@ -12,6 +12,15 @@
 -- To disable all preinstalled app/webapp bindings, set:
 --   omarchy_preinstalled_bindings = false
 
+-- Launch the configured default coding agent.
+o.bind("SUPER + grave", "Agent", "omarchy-agent --pick")
+
+-- Full-width stacked split on the focused portrait monitor (Dell / Seanix).
+-- Reapplies; does nothing on landscape monitors.
+o.bind("SUPER + SHIFT + J", "Stack portrait windows", function()
+	stack_portrait_windows()
+end)
+
 -- rcmd-style application activation and window cycling.
 o.bind("ALT + X", "Raise terminal windows", "~/.config/hypr/scripts/rcmd-focus.sh X '^com\\.mitchellh\\.ghostty$'")
 o.bind(
