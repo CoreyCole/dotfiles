@@ -5,6 +5,8 @@ alias submit="gt submit --stack"
 alias yolo="gt submit --stack --no-verify"
 alias sync="cd $HOME/cn/chestnut-flake/monorepo && gt sync && cd db; just migrate up; cd .."
 alias cld="claude --dangerously-skip-permissions"
+alias caps-esc='hyprctl keyword input:kb_options "caps:escape,compose:ralt"'
+alias caps-lock='hyprctl keyword input:kb_options "compose:ralt"'
 
 # print a URL and copy it: Wayland, macOS, X11, then OSC 52 for an SSH terminal
 copyclip() {
