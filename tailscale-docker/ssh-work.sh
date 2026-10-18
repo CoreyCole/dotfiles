@@ -31,14 +31,22 @@ esac
 
 cd "$COMPOSE_DIR"
 
+docker_cmd() {
+  if [[ -w /var/run/docker.sock ]]; then
+    docker "$@"
+  else
+    sudo docker "$@"
+  fi
+}
+
 run_tailscale() {
-  docker compose exec -T "$SERVICE" tailscale "$@"
+  docker_cmd compose exec -T "$SERVICE" tailscale "$@"
 }
 
 ensure_running() {
-  if ! docker compose ps --status running --services | grep -qx "$SERVICE"; then
+  if ! docker_cmd compose ps --status running --services | grep -qx "$SERVICE"; then
     echo "Starting $SERVICE tailscale container..."
-    docker compose up -d "$SERVICE"
+    docker_cmd compose up -d "$SERVICE"
 
     echo "Waiting for tailscale to come up..."
     for _ in $(seq 1 30); do

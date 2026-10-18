@@ -83,6 +83,22 @@ work user@host # any other machine on the work tailnet
 
 ## Troubleshooting
 
+### Permission denied on docker.sock
+
+If a helper prints:
+
+```text
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
+```
+
+the Docker socket is not writable for your user. On Omarchy this is the default. The helpers then run `sudo docker`. Enter your password when sudo asks.
+
+If you want Docker without sudo, enable sudoless Docker and reboot:
+
+```bash
+omarchy-setup-security-sudoless-docker
+```
+
 ### Show available nodes
 
 ```bash
