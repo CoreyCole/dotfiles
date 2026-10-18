@@ -7,15 +7,11 @@ hl.config({
 		repeat_rate = 40,
 		repeat_delay = 600,
 		numlock_by_default = true,
+		sensitivity = 0,
+		accel_profile = "flat",
 		scroll_factor = 0.4,
 		touchpad = {
 			scroll_factor = 0.4,
 		},
 	},
-})
-
-hl.device({
-	name = "glorious-model-o-wireless",
-	accel_profile = "flat",
-	sensitivity = 0,
 })
