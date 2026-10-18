@@ -42,27 +42,7 @@ return {
             { "<leader>fc", "<cmd>FzfLua highlights<cr>", desc = "Highlights" },
             { "<leader>fd", "<cmd>FzfLua lsp_document_diagnostics<cr>", desc = "Document diagnostics" },
             { "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find files" },
-            {
-                "<leader>fg",
-                function()
-                    require("fzf-lua").live_grep {
-                        rg_opts = "--column --line-number --no-heading --color=always --smart-case --max-columns=4096 "
-                            .. "--hidden --no-ignore "
-                            .. "--glob '!.git/**' "
-                            .. "--glob '!.claude/file-history/**' "
-                            .. "--glob '!.claude/shell-snapshots/**' "
-                            .. "--glob '!.claude/projects/**' "
-                            .. "--glob '!node_modules/**' "
-                            .. "--glob '!**/*_templ.go' "
-                            .. "--glob '!.next/**' "
-                            .. "--glob '!pkg/proto/**' "
-                            .. "--glob '!pkg/db/mocks/**' "
-                            .. "--glob '!frontend/packages/proto/**' "
-                            .. "-e",
-                    }
-                end,
-                desc = "Grep",
-            },
+            { "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Grep" },
             { "<leader>fg", "<cmd>FzfLua grep_visual<cr>", desc = "Grep", mode = "x" },
             { "<leader>fh", "<cmd>FzfLua help_tags<cr>", desc = "Help" },
             { "<leader>fr", "<cmd>FzfLua oldfiles<cr>", desc = "Recently opened files" },
@@ -119,7 +99,21 @@ return {
                     },
                 },
                 grep = {
+                    hidden = true,
+                    no_ignore = true,
                     header_prefix = icons.misc.search .. " ",
+                    rg_opts = "--column --line-number --no-heading --color=always --smart-case --max-columns=4096 "
+                        .. "--glob '!.git/**' "
+                        .. "--glob '!.claude/file-history/**' "
+                        .. "--glob '!.claude/shell-snapshots/**' "
+                        .. "--glob '!.claude/projects/**' "
+                        .. "--glob '!node_modules/**' "
+                        .. "--glob '!**/*_templ.go' "
+                        .. "--glob '!.next/**' "
+                        .. "--glob '!pkg/proto/**' "
+                        .. "--glob '!pkg/db/mocks/**' "
+                        .. "--glob '!frontend/packages/proto/**' "
+                        .. "-e",
                     rg_glob_fn = function(query, opts)
                         local regex, flags = query:match(string.format("^(.*)%s(.*)$", opts.glob_separator))
                         -- Return the original query if there's no separator.
