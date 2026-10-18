@@ -4,8 +4,8 @@ hl.config({
 	input = {
 		kb_layout = "us",
 		kb_options = "caps:escape,compose:ralt",
-		repeat_rate = 40,
-		repeat_delay = 600,
+		repeat_rate = 100,
+		repeat_delay = 100,
 		numlock_by_default = true,
 		sensitivity = 0,
 		accel_profile = "flat",
