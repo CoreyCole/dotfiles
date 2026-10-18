@@ -13,3 +13,9 @@ hl.config({
 		},
 	},
 })
+
+hl.device({
+	name = "glorious-model-o-wireless",
+	accel_profile = "flat",
+	sensitivity = 0,
+})
