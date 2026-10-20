@@ -182,13 +182,85 @@ test("legacy synthetic filenames resolve by native session header UUID", () => {
   }
 });
 
+test("new child launch without an active model fails before session or surface work", async () => {
+  await assert.rejects(
+    __test__.launchSubagent(
+      { name: "Offline", task: "Do not launch" },
+      {
+        cwd: "/unused",
+        model: undefined,
+        sessionManager: {
+          getSessionFile() {
+            throw new Error("must not touch session");
+          },
+          getSessionId() {
+            throw new Error("must not register");
+          },
+          getSessionDir() {
+            throw new Error("must not create artifacts");
+          },
+        },
+      },
+    ),
+    /No active parent model/,
+  );
+});
+
+test("new child launch arguments use the live immediate-parent model, not saved defaults", () => {
+  const parent = { model: { provider: "live-provider", id: "active-model" } };
+  const launchArgs = (model?: string, role?: string, thinking?: string) =>
+    __test__.buildModelLaunchArguments(
+      __test__.resolveModelArgument(model, role, thinking, parent.model),
+      thinking,
+    );
+  assert.notEqual(
+    __test__.configuredDefaultModelRef(),
+    "live-provider/active-model",
+  );
+  assert.deepEqual(launchArgs(), ["--model", "'live-provider/active-model'"]);
+  parent.model = { provider: "switched-provider", id: "switched-model" };
+  assert.deepEqual(launchArgs(), [
+    "--model",
+    "'switched-provider/switched-model'",
+  ]);
+  assert.deepEqual(launchArgs(undefined, undefined, "high"), [
+    "--model",
+    "'switched-provider/switched-model:high'",
+  ]);
+  const childModel = { provider: "child-provider", id: "child-active-model" };
+  assert.deepEqual(
+    __test__.buildModelLaunchArguments(
+      __test__.resolveModelArgument(
+        undefined,
+        undefined,
+        undefined,
+        childModel,
+      ),
+      undefined,
+    ),
+    ["--model", "'child-provider/child-active-model'"],
+  );
+  assert.deepEqual(launchArgs(undefined, "xai/grok-4.6", "high"), [
+    "--model",
+    "'xai/grok-4.6:high'",
+  ]);
+  assert.deepEqual(launchArgs("xai/grok-4.6:low", "invalid-role", "high"), [
+    "--model",
+    "'xai/grok-4.6:low'",
+  ]);
+  assert.throws(() => launchArgs("grok"), /Invalid subagent model/);
+});
+
 test("named role launch arguments include model, role prompt, and control tools", () => {
   const piDefault = __test__.configuredDefaultModelRef();
   assert.equal(
     __test__.resolveModelArgument(undefined, "xai/grok-4.6", "high"),
     "xai/grok-4.6:high",
   );
-  assert.equal(__test__.resolveModelArgument(undefined), undefined);
+  assert.throws(
+    () => __test__.resolveModelArgument(undefined),
+    /No active parent model/,
+  );
   assert.equal(__test__.resolveModelArgument("fast"), piDefault);
   assert.equal(__test__.resolveModelArgument("xai/fast"), piDefault);
   assert.equal(__test__.resolveModelArgument("fast:high"), `${piDefault}:high`);

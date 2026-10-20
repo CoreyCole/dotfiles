@@ -101,6 +101,7 @@ See `references/` for detailed documentation:
 - [`references/safe-editing.md`](references/safe-editing.md) — Backup, edit, restart workflow for modifying configs
 - [`references/common-tasks.md`](references/common-tasks.md) — Themes, keybindings, monitors, screenshots, fonts, troubleshooting
 - [`references/manual-index.md`](references/manual-index.md) — Omarchy manual topic index (fetch from `https://learn.omacom.io` before answering "how do I" questions)
+- [`references/gpu-memory.md`](references/gpu-memory.md) — Missing RAM, AMD GPU buffers, the live 4 GiB TTM reclaim threshold, and Hyprland exit with Herdr session checks
 - [`references/looknfeel.md`](references/looknfeel.md) — Custom window border and gap settings
 - [`references/monitors.md`](references/monitors.md) — desc:-based monitor matching for robust multi-monitor/DisplayLink setups
 - [`references/screensharing.md`](references/screensharing.md) — Firefox/Chromium screen-share permission errors, missing ScreenCast interface, portal environment diagnosis, and confirmed restart repair

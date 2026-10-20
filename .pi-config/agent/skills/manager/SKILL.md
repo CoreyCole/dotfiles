@@ -5,7 +5,7 @@ description: Coordinate durable Pi child sessions.
 
 # Manage Pi Child Sessions
 
-Use named `agent` values (`planner`, `scout`, `worker`, or `reviewer`) when the requested workflow requires that role. Normally omit `model`. The child then uses Pi's default model. Do not pin a model version in the agent file or the spawn call.
+Use named `agent` values (`planner`, `scout`, `worker`, or `reviewer`) when the requested workflow requires that role. Normally omit `model`. Without a role model override, each new child uses its immediate parent's active model at launch. Do not pin a model version in the agent file or the spawn call.
 
 Every child session remains visible and resumable after settlement, `caller_ping`, `subagent_done`, provider error, or process error. `subagent_stop` stops only an active process. Never use it to discard history.
 

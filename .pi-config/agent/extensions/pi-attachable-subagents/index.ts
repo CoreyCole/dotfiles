@@ -159,7 +159,7 @@ const SubagentParams = Type.Object({
   model: Type.Optional(
     Type.String({
       description:
-        "Exact provider/id override. Omit it to use Pi's default model. Unknown or partial names fail the spawn.",
+        "Exact provider/id override. Otherwise use the agent model, then the immediate parent's active model at launch. Unknown or partial overrides fail the spawn.",
     }),
   ),
   skills: Type.Optional(
@@ -1721,9 +1721,17 @@ function resolveModelArgument(
   explicitModel?: string,
   agentModel?: string,
   agentThinking?: string,
-): string | undefined {
+  parentModel?: CatalogModel,
+): string {
   const requested = explicitModel?.trim() || agentModel?.trim();
-  if (!requested) return undefined;
+  if (!requested) {
+    if (!parentModel)
+      throw new Error("No active parent model for subagent launch");
+    const inherited = `${parentModel.provider}/${parentModel.id}`;
+    return agentThinking && PI_REASONING_SUFFIXES.has(agentThinking)
+      ? `${inherited}:${agentThinking}`
+      : inherited;
+  }
 
   const { ref, thinking: refThinking } = splitThinkingSuffix(requested);
   const thinking =
@@ -2345,6 +2353,7 @@ export const __test__ = {
   buildChildHandoffEnvironment,
   buildChildAutoExitEnvironment,
   resolveModelArgument,
+  launchSubagent,
   configuredDefaultModelRef,
   buildModelLaunchArguments,
   buildSystemPromptArguments,
@@ -2438,6 +2447,7 @@ async function launchSubagent(
       getSessionDir(): string;
     };
     cwd: string;
+    model: CatalogModel | undefined;
   },
   options?: {
     surface?: string;
@@ -2455,6 +2465,7 @@ async function launchSubagent(
     params.model,
     agentDefs?.model,
     agentDefs?.thinking,
+    ctx.model,
   );
   const effectiveTools = params.tools ?? agentDefs?.tools;
   const effectiveSkills = (params.skills ?? agentDefs?.skills ?? "")
