@@ -1,8 +1,7 @@
 {
-  "lastChangelogVersion": "1.0.3",
+  "lastChangelogVersion": "1.3.0",
   "packages": [
-    "git:github.com/CoreyCole/pi-deterministic-docs",
-    "git:github.com/nicobailon/pi-mcp-adapter"
+    "git:github.com/CoreyCole/pi-deterministic-docs"
   ],
   "skills": [
     "~/dotfiles/.agents/skills",

@@ -21,15 +21,66 @@ o.bind("SUPER + SHIFT + J", "Stack portrait windows", function()
 	stack_portrait_windows()
 end)
 
--- rcmd-style application activation and window cycling.
-o.bind("ALT + X", "Raise terminal windows", "~/.config/hypr/scripts/rcmd-focus.sh X '^com\\.mitchellh\\.ghostty$'")
-o.bind(
-	"ALT + SHIFT + X",
-	"Cycle terminal windows",
-	"~/.config/hypr/scripts/rcmd-focus.sh --cycle-window X '^com\\.mitchellh\\.ghostty$'"
-)
-o.bind("ALT + Z", "Raise Zen windows", "~/.config/hypr/scripts/rcmd-focus.sh Z '^zen$'")
-o.bind("ALT + SHIFT + Z", "Cycle browser windows", "~/.config/hypr/scripts/rcmd-focus.sh --cycle-window Z '^zen$'")
+-- Find game class/title values: hyprctl clients -j | jq '.[] | {class, title}'
+-- Matches are exact. Omit title only if the class belongs exclusively to the game.
+local games = {
+	{ class = "steam_app_battlenet", title = "StarCraft II" },
+}
+
+-- o.bind does not return a handle; hl.bind lets game mode disable these bindings.
+local desktop_bindings = {
+	hl.bind("ALT + X", hl.dsp.exec_cmd("~/.config/hypr/scripts/rcmd-focus.sh X '^com\\.mitchellh\\.ghostty$'"), {
+		description = "Raise terminal windows",
+	}),
+	hl.bind(
+		"ALT + SHIFT + X",
+		hl.dsp.exec_cmd("~/.config/hypr/scripts/rcmd-focus.sh --cycle-window X '^com\\.mitchellh\\.ghostty$'"),
+		{ description = "Cycle terminal windows" }
+	),
+	hl.bind("ALT + Z", hl.dsp.exec_cmd("~/.config/hypr/scripts/rcmd-focus.sh Z '^zen$'"), {
+		description = "Raise Zen windows",
+	}),
+	hl.bind(
+		"ALT + SHIFT + Z",
+		hl.dsp.exec_cmd("~/.config/hypr/scripts/rcmd-focus.sh --cycle-window Z '^zen$'"),
+		{ description = "Cycle browser windows" }
+	),
+}
+
+local game_focused
+local function update_game_mode(window)
+	local playing = false
+	if window then
+		for _, game in ipairs(games) do
+			if window.class == game.class and (not game.title or window.title == game.title) then
+				playing = true
+				break
+			end
+		end
+	end
+	if playing == game_focused then
+		return
+	end
+	game_focused = playing
+	for _, binding in ipairs(desktop_bindings) do
+		binding:set_enabled(not playing)
+	end
+	-- keyd must not map Caps Lock first: sudo systemctl disable --now keyd
+	hl.config({ input = { kb_options = playing and "compose:ralt" or "caps:escape,compose:ralt" } })
+end
+
+hl.on("window.active", update_game_mode)
+for _, event in ipairs({ "window.title", "window.class" }) do
+	hl.on(event, function(window)
+		if window.active then
+			update_game_mode(window)
+		end
+	end)
+end
+hl.on("config.reloaded", function()
+	update_game_mode(hl.get_active_window())
+end)
+update_game_mode(hl.get_active_window())
 
 -- Add a new binding.
 -- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
