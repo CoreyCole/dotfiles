@@ -28,6 +28,10 @@ export interface SettledWebhookPayload {
   sessionFile: string | null;
   tmux: string | null;
   tmuxPane: string | null;
+  herdrPaneId?: string | null;
+  herdrTabId?: string | null;
+  herdrWorkspaceId?: string | null;
+  piGrokbotProfile?: string;
   excerpt: string;
   promptKind?: PromptKind;
 }
@@ -41,6 +45,11 @@ export interface GateEnv {
   PI_SETTLED_WEBHOOK_DEBUG?: string;
   TMUX?: string;
   TMUX_PANE?: string;
+  HERDR_ENV?: string;
+  HERDR_PANE_ID?: string;
+  HERDR_TAB_ID?: string;
+  HERDR_WORKSPACE_ID?: string;
+  PI_GROKBOT_PROFILE?: string;
 }
 
 export type StartupGate =
@@ -214,12 +223,29 @@ export function lastAssistantFromBranch(branch: readonly unknown[]): {
   return undefined;
 }
 
+export function herdrPayloadFields(
+  env: GateEnv,
+): Partial<Pick<SettledWebhookPayload, "herdrPaneId" | "herdrTabId" | "herdrWorkspaceId" | "piGrokbotProfile">> {
+  const fields: Partial<
+    Pick<SettledWebhookPayload, "herdrPaneId" | "herdrTabId" | "herdrWorkspaceId" | "piGrokbotProfile">
+  > = {};
+  if (env.HERDR_ENV?.trim() === "1") {
+    fields.herdrPaneId = blankToNull(env.HERDR_PANE_ID);
+    fields.herdrTabId = blankToNull(env.HERDR_TAB_ID);
+    fields.herdrWorkspaceId = blankToNull(env.HERDR_WORKSPACE_ID);
+  }
+  const profile = blankToNull(env.PI_GROKBOT_PROFILE);
+  if (profile) fields.piGrokbotProfile = profile;
+  return fields;
+}
+
 export function buildPayload(input: {
   cwd: string;
   sessionId?: string;
   sessionFile?: string | null;
   tmux?: string | null;
   tmuxPane?: string | null;
+  launchEnv?: GateEnv;
   excerpt?: string;
   status: WebhookStatus;
   aborted: boolean;
@@ -238,6 +264,7 @@ export function buildPayload(input: {
     sessionFile: input.sessionFile ?? null,
     tmux: blankToNull(input.tmux ?? undefined),
     tmuxPane: blankToNull(input.tmuxPane ?? undefined),
+    ...(input.launchEnv ? herdrPayloadFields(input.launchEnv) : {}),
     excerpt: truncateExcerpt(input.excerpt ?? ""),
   };
   if (input.promptKind) payload.promptKind = input.promptKind;
@@ -514,6 +541,7 @@ export function installSettledWebhook(pi: ExtensionAPI, deps: InstallDeps = {}):
       sessionFile: sessionFileOf(ctx),
       tmux: env.TMUX,
       tmuxPane: env.TMUX_PANE,
+      launchEnv: env,
       excerpt: assistant.excerpt,
       status,
       aborted,

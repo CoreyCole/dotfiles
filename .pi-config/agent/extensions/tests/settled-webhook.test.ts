@@ -9,6 +9,7 @@ import {
   classifyStatus,
   createNotifyController,
   excerptFromContent,
+  herdrPayloadFields,
   installSettledWebhook,
   isQuestionPrompt,
   postSettledWebhook,
@@ -96,6 +97,53 @@ test("auth helper uses Bearer and a bad URL error hides the key", () => {
       return true;
     },
   );
+});
+
+test("herdr ids are included only when HERDR_ENV is 1, and the profile only when set", () => {
+  const absent = herdrPayloadFields({
+    HERDR_PANE_ID: "w1:p4",
+    HERDR_TAB_ID: "w1:t3",
+    HERDR_WORKSPACE_ID: "w1",
+    PI_GROKBOT_PROFILE: "  ",
+  });
+  assert.equal("herdrPaneId" in absent, false);
+  assert.equal("herdrTabId" in absent, false);
+  assert.equal("herdrWorkspaceId" in absent, false);
+  assert.equal("piGrokbotProfile" in absent, false);
+
+  const outside = buildPayload({
+    cwd: "/home/box/dotfiles",
+    status: "settled",
+    aborted: false,
+    launchEnv: { HERDR_ENV: "0", HERDR_PANE_ID: "w1:p4", PI_GROKBOT_PROFILE: "sentry-fixer" },
+    eventId: "event-1",
+    timestamp: "2026-10-20T00:00:00.000Z",
+  });
+  assert.equal("herdrPaneId" in outside, false);
+  assert.equal(outside.piGrokbotProfile, "sentry-fixer");
+
+  const inside = buildPayload({
+    cwd: "/home/box/dotfiles",
+    status: "settled",
+    aborted: false,
+    tmux: "/tmp/tmux-1/default,1,0",
+    tmuxPane: "%7",
+    launchEnv: {
+      HERDR_ENV: "1",
+      HERDR_PANE_ID: "w1:p4",
+      HERDR_TAB_ID: " ",
+      HERDR_WORKSPACE_ID: "w1",
+      PI_GROKBOT_PROFILE: "pi-extensions",
+    },
+    eventId: "event-1",
+    timestamp: "2026-10-20T00:00:00.000Z",
+  });
+  assert.equal(inside.herdrPaneId, "w1:p4");
+  assert.equal(inside.herdrTabId, null);
+  assert.equal(inside.herdrWorkspaceId, "w1");
+  assert.equal(inside.piGrokbotProfile, "pi-extensions");
+  assert.equal(inside.tmuxPane, "%7");
+  assert.equal(JSON.stringify(inside).includes(FAKE_KEY), false);
 });
 
 test("startup gate requires all three vars and blocks children", () => {
@@ -341,6 +389,44 @@ test("gated off stops a settle and on can schedule again", async () => {
   queued.at(-1)?.();
   await runtime.handlers.get("session_shutdown")?.[0]?.({}, runtime.ctx);
   assert.equal(calls.length, 1);
+});
+
+test("a gated settle posts herdr ids only inside herdr", async () => {
+  const runtime = fakeRuntime();
+  const bodies: string[] = [];
+  const queued: Array<() => void> = [];
+  installSettledWebhook(runtime.pi, {
+    env: {
+      ...gatedEnv(),
+      HERDR_ENV: "1",
+      HERDR_PANE_ID: "w1:p4",
+      HERDR_TAB_ID: "w1:t3",
+      HERDR_WORKSPACE_ID: "w1",
+      PI_GROKBOT_PROFILE: "pi-extensions",
+    },
+    setTimer: (callback) => {
+      queued.push(callback);
+      return queued.length;
+    },
+    clearTimer: () => {},
+    fetchImpl: async (_url, init) => {
+      bodies.push(String(init?.body ?? ""));
+      return new Response(null, { status: 204 });
+    },
+  });
+  await runtime.handlers.get("agent_settled")?.[0]?.({ type: "agent_settled", aborted: false }, runtime.ctx);
+  queued.at(-1)?.();
+  await runtime.handlers.get("session_shutdown")?.[0]?.({}, runtime.ctx);
+  assert.equal(bodies.length, 1);
+  const event = JSON.parse(bodies[0]);
+  assert.equal(event.herdrPaneId, "w1:p4");
+  assert.equal(event.herdrTabId, "w1:t3");
+  assert.equal(event.herdrWorkspaceId, "w1");
+  assert.equal(event.piGrokbotProfile, "pi-extensions");
+  assert.equal(event.tmuxPane, "%7");
+  assert.equal(event.excerpt, "ok");
+  assert.equal(bodies[0].includes(FAKE_KEY), false);
+  assert.equal(bodies[0].includes(FAKE_URL), false);
 });
 
 test("extension source does not read config files or spawn a process", () => {
