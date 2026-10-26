@@ -1,6 +1,6 @@
 /**
  * Settled webhook for Grok Bot launches.
- * Usage: agent/extensions/settled-webhook.md
+ * Usage: agent/extensions/AGENTS.md
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
