@@ -55,7 +55,7 @@ Do not investigate the bug yourself and then send a conclusion. Send the child t
 
 Give every child exact paths, constraints, authority, expected artifact or TODO, and a concise final-response format. Load the applicable QRSPI stage skill.
 
-Let the planner own the planning pipeline and durable planning artifacts. The planner can delegate factual gaps to scouts. Give workers the TODOs created by the planner. Only one worker can edit an implementation workspace at a time.
+Let the planner own the planning pipeline and durable planning artifacts. The planner can delegate factual gaps to scouts. Give workers the TODOs created by the planner. Managers share one local checkout. Do not send a worker to a private copy unless the lead asks for `q-workspace`.
 
 A new worker is for a new approved vertical slice. Slice-by-slice implementation is the reason to start a different worker.
 
@@ -78,7 +78,12 @@ Apply these rules only in Graphite repositories. Other repositories retain their
    Require the worker to inspect the current Graphite stack and prior source/code changes before branch creation or implementation.
    Include clean state, parent/base, and existing slice boundaries in this inspection.
    Require `gt create` for each slice before implementation writes, in dependency order on the preceding slice.
-   Require `gt modify` for further edits and commits on the same slice branch, not another branch per TODO.
+   `gt create` makes a one-commit branch. That branch is the task.
+   Require `gt modify` for later edits on that same branch. That amends the one commit. Do not add a second commit for the same slice.
+   Require the worker to commit before it stops. A dirty tree is not done.
+   Record the branch name and the full commit hash. Report both to the CEO.
+   A worker commits only its own files. If `git status` shows another task's files, leave them unstaged. Do not commit `go.work.sum` unless the lead asked.
+   If the checkout is on another branch, check out this task's branch and `gt modify` there. Do not put this task's files on another manager's branch.
 1. Require per-slice checks and independent reviewability within declared dependencies.
    Keep behavior tests with their slice. Require compile-safe boundaries and valid Graphite metadata.
 1. If a boundary is unusable, stop implementation and delegate an outline correction to the planner.

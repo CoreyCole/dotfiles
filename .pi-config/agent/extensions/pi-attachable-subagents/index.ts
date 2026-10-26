@@ -10,11 +10,13 @@ import {
   Text,
   truncateToWidth,
   visibleWidth,
+  wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import {
   configuredDefaultModelRef,
   isFastModelRef,
 } from "../lib/default-model.ts";
+import { TOOL_DISPLAY } from "../tool-display-style.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -511,6 +513,49 @@ function formatWidgetRightLabel(snapshot: StatusSnapshot): string {
   return ` stalled${detail}${duration} `;
 }
 
+function detachedDurableStatus(params: {
+  autoExit: boolean | undefined;
+  paneAlive: boolean;
+  kind: string;
+  phase?: string | null;
+}): "idle" | "stalled" | "active" {
+  if (params.kind !== "stalled") return "active";
+  if (params.autoExit !== false) return "stalled";
+  // A durable child is idle when its process is gone, or when it is not in an
+  // active turn. Reload leaves the pane up and the session resumable.
+  if (!params.paneAlive || params.phase !== "active") return "idle";
+  return "stalled";
+}
+
+function stalledTransitionAction(params: {
+  autoExit: boolean | undefined;
+  paneAlive: boolean;
+  kind: string;
+  phase?: string | null;
+  transition: string | null;
+}): "release" | "hold-idle" | "announce" | "ignore" {
+  if (params.transition !== "stalled") return "ignore";
+  const disposition = detachedDurableStatus(params);
+  if (disposition === "idle" && !params.paneAlive) return "release";
+  if (disposition === "idle") return "hold-idle";
+  return "announce";
+}
+
+function paneIsAlive(surface: string): boolean {
+  try {
+    readScreen(surface, 1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function releaseDetachedDurableChild(running: RunningSubagent): void {
+  running.shutdownCancelled = true;
+  running.abortController?.abort();
+  runningSubagents.delete(running.id);
+}
+
 function formatWidgetStatusMarker(snapshot: StatusSnapshot): string {
   return snapshot.kind === "active" && snapshot.activeScope === "streaming"
     ? "🟢"
@@ -867,6 +912,8 @@ interface RunningSubagent {
   displayModel?: string;
   displayProvider?: string;
   displayTps?: number;
+  /** Same persisted usage the over-200k warning reads. */
+  displayContextTokens?: number;
   requestStatsSignature?: string;
   requestStatsCheckedAt?: number;
   requestStatsSelection?: string;
@@ -1081,15 +1128,24 @@ function fileWrappedBodies(actual: string): string[] {
   );
 }
 
+function sameSteerText(expected: string, actual: string): boolean {
+  if (actual === expected) return true;
+  // A child pane can persist the same steer with newlines removed.
+  const stripLines = (value: string) => value.replace(/[\r\n]+/g, "");
+  return stripLines(actual) === stripLines(expected);
+}
+
 function matchesManagerSteer(expected: string, actual: string): boolean {
   if (!expected) return false;
-  if (actual === expected || actual.endsWith(`\n\n${expected}`)) return true;
+  if (sameSteerText(expected, actual) || actual.endsWith(`\n\n${expected}`))
+    return true;
   // A blank-line block or a whole file body. A short fragment must not match.
   if (actual.includes(`\n\n${expected}\n`)) return true;
   const idleRelaunch = buildInitialTask(expected);
-  if (actual === idleRelaunch) return true;
+  if (sameSteerText(idleRelaunch, actual)) return true;
   return fileWrappedBodies(actual).some(
-    (body) => body === expected || body === idleRelaunch,
+    (body) =>
+      sameSteerText(expected, body) || sameSteerText(idleRelaunch, body),
   );
 }
 
@@ -1105,6 +1161,56 @@ export function formatManualSteerWake(
     "",
     "The human sent this command to the child, not to you. Do not act on it. Await the child's response.",
   ].join("\n");
+}
+
+const MANUAL_STEER_ICON = "\u21aa\ufe0f";
+export const MESSAGE_GLYPH = {
+  status: "\ud83d\udcac",
+  done: "\u2705",
+  ping: "\u2753",
+} as const;
+const STATUS_ICON = MESSAGE_GLYPH.status;
+
+/** Human-visible lines. Model context stays in formatManualSteerWake. */
+export function formatManualSteerDisplay(
+  text: string,
+  options: { expanded: boolean; width: number; name?: string },
+): { border: string; lines: string[] } {
+  const width = Math.max(1, options.width);
+  const name = options.name?.trim() ?? "";
+  const prefix = name
+    ? `${MANUAL_STEER_ICON} ${name} `
+    : `${MANUAL_STEER_ICON} `;
+  if (!options.expanded) {
+    const oneLine = text.replace(/[\r\n]+/g, " ").trim();
+    return {
+      border: "\u2500".repeat(width),
+      lines: [truncateToWidth(`${prefix}${oneLine}`, width, "\u2026")],
+    };
+  }
+  const body = text.length > 0 ? text.split("\n") : [""];
+  return {
+    border: "\u2500".repeat(width),
+    lines: body.map((line, index) => (index === 0 ? `${prefix}${line}` : line)),
+  };
+}
+
+/** Human-visible status block. Same gray rule as read and manual steer. */
+export function formatSubagentStatusDisplay(
+  lines: string[],
+  options: { expanded: boolean; width: number; overflow?: number },
+): { border: string; lines: string[] } {
+  const width = Math.max(1, options.width);
+  const body = lines.map((line) => line.trim()).filter(Boolean);
+  const overflow = options.overflow ?? 0;
+  const text = body.join(options.expanded ? "\n" : " ");
+  const prefixed = text ? `${STATUS_ICON} ${text}` : STATUS_ICON;
+  const rendered = prefixed.split("\n").flatMap((line) => {
+    const wrapped = wrapTextWithAnsi(line, width);
+    return wrapped.length > 0 ? wrapped : [""];
+  });
+  if (overflow > 0) rendered.push(`+${overflow} more running.`);
+  return { border: "\u2500".repeat(width), lines: rendered };
 }
 
 interface SteerWatch {
@@ -1168,6 +1274,153 @@ export function steerWakePlan(source: SteerSource): {
   return source === "manager"
     ? { noteBeforeSend: true, deliverAfterSend: false }
     : { noteBeforeSend: false, deliverAfterSend: true };
+}
+
+const SUBAGENT_CONTEXT_HANDOFF_TOKENS = 200_000;
+
+export const SUBAGENT_CONTEXT_HANDOFF_WARNING =
+  "Subagent context is over 200k tokens. Consider doing a q-handoff soon and starting a new subagent with the handoff. Or do unrelated work that does not need this agent's context in a fresh subagent.";
+
+/** Every status and every steer. Same persisted usage peek already uses. */
+export function subagentContextHandoffWarning(
+  totalTokens: number | undefined,
+): string | undefined {
+  if (
+    totalTokens === undefined ||
+    totalTokens <= SUBAGENT_CONTEXT_HANDOFF_TOKENS
+  )
+    return undefined;
+  return SUBAGENT_CONTEXT_HANDOFF_WARNING;
+}
+
+function subagentContextWarningForSession(
+  sessionFile: string | undefined,
+): string | undefined {
+  if (!sessionFile) return undefined;
+  try {
+    return subagentContextHandoffWarning(
+      inspectSession(sessionFile).totalTokens,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+export function appendDoneContextWarning(
+  content: string,
+  sessionFile: string | undefined,
+  reason: string | undefined,
+): string {
+  if (reason !== "done" && reason !== "settlement") return content;
+  const warning = subagentContextWarningForSession(sessionFile);
+  return warning ? `${content}\n\n${warning}` : content;
+}
+
+const BASH_RESULT_TAIL =
+  /\s*[\u{1F7E2}\u{1F7E1}\u{1F534}]\s+\S[\s\S]*?\(no output\)\s+Took\s+[\d.]+s\s*$/u;
+
+/** Drop a bash tool row glued onto a status sentence. Bash still renders on its own tool row. */
+export function stripBashResultFromStatus(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.replace(BASH_RESULT_TAIL, "").trimEnd())
+    .filter((line) => line.trim() && !isBashResultLine(line))
+    .join("\n")
+    .trim();
+}
+
+function isBashResultLine(line: string): boolean {
+  return /\(no output\)/.test(line) || /\bTook\s+[\d.]+s\b/.test(line);
+}
+
+export function subagentStatusLines(message: {
+  content?: unknown;
+  details?: unknown;
+}): string[] {
+  const details =
+    message.details && typeof message.details === "object"
+      ? (message.details as { lines?: unknown; report?: unknown })
+      : {};
+  const explicit = Array.isArray(details.lines)
+    ? details.lines.filter((line): line is string => typeof line === "string")
+    : [];
+  const report = typeof details.report === "string" ? details.report : "";
+  const content = typeof message.content === "string" ? message.content : "";
+  const source =
+    explicit.length > 0
+      ? explicit
+      : (
+          report ||
+          content.replace(/^Sub-agent ".*?" (?:status|error):\s*/s, "")
+        ).split("\n");
+  return stripBashResultFromStatus(source.join("\n"))
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** Parent status delivery. Empty transitions send nothing, including no 200k warning. */
+export function statusRefreshDelivery(
+  transitionLines: string[],
+  lineLimit: number,
+): { content: string; lines: string[]; overflow: number } | undefined {
+  if (transitionLines.length === 0) return undefined;
+  const capped = capStatusLines(transitionLines, lineLimit);
+  return {
+    content: formatStatusAggregate(transitionLines, lineLimit),
+    lines: capped.visibleLines,
+    overflow: capped.overflow,
+  };
+}
+
+/** Tool-result text the parent model reads after subagent_steer. */
+export function steerParentModelText(
+  name: string,
+  warning: string | undefined,
+): string {
+  return [`Steered subagent "${name}".`, warning]
+    .filter((line) => line)
+    .join("\n");
+}
+
+/** Custom message content the parent model reads. Notify is not this. */
+export function steerContextModelMessage(warning: string | undefined):
+  | {
+      customType: "subagent_context_warning";
+      content: string;
+      display: true;
+    }
+  | undefined {
+  if (!warning) return undefined;
+  return {
+    customType: "subagent_context_warning",
+    content: warning,
+    display: true,
+  };
+}
+
+function deliverSteerContextToParent(
+  pi: ExtensionAPI,
+  warning: string | undefined,
+): void {
+  const message = steerContextModelMessage(warning);
+  if (!message) return;
+  pi.sendMessage(message, { triggerTurn: true, deliverAs: "steer" });
+}
+
+export function doneParentModelMessage(params: {
+  presentation: string;
+  sessionFile?: string;
+  reason?: string;
+}): { content: string; details: { reason?: string } } {
+  return {
+    content: appendDoneContextWarning(
+      params.presentation,
+      params.sessionFile,
+      params.reason,
+    ),
+    details: { reason: params.reason },
+  };
 }
 
 function finishHumanSteer(
@@ -1389,6 +1642,21 @@ function formatLocalCatalogStartTime(
   return `${month} ${date.getDate()} ${formatLocalStartTime(timestamp)}`;
 }
 
+function formatContextTokens(count: number): string {
+  if (count < 1000) return count.toString();
+  if (count < 1000000) return `${(count / 1000).toFixed(1)}k`;
+  return `${(count / 1000000).toFixed(1)}M`;
+}
+
+/** Numerator only, such as `200.0k`. Yellow >200k, red >300k. */
+function formatSubagentContextUtilization(tokens: number | undefined): string {
+  if (tokens == null || !Number.isFinite(tokens)) return "—";
+  const plain = formatContextTokens(tokens);
+  if (tokens > 300_000) return `${CONTEXT_RED}${plain}${RST}`;
+  if (tokens > 200_000) return `${CONTEXT_YELLOW}${plain}${RST}`;
+  return plain;
+}
+
 function formatElapsedMMSS(elapsedMs: number): string {
   const seconds = Math.floor(elapsedMs / 1000);
   const m = Math.floor(seconds / 60);
@@ -1398,6 +1666,8 @@ function formatElapsedMMSS(elapsedMs: number): string {
 
 const ACCENT = "\x1b[38;2;77;163;255m";
 const RST = "\x1b[0m";
+const CONTEXT_YELLOW = "\x1b[33m";
+const CONTEXT_RED = "\x1b[31m";
 const STOPPED_CHILDREN_SHORTCUT = Key.ctrlAlt("s");
 const STOPPED_CHILDREN_KEY_LABEL = "Ctrl+Alt+S";
 
@@ -1474,6 +1744,7 @@ function renderSubagentWidgetLines(
   width: number,
   now = Date.now(),
   showStopped = false,
+  paneAlive: (surface: string) => boolean = paneIsAlive,
 ): string[] {
   const orderedChildren = sortChildCatalog(children);
   const activeCount = orderedChildren.filter((child) =>
@@ -1493,7 +1764,18 @@ function renderSubagentWidgetLines(
   const lines: string[] = [borderTop("Subagents", info, width)];
 
   for (const child of orderedChildren) {
-    const running = activeRuns.get(child.childSessionId);
+    const tracked = activeRuns.get(child.childSessionId);
+    const running =
+      tracked &&
+      child.autoExit === false &&
+      detachedDurableStatus({
+        autoExit: false,
+        paneAlive: paneAlive(tracked.surface),
+        kind: classifyStatus(tracked.statusState, now).kind,
+        phase: tracked.statusState.phase,
+      }) === "idle"
+        ? undefined
+        : tracked;
     if (!running && !showStopped) continue;
     const agentTag = child.agent ? ` (${child.agent})` : "";
     const startedAt = child.startedAt ?? 0;
@@ -1502,7 +1784,7 @@ function renderSubagentWidgetLines(
       ? formatWidgetStatusMarker(classifyStatus(running.statusState, now))
       : "🔴";
     const right = running
-      ? ` ${status} ${formatLocalCatalogStartTime(startedAt, now)}  ${formatElapsedMMSS(getActiveRuntimeMs(running, now))}  ${running.displayModel ?? "—"}  ${running.displayTps == null ? "—" : `${running.displayTps.toFixed(1)} tok/s`} `
+      ? ` ${status} ${formatLocalCatalogStartTime(startedAt, now)} ${formatElapsedMMSS(getActiveRuntimeMs(running, now))} ${running.displayModel ?? "—"} ${running.displayTps == null ? "—" : `${running.displayTps.toFixed(1)} tok/s`} ${formatSubagentContextUtilization(running.displayContextTokens)} `
       : ` ${status} ${formatLocalCatalogStartTime(startedAt, now)} `;
     lines.push(borderLine(left, right, width));
   }
@@ -1596,6 +1878,48 @@ function formatSubagentSteerCall(
     target: target.trim() || "(unknown)",
     ...formatSubagentTaskCall(message, expanded),
   };
+}
+
+type SubagentCommandFrame = { hasResult: boolean };
+
+function commandFrame(state: unknown): SubagentCommandFrame {
+  if (!state || typeof state !== "object") return { hasResult: false };
+  const bag = state as { commandFrame?: SubagentCommandFrame };
+  bag.commandFrame ??= { hasResult: false };
+  return bag.commandFrame;
+}
+
+/**
+ * One gray rule pair for a tool row. Call draws the top. Result draws the
+ * bottom. A call with no result yet draws both.
+ */
+function borderedSubagentCommand(
+  state: unknown,
+  role: "call" | "result",
+  lines: (width: number) => string[],
+): {
+  invalidate: () => void;
+  render: (width: number) => string[];
+} {
+  const frame = commandFrame(state);
+  if (role === "call") frame.hasResult = false;
+  else frame.hasResult = true;
+  return {
+    invalidate() {},
+    render(width: number) {
+      const border = TOOL_DISPLAY.border("\u2500".repeat(Math.max(1, width)));
+      const body = lines(width);
+      if (role === "result") return [...body, border];
+      return frame.hasResult ? [border, ...body] : [border, ...body, border];
+    },
+  };
+}
+
+function oneLinePrompt(text: string): string {
+  return text
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatSubagentTaskCall(task: string, expanded: boolean) {
@@ -1717,6 +2041,48 @@ function invalidSubagentModelError(requested: string): Error {
   );
 }
 
+function invalidSteerModelError(requested: string): Error {
+  return new Error(
+    `Invalid steer model "${requested}". Use an exact provider/id from the configured catalog. Do not use a bare id, a partial name, fast, or a thinking suffix.`,
+  );
+}
+
+function exactSteerModelRef(requested: string): string {
+  const value = requested.trim();
+  if (!value || isFastModelRef(value)) throw invalidSteerModelError(requested);
+
+  const colon = value.lastIndexOf(":");
+  if (colon !== -1 && PI_REASONING_SUFFIXES.has(value.slice(colon + 1))) {
+    throw invalidSteerModelError(requested);
+  }
+
+  const slash = value.indexOf("/");
+  if (slash <= 0 || slash !== value.lastIndexOf("/")) {
+    throw invalidSteerModelError(requested);
+  }
+
+  const matched = loadConfiguredModels(getAgentConfigDir()).some(
+    (model) => `${model.provider}/${model.id}` === value,
+  );
+  if (!matched) throw invalidSteerModelError(requested);
+  return value;
+}
+
+function activeSteerModelError(model?: string): string | undefined {
+  if (!model?.trim()) return undefined;
+  return "Cannot change the model of an active subagent. The message was not sent.";
+}
+
+function deliverActiveSteer(params: {
+  model?: string;
+  send: () => void;
+}): { error: string } | { ok: true } {
+  const blocked = activeSteerModelError(params.model);
+  if (blocked) return { error: blocked };
+  params.send();
+  return { ok: true };
+}
+
 function resolveModelArgument(
   explicitModel?: string,
   agentModel?: string,
@@ -1809,6 +2175,7 @@ function refreshDisplaySnapshot(
     peek = inspectSession(running.sessionFile);
     running.displayProvider = peek.provider;
     running.displayModel = peek.model ?? running.displayModel;
+    running.displayContextTokens = peek.totalTokens;
   } catch {}
 
   const provider = peek?.provider;
@@ -2031,6 +2398,7 @@ function buildIdleLaunchProfile(params: {
   agentDir: string;
   agentDefs: AgentDefaults | null;
   promptDir: string;
+  model?: string;
 }): PiLaunchProfile {
   const { child, sessionFile, activityFile, agentDir, agentDefs, promptDir } =
     params;
@@ -2056,6 +2424,9 @@ function buildIdleLaunchProfile(params: {
   }
   const toolAllowlist = buildSubagentToolAllowlist(agentDefs?.tools);
   if (toolAllowlist) parts.push("--tools", shellEscape(toolAllowlist));
+  if (params.model) {
+    parts.push(...buildModelLaunchArguments(params.model, undefined));
+  }
   const environment = [
     `PI_CODING_AGENT_DIR=${shellEscape(agentDir)}`,
     ...buildChildHandoffEnvironment(),
@@ -2308,6 +2679,24 @@ function startStatusRefresh(pi: ExtensionAPI) {
       }
       running.statusState = nextState;
 
+      const stallAction = stalledTransitionAction({
+        autoExit: childrenBySessionId.get(running.id)?.autoExit,
+        paneAlive: paneIsAlive(running.surface),
+        kind: snapshot.kind,
+        phase: running.statusState.phase,
+        transition,
+      });
+      if (stallAction === "release") {
+        releaseDetachedDurableChild(running);
+        shouldRefreshWidget = true;
+        continue;
+      }
+      if (stallAction === "hold-idle") {
+        running.statusState = { ...nextState, currentKind: "waiting" };
+        shouldRefreshWidget = true;
+        continue;
+      }
+
       if (transition) {
         transitionLines.push(
           formatTransitionLine(running.name, snapshot, transition),
@@ -2317,17 +2706,20 @@ function startStatusRefresh(pi: ExtensionAPI) {
 
     if (shouldRefreshWidget) updateWidget();
 
-    if (transitionLines.length > 0) {
-      const capped = capStatusLines(transitionLines, statusConfig.lineLimit);
+    const statusDelivery = statusRefreshDelivery(
+      transitionLines,
+      statusConfig.lineLimit,
+    );
+    if (statusDelivery) {
       pi.sendMessage(
         {
           customType: "subagent_status",
-          content: formatStatusAggregate(
-            transitionLines,
-            statusConfig.lineLimit,
-          ),
+          content: statusDelivery.content,
           display: true,
-          details: { lines: capped.visibleLines, overflow: capped.overflow },
+          details: {
+            lines: statusDelivery.lines,
+            overflow: statusDelivery.overflow,
+          },
         },
         { triggerTurn: true, deliverAs: "steer" },
       );
@@ -2341,6 +2733,9 @@ export const __test__ = {
   borderLine,
   getShellReadyDelayMs,
   renderSubagentWidgetLines,
+  formatSubagentContextUtilization,
+  detachedDurableStatus,
+  stalledTransitionAction,
   sortChildCatalog,
   loadAgentDefaults,
   discoverAgentDefinitions,
@@ -2353,6 +2748,8 @@ export const __test__ = {
   buildChildHandoffEnvironment,
   buildChildAutoExitEnvironment,
   resolveModelArgument,
+  exactSteerModelRef,
+  deliverActiveSteer,
   launchSubagent,
   configuredDefaultModelRef,
   buildModelLaunchArguments,
@@ -2409,11 +2806,25 @@ export const __test__ = {
   drainPersistentStatuses,
   drainChildSessionEntries,
   formatManualSteerWake,
+  formatManualSteerDisplay,
+  formatSubagentStatusDisplay,
+  MESSAGE_GLYPH,
+  paintManualSteerBorder: TOOL_DISPLAY.border,
   noteManagerSteer,
   pollSettledManualSteers,
   noteSettledManagerSteer,
   armSettledSteerWatch,
   steerWakePlan,
+  subagentContextHandoffWarning,
+  subagentContextWarningForSession,
+  appendDoneContextWarning,
+  steerParentModelText,
+  steerContextModelMessage,
+  doneParentModelMessage,
+  statusRefreshDelivery,
+  stripBashResultFromStatus,
+  subagentStatusLines,
+  SUBAGENT_CONTEXT_HANDOFF_WARNING,
   finishHumanSteer,
   formatElapsed,
 };
@@ -2738,12 +3149,30 @@ async function watchSubagent(
       {
         interval: 1000,
         sessionFile,
+        releaseWhenPaneGone:
+          childrenBySessionId.get(running.id)?.autoExit === false,
         onTick() {
           observeRunningSubagent(running);
           drainChildSessionEntries(running, { onStatus, onManualSteer });
         },
       },
     );
+
+    if (result.reason === "pane-gone") {
+      running.shutdownCancelled = true;
+      if (runningSubagents.get(running.id) === running) {
+        runningSubagents.delete(running.id);
+      }
+      return {
+        name,
+        task,
+        summary:
+          "Sub-agent process is not running. The durable session remains idle.",
+        sessionFile,
+        exitCode: 0,
+        elapsed: Math.floor((Date.now() - startTime) / 1000),
+      };
+    }
 
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     drainChildSessionEntries(running, { onStatus, onManualSteer });
@@ -2913,12 +3342,20 @@ export default function subagentsExtension(
     running: RunningSubagent,
     status: { kind: "status" | "error"; report: string },
   ) => {
+    const report = stripBashResultFromStatus(status.report);
+    const lines = subagentStatusLines({ details: { report } });
     pi.sendMessage(
       {
         customType: "subagent_status",
-        content: `Sub-agent "${running.name}" ${status.kind}:\n\n${status.report}`,
+        content: `Sub-agent "${running.name}" ${status.kind}:\n\n${report}`,
         display: true,
-        details: { childSessionId: running.id, ...status },
+        details: {
+          childSessionId: running.id,
+          kind: status.kind,
+          report,
+          lines,
+          overflow: 0,
+        },
       },
       { triggerTurn: true, deliverAs: "steer" },
     );
@@ -2961,6 +3398,7 @@ export default function subagentsExtension(
         "DO NOT fabricate, assume, or summarize results after calling this tool. " +
         "After spawning, either end your turn immediately, or work on other independent tasks (including spawning more subagents in parallel). The harness will wake you with the result when it is ready.",
       parameters: SubagentParams,
+      renderShell: "self",
 
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
         // Prevent self-spawning (e.g. planner spawning another planner)
@@ -3074,14 +3512,18 @@ export default function subagentsExtension(
                   return;
                 }
 
-                const presentation = resolveResultPresentation(
-                  result,
-                  running.name,
-                );
+                const presentation = doneParentModelMessage({
+                  presentation: resolveResultPresentation(result, running.name),
+                  sessionFile: result.sessionFile,
+                  reason: result.reason,
+                });
                 pi.sendMessage(
                   {
                     customType: "subagent_result",
-                    content: appendPersistenceWarning(presentation, warning),
+                    content: appendPersistenceWarning(
+                      presentation.content,
+                      warning,
+                    ),
                     display: true,
                     details: {
                       name: running.name,
@@ -3171,39 +3613,47 @@ export default function subagentsExtension(
           typeof partialArgs.cwd === "string" && partialArgs.cwd
             ? theme.fg("dim", ` in ${partialArgs.cwd}`)
             : "";
-        let text =
-          "▸ " + theme.fg("toolTitle", theme.bold(name)) + agent + cwdHint;
-
-        if (task) {
-          const taskCall = formatSubagentTaskCall(task, context.expanded);
-          if (taskCall.body) {
-            text += "\n" + theme.fg("toolOutput", taskCall.body);
+        const taskCall = task
+          ? formatSubagentTaskCall(task, context.expanded)
+          : undefined;
+        const head =
+          "▸ " +
+          theme.fg("toolTitle", theme.bold(name)) +
+          agent +
+          cwdHint +
+          (taskCall?.body
+            ? theme.fg("dim", " — ") + theme.fg("toolOutput", taskCall.body)
+            : "");
+        return borderedSubagentCommand(context.state, "call", (width) => {
+          if (context.expanded && task) {
+            return task
+              .split("\n")
+              .map((line, index) =>
+                index === 0
+                  ? "▸ " +
+                    theme.fg("toolTitle", theme.bold(name)) +
+                    agent +
+                    cwdHint +
+                    theme.fg("dim", " — ") +
+                    theme.fg("toolOutput", line)
+                  : theme.fg("toolOutput", line),
+              );
           }
-          if (!context.expanded && taskCall.lineCount > 1) {
-            text += theme.fg("muted", ` (${taskCall.lineCount} lines)`);
-          }
-          if (taskCall.expandable) {
-            text += theme.fg("muted", " (Ctrl+O to expand)");
-          }
-        }
-
-        return new Text(text, 0, 0);
+          return [truncateToWidth(head, width, "…")];
+        });
       },
 
-      renderResult(result, _opts, theme) {
+      renderResult(result, _opts, theme, context) {
         const details = result.details as any;
         const name = details?.name ?? "(unnamed)";
 
         // "Started" result — tool returned immediately
         if (details?.status === "started") {
-          return new Text(
-            theme.fg("accent", "▸") +
-              " " +
+          return borderedSubagentCommand(context?.state, "result", () => [
+            "▸ " +
               theme.fg("toolTitle", theme.bold(name)) +
               theme.fg("dim", " — started"),
-            0,
-            0,
-          );
+          ]);
         }
 
         // Fallback (shouldn't happen)
@@ -3240,7 +3690,11 @@ export default function subagentsExtension(
           wake(warning) {
             const content = result.ping
               ? `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}\n\nSession: ${running.sessionFile}`
-              : resolveResultPresentation(result, running.name);
+              : doneParentModelMessage({
+                  presentation: resolveResultPresentation(result, running.name),
+                  sessionFile: result.sessionFile,
+                  reason: result.reason,
+                }).content;
             pi.sendMessage(
               {
                 customType: result.ping ? "subagent_ping" : "subagent_result",
@@ -3290,6 +3744,7 @@ export default function subagentsExtension(
     message: string,
     ctx: ExtensionContext,
     source: SteerSource,
+    model?: string,
   ) => {
     try {
       validatePrompt(message);
@@ -3309,14 +3764,24 @@ export default function subagentsExtension(
     );
     if (decision.kind === "active") {
       try {
-        if (wakePlan.noteBeforeSend)
-          noteManagerSteer(decision.running, message);
-        sendPrompt(decision.running.surface, message);
+        const blocked = deliverActiveSteer({
+          model,
+          send() {
+            if (wakePlan.noteBeforeSend)
+              noteManagerSteer(decision.running, message);
+            sendPrompt(decision.running.surface, message);
+          },
+        });
+        if ("error" in blocked) return blocked;
+        const contextWarning = subagentContextWarningForSession(
+          decision.running.sessionFile,
+        );
+        deliverSteerContextToParent(pi, contextWarning);
         if (wakePlan.deliverAfterSend)
           finishHumanSteer(decision.running, message, (text) =>
             deliverManualSteer(decision.running, text),
           );
-        return { running: decision.running };
+        return { running: decision.running, contextWarning };
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
@@ -3327,6 +3792,17 @@ export default function subagentsExtension(
       return {
         error: `Subagent "${child.name}" is already starting; the new message was not sent. Retry after it becomes active.`,
       };
+    }
+
+    let steerModel: string | undefined;
+    if (model?.trim()) {
+      try {
+        steerModel = exactSteerModelRef(model);
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
     }
 
     try {
@@ -3381,6 +3857,7 @@ export default function subagentsExtension(
               agentDir,
               agentDefs,
               promptDir,
+              ...(steerModel ? { model: steerModel } : {}),
             });
             sendLongCommand(
               surface,
@@ -3448,7 +3925,11 @@ export default function subagentsExtension(
       startWidgetRefresh();
       startStatusRefresh(pi);
       updateWidget();
-      return { running };
+      const contextWarning = subagentContextWarningForSession(
+        running.sessionFile,
+      );
+      deliverSteerContextToParent(pi, contextWarning);
+      return { running, contextWarning };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
     }
@@ -3463,18 +3944,26 @@ export default function subagentsExtension(
       parameters: Type.Object({
         target: Type.String(),
         message: Type.String(),
+        model: Type.Optional(
+          Type.String({
+            description:
+              "Exact provider/id. Applied only when the child is idle. Omitted model does not add --model. Active or starting children reject the message.",
+          }),
+        ),
       }),
+      renderShell: "self",
       async execute(_id, params, _signal, _update, ctx) {
         const result = await steer(
           params.target,
           params.message,
           ctx,
           "manager",
+          params.model,
         );
         const text =
           "error" in result
             ? result.error
-            : `Steered subagent "${result.running.name}".`;
+            : steerParentModelText(result.running.name, result.contextWarning);
         return {
           content: [{ type: "text", text }],
           details:
@@ -3494,17 +3983,26 @@ export default function subagentsExtension(
           typeof args.message === "string" ? args.message : "",
           context.expanded,
         );
-        let text =
-          "▸ " +
-          theme.fg("toolTitle", theme.bold(call.target)) +
-          theme.fg("dim", " — steer");
-        if (call.body) text += "\n" + theme.fg("toolOutput", call.body);
-        if (!context.expanded && call.lineCount > 1)
-          text += theme.fg("muted", ` (${call.lineCount} lines)`);
-        if (call.expandable) text += theme.fg("muted", " (Ctrl+O to expand)");
-        return new Text(text, 0, 0);
+        const title = theme.fg("toolTitle", theme.bold(call.target));
+        const label = theme.fg("dim", " — steer");
+        return borderedSubagentCommand(context.state, "call", (width) => {
+          if (context.expanded && call.body) {
+            return call.body
+              .split("\n")
+              .map((line, index) =>
+                index === 0
+                  ? `${MANUAL_STEER_ICON} ${title}${label} ${theme.fg("toolOutput", line)}`
+                  : theme.fg("toolOutput", line),
+              );
+          }
+          const prompt = oneLinePrompt(call.body);
+          const text = prompt
+            ? `${MANUAL_STEER_ICON} ${title}${label} ${theme.fg("toolOutput", prompt)}`
+            : `${MANUAL_STEER_ICON} ${title}${label}`;
+          return [truncateToWidth(text, width, "…")];
+        });
       },
-      renderResult(result, _opts, theme) {
+      renderResult(result, _opts, theme, context) {
         const details = result.details as {
           target?: string;
           name?: string;
@@ -3513,14 +4011,9 @@ export default function subagentsExtension(
         };
         const target = details?.name ?? details?.target ?? "subagent";
         const failed = details?.status === "error";
-        return new Text(
-          theme.fg("accent", "▸") +
-            " " +
-            theme.fg("toolTitle", theme.bold(target)) +
-            theme.fg("dim", failed ? " — steer failed" : " — steered"),
-          0,
-          0,
-        );
+        return borderedSubagentCommand(context?.state, "result", () => [
+          `${MANUAL_STEER_ICON} ${theme.fg("toolTitle", theme.bold(target))}${theme.fg("dim", failed ? " — steer failed" : " — steered")}`,
+        ]);
       },
     });
 
@@ -3651,6 +4144,7 @@ export default function subagentsExtension(
           Type.String({ description: "Exact running subagent display name" }),
         ),
       }),
+      renderShell: "self",
 
       async execute(_toolCallId, params) {
         const result = handleSubagentInterrupt(params);
@@ -3660,32 +4154,30 @@ export default function subagentsExtension(
         };
       },
 
-      renderCall(args, theme) {
+      renderCall(args, theme, context) {
         const target = args.id ? `${args.id}` : (args.name ?? "(unknown)");
-        return new Text(
-          theme.fg("accent", "▸") +
-            " " +
-            theme.fg("toolTitle", theme.bold(target)) +
-            theme.fg("dim", " — interrupt turn"),
-          0,
-          0,
-        );
+        return borderedSubagentCommand(context?.state, "call", (width) => [
+          truncateToWidth(
+            "▸ " +
+              theme.fg("toolTitle", theme.bold(target)) +
+              theme.fg("dim", " — interrupt turn"),
+            width,
+            "…",
+          ),
+        ]);
       },
 
-      renderResult(result, _opts, theme) {
+      renderResult(result, _opts, theme, context) {
         const details = result.details as any;
         if (details?.status === "interrupt_requested") {
-          return new Text(
-            theme.fg("accent", "▸") +
-              " " +
+          return borderedSubagentCommand(context?.state, "result", () => [
+            "▸ " +
               theme.fg(
                 "toolTitle",
                 theme.bold(details.name ?? details.id ?? "subagent"),
               ) +
               theme.fg("dim", " — interrupt requested"),
-            0,
-            0,
-          );
+          ]);
         }
 
         const content = result.content[0];
@@ -4026,6 +4518,29 @@ export default function subagentsExtension(
   });
 
   // ── subagent_result message renderer ──
+  pi.registerMessageRenderer(
+    "subagent_manual_steer",
+    (message, options, theme) => {
+      const details = message.details as
+        { text?: unknown; name?: unknown } | undefined;
+      const text = typeof details?.text === "string" ? details.text : "";
+      const name = typeof details?.name === "string" ? details.name : "";
+      return {
+        invalidate() {},
+        render(width: number): string[] {
+          const display = formatManualSteerDisplay(text, {
+            expanded: options.expanded,
+            width,
+            name,
+          });
+          const border = TOOL_DISPLAY.border(display.border);
+          const lines = display.lines.map((line) => theme.fg("text", line));
+          return [border, ...lines, border];
+        },
+      };
+    },
+  );
+
   pi.registerMessageRenderer("subagent_result", (message, options, theme) => {
     const details = message.details as any;
     if (!details) return undefined;
@@ -4043,7 +4558,7 @@ export default function subagentsExtension(
         const bgFn = failed
           ? (text: string) => theme.bg("toolErrorBg", text)
           : (text: string) => theme.bg("toolSuccessBg", text);
-        const icon = failed ? theme.fg("error", "✗") : theme.fg("success", "✓");
+        const icon = failed ? theme.fg("error", "✗") : MESSAGE_GLYPH.done;
         const reason = typeof details.reason === "string" ? details.reason : "";
         const status = errorMessage
           ? "failed (provider/agent error)"
@@ -4132,7 +4647,7 @@ export default function subagentsExtension(
   // ── subagent_status message renderer ──
   pi.registerMessageRenderer("subagent_status", (message, options, theme) => {
     const details = message.details as any;
-    const lines = Array.isArray(details?.lines) ? details.lines : [];
+    const lines = subagentStatusLines(message);
     const overflow =
       typeof details?.overflow === "number" ? details.overflow : 0;
     if (lines.length === 0 && overflow === 0) return undefined;
@@ -4140,28 +4655,16 @@ export default function subagentsExtension(
     return {
       invalidate() {},
       render(width: number): string[] {
-        const lineWidth = Math.max(0, width - 6);
-        const contentLines = [
-          `${theme.fg("accent", "•")} ${theme.fg("toolTitle", theme.bold("Subagent status"))}`,
-          ...lines.map((line: string) =>
-            theme.fg("dim", truncateToWidth(line, lineWidth)),
-          ),
-        ];
-
-        if (overflow > 0) {
-          contentLines.push(theme.fg("muted", `+${overflow} more running.`));
-        }
-        if (!options.expanded) {
-          contentLines.push(
-            theme.fg("muted", keyHint("app.tools.expand", "to expand")),
-          );
-        }
-
-        const box = new Box(1, 1, (text: string) =>
-          theme.bg("customMessageBg", text),
+        const display = formatSubagentStatusDisplay(lines, {
+          expanded: options.expanded,
+          width,
+          overflow,
+        });
+        const border = TOOL_DISPLAY.border(display.border);
+        const body = display.lines.map((line: string) =>
+          theme.fg("text", line),
         );
-        box.addChild(new Text(contentLines.join("\n"), 0, 0));
-        return ["", ...box.render(width)];
+        return [border, ...body, border];
       },
     };
   });
@@ -4180,7 +4683,7 @@ export default function subagentsExtension(
           : "";
         const bgFn = (text: string) => theme.bg("toolSuccessBg", text);
 
-        const icon = theme.fg("accent", "?");
+        const icon = MESSAGE_GLYPH.ping;
         const header = `${icon} ${theme.fg("toolTitle", theme.bold(name))}${agentTag} ${theme.fg("dim", "— needs help")}`;
 
         const contentLines = [header];

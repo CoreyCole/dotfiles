@@ -126,6 +126,16 @@ function formatContextBar(percent: number): string {
   return `${"■".repeat(filledBlocks)}${"□".repeat(5 - filledBlocks)}`;
 }
 
+/** Yellow above 200k, red above 300k. At or under 200k stays uncolored. */
+function contextUtilizationTheme(
+  tokens: number | null | undefined,
+): "warning" | "error" | undefined {
+  if (tokens == null || !Number.isFinite(tokens)) return undefined;
+  if (tokens > 300_000) return "error";
+  if (tokens > 200_000) return "warning";
+  return undefined;
+}
+
 function formatSessionStats(
   aggregate: RequestStatsAggregate | undefined,
   provider: string | undefined,
@@ -280,12 +290,10 @@ function installFooter(
             ? "?????"
             : formatContextBar(contextPercentValue);
         const contextDisplay = `${contextTokenCount}/${formatCompactTokens(contextWindow)} ${contextBar} ${contextPercent}%`;
-        const styledContext =
-          contextPercentValue > 90
-            ? theme.fg("error", contextDisplay)
-            : contextPercentValue > 70
-              ? theme.fg("warning", contextDisplay)
-              : contextDisplay;
+        const utilizationTheme = contextUtilizationTheme(contextTokens);
+        const styledContext = utilizationTheme
+          ? theme.fg(utilizationTheme, contextDisplay)
+          : contextDisplay;
         statsParts.push(styledContext);
         if (usage.input || usage.output || usage.cost) statsParts.push("│");
         if (usage.input)
@@ -356,6 +364,7 @@ export const __test__ = {
   formatSessionLine,
   formatSessionStats,
   formatWaitDuration,
+  contextUtilizationTheme,
   installFooter,
   parseSessionStartTime,
   sanitizeStatusText,

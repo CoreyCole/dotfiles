@@ -1,4 +1,8 @@
-import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import {
+  type Component,
+  truncateToWidth,
+  visibleWidth,
+} from "@earendil-works/pi-tui";
 import type { FastLabelFormatter } from "./fast-label-formatter.ts";
 import type { FastColorMode, FastColorValue } from "./fast-colors.ts";
 import {
@@ -39,7 +43,9 @@ export interface FooterCloneTheme {
   fg(color: "dim" | "error" | "warning" | string, text: string): string;
   name?: string | undefined;
   getColorMode?: () => FastColorMode;
-  getThinkingBorderColor?: (level: ThinkingLevel) => ((text: string) => string) | undefined;
+  getThinkingBorderColor?: (
+    level: ThinkingLevel,
+  ) => ((text: string) => string) | undefined;
 }
 
 export interface FooterCloneTui {
@@ -54,6 +60,7 @@ export interface FooterCloneModel {
 }
 
 export interface FooterCloneContextUsage {
+  tokens?: number | null | undefined;
   percent?: number | null | undefined;
   contextWindow?: number | undefined;
 }
@@ -143,7 +150,9 @@ function numberOrZero(value: number | undefined): number {
 
 const ANSI_FAST_LABEL_PATTERN = /\x1b\[[0-9;]*mfast\x1b\[39m/g;
 
-function findLastAnsiFastLabel(text: string): { index: number; label: string } | undefined {
+function findLastAnsiFastLabel(
+  text: string,
+): { index: number; label: string } | undefined {
   ANSI_FAST_LABEL_PATTERN.lastIndex = 0;
   let current: RegExpExecArray | null;
   let last: { index: number; label: string } | undefined;
@@ -275,9 +284,11 @@ export class FooterClone implements Component {
     // Calculate context usage from session (handles compaction correctly).
     // After compaction, tokens are unknown until the next LLM response.
     const contextUsage = context.getContextUsage();
-    const contextWindow = contextUsage?.contextWindow ?? state.model?.contextWindow ?? 0;
+    const contextWindow =
+      contextUsage?.contextWindow ?? state.model?.contextWindow ?? 0;
     const contextPercentValue = contextUsage?.percent ?? 0;
-    const contextPercent = contextUsage?.percent !== null ? contextPercentValue.toFixed(1) : "?";
+    const contextPercent =
+      contextUsage?.percent !== null ? contextPercentValue.toFixed(1) : "?";
 
     // Replace home directory with ~
     let pwd = context.sessionManager.getCwd();
@@ -306,7 +317,9 @@ export class FooterClone implements Component {
     if (totalCacheWrite) statsParts.push(`W${formatTokens(totalCacheWrite)}`);
 
     // Show cost with "(sub)" indicator if using OAuth subscription
-    const usingSubscription = state.model ? context.modelRegistry.isUsingOAuth(state.model) : false;
+    const usingSubscription = state.model
+      ? context.modelRegistry.isUsingOAuth(state.model)
+      : false;
     if (totalCost || usingSubscription) {
       const costStr = `$${totalCost.toFixed(3)}${usingSubscription ? " (sub)" : ""}`;
       statsParts.push(costStr);
@@ -319,9 +332,10 @@ export class FooterClone implements Component {
       contextPercent === "?"
         ? `?/${formatTokens(contextWindow)}${autoIndicator}`
         : `${contextPercent}%/${formatTokens(contextWindow)}${autoIndicator}`;
-    if (contextPercentValue > 90) {
+    const contextTokens = contextUsage?.tokens;
+    if (contextTokens != null && contextTokens > 300_000) {
       contextPercentStr = this.theme.fg("error", contextPercentDisplay);
-    } else if (contextPercentValue > 70) {
+    } else if (contextTokens != null && contextTokens > 200_000) {
       contextPercentStr = this.theme.fg("warning", contextPercentDisplay);
     } else {
       contextPercentStr = contextPercentDisplay;
@@ -339,7 +353,8 @@ export class FooterClone implements Component {
       footerVars: this.fastLabelColors.vars,
       isLightTheme: this.isThemeLight,
       colorMode: this.colorMode,
-      renderDefaultActiveLabel: () => renderThemeMatchedFastLabel(this.theme, state.thinkingLevel),
+      renderDefaultActiveLabel: () =>
+        renderThemeMatchedFastLabel(this.theme, state.thinkingLevel),
     });
 
     let statsLeftWidth = visibleWidth(statsLeft);
@@ -357,7 +372,9 @@ export class FooterClone implements Component {
     let rightSideWithoutProvider = modelLabel;
     if (state.model?.reasoning) {
       rightSideWithoutProvider =
-        state.thinkingLevel === "off" ? `${modelLabel} • thinking off` : `${modelLabel} • ${state.thinkingLevel}`;
+        state.thinkingLevel === "off"
+          ? `${modelLabel} • thinking off`
+          : `${modelLabel} • ${state.thinkingLevel}`;
     }
 
     // Prepend the provider in parentheses if there are multiple providers and there's enough room
@@ -382,9 +399,15 @@ export class FooterClone implements Component {
       // Need to truncate right side
       const availableForRight = renderWidth - statsLeftWidth - minPadding;
       if (availableForRight > 0) {
-        const truncatedRight = truncateToWidth(rightSide, availableForRight, "");
+        const truncatedRight = truncateToWidth(
+          rightSide,
+          availableForRight,
+          "",
+        );
         const truncatedRightWidth = visibleWidth(truncatedRight);
-        const padding = " ".repeat(Math.max(0, renderWidth - statsLeftWidth - truncatedRightWidth));
+        const padding = " ".repeat(
+          Math.max(0, renderWidth - statsLeftWidth - truncatedRightWidth),
+        );
         statsLine = statsLeft + padding + truncatedRight;
       } else {
         // Not enough space for right side at all
@@ -399,7 +422,11 @@ export class FooterClone implements Component {
     const remainder = statsLine.slice(statsLeft.length); // padding + rightSide
     const dimRemainder = dimFooterRemainder(this.theme, remainder);
 
-    const pwdLine = truncateToWidth(this.theme.fg("dim", pwd), renderWidth, this.theme.fg("dim", "..."));
+    const pwdLine = truncateToWidth(
+      this.theme.fg("dim", pwd),
+      renderWidth,
+      this.theme.fg("dim", "..."),
+    );
     const lines = [pwdLine, dimStatsLeft + dimRemainder];
 
     // Add extension statuses on a single line, sorted by key alphabetically
@@ -410,7 +437,9 @@ export class FooterClone implements Component {
         .map(([, text]) => sanitizeStatusText(text));
       const statusLine = sortedStatuses.join(" ");
       // Truncate to terminal width with dim ellipsis for consistency with footer style
-      lines.push(truncateToWidth(statusLine, renderWidth, this.theme.fg("dim", "...")));
+      lines.push(
+        truncateToWidth(statusLine, renderWidth, this.theme.fg("dim", "...")),
+      );
     }
 
     return lines;

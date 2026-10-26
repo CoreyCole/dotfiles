@@ -20,6 +20,45 @@ export function callerPingShouldExit(autoExit: boolean): boolean {
   return autoExit;
 }
 
+export function activityPhaseForSessionStart(
+  reason: string | undefined,
+  autoExit: boolean,
+): "starting" | "waiting" {
+  return reason === "reload" && !autoExit ? "waiting" : "starting";
+}
+
+/** Label above the child editor. The name the parent assigned wins over the agent type. */
+export function childSessionIdentityLabel(name: string, agent: string): string {
+  const assigned = name.trim();
+  if (assigned) return assigned;
+  return agent.trim();
+}
+
+function latestAssistantStopReason(
+  messages: Array<{ role?: string; stopReason?: string }> | undefined,
+): string | undefined {
+  if (!messages) return undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === "assistant") return messages[i]?.stopReason;
+  }
+  return undefined;
+}
+
+/**
+ * Escape abort and tree rewind must not wake the parent.
+ * Installed Pi 1.0.3 emits agent_settled without `aborted`; the assistant
+ * stopReason is the signal that runtime actually records.
+ */
+export function settlementNotifiesParent(
+  event: {
+    aborted?: boolean;
+  },
+  messages?: Array<{ role?: string; stopReason?: string }>,
+): boolean {
+  if (event.aborted === true) return false;
+  return latestAssistantStopReason(messages) !== "aborted";
+}
+
 export function settleDiscussMode(
   mode: DiscussMode,
   autoExit: boolean,
@@ -59,6 +98,10 @@ export interface PersistentStatus {
   report: string;
 }
 
+function isBashToolResultText(text: string): boolean {
+  return /\(no output\)/.test(text) && /\bTook\s+[\d.]+s\b/.test(text);
+}
+
 export function findLatestAssistantReport(messages: any[] | undefined): string {
   if (!messages) return "Subagent settled without an assistant report.";
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -73,11 +116,23 @@ export function findLatestAssistantReport(messages: any[] | undefined): string {
               (block as { type?: unknown }).type === "text" &&
               typeof (block as { text?: unknown }).text === "string",
           )
-          .map((block: { type: string; text: string }) => block.text.trim())
-          .filter(Boolean)
+          .map((block: { type: string; text: string }) =>
+            block.text
+              .replace(
+                /\s*[\u{1F7E2}\u{1F7E1}\u{1F534}]\s+\S[\s\S]*?\(no output\)\s+Took\s+[\d.]+s\s*$/u,
+                "",
+              )
+              .trim(),
+          )
+          .filter((text: string) => text && !isBashToolResultText(text))
           .join("\n")
       : typeof message.content === "string"
-        ? message.content.trim()
+        ? message.content
+            .replace(
+              /\s*[\u{1F7E2}\u{1F7E1}\u{1F534}]\s+\S[\s\S]*?\(no output\)\s+Took\s+[\d.]+s\s*$/u,
+              "",
+            )
+            .trim()
         : "";
     return content || "Subagent settled without an assistant report.";
   }
@@ -98,7 +153,7 @@ export function appendPersistentStatus(
  * failure instead of silently treating the run as completed.
  *
  * Returns `null` when the latest assistant turn completed normally or was
- * aborted by the user (handled separately by shouldAutoExitOnAgentEnd).
+ * aborted by the user (handled by settlementNotifiesParent).
  */
 export function findLatestAssistantError(
   messages: any[] | undefined,
@@ -322,7 +377,7 @@ export default function (pi: ExtensionAPI) {
           theme.bg("toolSuccessBg", text),
         );
 
-        const label = subagentAgent || subagentName;
+        const label = childSessionIdentityLabel(subagentName, subagentAgent);
         const agentTag = label
           ? theme.bold(theme.fg("accent", `[${label}]`))
           : "";
@@ -382,8 +437,17 @@ export default function (pi: ExtensionAPI) {
   let latestMessages: any[] | undefined;
 
   // Show widget + status bar on session start
-  pi.on("session_start", (_event, ctx) => {
-    recorder.sessionStart();
+  pi.on("session_start", (event, ctx) => {
+    if (
+      activityPhaseForSessionStart(
+        (event as { reason?: string }).reason,
+        autoExit,
+      ) === "waiting"
+    ) {
+      recorder.sessionReloadIdle();
+    } else {
+      recorder.sessionStart();
+    }
     const tools = pi.getAllTools();
     toolNames = tools.map((t) => t.name).sort();
     denied = parseDeniedTools(deniedToolsValue);
@@ -464,7 +528,8 @@ export default function (pi: ExtensionAPI) {
     userTookOver = false;
   });
 
-  pi.on("agent_settled", (_event, ctx) => {
+  pi.on("agent_settled", (event, ctx) => {
+    if (!settlementNotifiesParent(event, latestMessages)) return;
     if (terminalIntent) {
       delegatorLiveness.cancelAll();
       return;

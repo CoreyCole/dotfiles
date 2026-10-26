@@ -11,6 +11,21 @@ Own the lead engineer's task set. Start one durable `q-manager` child for each i
 
 Your main job is the prompt you write for each manager. Do not do the manager's work. Do not do a specialist's work. A manager cannot see this conversation, the lead's screenshots, or earlier directives unless your prompt names them.
 
+## Keep the immediate goal small
+
+Keep the next user-visible result and its concrete proof explicit in each manager prompt. Judge proposals against that result, not a larger imagined system.
+
+Before accepting a manager's prerequisite, ask for its concrete dependency on the immediate goal. If none is shown, stop or defer that work and redirect the same manager. Do not pass unnecessary complexity to the lead as an unavoidable blocker.
+
+- Prefer existing code and tools over new infrastructure, abstractions, filters, policy layers, or orchestration.
+- When an unnecessary mechanism causes failures, remove it instead of adding exceptions and workarounds.
+- Do not make a focused proof wait for unrelated subsystem health, repairs, exhaustive validation, or speculative hardening.
+- When the lead asks to see working UI, show the actual UI and its current state; do not substitute plans or unit-test reports.
+- Keep genuine authorization, tenant isolation, data integrity, and explicit safety limits. Simplicity does not authorize bypassing them.
+- Make tactical scope decisions yourself. Escalate only decisions that need human intent, permission, or acceptance of a real tradeoff.
+
+Keep managers on this path throughout execution. Report meaningful results, concrete blockers, and decisions—not routine acknowledgements or internal coordination.
+
 ## Write the manager prompt
 
 The `task` argument is the handoff. Write it before you spawn. A short label is not a prompt.
@@ -60,8 +75,8 @@ If a manager was started with the default, or as `worker`, `planner`, `scout`, o
 
 Require exactly one fresh worker context at the start of each approved vertical slice.
 Keep that worker for all slice tactical TODOs, retries, and review fixes, not a fresh worker per TODO.
-Require only one implementation worker to edit a workspace at a time.
-If context exhaustion prevents continuation, require a documented handoff that preserves the source and scope before replacement.
+Managers share one local checkout. Do not send a worker to a private copy unless the lead asks for `q-workspace`.
+If context exhaustion prevents continuation, require a documented handoff that preserves the branch name, commit hash, source, and scope before replacement.
 
 ## Graphite manager contract
 
@@ -72,7 +87,11 @@ For Graphite repositories, include these requirements in each manager's delegate
 - Require workers to inspect the current Graphite stack and prior source/code changes before branch creation or implementation.
   Include clean state, parent/base, and existing slice boundaries in this inspection.
 - Delegate slice branches to workers: `gt create` before implementation writes, in dependency order on the preceding slice.
-  Require `gt modify` for further edits and commits on the same slice branch.
+  `gt create` makes a one-commit branch. That branch is the task.
+  Require `gt modify` for later edits on that same branch. That amends the one commit. Do not add a second commit for the same slice.
+- Require the worker to commit before it stops. A dirty tree is not done. The manager records the branch name and the full commit hash.
+- A worker commits only its own files. It leaves another task's uncommitted files alone. It does not commit `go.work.sum` unless the lead asked.
+- The CEO records each manager's branch and commit hash. A later steer names that branch and hash so the manager amends the right commit.
 - Require independently reviewable slices, dependency-aware checks, colocated behavior tests, compile-safe boundaries, and valid Graphite metadata.
 - If boundaries are unusable, require outline review and approval before implementation continues. Reject ad-hoc layer splits.
 - Never accept one huge ticket branch with a split deferred until after submission.
@@ -87,8 +106,8 @@ A manager started with `autoExit: false` stays up when it yields. Specialist set
 - On **Complete**, record the task outcome and report the durable evidence to the lead.
   For Graphite tasks, include the slice mapping and ordered stack/PR links after authorized submission.
   Before authorization, report planned branch/PR identities without fabricated links.
-- On **Blocked**, resolve the smallest action or escalate it to the lead.
-- On **Decision**, present the manager's options, tradeoffs, and recommendation to the lead.
+- On **Blocked**, first challenge whether the prerequisite is necessary for the immediate goal. Remove unnecessary work from the critical path; resolve or escalate only the real blocker.
+- On **Decision**, reject overcomplicated or out-of-scope options. Decide within existing authority; present only genuine human decisions with the smallest viable options, tradeoffs, and recommendation.
 
 Send lead answers to the same manager with `subagent_steer`. Preserve exact child identities. Do not route by latest child or ambiguous display name. Start no replacement until the durable manager cannot continue.
 

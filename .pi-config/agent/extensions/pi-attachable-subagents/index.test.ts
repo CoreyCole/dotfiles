@@ -1,13 +1,29 @@
 import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import subagentsExtension, { __test__ } from "./index.ts";
 import { interpretStartupPaneError } from "./cmux.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createStatusState, observeStatus } from "./status.ts";
+import { createStatusState, observeStatus, classifyStatus } from "./status.ts";
+import subagentDoneExtension, {
+  activityPhaseForSessionStart,
+  childSessionIdentityLabel,
+  settlementNotifiesParent,
+} from "./subagent-done.ts";
+import {
+  createSubagentActivityRecorder,
+  readSubagentActivityFile,
+} from "./activity.ts";
 import { shouldAppendToolBorder } from "../tool-border.ts";
+import { TOOL_DISPLAY } from "../tool-display-style.ts";
 import { requestStatsTest } from "../request-stats.ts";
 
 afterEach(() => {
@@ -334,6 +350,150 @@ test("cached extension factories isolate watcher ownership across session replac
 
   assert.equal(oldLifecycle.watcherOwner.signal.aborted, true);
   assert.equal(newLifecycle.watcherOwner.signal.aborted, false);
+});
+
+test("child session label uses the parent-assigned name, not the agent type", () => {
+  assert.equal(
+    childSessionIdentityLabel("Display review", "q-manager"),
+    "Display review",
+  );
+  assert.equal(childSessionIdentityLabel("  ", "q-manager"), "q-manager");
+  assert.equal(childSessionIdentityLabel("", ""), "");
+});
+
+test("reload of an autoExit false child stays idle when its pane is gone", () => {
+  assert.equal(activityPhaseForSessionStart("reload", false), "waiting");
+  assert.equal(activityPhaseForSessionStart("reload", true), "starting");
+  assert.equal(
+    __test__.detachedDurableStatus({
+      autoExit: false,
+      paneAlive: false,
+      kind: "stalled",
+    }),
+    "idle",
+  );
+  assert.equal(
+    __test__.detachedDurableStatus({
+      autoExit: false,
+      paneAlive: true,
+      kind: "stalled",
+      phase: "waiting",
+    }),
+    "idle",
+  );
+  assert.equal(
+    __test__.detachedDurableStatus({
+      autoExit: false,
+      paneAlive: true,
+      kind: "stalled",
+      phase: "active",
+    }),
+    "stalled",
+  );
+  assert.equal(
+    __test__.detachedDurableStatus({
+      autoExit: true,
+      paneAlive: false,
+      kind: "stalled",
+    }),
+    "stalled",
+  );
+  assert.equal(
+    __test__.stalledTransitionAction({
+      autoExit: false,
+      paneAlive: false,
+      kind: "stalled",
+      phase: "active",
+      transition: "stalled",
+    }),
+    "release",
+  );
+  assert.equal(
+    __test__.stalledTransitionAction({
+      autoExit: false,
+      paneAlive: true,
+      kind: "stalled",
+      phase: "starting",
+      transition: "stalled",
+    }),
+    "hold-idle",
+  );
+  assert.equal(
+    __test__.stalledTransitionAction({
+      autoExit: false,
+      paneAlive: true,
+      kind: "stalled",
+      phase: "active",
+      transition: "stalled",
+    }),
+    "announce",
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), "pi-reload-idle-"));
+  try {
+    const activityFile = join(dir, "activity.json");
+    const recorder = createSubagentActivityRecorder({
+      runningChildId: "child",
+      activityFile,
+      now: () => 1_000,
+    });
+    recorder.sessionReloadIdle();
+    const read = readSubagentActivityFile(activityFile, "child");
+    assert.equal(read.ok, true);
+    if (!read.ok) return;
+    const state = observeStatus(
+      createStatusState({ source: "pi", startTimeMs: 0 }),
+      {
+        snapshot: "present",
+        updatedAt: read.activity.updatedAt,
+        sequence: read.activity.sequence,
+        phase: read.activity.phase,
+        active: false,
+        waitingSince: read.activity.waitingSince,
+        latestEvent: read.activity.latestEvent,
+      },
+      120_000,
+    );
+    assert.equal(classifyStatus(state, 120_000).kind, "waiting");
+    assert.notEqual(classifyStatus(state, 120_000).kind, "stalled");
+
+    const stalled = createStatusState({ source: "pi", startTimeMs: 0 });
+    stalled.snapshotState = "missing";
+    stalled.snapshotProblemSinceMs = 0;
+    stalled.firstObservationAtMs = 0;
+    const lines = __test__.renderSubagentWidgetLines(
+      [
+        {
+          managerSessionId: "manager",
+          childSessionId: "child",
+          name: "Manager",
+          cwd: "/work",
+          autoExit: false,
+        },
+      ],
+      new Map([
+        [
+          "child",
+          {
+            id: "child",
+            surface: "%gone",
+            startTime: 0,
+            statusState: stalled,
+          } as never,
+        ],
+      ]),
+      80,
+      120_000,
+      true,
+      () => false,
+    );
+    assert.equal(
+      lines.some((line) => line.includes("stalled")),
+      false,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("session reload replays registrations with no active runs and no snapshot writes", () => {
@@ -975,6 +1135,108 @@ test("unprofiled idle launches clear inherited role and deny variables", () => {
   }
 });
 
+test("idle steer with an exact provider/id adds only --model on the same session", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-idle-steer-model-"));
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    writeFileSync(
+      join(dir, "models-store.json"),
+      JSON.stringify({
+        xai: { models: [{ provider: "xai", id: "grok-4.6" }] },
+      }),
+    );
+    const model = __test__.exactSteerModelRef("xai/grok-4.6");
+    const childSessionId = "01a0212e-0be4-7eee-8ae8-a489cee0e294";
+    const profile = __test__.buildIdleLaunchProfile({
+      child: {
+        managerSessionId: "manager",
+        childSessionId,
+        name: "Worker",
+        agent: "worker",
+        cwd: "/work",
+        autoExit: false,
+      },
+      sessionFile: "/sessions/child.jsonl",
+      activityFile: "/activity/child.json",
+      agentDir: dir,
+      agentDefs: {
+        tools: "read",
+        spawning: false,
+        systemPromptMode: "append",
+        body: "work",
+      },
+      promptDir: dir,
+      model,
+    });
+    const args = profile.arguments.join(" ");
+    assert.match(args, /--model 'xai\/grok-4\.6'/);
+    assert.match(args, new RegExp(`--session '${childSessionId}'`));
+    assert.doesNotMatch(args, /--fork/);
+    assert.doesNotMatch(args, /--thinking/);
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("steer model rejects bare ids, partial names, fast, and thinking suffixes", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-steer-model-reject-"));
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    writeFileSync(
+      join(dir, "models-store.json"),
+      JSON.stringify({
+        xai: {
+          models: [
+            { provider: "xai", id: "grok-4.6" },
+            { provider: "xai", id: "fast" },
+          ],
+        },
+      }),
+    );
+    for (const value of [
+      "grok-4.6",
+      "grok",
+      "fast",
+      "xai/fast",
+      "xai/grok-4.6:high",
+    ]) {
+      assert.throws(
+        () => __test__.exactSteerModelRef(value),
+        /Invalid steer model/,
+      );
+    }
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an active steer with a model returns an error and does not send", () => {
+  let sent = false;
+  const blocked = __test__.deliverActiveSteer({
+    model: "xai/grok-4.6",
+    send() {
+      sent = true;
+    },
+  });
+  assert.equal(sent, false);
+  assert.equal("error" in blocked, true);
+  if ("error" in blocked) assert.match(blocked.error, /not sent/);
+
+  const allowed = __test__.deliverActiveSteer({
+    send() {
+      sent = true;
+    },
+  });
+  assert.equal(sent, true);
+  assert.deepEqual(allowed, { ok: true });
+});
+
 test("idle resume omits bare agent model so the session keeps its provider", () => {
   const dir = mkdtempSync(join(tmpdir(), "pi-idle-no-model-"));
   try {
@@ -1294,7 +1556,46 @@ test("widget orders active display status, time, runtime, model, and TPS", () =>
     now,
     true,
   )[1];
-  assert.match(line, /🟡 10:18  00:42  actual-model  25.5 tok\/s/);
+  assert.match(line, /🟡 10:18 00:42 actual-model 25.5 tok\/s/);
+});
+
+test("widget context utilization sits to the right of tok/s and uses 200k/300k colors", () => {
+  const now = new Date(2026, 7, 25, 10, 18).getTime();
+  const lineFor = (tokens: number | undefined) =>
+    __test__.renderSubagentWidgetLines(
+      [
+        {
+          managerSessionId: "m",
+          childSessionId: "child",
+          name: "Manager",
+          cwd: "/",
+          startedAt: now,
+        },
+      ],
+      new Map([
+        [
+          "child",
+          {
+            id: "child",
+            name: "Manager",
+            startTime: now,
+            displayModel: "actual-model",
+            displayTps: 25.5,
+            displayContextTokens: tokens,
+            statusState: createStatusState({ source: "pi", startTimeMs: now }),
+          },
+        ],
+      ] as any) as any,
+      160,
+      now,
+      true,
+    )[1];
+
+  assert.match(lineFor(200_000), /25\.5 tok\/s 200\.0k /);
+  assert.doesNotMatch(lineFor(200_000), /1\.0M|%|■|\x1b\[33m|\x1b\[31m/);
+  assert.match(lineFor(200_001), /tok\/s \x1b\[33m200\.0k\x1b\[0m/);
+  assert.match(lineFor(300_001), /tok\/s \x1b\[31m300\.0k\x1b\[0m/);
+  assert.equal(__test__.formatSubagentContextUtilization(undefined), "—");
 });
 
 test("widget uses local calendar dates and no status-time separator", () => {
@@ -1560,6 +1861,148 @@ test("resumed active child retains its durable catalog timestamp", () => {
   assert.doesNotMatch(lines[oldIndex], /Aug 27 09:56/);
 });
 
+test("any subagent over 200k tokens warns on every steer and every done, not on status", () => {
+  assert.equal(__test__.subagentContextHandoffWarning(200_000), undefined);
+  assert.equal(__test__.subagentContextHandoffWarning(undefined), undefined);
+  assert.equal(
+    __test__.subagentContextHandoffWarning(200_001),
+    __test__.SUBAGENT_CONTEXT_HANDOFF_WARNING,
+  );
+  assert.match(
+    __test__.SUBAGENT_CONTEXT_HANDOFF_WARNING,
+    /^Subagent context is over 200k tokens\. Consider doing a q-handoff soon and starting a new subagent with the handoff\. Or do unrelated work that does not need this agent's context in a fresh subagent\.$/,
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), "pi-subagent-context-warn-"));
+  const over = join(dir, "over.jsonl");
+  const atLimit = join(dir, "at.jsonl");
+  const assistant = (totalTokens: number) => ({
+    type: "message",
+    id: "msg",
+    parentId: "root",
+    message: {
+      role: "assistant",
+      stopReason: "stop",
+      content: [{ type: "text", text: "done" }],
+      usage: { totalTokens },
+    },
+  });
+  const write = (file: string, totalTokens: number) => {
+    writeFileSync(
+      file,
+      [{ type: "session", id: "root" }, assistant(totalTokens)]
+        .map((line) => JSON.stringify(line))
+        .join("\n") + "\n",
+    );
+  };
+  try {
+    write(over, 200_001);
+    write(atLimit, 200_000);
+    const warning = __test__.SUBAGENT_CONTEXT_HANDOFF_WARNING;
+    assert.equal(__test__.subagentContextWarningForSession(over), warning);
+    assert.equal(__test__.subagentContextWarningForSession(over), warning);
+    assert.equal(__test__.subagentContextWarningForSession(atLimit), undefined);
+    for (const reason of ["done", "settlement"] as const) {
+      const first = __test__.appendDoneContextWarning("result", over, reason);
+      const second = __test__.appendDoneContextWarning("result", over, reason);
+      assert.equal(first, `result\n\n${warning}`);
+      assert.equal(second, first);
+    }
+    assert.equal(
+      __test__.appendDoneContextWarning("result", atLimit, "done"),
+      "result",
+    );
+    assert.equal(
+      __test__.appendDoneContextWarning("status", over, "status"),
+      "status",
+    );
+    const doneMessage = __test__.doneParentModelMessage({
+      presentation: "Sub-agent settled.",
+      sessionFile: over,
+      reason: "settlement",
+    });
+    assert.match(doneMessage.content, /Subagent context is over 200k tokens/);
+    assert.equal(JSON.stringify(doneMessage.details).includes("200k"), false);
+    const secondDone = __test__.doneParentModelMessage({
+      presentation: "Sub-agent finished via subagent_done.",
+      sessionFile: over,
+      reason: "done",
+    });
+    assert.match(secondDone.content, /fresh subagent/);
+    const steerText = __test__.steerParentModelText("scout", warning);
+    const steerAgain = __test__.steerParentModelText("scout", warning);
+    assert.match(steerText, /Steered subagent "scout"/);
+    assert.match(steerText, /fresh subagent/);
+    assert.equal(steerAgain, steerText);
+    const modelMessage = __test__.steerContextModelMessage(warning);
+    assert.equal(modelMessage?.content, warning);
+    assert.equal(__test__.steerContextModelMessage(undefined), undefined);
+    assert.equal(__test__.statusRefreshDelivery([], 4), undefined);
+    const status = __test__.statusRefreshDelivery(
+      ["scout running 1s, active."],
+      4,
+    );
+    assert.ok(status);
+    assert.equal(status.content.includes(warning), false);
+    assert.equal("contextWarnings" in status, false);
+    assert.equal(
+      __test__.appendDoneContextWarning("ping", over, "ping"),
+      "ping",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("subagent status lines omit a bash tool result tail", () => {
+  const sentence =
+    "The same worker is adding the fresh-subagent suggestion to the warning. I'll wait for the new text.";
+  const glued = `${sentence} 🟢 true    (no output)    Took 0.5s`;
+  const lines = __test__.subagentStatusLines({
+    content: `Sub-agent "mgr-pi-steer-spam" status:\n\n${glued}`,
+    details: { kind: "status", report: glued, lines: [glued] },
+  });
+  const rendered = lines.join("\n");
+  assert.equal(rendered, sentence);
+  assert.doesNotMatch(rendered, /\(no output\)/);
+  assert.doesNotMatch(rendered, /Took/);
+  assert.equal(
+    __test__.stripBashResultFromStatus(
+      `${sentence}\n🟢 true    (no output)    Took 0.5s`,
+    ),
+    sentence,
+  );
+
+  const collapsed = __test__.formatSubagentStatusDisplay(lines, {
+    expanded: false,
+    width: 72,
+  });
+  const border = __test__.paintManualSteerBorder(collapsed.border);
+  const visible = [border, ...collapsed.lines, border];
+  const visibleText = visible.join("\n");
+  assert.ok(collapsed.lines.length > 1);
+  assert.equal(collapsed.lines[0].startsWith("💬 "), true);
+  assert.equal(collapsed.lines[0].includes("🟡"), false);
+  assert.equal(
+    collapsed.lines.join(" ").replace(/\s+/g, " "),
+    `💬 ${sentence}`,
+  );
+  assert.equal(visibleText.includes("…"), false);
+  assert.equal(visibleText.includes("•"), false);
+  assert.equal(visibleText.includes("Subagent status"), false);
+  assert.equal(visibleText.includes("[subagent_status]"), false);
+  assert.equal(visibleText.includes("(no output)"), false);
+  assert.equal(visibleText.includes("Took"), false);
+  assert.equal(visibleText.toLowerCase().includes("ctrl+o"), false);
+  assert.equal(border, TOOL_DISPLAY.border(collapsed.border));
+  assert.equal(border.includes("\x1b[90m"), true);
+  assert.equal(border.includes("\x1b[34"), false);
+  assert.equal(visibleText.includes("customMessageBg"), false);
+  assert.equal(__test__.MESSAGE_GLYPH.status, "💬");
+  assert.equal(__test__.MESSAGE_GLYPH.done, "✅");
+  assert.equal(__test__.MESSAGE_GLYPH.ping, "❓");
+});
+
 test("subagent steer renderer displays collapsed and expanded prompts", () => {
   let steerTool: any;
   const pi = {
@@ -1577,14 +2020,19 @@ test("subagent steer renderer displays collapsed and expanded prompts", () => {
     bold: (text: string) => text,
   };
   const message = "First line\nSecond line with the full steer prompt.";
-  const collapsed = steerTool
+  const collapsedLines = steerTool
     .renderCall({ target: "child-123", message }, theme, { expanded: false })
-    .render(120)
-    .join("\n");
-  assert.match(collapsed, /child-123/);
-  assert.match(collapsed, /First line/);
-  assert.match(collapsed, /2 lines/);
-  assert.match(collapsed, /Ctrl\+O to expand/);
+    .render(120);
+  const collapsed = collapsedLines.join("\n");
+  assert.equal(collapsedLines.length, 3);
+  assert.equal(collapsedLines[0], TOOL_DISPLAY.border("─".repeat(120)));
+  assert.equal(collapsedLines[2], collapsedLines[0]);
+  assert.match(collapsedLines[1], /^↪️ child-123 — steer First line/);
+  assert.doesNotMatch(collapsed, /Second line/);
+  assert.doesNotMatch(collapsed, /lines\)/);
+  assert.doesNotMatch(collapsed, /Ctrl\+O to expand/);
+  assert.equal(collapsedLines[0].includes("\x1b[90m"), true);
+  assert.equal(collapsedLines[0].includes("\x1b[34"), false);
 
   const expanded = steerTool
     .renderCall({ target: "child-123", message }, theme, { expanded: true })
@@ -1593,24 +2041,106 @@ test("subagent steer renderer displays collapsed and expanded prompts", () => {
   assert.match(expanded, /Second line with the full steer prompt/);
   assert.doesNotMatch(expanded, /Ctrl\+O to expand/);
 
-  const success = steerTool
-    .renderResult(
-      { details: { target: "child-123", name: "Worker", status: "steered" } },
+  const shared = { state: {} };
+  const call = steerTool.renderCall({ target: "child-123", message }, theme, {
+    expanded: false,
+    ...shared,
+  });
+  const result = steerTool.renderResult(
+    { details: { target: "child-123", name: "Worker", status: "steered" } },
+    {},
+    theme,
+    shared,
+  );
+  const combined = [...call.render(80), ...result.render(80)];
+  const rule = TOOL_DISPLAY.border("─".repeat(80));
+  assert.deepEqual(combined, [
+    rule,
+    "↪️ child-123 — steer First line",
+    "↪️ Worker — steered",
+    rule,
+  ]);
+  assert.equal(combined.filter((line) => line === rule).length, 2);
+  assert.equal(combined.join("\n").includes("\x1b[34"), false);
+});
+
+test("spawn call and started result share one border pair", () => {
+  const previousDeny = process.env.PI_DENY_TOOLS;
+  delete process.env.PI_DENY_TOOLS;
+  try {
+    let spawnTool: any;
+    let interruptTool: any;
+    const pi = {
+      on() {},
+      registerTool(tool: any) {
+        if (tool.name === "subagent") spawnTool = tool;
+        if (tool.name === "subagent_interrupt") interruptTool = tool;
+      },
+      registerCommand() {},
+      registerShortcut() {},
+      registerMessageRenderer() {},
+    } as unknown as ExtensionAPI;
+    subagentsExtension(pi);
+    const theme = {
+      fg: (_color: string, text: string) => text,
+      bold: (text: string) => text,
+    };
+    const shared = { state: {} };
+    const task =
+      "Finish the demo-ready proof. Do not submit. Do not restart the worker.";
+    const call = spawnTool.renderCall(
+      { name: "worker-demo-proof-2", agent: "worker", task },
+      theme,
+      { expanded: false, ...shared },
+    );
+    const started = spawnTool.renderResult(
+      { details: { name: "worker-demo-proof-2", status: "started" } },
       {},
       theme,
-    )
-    .render(120)
-    .join("\n");
-  const failure = steerTool
-    .renderResult(
-      { details: { target: "child-123", status: "error", error: "failed" } },
+      shared,
+    );
+    const width = 40;
+    const combined = [...call.render(width), ...started.render(width)];
+    const rule = TOOL_DISPLAY.border("─".repeat(width));
+    assert.equal(combined[0], rule);
+    assert.equal(combined.at(-1), rule);
+    assert.equal(combined.filter((line) => line === rule).length, 2);
+    assert.match(combined[1], /^▸ worker-demo-proof-2 \(worker\) — Finish/);
+    assert.match(combined[1], /…/);
+    assert.equal(combined[2], "▸ worker-demo-proof-2 — started");
+    assert.equal(combined.join("\n").includes("customMessageBg"), false);
+
+    const interruptState = { state: {} };
+    const interruptCall = interruptTool.renderCall(
+      { name: "worker-demo-proof-2" },
+      theme,
+      interruptState,
+    );
+    const interruptResult = interruptTool.renderResult(
+      {
+        details: {
+          name: "worker-demo-proof-2",
+          status: "interrupt_requested",
+        },
+      },
       {},
       theme,
-    )
-    .render(120)
-    .join("\n");
-  assert.match(success, /Worker — steered/);
-  assert.match(failure, /child-123 — steer failed/);
+      interruptState,
+    );
+    const interrupt = [
+      ...interruptCall.render(width),
+      ...interruptResult.render(width),
+    ];
+    assert.deepEqual(interrupt, [
+      rule,
+      "▸ worker-demo-proof-2 — interrupt turn",
+      "▸ worker-demo-proof-2 — interrupt requested",
+      rule,
+    ]);
+  } finally {
+    if (previousDeny === undefined) delete process.env.PI_DENY_TOOLS;
+    else process.env.PI_DENY_TOOLS = previousDeny;
+  }
 });
 
 test("subagent steer skips only the generic tool divider", () => {
@@ -1864,6 +2394,105 @@ test("a file-wrapped manager launch or steer stays quiet, but a fragment does no
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("a newline-stripped subagent_steer echo does not wake the parent", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-collapsed-steer-"));
+  const sessionFile = join(dir, "child.jsonl");
+  const sessionId = "010ef6e6-35da-46b1-b2f9-2e22a4731452";
+  const steer =
+    'Lead command, quoted. Do this now.\n\n"just down -v\nThe decision is already made."';
+  const persisted = steer.replace(/[\r\n]+/g, "");
+  const human = "what is the issue? why are you manually starting containers?";
+  const user = (text: string) =>
+    JSON.stringify({
+      type: "message",
+      message: { role: "user", content: [{ type: "text", text }] },
+    });
+  try {
+    writeFileSync(
+      sessionFile,
+      JSON.stringify({ type: "session", id: sessionId }) + "\n",
+    );
+    const running = {
+      id: sessionId,
+      name: "fresh-local-proof-2",
+      sessionFile,
+      statusEntryCursor: 1,
+      managerSteers: [] as string[],
+    } as any;
+    writeFileSync(
+      sessionFile,
+      [user(persisted), user(human)].join("\n") + "\n",
+      { flag: "a" },
+    );
+    __test__.noteManagerSteer(running, steer);
+    const wakes: string[] = [];
+    __test__.drainChildSessionEntries(running, {
+      onManualSteer: (text) =>
+        wakes.push(
+          __test__.formatManualSteerWake(running.name, running.id, text),
+        ),
+    });
+    assert.deepEqual(wakes, [
+      `Human command to child "fresh-local-proof-2" (session ${sessionId}):\n\n${human}\n\nThe human sent this command to the child, not to you. Do not act on it. Await the child's response.`,
+    ]);
+    assert.equal(
+      wakes.some((wake) => wake.includes("just down -v")),
+      false,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("manual steer display shows the prompt, not the model instruction", () => {
+  const prompt =
+    "what is the issue? why are you manually starting containers? keep going until the local stack is up";
+  const context = __test__.formatManualSteerWake(
+    "mgr-fresh-local",
+    "025faefb-c737-4a60-9822-849961c67141",
+    prompt,
+  );
+  assert.match(context, /subagent_manual_steer|Human command to child/);
+  assert.match(context, /The human sent this command to the child, not to you/);
+  assert.match(context, /025faefb-c737-4a60-9822-849961c67141/);
+
+  const collapsed = __test__.formatManualSteerDisplay(prompt, {
+    expanded: false,
+    width: 48,
+    name: "mgr-fresh-local",
+  });
+  const visible = [collapsed.border, ...collapsed.lines, collapsed.border].join(
+    "\n",
+  );
+  assert.match(collapsed.border, /^─+$/);
+  assert.match(collapsed.lines[0], /^↪️ mgr-fresh-local /);
+  assert.equal(collapsed.lines.length, 1);
+  assert.equal(visible.toLowerCase().includes("ctrl+o"), false);
+  assert.equal(visible.toLowerCase().includes("to expand"), false);
+  assert.equal(visible.includes("The human sent"), false);
+  assert.equal(visible.includes("Human command to child"), false);
+  assert.equal(visible.includes("025faefb"), false);
+  assert.equal(visible.includes("subagent_manual_steer"), false);
+  assert.ok(collapsed.lines[0].length < `↪️ ${prompt}`.length);
+  assert.equal(collapsed.lines[0].includes("•"), false);
+  assert.equal(collapsed.lines[0].includes("🟡"), false);
+
+  const expanded = __test__.formatManualSteerDisplay(prompt, {
+    expanded: true,
+    width: 80,
+    name: "mgr-fresh-local",
+  });
+  assert.equal(expanded.lines.join("\n").includes(prompt), true);
+  assert.equal(
+    __test__.paintManualSteerBorder(collapsed.border),
+    TOOL_DISPLAY.border(collapsed.border),
+  );
+  assert.equal(
+    __test__.paintManualSteerBorder(collapsed.border).includes("\x1b[34"),
+    false,
+  );
 });
 
 test("a file-tagged subagent_steer echo does not wake the parent", () => {
@@ -2448,4 +3077,144 @@ test("startup auth pane error is a failed result, not a successful steer", () =>
   assert.doesNotMatch(presentation, /settled/);
   assert.doesNotMatch(presentation, /Steered/);
   assert.equal(interpretStartupPaneError("ordinary child output"), undefined);
+});
+
+test("aborted settlement does not notify the parent; ordinary settlement still does", async () => {
+  assert.equal(settlementNotifiesParent({ aborted: true }), false);
+  assert.equal(settlementNotifiesParent({ aborted: false }), true);
+  assert.equal(
+    settlementNotifiesParent({ aborted: false }, [
+      { role: "assistant", stopReason: "aborted" },
+    ]),
+    false,
+  );
+  assert.equal(
+    settlementNotifiesParent({}, [
+      { role: "assistant", stopReason: "aborted" },
+    ]),
+    false,
+  );
+
+  const tempDir = mkdtempSync(join(tmpdir(), "pi-abort-settle-"));
+  const sessionFile = join(tempDir, "child.jsonl");
+  const previousSession = process.env.PI_SUBAGENT_SESSION;
+  const previousAutoExit = process.env.PI_SUBAGENT_AUTO_EXIT;
+  const previousId = process.env.PI_SUBAGENT_ID;
+  process.env.PI_SUBAGENT_SESSION = sessionFile;
+  process.env.PI_SUBAGENT_AUTO_EXIT = "true";
+  process.env.PI_SUBAGENT_ID = "child-abort";
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const pi = {
+    on(name: string, handler: (...args: unknown[]) => unknown) {
+      handlers.set(name, handler);
+    },
+    appendEntry() {},
+    getAllTools() {
+      return [];
+    },
+    getCommands() {
+      return [];
+    },
+    registerCommand() {},
+    registerShortcut() {},
+    registerTool() {},
+    sendUserMessage() {},
+  } as unknown as ExtensionAPI;
+  let shutdowns = 0;
+  const ctx = {
+    shutdown() {
+      shutdowns += 1;
+    },
+    hasUI: false,
+    ui: { setStatus() {}, setWidget() {}, notify() {} },
+  };
+  try {
+    subagentDoneExtension(pi);
+    await handlers.get("agent_end")?.({
+      type: "agent_end",
+      messages: [{ role: "assistant", stopReason: "aborted", content: [] }],
+    });
+    await handlers.get("agent_settled")?.(
+      { type: "agent_settled", aborted: true },
+      ctx,
+    );
+    assert.equal(shutdowns, 0);
+    assert.equal(existsSync(`${sessionFile}.exit`), false);
+
+    await handlers.get("agent_end")?.({
+      type: "agent_end",
+      messages: [{ role: "assistant", stopReason: "aborted", content: [] }],
+    });
+    await handlers.get("agent_settled")?.({ type: "agent_settled" }, ctx);
+    assert.equal(shutdowns, 0);
+    assert.equal(existsSync(`${sessionFile}.exit`), false);
+
+    await handlers.get("agent_end")?.({
+      type: "agent_end",
+      messages: [
+        {
+          role: "assistant",
+          stopReason: "stop",
+          content: [{ type: "text", text: "finished" }],
+        },
+      ],
+    });
+    await handlers.get("agent_settled")?.(
+      { type: "agent_settled", aborted: false },
+      ctx,
+    );
+    assert.equal(shutdowns, 1);
+    assert.equal(existsSync(`${sessionFile}.exit`), true);
+
+    const idleSession = join(tempDir, "idle.jsonl");
+    process.env.PI_SUBAGENT_SESSION = idleSession;
+    process.env.PI_SUBAGENT_AUTO_EXIT = "false";
+    const idleHandlers = new Map<string, (...args: unknown[]) => unknown>();
+    const entries: string[] = [];
+    const idlePi = {
+      on(name: string, handler: (...args: unknown[]) => unknown) {
+        idleHandlers.set(name, handler);
+      },
+      appendEntry(customType: string) {
+        entries.push(customType);
+      },
+      getAllTools() {
+        return [];
+      },
+      getCommands() {
+        return [];
+      },
+      registerCommand() {},
+      registerShortcut() {},
+      registerTool() {},
+      sendUserMessage() {},
+    } as unknown as ExtensionAPI;
+    let idleShutdowns = 0;
+    subagentDoneExtension(idlePi);
+    await idleHandlers.get("agent_end")?.({
+      type: "agent_end",
+      messages: [{ role: "assistant", stopReason: "aborted", content: [] }],
+    });
+    await idleHandlers.get("agent_settled")?.(
+      { type: "agent_settled" },
+      {
+        shutdown() {
+          idleShutdowns += 1;
+        },
+        hasUI: false,
+        ui: { setStatus() {}, setWidget() {}, notify() {} },
+      },
+    );
+    assert.equal(idleShutdowns, 0);
+    assert.equal(existsSync(`${idleSession}.exit`), false);
+    assert.deepEqual(entries, []);
+  } finally {
+    if (previousSession == null) delete process.env.PI_SUBAGENT_SESSION;
+    else process.env.PI_SUBAGENT_SESSION = previousSession;
+    if (previousAutoExit == null) delete process.env.PI_SUBAGENT_AUTO_EXIT;
+    else process.env.PI_SUBAGENT_AUTO_EXIT = previousAutoExit;
+    if (previousId == null) delete process.env.PI_SUBAGENT_ID;
+    else process.env.PI_SUBAGENT_ID = previousId;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });

@@ -310,6 +310,14 @@ test("missing, invalid, and other-model aggregates omit session stats", () => {
   }
 });
 
+test("context utilization is yellow above 200k and red above 300k", () => {
+  assert.equal(__test__.contextUtilizationTheme(200_000), undefined);
+  assert.equal(__test__.contextUtilizationTheme(200_001), "warning");
+  assert.equal(__test__.contextUtilizationTheme(300_000), "warning");
+  assert.equal(__test__.contextUtilizationTheme(300_001), "error");
+  assert.equal(__test__.contextUtilizationTheme(null), undefined);
+});
+
 test("wait durations use tenths under 10s then minutes and hours", () => {
   assert.equal(__test__.formatWaitDuration(0), "0.0s");
   assert.equal(__test__.formatWaitDuration(1500), "1.5s");

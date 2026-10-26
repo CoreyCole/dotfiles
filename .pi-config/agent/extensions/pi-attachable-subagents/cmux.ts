@@ -1900,7 +1900,7 @@ export function closeSurface(surface: string): void {
 
 export interface PollResult {
   /** How the subagent exited */
-  reason: "done" | "ping" | "settlement" | "sentinel" | "error";
+  reason: "done" | "ping" | "settlement" | "sentinel" | "error" | "pane-gone";
   /** Shell exit code (from sentinel). 0 for file-based exits. */
   exitCode: number;
   /** Ping data if reason is "ping" */
@@ -1981,6 +1981,7 @@ export async function pollForExit(
     sessionFile?: string;
     sentinelFile?: string;
     onTick?: (elapsed: number) => void;
+    releaseWhenPaneGone?: boolean;
   },
 ): Promise<PollResult> {
   const start = Date.now();
@@ -2031,6 +2032,9 @@ export async function pollForExit(
     } catch {
       const boundarySidecar = readExitSidecar(options.sessionFile);
       if (boundarySidecar) return boundarySidecar;
+      if (options.releaseWhenPaneGone) {
+        return { reason: "pane-gone", exitCode: 0 };
+      }
     }
 
     const elapsed = Math.floor((Date.now() - start) / 1000);
