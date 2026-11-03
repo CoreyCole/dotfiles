@@ -18,7 +18,7 @@ Pi loads extension factories from this directory through `~/.pi/agent/extensions
 - `herdr-agent-state.ts`: Herdr owns this file. Do not edit it. `herdr integration install pi` regenerates it.
 - `lead-subscribe.ts`: `/lead-subscribe` records settle events for a lead session.
 - `lib/default-model.ts`: shared default-model helper. Not an extension entry.
-- `pi-attachable-subagents/`: child sessions you can attach, detach, steer, and stop. See `README.local.md`.
+- `pi-attachable-subagents/`: child sessions you can attach, detach, steer, and stop. `AGENTS.md` states the pane-close rule. `README.local.md` states the catalog.
 - `pi-fast/`: `/fast` and `--fast` set priority `service_tier` on supported models. See `README.md`. `pi-fast.json` lists those models.
 - `pi-grok-cli/`: adds the `grok-cli` provider and team-account login. See `README.md`. It does not replace built-in `xai`.
 - `previous-prompt.ts`: shows the previous user prompt under the editor.

@@ -4,6 +4,8 @@ Each spawned Pi child receives a native Pi UUID before launch. The manager appen
 
 A catalog child is always resumable by its child-session UUID. `subagents_list` shows active, idle, and unavailable history. Missing native files remain visible as unavailable; peek and steer report a clear error without deleting the registration.
 
+`/new` keeps open panes and the child catalog. A pane that already closed stays closed. `AGENTS.md` states the `autoExit` rule. The new session can steer children that remain. A quit or a restart closes the panes that remain. A later resume of the old session does not own those children.
+
 `/attach` is active-only. Inside Herdr it moves the child pane onto the manager tab (or focuses it when already there). `/detach` parks it on its own tab. Steer an idle child by UUID (or an unambiguous prefix) first. `/stop` and `subagent_stop` stop only an active process and retain durable history.
 
 Named children re-resolve their current named-agent definition when resumed, including its prompt, tools, deny policy, config directory, and cwd. An omitted steer model still omits `--model`, so the native session keeps its last provider and model. An idle steer may pass an exact `provider/id`; that resume adds only `--model` for that process.

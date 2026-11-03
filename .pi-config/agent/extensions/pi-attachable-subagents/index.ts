@@ -646,6 +646,8 @@ interface PiLaunchProfile {
 const RESUMABLE_SNAPSHOT_CUSTOM_TYPE =
   "pi-attachable-subagents/resumable-snapshot";
 const CHILD_SESSION_CUSTOM_TYPE = "pi-attachable-subagents/child";
+const CHILDREN_TRANSFERRED_CUSTOM_TYPE =
+  "pi-attachable-subagents/children-transferred";
 
 interface ChildSession {
   managerSessionId: string;
@@ -697,12 +699,18 @@ function replayChildCatalog(
   const catalog = new Map<string, ChildSession>();
   if (header?.id !== managerSessionId) return catalog;
   for (const entry of branch) {
-    if (
-      !isPlainObject(entry) ||
-      entry.type !== "custom" ||
-      entry.customType !== CHILD_SESSION_CUSTOM_TYPE
-    )
+    if (!isPlainObject(entry) || entry.type !== "custom") continue;
+    if (entry.customType === CHILDREN_TRANSFERRED_CUSTOM_TYPE) {
+      const data = entry.data;
+      if (
+        isPlainObject(data) &&
+        data.version === 1 &&
+        data.managerSessionId === managerSessionId
+      )
+        catalog.clear();
       continue;
+    }
+    if (entry.customType !== CHILD_SESSION_CUSTOM_TYPE) continue;
     const child = validateChildSession(entry.data);
     if (
       child &&
@@ -905,6 +913,13 @@ interface RunningSubagent {
   abortController?: AbortController;
   explicitlyStopped?: boolean;
   shutdownCancelled?: boolean;
+  /** Set when /new moves this run. Abort must not close the pane. */
+  handoffDetached?: boolean;
+  resultDelivered?: boolean;
+  pendingHandoffResult?: SubagentResult;
+  deliverResult?: (result: SubagentResult) => void;
+  /** Signal for the watcher started after /new. Older polls must not close the pane. */
+  activeWatchSignal?: AbortSignal;
   statusState: SubagentStatusState;
   statusEntryCursor: number;
   /** Texts this manager already sent. The watcher must not wake on them. */
@@ -1088,6 +1103,109 @@ function shutdownLifecycle(
   if (failures.length > 0)
     throw new AggregateError(failures, "Failed to close subagent surfaces");
   releaseTmuxHiddenOwnerIfIdle(lifecycle, destroyTmuxOwner);
+}
+
+interface NewSessionChildHandoff {
+  previousSessionFile: string;
+  children: ChildSession[];
+  runs: RunningSubagent[];
+  tmuxHiddenOwner?: TmuxHiddenOwner;
+}
+
+const NEW_SESSION_HANDOFF = Symbol.for(
+  "pi-attachable-subagents/new-session-handoff",
+);
+
+function newSessionHandoffs(): Map<string, NewSessionChildHandoff> {
+  const host = globalThis as typeof globalThis & {
+    [NEW_SESSION_HANDOFF]?: Map<string, NewSessionChildHandoff>;
+  };
+  return (host[NEW_SESSION_HANDOFF] ??= new Map());
+}
+
+function clearNewSessionHandoffs(): void {
+  newSessionHandoffs().clear();
+}
+
+function isHandoffCancel(result: SubagentResult): boolean {
+  return result.error === "cancelled";
+}
+
+function formatKeptChildrenReport(
+  children: readonly ChildSession[],
+  activeIds: ReadonlySet<string>,
+): string {
+  const lines = children.map((child) => {
+    const state = activeIds.has(child.childSessionId) ? "active" : "stopped";
+    const agent = child.agent ? `, ${child.agent}` : "";
+    return `- ${child.name} (${state}${agent}) session ${child.childSessionId}`;
+  });
+  return [
+    "Kept subagents from the previous session. Do not start replacements.",
+    "Call subagent_steer with the name or the session id.",
+    ...lines,
+  ].join("\n");
+}
+
+function publishNewSessionHandoff(
+  previousSessionFile: string,
+  lifecycle: ExtensionLifecycle,
+): NewSessionChildHandoff {
+  const runs = new Map<string, RunningSubagent>();
+  for (const running of lifecycle.ownedRuns) {
+    if (!running.explicitlyStopped) runs.set(running.id, running);
+  }
+  for (const running of runningSubagents.values()) {
+    if (running.surface && !running.explicitlyStopped)
+      runs.set(running.id, running);
+  }
+  const handoff: NewSessionChildHandoff = {
+    previousSessionFile,
+    children: [...childrenBySessionId.values()].map((child) => ({ ...child })),
+    runs: [...runs.values()],
+    tmuxHiddenOwner: lifecycle.tmuxHiddenOwner,
+  };
+  lifecycle.tmuxHiddenOwner = undefined;
+  lifecycle.ownedRuns.clear();
+  for (const running of handoff.runs) {
+    running.handoffDetached = true;
+    running.deliverResult = (result) => {
+      if (!isHandoffCancel(result)) running.pendingHandoffResult = result;
+    };
+    running.abortController?.abort();
+  }
+  lifecycle.watcherOwner.abort();
+  newSessionHandoffs().set(previousSessionFile, handoff);
+  return handoff;
+}
+
+function claimNewSessionHandoff(
+  previousSessionFile: string | undefined,
+): NewSessionChildHandoff | undefined {
+  if (!previousSessionFile) return undefined;
+  const handoff = newSessionHandoffs().get(previousSessionFile);
+  if (!handoff) return undefined;
+  newSessionHandoffs().delete(previousSessionFile);
+  return handoff;
+}
+
+function adoptKeptChildren(
+  managerSessionId: string,
+  handoff: NewSessionChildHandoff,
+  append: (child: ChildSession) => void,
+): ChildSession[] {
+  const adopted: ChildSession[] = [];
+  for (const child of handoff.children) {
+    const next = { ...child, managerSessionId };
+    append(next);
+    childrenBySessionId.set(next.childSessionId, next);
+    adopted.push(next);
+  }
+  for (const running of handoff.runs) {
+    running.shutdownCancelled = false;
+    runningSubagents.set(running.id, running);
+  }
+  return adopted;
 }
 
 function shouldDeliverWatcherNotification(running: RunningSubagent): boolean {
@@ -1794,8 +1912,16 @@ function renderSubagentWidgetLines(
 }
 
 function clearSubagentWidget(host: ExtensionContext | null = widgetHost) {
-  if (!host?.hasUI) return;
-  host.ui.setWidget("subagent-status", undefined);
+  if (!host || host !== latestCtx) {
+    if (widgetHost === host) widgetHost = null;
+    return;
+  }
+  try {
+    if (!host.hasUI) return;
+    host.ui.setWidget("subagent-status", undefined);
+  } catch {
+    // /new invalidates the old context. Drop the widget instead of throwing.
+  }
   if (widgetHost === host) widgetHost = null;
 }
 
@@ -2623,6 +2749,23 @@ function handleSubagentInterrupt(
   };
 }
 
+function stopBackgroundTimers(): void {
+  if (widgetInterval) {
+    clearInterval(widgetInterval);
+    widgetInterval = null;
+    (globalThis as any)[WIDGET_INTERVAL_KEY] = null;
+  }
+  if (statusInterval) {
+    clearInterval(statusInterval);
+    statusInterval = null;
+    (globalThis as any)[STATUS_INTERVAL_KEY] = null;
+  }
+  if (settledSteerInterval) {
+    clearInterval(settledSteerInterval);
+    settledSteerInterval = null;
+  }
+}
+
 function startSettledSteerRefresh(pi: ExtensionAPI) {
   if (settledSteerInterval) return;
   settledSteerInterval = setInterval(() => {
@@ -2649,6 +2792,7 @@ function startSettledSteerRefresh(pi: ExtensionAPI) {
       );
     }
   }, 1000);
+  settledSteerInterval.unref?.();
 }
 
 function startStatusRefresh(pi: ExtensionAPI) {
@@ -2727,6 +2871,7 @@ function startStatusRefresh(pi: ExtensionAPI) {
   }, 1000);
 
   (globalThis as any)[STATUS_INTERVAL_KEY] = statusInterval;
+  statusInterval.unref?.();
 }
 
 export const __test__ = {
@@ -2795,8 +2940,14 @@ export const __test__ = {
   createDelegatorLivenessCoordinator,
   delegatorLiveness,
   CHILD_SESSION_CUSTOM_TYPE,
+  CHILDREN_TRANSFERRED_CUSTOM_TYPE,
   validateChildSession,
   replayChildCatalog,
+  formatKeptChildrenReport,
+  publishNewSessionHandoff,
+  claimNewSessionHandoff,
+  adoptKeptChildren,
+  clearNewSessionHandoffs,
   migrateLegacySnapshots,
   migrateHistoricalToolResults,
   nativeSessionId,
@@ -2827,6 +2978,7 @@ export const __test__ = {
   SUBAGENT_CONTEXT_HANDOFF_WARNING,
   finishHumanSteer,
   formatElapsed,
+  stopBackgroundTimers,
 };
 
 function startWidgetRefresh() {
@@ -2840,6 +2992,7 @@ function startWidgetRefresh() {
       updateWidget();
     }
   }, 1000);
+  widgetInterval.unref?.();
   (globalThis as any)[WIDGET_INTERVAL_KEY] = widgetInterval;
 }
 
@@ -3159,6 +3312,17 @@ async function watchSubagent(
     );
 
     if (result.reason === "pane-gone") {
+      if (running.handoffDetached && signal !== running.activeWatchSignal) {
+        return {
+          name,
+          task,
+          summary: "Subagent cancelled.",
+          exitCode: 1,
+          elapsed: Math.floor((Date.now() - startTime) / 1000),
+          error: "cancelled",
+          sessionFile,
+        };
+      }
       running.shutdownCancelled = true;
       if (runningSubagents.get(running.id) === running) {
         runningSubagents.delete(running.id);
@@ -3196,12 +3360,7 @@ async function watchSubagent(
           : "Sub-agent exited without output";
     }
 
-    if (running.deliveryId)
-      delegatorLiveness.markPendingDelivery(running.deliveryId);
-    removeActiveRun(runningSubagents, running);
-    // A completed turn ends only this process. The durable catalog entry remains.
-
-    return {
+    const completed: SubagentResult = {
       name,
       task,
       summary,
@@ -3212,7 +3371,26 @@ async function watchSubagent(
       ping: result.ping,
       ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
     };
+    if (running.handoffDetached) return completed;
+
+    if (running.deliveryId)
+      delegatorLiveness.markPendingDelivery(running.deliveryId);
+    removeActiveRun(runningSubagents, running);
+    // A completed turn ends only this process. The durable catalog entry remains.
+
+    return completed;
   } catch (err: any) {
+    if (running.handoffDetached) {
+      return {
+        name,
+        task,
+        summary: "Subagent cancelled.",
+        exitCode: 1,
+        elapsed: Math.floor((Date.now() - startTime) / 1000),
+        error: "cancelled",
+        sessionFile,
+      };
+    }
     if (running.deliveryId)
       delegatorLiveness.markPendingDelivery(running.deliveryId);
     removeActiveRun(runningSubagents, running);
@@ -3250,18 +3428,74 @@ export default function subagentsExtension(
 ) {
   const { watcherOwner, ownedRuns } = lifecycle;
   let managerSessionId: string | null = null;
+  let armKeptRun: (running: RunningSubagent) => void = () => {};
+
+  const stopLocalTimers = () => {
+    if (widgetInterval) {
+      clearInterval(widgetInterval);
+      widgetInterval = null;
+      (globalThis as any)[WIDGET_INTERVAL_KEY] = null;
+    }
+    if (statusInterval) {
+      clearInterval(statusInterval);
+      statusInterval = null;
+      (globalThis as any)[STATUS_INTERVAL_KEY] = null;
+    }
+    if (settledSteerInterval) {
+      clearInterval(settledSteerInterval);
+      settledSteerInterval = null;
+    }
+  };
 
   // Capture the UI context and restore only the active manager branch.
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", (event, ctx) => {
     latestCtx = ctx;
+    widgetHost = null;
     showStoppedChildren = false;
-    runningSubagents.clear();
-    childrenBySessionId.clear();
     const header = ctx.sessionManager.getHeader();
     const currentSessionId = ctx.sessionManager.getSessionId();
     managerSessionId =
       header?.id === currentSessionId ? currentSessionId : null;
-    if (managerSessionId) {
+    const handoff =
+      event.reason === "new"
+        ? claimNewSessionHandoff(event.previousSessionFile)
+        : undefined;
+    runningSubagents.clear();
+    childrenBySessionId.clear();
+    if (handoff && managerSessionId) {
+      lifecycle.tmuxHiddenOwner = handoff.tmuxHiddenOwner;
+      const adopted = adoptKeptChildren(managerSessionId, handoff, (child) => {
+        pi.appendEntry(CHILD_SESSION_CUSTOM_TYPE, { version: 1, ...child });
+      });
+      const activeIds = new Set(handoff.runs.map((running) => running.id));
+      if (adopted.length > 0) {
+        pi.sendMessage(
+          {
+            customType: "subagent_kept",
+            content: formatKeptChildrenReport(adopted, activeIds),
+            display: true,
+            details: {
+              children: adopted.map((child) => ({
+                name: child.name,
+                sessionId: child.childSessionId,
+                agent: child.agent,
+                active: activeIds.has(child.childSessionId),
+              })),
+            },
+          },
+          { triggerTurn: false },
+        );
+      }
+      for (const running of handoff.runs) {
+        const pending = running.pendingHandoffResult;
+        running.pendingHandoffResult = undefined;
+        running.deliverResult = (result) => deliverKeptResult(running, result);
+        if (pending) deliverKeptResult(running, pending);
+        if (!running.resultDelivered) armKeptRun(running);
+      }
+    } else if (handoff) {
+      newSessionHandoffs().set(handoff.previousSessionFile, handoff);
+    } else if (managerSessionId) {
       const branch = ctx.sessionManager.getBranch();
       for (const [id, child] of replayChildCatalog(
         header,
@@ -3297,28 +3531,41 @@ export default function subagentsExtension(
     startSettledSteerRefresh(pi);
   });
 
-  // Clean up on session shutdown
-  pi.on("session_shutdown", (_event, _ctx) => {
+  // Clean up on session shutdown. /new keeps the panes for the next session.
+  pi.on("session_shutdown", (event, ctx) => {
     managerSessionId = null;
     clearSubagentWidget();
-    if (widgetInterval) {
-      clearInterval(widgetInterval);
-      widgetInterval = null;
-      (globalThis as any)[WIDGET_INTERVAL_KEY] = null;
-    }
-    if (statusInterval) {
-      clearInterval(statusInterval);
-      statusInterval = null;
-      (globalThis as any)[STATUS_INTERVAL_KEY] = null;
-    }
-    if (settledSteerInterval) {
-      clearInterval(settledSteerInterval);
-      settledSteerInterval = null;
-    }
+    stopLocalTimers();
     settledSteerWatches.clear();
     pendingManagerSteers.clear();
+    const sessionFile = ctx?.sessionManager?.getSessionFile?.();
+    if (
+      event?.reason === "new" &&
+      sessionFile &&
+      (childrenBySessionId.size > 0 || lifecycle.ownedRuns.size > 0)
+    ) {
+      try {
+        pi.appendEntry(CHILDREN_TRANSFERRED_CUSTOM_TYPE, {
+          version: 1,
+          managerSessionId: ctx.sessionManager.getSessionId(),
+        });
+      } catch {
+        // The marker stops a later resume from owning these panes. Keep the panes anyway.
+      }
+      publishNewSessionHandoff(sessionFile, lifecycle);
+      latestCtx = null;
+      widgetHost = null;
+      return;
+    }
+    latestCtx = null;
+    widgetHost = null;
     shutdownLifecycle(lifecycle, runningSubagents);
   });
+
+  let deliverKeptResult: (
+    running: RunningSubagent,
+    result: SubagentResult,
+  ) => void = () => {};
 
   // Tools denied via PI_DENY_TOOLS env var (set by parent agent based on frontmatter)
   const deniedTools = new Set(
@@ -3481,6 +3728,10 @@ export default function subagentsExtension(
           .then((result) => {
             ownedRuns.delete(running);
             releaseTmuxHiddenOwnerIfIdle(lifecycle);
+            if (running.deliverResult) {
+              running.deliverResult(result);
+              return;
+            }
             if (!shouldDeliverWatcherNotification(running)) {
               updateWidget();
               return;
@@ -3680,6 +3931,10 @@ export default function subagentsExtension(
       .then((result) => {
         ownedRuns.delete(running);
         releaseTmuxHiddenOwnerIfIdle(lifecycle);
+        if (running.deliverResult) {
+          running.deliverResult(result);
+          return;
+        }
         if (!shouldDeliverWatcherNotification(running)) {
           updateWidget();
           return;
@@ -3737,6 +3992,65 @@ export default function subagentsExtension(
           },
         });
       });
+  };
+
+  deliverKeptResult = (running, result) => {
+    if (isHandoffCancel(result) || running.resultDelivered) return;
+    running.resultDelivered = true;
+    if (running.deliveryId)
+      delegatorLiveness.markPendingDelivery(running.deliveryId);
+    completeWakeTransition({
+      deliveryId: running.deliveryId,
+      update: updateWidget,
+      wake(warning) {
+        const content = result.ping
+          ? `Sub-agent "${result.ping.name}" needs help (${formatElapsed(result.elapsed)}):\n\n${result.ping.message}\n\nSession: ${running.sessionFile}`
+          : doneParentModelMessage({
+              presentation: resolveResultPresentation(result, running.name),
+              sessionFile: result.sessionFile,
+              reason: result.reason,
+            }).content;
+        pi.sendMessage(
+          {
+            customType: result.ping ? "subagent_ping" : "subagent_result",
+            content: appendPersistenceWarning(content, warning),
+            display: true,
+            details: {
+              name: running.name,
+              task: running.task,
+              agent: running.agent,
+              exitCode: result.exitCode,
+              elapsed: result.elapsed,
+              reason: result.reason,
+              sessionFile: running.sessionFile,
+              deliveryId: running.deliveryId,
+              ...(result.errorMessage
+                ? { errorMessage: result.errorMessage }
+                : {}),
+            },
+          },
+          { triggerTurn: true, deliverAs: "steer" },
+        );
+      },
+    });
+    try {
+      closeSurface(running.surface);
+    } catch {
+      // The replacement watcher can close the same finished pane.
+    }
+  };
+
+  armKeptRun = (running) => {
+    const watcherAbort = new AbortController();
+    running.abortController = watcherAbort;
+    running.activeWatchSignal = watcherAbort.signal;
+    running.shutdownCancelled = false;
+    ownedRuns.add(running);
+    if (running.deliveryId) lifecycle.ownedDeliveryIds.add(running.deliveryId);
+    else registerLaunchedDelivery(running, lifecycle);
+    startWidgetRefresh();
+    startStatusRefresh(pi);
+    deliverControlledRun(running, watcherAbort);
   };
 
   const steer = async (

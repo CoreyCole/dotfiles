@@ -28,6 +28,7 @@ import { requestStatsTest } from "../request-stats.ts";
 
 afterEach(() => {
   __test__.delegatorLiveness.reset();
+  __test__.stopBackgroundTimers();
 });
 
 test("child registrations replay as a durable catalog", () => {
@@ -50,6 +51,154 @@ test("child registrations replay as a durable catalog", () => {
   ]);
   assert.deepEqual([...catalog.keys()], ["one"]);
   assert.equal(catalog.get("one")?.autoExit, true);
+});
+
+test("/new transfer marker drops earlier children and keeps later ones", () => {
+  const child = (id: string) => ({
+    type: "custom",
+    customType: __test__.CHILD_SESSION_CUSTOM_TYPE,
+    data: {
+      version: 1,
+      managerSessionId: "manager",
+      childSessionId: id,
+      name: id,
+      cwd: "/work",
+    },
+  });
+  const catalog = __test__.replayChildCatalog({ id: "manager" }, "manager", [
+    child("kept-before"),
+    {
+      type: "custom",
+      customType: __test__.CHILDREN_TRANSFERRED_CUSTOM_TYPE,
+      data: { version: 1, managerSessionId: "manager" },
+    },
+    child("started-after"),
+  ]);
+  assert.deepEqual([...catalog.keys()], ["started-after"]);
+});
+
+test("/new handoff keeps surfaces and moves the catalog to the next session", () => {
+  __test__.clearNewSessionHandoffs();
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  const lifecycle = __test__.createExtensionLifecycle();
+  const running = {
+    id: "child-1",
+    name: "Planner",
+    task: "plan",
+    surface: "%kept",
+    startTime: 1,
+    sessionFile: "/tmp/child.jsonl",
+    statusState: {
+      source: "pi",
+      phase: "active",
+      currentKind: "active",
+      sinceMs: 1,
+    },
+    statusEntryCursor: 0,
+    abortController: new AbortController(),
+  };
+  lifecycle.ownedRuns.add(running as never);
+  lifecycle.tmuxHiddenOwner = {
+    sessionName: "pi-hidden-old",
+    keeperPaneId: "%keeper",
+  };
+  __test__.childrenBySessionId.set("child-1", {
+    managerSessionId: "old-manager",
+    childSessionId: "child-1",
+    name: "Planner",
+    cwd: "/work",
+    autoExit: false,
+  });
+  __test__.runningSubagents.set("child-1", running as never);
+
+  const handoff = __test__.publishNewSessionHandoff(
+    "/tmp/old-session.jsonl",
+    lifecycle,
+  );
+  assert.equal(running.surface, "%kept");
+  assert.equal(lifecycle.tmuxHiddenOwner, undefined);
+  assert.equal(lifecycle.ownedRuns.size, 0);
+  assert.equal(lifecycle.watcherOwner.signal.aborted, true);
+  assert.equal(handoff.tmuxHiddenOwner?.sessionName, "pi-hidden-old");
+
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  const claimed = __test__.claimNewSessionHandoff("/tmp/old-session.jsonl");
+  assert.ok(claimed);
+  const appended: unknown[] = [];
+  const adopted = __test__.adoptKeptChildren("new-manager", claimed, (child) =>
+    appended.push(child),
+  );
+  assert.equal(adopted[0]?.managerSessionId, "new-manager");
+  assert.equal(appended.length, 1);
+  assert.equal(__test__.runningSubagents.get("child-1"), running);
+  assert.equal(
+    __test__.formatKeptChildrenReport(adopted, new Set(["child-1"])),
+    [
+      "Kept subagents from the previous session. Do not start replacements.",
+      "Call subagent_steer with the name or the session id.",
+      "- Planner (active) session child-1",
+    ].join("\n"),
+  );
+  assert.equal(
+    __test__.claimNewSessionHandoff("/tmp/old-session.jsonl"),
+    undefined,
+  );
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  __test__.clearNewSessionHandoffs();
+});
+
+test("/new shutdown publishes the handoff and does not use destructive cleanup", async () => {
+  __test__.clearNewSessionHandoffs();
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  const shutdownHandlers: Array<
+    (event?: { reason?: string }, ctx?: unknown) => void
+  > = [];
+  const appended: Array<{ type: string }> = [];
+  const pi = {
+    on(
+      name: string,
+      handler: (event?: { reason?: string }, ctx?: unknown) => void,
+    ) {
+      if (name === "session_shutdown") shutdownHandlers.push(handler);
+    },
+    appendEntry(type: string) {
+      appended.push({ type });
+    },
+    registerTool() {},
+    registerCommand() {},
+    registerShortcut() {},
+    registerMessageRenderer() {},
+    sendMessage() {},
+  } as unknown as ExtensionAPI;
+  const lifecycle = __test__.createExtensionLifecycle();
+  subagentsExtension(pi, lifecycle);
+  __test__.childrenBySessionId.set("child", {
+    managerSessionId: "old",
+    childSessionId: "child",
+    name: "Planner",
+    cwd: "/work",
+  });
+  await shutdownHandlers[0](
+    { reason: "new" },
+    {
+      sessionManager: {
+        getSessionFile: () => "/tmp/manager-new.jsonl",
+        getSessionId: () => "old",
+      },
+    },
+  );
+  assert.equal(appended[0]?.type, __test__.CHILDREN_TRANSFERRED_CUSTOM_TYPE);
+  assert.equal(lifecycle.watcherOwner.signal.aborted, true);
+  assert.equal(lifecycle.ownedRuns.size, 0);
+  const claimed = __test__.claimNewSessionHandoff("/tmp/manager-new.jsonl");
+  assert.equal(claimed?.children[0]?.childSessionId, "child");
+  __test__.childrenBySessionId.clear();
+  __test__.runningSubagents.clear();
+  __test__.clearNewSessionHandoffs();
 });
 
 test("auto-exit defaults to true and persists an explicit false value", () => {
