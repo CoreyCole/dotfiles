@@ -112,3 +112,13 @@ A manager started with `autoExit: false` stays up when it yields. Specialist set
 Send lead answers to the same manager with `subagent_steer`. Preserve exact child identities. Do not route by latest child or ambiguous display name. Start no replacement until the durable manager cannot continue.
 
 The manager owns QRSPI coordination. The CEO does not inspect implementation details, write plan artifacts, or direct specialists. The CEO's work is the manager prompt: the lead's words, the image paths, and the limits.
+
+## Preserve context
+
+Context stays small because you start `q-manager` children and write prompts. You do not do the manager's work or a specialist's work. One task, one manager, one plan directory. Start each manager with `agent: q-manager`, `skills: q-manager,qrspi-planning`, and `autoExit: false`.
+
+When the lead asks for a handoff, or your context is over 200k tokens, do not keep implementing and do not keep this conversation in the next prompt. Follow `q-handoff`:
+
+1. Create the handoff file under the plan directory in `thoughts/`.
+1. Sync thoughts with `just sync-thoughts` from the chestnut-flake root, or from canonical cn-agents. Do not claim synced if that command fails.
+1. The final message is the paste for the next CEO. No summary after that paste. The paste names the handoff path, says whether it is synced, and tells the next CEO to load this skill. The next CEO delegates to `q-manager` children and does not implement.
