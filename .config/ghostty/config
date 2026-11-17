@@ -8,7 +8,9 @@ background = 000000
 foreground = ffffff
 
 bold-is-bright = true
-bell-features = no-audio
+# attention asks the compositor to activate this window. That focuses it and warps the pointer.
+# Herdr emits a bell on agent events, so leave attention off.
+bell-features = no-audio,no-attention
 mouse-hide-while-typing = true
 mouse-scroll-multiplier = precision:1,discrete:1
 clipboard-read = allow

@@ -89,20 +89,16 @@ vim.g.copilot_no_tab_map = true
 vim.g.copilot_assume_mapped = true
 vim.g.copilot_tab_fallback = ""
 
--- clipboard provider must be set before vim.opt.clipboard
+-- WSL has no Wayland clipboard. Everywhere else, wl-copy answers p immediately.
+-- Do not set g:clipboard to "osc52": Herdr does not reply to that paste query.
 if vim.fn.has "wsl" == 1 then
     vim.api.nvim_create_autocmd("TextYankPost", {
-
         group = vim.api.nvim_create_augroup("Yank", { clear = true }),
-
         callback = function()
             vim.fn.system("clip.exe", vim.fn.getreg '"')
         end,
     })
-else
-    require("config.remote_clipboard").setup()
 end
--- sync with system clipboard
 vim.opt.clipboard = "unnamedplus"
 
 vim.g.is_code_private = function()
@@ -155,6 +151,5 @@ vim.diagnostic.config {
     },
 }
 
--- Let Ghostty own the cursor. Its config fixes it as a solid block, while an
--- unset guicursor prevents Neovim from changing it with DECSCUSR sequences.
-vim.o.guicursor = ""
+-- Ghostty's cursor-style is the shell default. Neovim must ask for a bar in insert mode.
+vim.o.guicursor = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20"
