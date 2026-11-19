@@ -107,6 +107,7 @@ See `references/` for detailed documentation:
 - [`references/screensharing.md`](references/screensharing.md) — Firefox/Chromium screen-share permission errors, missing ScreenCast interface, portal environment diagnosis, and confirmed restart repair
 - [`references/dev-env-zsh.md`](references/dev-env-zsh.md) — mise is the node version manager; zsh users must add `eval "$(mise activate zsh)"` for `npm install -g` binaries to be on PATH
 - [`references/mise-go.md`](references/mise-go.md) — Chestnut Go toolchain via global mise; do not use `omarchy-install-dev-env go` (that is go@latest / 1.27)
+- [`references/tmp-fill.md`](references/tmp-fill.md) — Host `/tmp` tmpfs filling from leaked `go-build` dirs; 10-day ageing vs atime
 - [`references/fcitx5.md`](references/fcitx5.md) — fcitx5 input method config, keybinding format gotchas, and restart requirements
 - [`references/compose-key.md`](references/compose-key.md) — Compose key setup for typing accented and special characters
 - [`references/bluetooth-audio.md`](references/bluetooth-audio.md) — Bluetooth headphone output switching, A2DP vs headset profiles, and Omarchy audio shortcuts
