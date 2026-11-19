@@ -97,3 +97,93 @@ update_game_mode(hl.get_active_window())
 -- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")
 -- o.bind("SUPER + H", nil, "voxtype record toggle")
 -- o.bind("SUPER + PERIOD", nil, "omarchy-shell shell toggle omarchy.emojis")
+
+-- 1-3 are the vertical monitor, 4-6 the LG, 7-0 the TV. Not 1-5 on every screen.
+local workspace_groups = {
+	{
+		monitors = { "desc:Dell Inc. DELL U2717D", "desc:Seanix Technology Inc NX-EDG27  NIX27F17" },
+		first = 1,
+		last = 3,
+	},
+	{
+		monitors = { "desc:LG Electronics 32GK650G", "desc:LG Electronics LG HDR 4K 0x0000E053" },
+		first = 4,
+		last = 6,
+	},
+	{
+		monitors = { "desc:LG Electronics LG TV" },
+		first = 7,
+		last = 10,
+	},
+}
+
+local function assigned_target(number)
+	for _, group in ipairs(workspace_groups) do
+		if number >= group.first and number <= group.last then
+			for _, selector in ipairs(group.monitors) do
+				local monitor = hl.get_monitor(selector)
+				if monitor then
+					return monitor, number - group.first + 1
+				end
+			end
+			return nil
+		end
+	end
+end
+
+local function focus_assigned_workspace(number)
+	local monitor, slot = assigned_target(number)
+	if not monitor then
+		return
+	end
+	o.workspaces.focus(slot, monitor.name)()
+end
+
+local function move_to_assigned_workspace(number, follow)
+	local monitor, slot = assigned_target(number)
+	local window = hl.get_active_window()
+	if not monitor or not window then
+		return
+	end
+
+	local id = tostring(o.workspaces.workspace_id(monitor, slot))
+	hl.dispatch(hl.dsp.window.move({
+		workspace = id,
+		follow = false,
+		window = "address:" .. window.address,
+	}))
+	local workspace = hl.get_workspace(id)
+	if not workspace or not workspace.monitor or workspace.monitor.name ~= monitor.name then
+		hl.dispatch(hl.dsp.workspace.move({ workspace = id, monitor = monitor.name }))
+	end
+	if follow ~= false then
+		hl.dispatch(hl.dsp.focus({ workspace = id }))
+	end
+end
+
+-- The keybind runs this file's lambda. A function defined in another required
+-- file is not visible here, which is the "nil value (global ...)" error.
+_G.focus_assigned_workspace = focus_assigned_workspace
+_G.move_to_assigned_workspace = move_to_assigned_workspace
+
+for number = 1, 10 do
+	local key = "code:" .. tostring(number + 9)
+	local n = number
+	local label = n == 10 and "0" or tostring(n)
+	o.rebind("SUPER + " .. key, "Switch to workspace " .. label, function()
+		focus_assigned_workspace(n)
+	end)
+	o.rebind("SUPER + SHIFT + " .. key, "Move window to workspace " .. label, function()
+		move_to_assigned_workspace(n, true)
+	end)
+	o.rebind("SUPER + SHIFT + ALT + " .. key, "Move window silently to workspace " .. label, function()
+		move_to_assigned_workspace(n, false)
+	end)
+end
+
+-- Dictation keys from before Alt + Space and Right Alt became the defaults.
+-- Remove these lines to give the keys back to applications.
+if o.dictation_installed and o.dictation_installed() then
+  o.bind("SUPER + CTRL + X", "Toggle dictation", "omarchy-dictation toggle")
+  o.bind_hold("F9", "Start dictation (push-to-talk)", "omarchy-dictation start", "Stop dictation (push-to-talk)", "omarchy-dictation stop")
+end

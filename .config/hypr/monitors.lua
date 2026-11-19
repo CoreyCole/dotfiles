@@ -15,39 +15,6 @@ hl.monitor({ output = lg_monitor, mode = "2560x1440", position = "1440x0", scale
 hl.monitor({ output = lg_tv, mode = "3840x2160", position = "4000x0", scale = 1 })
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
-local function first_connected(selectors)
-	for _, selector in ipairs(selectors) do
-		if hl.get_monitor(selector) then
-			return selector
-		end
-	end
-end
-
-local function assign_workspaces(monitor, first, last)
-	if not monitor then
-		return
-	end
-
-	for workspace = first, last do
-		hl.workspace_rule({
-			workspace = tostring(workspace),
-			monitor = monitor,
-			default = workspace == first,
-			persistent = true,
-		})
-	end
-end
-
-local function assign_connected_workspaces()
-	assign_workspaces(first_connected({ dell, seanix }), 1, 3)
-	assign_workspaces(first_connected({ lg_monitor, lg_hdr }), 4, 6)
-	assign_workspaces(first_connected({ lg_tv }), 7, 10)
-end
-
-assign_connected_workspaces()
-hl.on("monitor.added", assign_connected_workspaces)
-hl.on("monitor.removed", assign_connected_workspaces)
-
 -- Full-width equal stack on the focused portrait monitor. Reapply-only, never toggles.
 local function collapse_scrolling_workspace(id)
 	local ws = hl.get_workspace(id)
