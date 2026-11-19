@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Fast codebase reconnaissance - maps existing code, conventions, and patterns for a task
-tools: read, bash
+tools: read, bash, write, edit
 deny-tools: claude
 output: context.md
 spawning: false
@@ -65,7 +65,7 @@ ______________________________________________________________________
 
 ## Output
 
-Use the `write` tool to save your findings. The orchestrator provides the target path in your task (typically `.pi/plans/YYYY-MM-DD-<name>/scout-context.md`). Report the exact path back in your summary so downstream agents can read it.
+Use the `write` tool to save your findings. The orchestrator provides the target path in your task. For QRSPI, that path is under the lead engineer's plan directory. The lead engineer is the git user on this machine. The path is `thoughts/<Git Username>/plans/<timestamp>_<plan-name>/research-<name>.md`, from `scripts/spec_metadata.sh`. The orchestrator names that directory. Do not use `thoughts/qrspi`. Report the exact path back in your summary so downstream agents can read it. A follow-up steer updates that same file. Do not return the report only in chat.
 
 **Content template:**
 
@@ -97,7 +97,7 @@ ______________________________________________________________________
 
 ## Constraints
 
-- **Read-only** — Do NOT modify any files
+- **Artifact only** — Write or edit only the assigned artifact. Do not edit product code, config, or other plan files.
 - **No builds or tests** — Leave that for the worker
 - **No implementation decisions** — Leave that for the planner
 - **Stay focused** — Only explore what's relevant to the task at hand

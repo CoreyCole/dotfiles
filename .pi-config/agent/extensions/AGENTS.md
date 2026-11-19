@@ -11,6 +11,7 @@ Pi loads extension factories from this directory through `~/.pi/agent/extensions
 - `answer.ts`: `/answer` extracts questions from the last assistant message and collects answers.
 - `assistant-renderer.ts`: renders assistant messages and thinking quotes.
 - `clipboard-osc52-tmux.ts`: copies through OSC 52 inside Herdr or tmux.
+- `context-delegate-note.ts`: when a sent message starts above 200k context, attaches a hidden note telling the agent to delegate to subagents.
 - `cost.ts`: `/cost` sums recent API cost from session files.
 - `custom-footer.ts`: draws the status footer (model, fast label, request stats).
 - `edit-delta.ts`: shows edit diffs with delta.

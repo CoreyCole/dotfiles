@@ -21,7 +21,23 @@ End a handoff in this order. Do not skip a step. Do not reverse the steps.
 1. Sync thoughts. From the chestnut-flake root, run `just sync-thoughts`. That runs `cd cn-agents/thoughts && just sync-thoughts`. From canonical cn-agents, `just sync-thoughts` is the thoughts-only sync. Do not claim the file is synced if that command fails. Say not synced.
 1. The final message is the paste for the next agent. Do not add a summary after that paste. The paste names the handoff path and says whether it is synced.
 
-If the writer is q-ceo, the paste tells the next CEO to load and follow the `q-ceo` skill. Preserving context means the next CEO does not inherit this conversation. The next CEO delegates to `q-manager` children and does not implement. A manager cannot see the old conversation unless the paste and the handoff name the lead's words, the image paths, the checkout, the branch, the commit, and the limits.
+If the writer is q-ceo, the paste tells the next CEO to load and follow the `q-ceo` skill. Preserving context means the next CEO does not inherit this conversation. The next CEO does own every durable `q-manager` child. Manager sessions stay alive. Do not implement.
+
+## CEO handoff owns every manager
+
+There is one CEO at a time. The handoff transfers that role. The next CEO owns every durable manager the previous CEO started. The owner of a task is the manager name. Do not write "other CEO", "previous CEO", or "not this session" as an owner.
+
+The handoff and the paste must name each manager by its stable name. A name is not a process ID. Do not omit the names because process IDs are forbidden. For each manager, name its open lead requests and its evidence path.
+
+The paste must tell the next CEO to:
+
+- Load `q-ceo`.
+- Read the open-items file before a spawn or a steer.
+- Steer each named manager. Do not start a second manager for the same task.
+- Start a new manager only for a lead request that has no manager.
+- Treat a report from any named manager as its own report.
+
+A manager cannot see the old conversation unless the paste and the handoff name the lead's words, the image paths, the checkout, the branch, the commit, and the limits.
 
 ## Durable boundaries
 

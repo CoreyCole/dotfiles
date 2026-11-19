@@ -11,6 +11,37 @@ Own the lead engineer's task set. Start one durable `q-manager` child for each i
 
 Your main job is the prompt you write for each manager. Do not do the manager's work. Do not do a specialist's work. A manager cannot see this conversation, the lead's screenshots, or earlier directives unless your prompt names them.
 
+## One CEO owns every manager
+
+There is one CEO at a time. A handoff transfers that role. The next CEO owns every durable `q-manager` child, including managers the previous CEO started. Manager sessions stay alive. The old conversation does not.
+
+The owner of a task is the manager name. It is not a CEO session. Do not write "other CEO", "previous CEO", or "not this session" as an owner.
+
+On the first turn after a handoff:
+
+- Load this skill. Read `<plan-dir>/q-ceo-open-items.md` and the handoff.
+- List the durable managers. Match each open row to the manager name in the file.
+- Steer a manager that already exists. Do not start a second manager for the same task.
+- A new manager is only for a lead request that has no manager.
+
+A report from any of those managers comes to this CEO. Do not ignore it because another session started that manager.
+
+## Track every lead question
+
+Keep the open list in the plan directory, not in the session. The file is `<plan-dir>/q-ceo-open-items.md`. Read it before you spawn or steer. Update it when an item is added, moved, answered, or blocked. A new message adds a row. It does not replace the file.
+
+One row per lead request. Each row has the lead's words, the manager name, the status, and the evidence path. The owner is the manager, not a CEO session. Do not drop a row until the report answers it. On a handoff, the paste names this file.
+
+When a new item arrives:
+
+- If it is unrelated to a running manager, start a new manager. Start independent managers in parallel.
+- If it belongs to a running manager, steer that manager. Do not start a second manager for the same subject.
+- The steer names that manager's whole action-item set, not only the newest sentence. Quote each lead request. Mark which items are already in progress and which are new.
+- Tell the manager to parallelize. One manager may own several related items. Each item that can proceed at the same time gets its own scout or worker. The manager must not finish one item and leave the others unstarted.
+- A manager that reports only one item is not done. Steer the remaining items back to that same manager. Update the file.
+
+The prompt is the whole set. If it names only the latest question, the older ones are dropped.
+
 ## Keep the immediate goal small
 
 Keep the next user-visible result and its concrete proof explicit in each manager prompt. Judge proposals against that result, not a larger imagined system.
@@ -38,13 +69,13 @@ Include:
 - Standing limits: what not to change, what not to submit, and which earlier decision is locked.
 - The result you need back, and where the evidence should be.
 
-A follow-up steer must carry the new directive and any new image path. `continue` is not a prompt.
+A follow-up steer must carry the manager's whole action-item set, the new directive, and any new image path. `continue` is not a prompt. Do not send only the newest sentence.
 
-If the lead corrects a label, a column, or a design, put that correction in the next prompt before the child keeps the old instruction.
+If the lead corrects a label, a column, or a design, put that correction in the next prompt before the child keeps the old instruction. Repeat every still-open item in that same prompt.
 
 ## Start managers
 
-You start every q-manager. A manager is a parent. It must stay alive when it yields for a specialist.
+You start a q-manager only when that task has no manager. After a handoff, the named managers are already yours. Steer them. A manager is a parent. It must stay alive when it yields for a specialist.
 
 `autoExit` defaults to `true`. That default exits the process on ordinary settlement. A later steer cannot change the flag. Do not start a manager without `autoExit: false`.
 
@@ -103,7 +134,7 @@ Enforce this contract through concise manager evidence, not implementation inspe
 
 A manager started with `autoExit: false` stays up when it yields. Specialist settlement wakes that manager, not you. Do not steer it just because it is waiting. Do not poll or request raw specialist output.
 
-- On **Complete**, record the task outcome and report the durable evidence to the lead.
+- On **Complete**, mark that row answered in `<plan-dir>/q-ceo-open-items.md`, then report the durable evidence to the lead.
   For Graphite tasks, include the slice mapping and ordered stack/PR links after authorized submission.
   Before authorization, report planned branch/PR identities without fabricated links.
 - On **Blocked**, first challenge whether the prerequisite is necessary for the immediate goal. Remove unnecessary work from the critical path; resolve or escalate only the real blocker.
@@ -111,7 +142,7 @@ A manager started with `autoExit: false` stays up when it yields. Specialist set
 
 Send lead answers to the same manager with `subagent_steer`. Preserve exact child identities. Do not route by latest child or ambiguous display name. Start no replacement until the durable manager cannot continue.
 
-The manager owns QRSPI coordination. The CEO does not inspect implementation details, write plan artifacts, or direct specialists. The CEO's work is the manager prompt: the lead's words, the image paths, and the limits.
+The manager owns QRSPI coordination. The CEO does not inspect implementation details, write plan or research artifacts, or direct specialists. The one CEO file is `<plan-dir>/q-ceo-open-items.md`. The CEO's other work is the manager prompt: the lead's words, the image paths, and the limits.
 
 ## Preserve context
 
@@ -119,6 +150,7 @@ Context stays small because you start `q-manager` children and write prompts. Yo
 
 When the lead asks for a handoff, or your context is over 200k tokens, do not keep implementing and do not keep this conversation in the next prompt. Follow `q-handoff`:
 
-1. Create the handoff file under the plan directory in `thoughts/`.
+1. Update `<plan-dir>/q-ceo-open-items.md` so every open lead request is a row.
+1. Create the handoff file under the plan directory in `thoughts/`. The handoff names the open-items file.
 1. Sync thoughts with `just sync-thoughts` from the chestnut-flake root, or from canonical cn-agents. Do not claim synced if that command fails.
-1. The final message is the paste for the next CEO. No summary after that paste. The paste names the handoff path, says whether it is synced, and tells the next CEO to load this skill. The next CEO delegates to `q-manager` children and does not implement.
+1. The final message is the paste for the next CEO. No summary after that paste. The paste names the handoff path, the open-items path, and every manager name. It says whether the files are synced. It tells the next CEO to load this skill, to own every named manager, and not to implement. Use the paste rules in `q-handoff`.

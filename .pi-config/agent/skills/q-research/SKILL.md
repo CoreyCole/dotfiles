@@ -5,7 +5,7 @@ description: Answer plan research questions with codebase facts.
 
 # q-research
 
-The planner reads the plan guidance and question artifacts, delegates focused factual gaps to scouts, and writes the cited research artifact. Recommend another research pass when material code-answerable questions remain. Otherwise recommend design.
+A scout writes one cited findings file at the path in its task. The planner reads the plan guidance, the question artifacts, and those findings files, then writes the research synthesis. Do not accept a scout report that exists only in chat. Recommend another research pass when material code-answerable questions remain. Otherwise recommend design.
 
 ## Manager completion
 

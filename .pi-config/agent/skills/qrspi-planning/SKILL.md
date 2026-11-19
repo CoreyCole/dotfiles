@@ -5,7 +5,9 @@ description: Guides delegated QRSPI planning and implementation through durable 
 
 # Delegated QRSPI
 
-One `q-manager` coordinates one explicit plan directory. Specialists own the work and artifacts. The manager keeps only status, artifact paths, gates, blockers, and critical decisions.
+QRSPI planning is focused on one plan directory in the lead engineer's thoughts directory. The lead engineer is the git user on this machine. Run `scripts/spec_metadata.sh`. Use the printed `Git Username`. The plan directory is `thoughts/<Git Username>/plans/<timestamp>_<plan-name>/`. Put questions, research, design, outline, review, and handoff artifacts in that same directory. Do not create `thoughts/qrspi`. Do not select a latest plan. Already committed plans under `thoughts/qrspi` move to the committer who wrote them. New QRSPI plans use the git user from `scripts/spec_metadata.sh`.
+
+One `q-manager` coordinates that one plan directory. Specialists own the work and artifacts. The manager keeps only status, artifact paths, gates, blockers, and critical decisions.
 
 ## Ownership
 
@@ -15,9 +17,9 @@ One `q-manager` coordinates one explicit plan directory. Specialists own the wor
 | Focused factual research | `scout` |
 | Planning and implementation review | `reviewer` |
 | Workspace, implementation TODOs, review fixes, handoffs, and verification | `worker` |
-| Stage order, exact child routing, and CEO reports | `q-manager` |
+| Stage order, exact child routing, and reports to the human or q-ceo | `q-manager` |
 
-The planner can spawn scouts for factual gaps. Reviewers stay read-only. Only one worker can edit an implementation workspace.
+The planner can spawn scouts for factual gaps. A scout writes its assigned research artifact and does not edit product code. Reviewers stay read-only. Only one worker can edit an implementation workspace.
 
 ## Pipeline
 
@@ -34,9 +36,9 @@ The planner can spawn scouts for factual gaps. Reviewers stay read-only. Only on
 
 ## Child contract
 
-Give each child the active stage skill, exact plan directory, named inputs, output artifact or TODO, constraints, and final-response limit. The specialist writes its assigned artifact when its role permits it.
+Give each child the active stage skill, exact plan directory, named inputs, output artifact or TODO, constraints, and final-response limit. A scout writes the assigned artifact. Name that path in the task. Do not tell a scout to stay read-only or to return the report only in chat. Reviewers do not write.
 
-A specialist ends with a concise status, artifact paths, evidence, and the smallest question or blocker. It does not choose a successor. The persistent manager finishes its turn while specialists run, then steers the same durable child when more work is needed.
+A specialist ends with a concise status, artifact paths, evidence, and the smallest question or blocker. It does not choose a successor. The persistent manager finishes its turn while specialists run, then steers the same durable child when more work is needed. When that child context is over 200k tokens, the manager steers it once to write a q-handoff, then starts one fresh child for the same subtask and gives it the handoff path.
 
 ## Durable boundaries
 

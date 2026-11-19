@@ -16,7 +16,9 @@ child settles → manager wakes with its last assistant message
 → manager replies with subagent_steer → child runs another turn
 ```
 
-Repeat until the work is complete. `agent_settled` is the ordinary wake. It is **not** task completion. The child is idle in the same session. Call `subagent_steer` on that child. Do not spawn a replacement for the same task unless the session file is missing or the child never produced an assistant message. `subagent_done` is the only "task complete" signal.
+Repeat until the work is complete. `agent_settled` is the ordinary wake. It is **not** task completion. The child is idle in the same session. Call `subagent_steer` on that child. Do not spawn a replacement for the same task only because the last turn settled, unless the session file is missing or the child never produced an assistant message. `subagent_done` is the only "task complete" signal.
+
+A child context over 200k tokens is a reason to start a fresh child for the same task. Steer that child once to write a q-handoff. After the handoff file exists, start one fresh child and give it the handoff path. Do not attach the old session. That fresh child is the required continuation, not a forbidden replacement.
 
 Answer interactive questions with `subagent_steer`; do not require `caller_ping` for normal planner questions. `caller_ping` is another explicit wake mechanism for a blocker or requested action. It does not necessarily mean failure.
 
