@@ -13,6 +13,9 @@
           "verticalFormat": "HH\n—\nmm"
         },
         {
+          "id": "omarchy.elsewhen"
+        },
+        {
           "id": "omarchy.keyboard-layout"
         },
         {
@@ -55,7 +58,10 @@
         {
           "id": "omarchy.power"
         }
-      ]
+      ],
+      "centerBegin": [],
+      "centerEnd": [],
+      "tray": []
     },
     "position": "top",
     "transparent": false

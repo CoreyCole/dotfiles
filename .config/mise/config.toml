@@ -30,6 +30,7 @@ protolint = "latest"
 "go:github.com/sqls-server/sqls" = "latest"
 gh = "latest"
 codex = "latest"
+"npm:playwright" = "latest"
 
 [settings.upgrade]
 auto_prune = false
