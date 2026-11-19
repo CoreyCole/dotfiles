@@ -9,3 +9,4 @@ context/
 node_modules/
 agent/pi-hermes-memory
 agent/lead-inbox/
+agent/crashes.json
