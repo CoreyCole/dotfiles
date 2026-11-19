@@ -45,9 +45,10 @@ import {
   shellEscape,
   renameCurrentTab,
   renameWorkspace,
-  readScreen,
+  readScreenAsync,
   attachTmuxPane,
   attachHerdrPane,
+  currentHerdrSubagentWorkspaceId,
   detachTmuxPane,
   detachHerdrPane,
   createTmuxHiddenSurface,
@@ -66,7 +67,10 @@ import {
   findLastAssistantMessage,
   inspectSession,
   getNewEntries,
+  readNewSessionEntries,
   seedSubagentSessionFile,
+  sessionFileSize,
+  type SessionEntry,
 } from "./session.ts";
 import {
   type StatusSnapshot,
@@ -541,12 +545,47 @@ function stalledTransitionAction(params: {
   return "announce";
 }
 
-function paneIsAlive(surface: string): boolean {
+const PANE_ALIVE_TTL_MS = 5_000;
+const paneAliveCache = new Map<string, { alive: boolean; checkedAt: number }>();
+const paneProbeQueue: string[] = [];
+let paneProbeActive = false;
+
+function cachedPaneAlive(surface: string, now = Date.now()): boolean {
+  const cached = paneAliveCache.get(surface);
+  if (!cached || now - cached.checkedAt > PANE_ALIVE_TTL_MS)
+    enqueuePaneProbe(surface);
+  // Unknown means still alive. A sync probe here blocks paste.
+  return cached?.alive ?? true;
+}
+
+function enqueuePaneProbe(surface: string): void {
+  if (paneProbeQueue.includes(surface)) return;
+  paneProbeQueue.push(surface);
+  if (paneProbeActive) return;
+  paneProbeActive = true;
+  void pumpPaneProbes();
+}
+
+async function pumpPaneProbes(): Promise<void> {
   try {
-    readScreen(surface, 1);
-    return true;
-  } catch {
-    return false;
+    while (paneProbeQueue.length > 0) {
+      const surface = paneProbeQueue.shift();
+      if (!surface) continue;
+      let alive = false;
+      try {
+        await readScreenAsync(surface, 1);
+        alive = true;
+      } catch {
+        alive = false;
+      }
+      paneAliveCache.set(surface, { alive, checkedAt: Date.now() });
+    }
+  } finally {
+    paneProbeActive = false;
+    if (paneProbeQueue.length > 0) {
+      paneProbeActive = true;
+      void pumpPaneProbes();
+    }
   }
 }
 
@@ -888,6 +927,11 @@ function buildPiLaunchCommand(
     environment.push(
       `PI_SUBAGENT_TMUX_HIDDEN_SESSION=${shellEscape(run.tmuxHiddenSession)}`,
     );
+  const herdrWorkspace = currentHerdrSubagentWorkspaceId();
+  if (herdrWorkspace)
+    environment.push(
+      `PI_SUBAGENT_HERDR_WORKSPACE=${shellEscape(herdrWorkspace)}`,
+    );
   const command =
     `${profile.cwdPrefix}${environment.join(" ")} ${profile.arguments.join(" ")} ${run.promptArguments.map(shellEscape).join(" ")}`.trim();
   return `${command}; echo '__SUBAGENT_DONE_'$?'__'`;
@@ -922,6 +966,9 @@ interface RunningSubagent {
   activeWatchSignal?: AbortSignal;
   statusState: SubagentStatusState;
   statusEntryCursor: number;
+  /** Bytes already consumed. Absent means the next drain may scan once. */
+  statusFileOffset?: number;
+  statusFilePending?: Buffer;
   /** Texts this manager already sent. The watcher must not wake on them. */
   managerSteers?: string[];
   displayModel?: string;
@@ -1336,7 +1383,21 @@ interface SteerWatch {
   name: string;
   sessionFile: string;
   statusEntryCursor: number;
+  statusFileOffset?: number;
+  statusFilePending?: Buffer;
   managerSteers?: string[];
+}
+
+function sessionTailStart(sessionFile: string): {
+  statusEntryCursor: number;
+  statusFileOffset: number;
+  statusFilePending: Buffer;
+} {
+  return {
+    statusEntryCursor: 0,
+    statusFileOffset: sessionFileSize(sessionFile),
+    statusFilePending: Buffer.alloc(0),
+  };
 }
 
 const settledSteerWatches = new Map<string, SteerWatch>();
@@ -1361,6 +1422,10 @@ function armSettledSteerWatch(running: SteerWatch): void {
     existing.managerSteers = managerSteers;
     return;
   }
+  const offset = Math.max(
+    existing?.statusFileOffset ?? -1,
+    running.statusFileOffset ?? -1,
+  );
   settledSteerWatches.set(running.id, {
     id: running.id,
     name: running.name,
@@ -1369,6 +1434,16 @@ function armSettledSteerWatch(running: SteerWatch): void {
       existing?.statusEntryCursor ?? 0,
       running.statusEntryCursor,
     ),
+    ...(offset >= 0
+      ? {
+          statusFileOffset: offset,
+          statusFilePending:
+            (existing?.statusFileOffset ?? -1) >=
+            (running.statusFileOffset ?? -1)
+              ? existing?.statusFilePending
+              : running.statusFilePending,
+        }
+      : {}),
     managerSteers,
   });
 }
@@ -1569,7 +1644,7 @@ function pollSettledManualSteers(params: {
         id: child.childSessionId,
         name: child.name,
         sessionFile,
-        statusEntryCursor: getNewEntries(sessionFile, 0).length,
+        ...sessionTailStart(sessionFile),
         managerSteers: [
           ...(pendingManagerSteers.get(child.childSessionId) ?? []),
         ],
@@ -1616,6 +1691,24 @@ function consumeManagerSteer(
   return true;
 }
 
+function takeNewSessionEntries(running: SteerWatch): SessionEntry[] {
+  if (typeof running.statusFileOffset === "number") {
+    const read = readNewSessionEntries(running.sessionFile, {
+      offset: running.statusFileOffset,
+      pending: running.statusFilePending ?? Buffer.alloc(0),
+    });
+    running.statusFileOffset = read.cursor.offset;
+    running.statusFilePending = read.cursor.pending;
+    running.statusEntryCursor += read.entries.length;
+    return read.entries;
+  }
+  const entries = getNewEntries(running.sessionFile, running.statusEntryCursor);
+  running.statusEntryCursor += entries.length;
+  running.statusFileOffset = sessionFileSize(running.sessionFile);
+  running.statusFilePending = Buffer.alloc(0);
+  return entries;
+}
+
 function drainChildSessionEntries(
   running: SteerWatch,
   handlers: {
@@ -1624,8 +1717,7 @@ function drainChildSessionEntries(
   },
 ): void {
   if (!existsSync(running.sessionFile)) return;
-  const entries = getNewEntries(running.sessionFile, running.statusEntryCursor);
-  running.statusEntryCursor += entries.length;
+  const entries = takeNewSessionEntries(running);
   for (const entry of entries) {
     const steered = userMessageText(entry);
     if (steered) {
@@ -1862,7 +1954,7 @@ function renderSubagentWidgetLines(
   width: number,
   now = Date.now(),
   showStopped = false,
-  paneAlive: (surface: string) => boolean = paneIsAlive,
+  paneAlive: (surface: string) => boolean = cachedPaneAlive,
 ): string[] {
   const orderedChildren = sortChildCatalog(children);
   const activeCount = orderedChildren.filter((child) =>
@@ -2823,9 +2915,13 @@ function startStatusRefresh(pi: ExtensionAPI) {
       }
       running.statusState = nextState;
 
+      const child = childrenBySessionId.get(running.id);
       const stallAction = stalledTransitionAction({
-        autoExit: childrenBySessionId.get(running.id)?.autoExit,
-        paneAlive: paneIsAlive(running.surface),
+        autoExit: child?.autoExit,
+        paneAlive:
+          transition === "stalled" && child?.autoExit === false
+            ? cachedPaneAlive(running.surface)
+            : true,
         kind: snapshot.kind,
         phase: running.statusState.phase,
         transition,
@@ -3273,7 +3369,7 @@ async function launchSubagent(
       source: "pi",
       startTimeMs: startTime,
     }),
-    statusEntryCursor: getNewEntries(subagentSessionFile, 0).length,
+    ...sessionTailStart(subagentSessionFile),
     managerSteers: [params.task],
   };
 
@@ -4209,7 +4305,7 @@ export default function subagentsExtension(
                 source: "pi",
                 startTimeMs: startTime,
               }),
-              statusEntryCursor: getNewEntries(sessionFile, 0).length,
+              ...sessionTailStart(sessionFile),
               managerSteers: wakePlan.noteBeforeSend ? [message] : [],
             };
           } catch (error) {
@@ -4715,9 +4811,13 @@ export default function subagentsExtension(
         const result =
           backend === "herdr"
             ? attachHerdrPane(running.surface, managerPane)
-            : attachTmuxPane(running.surface, managerPane);
+            : {
+                action: attachTmuxPane(running.surface, managerPane),
+                paneId: running.surface,
+              };
+        if (backend === "herdr") running.surface = result.paneId;
         ctx.ui.notify(
-          `${result === "moved" ? "Attached" : "Focused"} subagent "${running.name}".`,
+          `${result.action === "moved" ? "Attached" : "Focused"} subagent "${running.name}".`,
           "info",
         );
       } catch (error) {
@@ -4764,7 +4864,7 @@ export default function subagentsExtension(
         if (backend === "herdr") {
           detachHerdrPane(surface, process.env.PI_SUBAGENT_NAME || id);
           ctx.ui.notify(
-            `Detached subagent ${id} into its own Herdr tab.`,
+            `Detached subagent ${id} back to the pi-subagents workspace.`,
             "info",
           );
         } else {

@@ -6,9 +6,14 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import {
   appendFileSync,
+  closeSync,
   copyFileSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -187,6 +192,74 @@ export function getNewEntries(
   const raw = readFileSync(sessionFile, "utf8");
   const lines = raw.split("\n").filter((line) => line.trim());
   return lines.slice(afterLine).map((line) => JSON.parse(line) as SessionEntry);
+}
+
+export interface SessionReadCursor {
+  offset: number;
+  pending: Buffer;
+}
+
+/** Byte size, or 0 when the session file does not exist yet. */
+export function sessionFileSize(sessionFile: string): number {
+  try {
+    return statSync(sessionFile).size;
+  } catch {
+    return 0;
+  }
+}
+
+function splitCompleteLines(
+  pending: Buffer,
+  chunk: Buffer,
+): { lines: string[]; pending: Buffer } {
+  const combined = pending.length > 0 ? Buffer.concat([pending, chunk]) : chunk;
+  const newline = combined.lastIndexOf(0x0a);
+  if (newline < 0) return { lines: [], pending: combined };
+  const text = combined.subarray(0, newline).toString("utf8");
+  return {
+    lines: text.length > 0 ? text.split("\n") : [],
+    pending: combined.subarray(newline + 1),
+  };
+}
+
+/**
+ * Read only bytes appended since `cursor`. Does not reread the session history.
+ */
+export function readNewSessionEntries(
+  sessionFile: string,
+  cursor: SessionReadCursor,
+): { entries: SessionEntry[]; cursor: SessionReadCursor } {
+  let fd: number;
+  try {
+    fd = openSync(sessionFile, "r");
+  } catch {
+    return { entries: [], cursor };
+  }
+  try {
+    const size = fstatSync(fd).size;
+    let offset = cursor.offset;
+    let pending = cursor.pending;
+    if (size < offset) {
+      offset = 0;
+      pending = Buffer.alloc(0);
+    }
+    if (size === offset) return { entries: [], cursor: { offset, pending } };
+    const length = size - offset;
+    const buffer = Buffer.alloc(length);
+    const read = readSync(fd, buffer, 0, length, offset);
+    const decoded = splitCompleteLines(pending, buffer.subarray(0, read));
+    const entries: SessionEntry[] = [];
+    for (const line of decoded.lines) {
+      if (!line.trim()) continue;
+      entries.push(JSON.parse(line) as SessionEntry);
+    }
+    return {
+      entries,
+      cursor: { offset: offset + read, pending: decoded.pending },
+    };
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /**

@@ -6,7 +6,7 @@ A catalog child is always resumable by its child-session UUID. `subagents_list` 
 
 `/new` keeps open panes and the child catalog. A pane that already closed stays closed. `AGENTS.md` states the `autoExit` rule. The new session can steer children that remain. A quit or a restart closes the panes that remain. A later resume of the old session does not own those children.
 
-`/attach` is active-only. Inside Herdr it moves the child pane onto the manager tab (or focuses it when already there). `/detach` parks it on its own tab. Steer an idle child by UUID (or an unambiguous prefix) first. `/stop` and `subagent_stop` stop only an active process and retain durable history.
+`/attach` is active-only. Inside Herdr it moves the child pane onto the manager tab (or focuses it when already there). `/detach` moves that pane back to the shared `pi-subagents` workspace. Spawn creates every Herdr child in that workspace, not in the manager workspace. Steer an idle child by UUID (or an unambiguous prefix) first. `/stop` and `subagent_stop` stop only an active process and retain durable history.
 
 Named children re-resolve their current named-agent definition when resumed, including its prompt, tools, deny policy, config directory, and cwd. An omitted steer model still omits `--model`, so the native session keeps its last provider and model. An idle steer may pass an exact `provider/id`; that resume adds only `--model` for that process.
 

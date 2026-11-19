@@ -8,6 +8,7 @@ import {
   createHerdrSurface,
   createTmuxBackgroundWindow,
   detachHerdrPane,
+  HERDR_SUBAGENT_HOLD_LABEL,
   createTmuxHiddenSurface,
   detachTmuxPane,
   destroyTmuxHiddenOwner,
@@ -439,19 +440,85 @@ function paneGet(paneId: string, tabId: string) {
   return ok({ pane: { pane_id: paneId, tab_id: tabId }, type: "pane_get" });
 }
 
-test("herdr createSurface uses a no-focus tab", () => {
-  const herdr = fakeHerdr(() =>
-    ok({
-      root_pane: { pane_id: "w1:p9" },
-      tab: { tab_id: "w1:t2" },
+test("herdr createSurface uses the shared subagent workspace", () => {
+  const herdr = fakeHerdr((args) => {
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({
+        workspaces: [{ workspace_id: "w9", label: "pi-subagents" }],
+      });
+    }
+    if (args[0] === "tab" && args[1] === "list") {
+      return ok({
+        tabs: [{ tab_id: "w9:t1", label: HERDR_SUBAGENT_HOLD_LABEL }],
+      });
+    }
+    if (args[0] === "pane" && args[1] === "get") {
+      return ok({
+        pane: { pane_id: "w9:p9", tab_id: "w9:t2", terminal_id: "term_1" },
+      });
+    }
+    return ok({
+      root_pane: { pane_id: "w9:p9" },
+      tab: { tab_id: "w9:t2" },
       type: "tab_created",
-    }),
+    });
+  });
+  assert.equal(createHerdrSurface("Scout", herdr.execute), "w9:p9");
+  const created = herdr.calls.find(
+    (args) => args[0] === "tab" && args[1] === "create",
   );
-  assert.equal(createHerdrSurface("Scout", herdr.execute), "w1:p9");
-  assert.equal(herdr.calls[0]?.[0], "tab");
-  assert.equal(herdr.calls[0]?.[1], "create");
-  assert.ok(herdr.calls[0]?.includes("--no-focus"));
-  assert.ok(herdr.calls[0]?.includes("Scout"));
+  assert.ok(created?.includes("--no-focus"));
+  assert.ok(created?.includes("--workspace"));
+  assert.ok(created?.includes("w9"));
+  assert.ok(created?.includes("Scout"));
+  assert.equal(
+    herdr.calls.some((args) => args[0] === "workspace" && args[1] === "create"),
+    false,
+  );
+});
+
+test("herdr createSurface keeps the bootstrap tab as the workspace hold", () => {
+  const previousWorkspace = process.env.HERDR_WORKSPACE_ID;
+  process.env.HERDR_WORKSPACE_ID = "w1";
+  const herdr = fakeHerdr((args) => {
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({ workspaces: [] });
+    }
+    if (args[0] === "workspace" && args[1] === "create") {
+      return ok({
+        workspace: { workspace_id: "w9" },
+        tab: { tab_id: "w9:t1" },
+        root_pane: { pane_id: "w9:p1" },
+      });
+    }
+    if (args[0] === "pane" && args[1] === "get") {
+      return ok({
+        pane: { pane_id: "w9:p9", tab_id: "w9:t2", terminal_id: "term_1" },
+      });
+    }
+    return ok({
+      root_pane: { pane_id: "w9:p9" },
+      tab: { tab_id: "w9:t2" },
+    });
+  });
+  try {
+    assert.equal(createHerdrSurface("Scout", herdr.execute), "w9:p9");
+  } finally {
+    if (previousWorkspace == null) delete process.env.HERDR_WORKSPACE_ID;
+    else process.env.HERDR_WORKSPACE_ID = previousWorkspace;
+  }
+  assert.deepEqual(
+    herdr.calls.find((args) => args[0] === "tab" && args[1] === "rename"),
+    ["tab", "rename", "w9:t1", HERDR_SUBAGENT_HOLD_LABEL],
+  );
+  assert.equal(
+    herdr.calls.some((args) => args[0] === "tab" && args[1] === "close"),
+    false,
+  );
+  assert.deepEqual(
+    herdr.calls.find((args) => args[0] === "workspace" && args[1] === "focus"),
+    ["workspace", "focus", "w1"],
+  );
 });
 
 test("herdr attach focuses a same-tab pane", () => {
@@ -461,7 +528,10 @@ test("herdr attach focuses a same-tab pane", () => {
     }
     return ok({ type: "ok" });
   });
-  assert.equal(attachHerdrPane("w1:p2", "w1:p1", herdr.execute), "focused");
+  assert.deepEqual(attachHerdrPane("w1:p2", "w1:p1", herdr.execute), {
+    action: "focused",
+    paneId: "w1:p2",
+  });
   assert.deepEqual(herdr.calls.at(-1), ["agent", "focus", "w1:p2"]);
   assert.equal(
     herdr.calls.some((args) => args[0] === "pane" && args[1] === "move"),
@@ -480,18 +550,18 @@ test("herdr attach moves a cross-tab pane beside the manager", () => {
     return ok({ type: "pane_move" });
   });
   const calls: string[][] = [];
-  assert.equal(
+  assert.deepEqual(
     attachHerdrPane("w1:p9", "w1:p1", (args) => {
       calls.push(args);
       if (args[1] === "move") {
         return ok({
-          move_result: { pane: { pane_id: "w1:p9" } },
+          move_result: { pane: { pane_id: "w1:p9b", terminal_id: "term_9" } },
           type: "pane_move",
         });
       }
       return herdr.execute(args);
     }),
-    "moved",
+    { action: "moved", paneId: "w1:p9b" },
   );
   assert.deepEqual(
     calls.find((args) => args[1] === "move"),
@@ -520,17 +590,131 @@ test("herdr attach moves a cross-tab pane beside the manager", () => {
   );
 });
 
-test("herdr detach parks the pane on a new tab and claims the remaining tab", () => {
+test("herdr attach creates a hold tab before leaving pi-subagents", () => {
+  const calls: string[][] = [];
+  const execute: HerdrCommand = (args) => {
+    calls.push(args);
+    if (args[0] === "pane" && args[1] === "get" && args[2] === "w9:p9") {
+      return paneGet("w9:p9", "w9:t2");
+    }
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w1:t1");
+    }
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({
+        workspaces: [{ workspace_id: "w9", label: "pi-subagents" }],
+      });
+    }
+    if (args[0] === "tab" && args[1] === "list") {
+      return ok({ tabs: [{ tab_id: "w9:t2", label: "Scout" }] });
+    }
+    if (args[0] === "tab" && args[1] === "create") {
+      return ok({
+        tab: { tab_id: "w9:t1" },
+        root_pane: { pane_id: "w9:phold" },
+      });
+    }
+    if (args[1] === "move") {
+      return ok({
+        move_result: { pane: { pane_id: "w1:p9b", terminal_id: "term_9" } },
+        type: "pane_move",
+      });
+    }
+    return ok({ type: "ok" });
+  };
+  assert.deepEqual(attachHerdrPane("w9:p9", "w1:p1", execute), {
+    action: "moved",
+    paneId: "w1:p9b",
+  });
+  const hold = calls.findIndex(
+    (args) => args[0] === "tab" && args[1] === "create",
+  );
+  const move = calls.findIndex((args) => args[1] === "move");
+  assert.ok(hold >= 0 && hold < move);
+  assert.ok(calls[hold]?.includes(HERDR_SUBAGENT_HOLD_LABEL));
+  assert.ok(calls[hold]?.includes("--no-focus"));
+  assert.ok(calls[hold]?.includes("w9"));
+});
+
+test("herdr attach does not add a second hold tab", () => {
+  const calls: string[][] = [];
+  const execute: HerdrCommand = (args) => {
+    calls.push(args);
+    if (args[0] === "pane" && args[1] === "get" && args[2] === "w9:p9") {
+      return paneGet("w9:p9", "w9:t2");
+    }
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w1:t1");
+    }
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({
+        workspaces: [{ workspace_id: "w9", label: "pi-subagents" }],
+      });
+    }
+    if (args[0] === "tab" && args[1] === "list") {
+      return ok({
+        tabs: [{ tab_id: "w9:t1", label: HERDR_SUBAGENT_HOLD_LABEL }],
+      });
+    }
+    if (args[1] === "move") {
+      return ok({
+        move_result: { pane: { pane_id: "w1:p9b" } },
+        type: "pane_move",
+      });
+    }
+    return ok({ type: "ok" });
+  };
+  attachHerdrPane("w9:p9", "w1:p1", execute);
+  assert.equal(
+    calls.some((args) => args[0] === "tab" && args[1] === "create"),
+    false,
+  );
+});
+
+test("herdr detach returns the pane to the shared subagent workspace", () => {
+  const previous = process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+  process.env.PI_SUBAGENT_HERDR_WORKSPACE = "w9";
   const herdr = fakeHerdr((args) => {
     if (args[0] === "pane" && args[1] === "get") {
       return paneGet(args[2]!, "w1:t1");
     }
-    return ok({ type: "pane_move" });
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({
+        workspaces: [{ workspace_id: "w9", label: "pi-subagents" }],
+      });
+    }
+    if (args[0] === "tab" && args[1] === "list") {
+      return ok({
+        tabs: [{ tab_id: "w9:t1", label: HERDR_SUBAGENT_HOLD_LABEL }],
+      });
+    }
+    if (args[1] === "move") {
+      return ok({
+        move_result: { pane: { pane_id: "w9:p4" } },
+        type: "pane_move",
+      });
+    }
+    return ok({ type: "ok" });
   });
-  assert.equal(detachHerdrPane("w1:p9", "Scout", herdr.execute), "w1:p9");
+  try {
+    assert.equal(detachHerdrPane("w1:p9", "Scout", herdr.execute), "w9:p4");
+  } finally {
+    if (previous == null) delete process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+    else process.env.PI_SUBAGENT_HERDR_WORKSPACE = previous;
+  }
   assert.deepEqual(
     herdr.calls.find((args) => args[1] === "move"),
-    ["pane", "move", "w1:p9", "--new-tab", "--label", "Scout", "--no-focus"],
+    [
+      "pane",
+      "move",
+      "w1:p9",
+      "--new-tab",
+      "--workspace",
+      "w9",
+      "--label",
+      "Scout",
+      "--no-focus",
+    ],
   );
   assert.equal(
     herdr.calls.some((args) => args[1] === "resize"),
@@ -540,6 +724,127 @@ test("herdr detach parks the pane on a new tab and claims the remaining tab", ()
     herdr.calls.filter((args) => args[0] === "tab" && args[1] === "focus"),
     [["tab", "focus", "w1:t1"]],
   );
+});
+
+test("herdr detach uses the live pi-subagents workspace when the recorded id is gone", () => {
+  const previous = process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+  process.env.PI_SUBAGENT_HERDR_WORKSPACE = "w3Y";
+  const calls: string[][] = [];
+  const execute: HerdrCommand = (args) => {
+    calls.push(args);
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w4:t56T");
+    }
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({
+        workspaces: [{ workspace_id: "w30", label: "pi-subagents" }],
+      });
+    }
+    if (args[0] === "tab" && args[1] === "list") {
+      return ok({ tabs: [{ tab_id: "w30:t2", label: "demo" }] });
+    }
+    if (args[0] === "tab" && args[1] === "create") {
+      return ok({
+        tab: { tab_id: "w30:t9" },
+        root_pane: { pane_id: "w30:phold" },
+      });
+    }
+    if (args[1] === "move") {
+      return ok({
+        move_result: { pane: { pane_id: "w30:p4" } },
+        type: "pane_move",
+      });
+    }
+    return ok({ type: "ok" });
+  };
+  try {
+    assert.equal(
+      detachHerdrPane("w4:p5CM", "land-demo-prod-kustomize", execute),
+      "w30:p4",
+    );
+    assert.equal(process.env.PI_SUBAGENT_HERDR_WORKSPACE, "w30");
+  } finally {
+    if (previous == null) delete process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+    else process.env.PI_SUBAGENT_HERDR_WORKSPACE = previous;
+  }
+  const hold = calls.findIndex(
+    (args) => args[0] === "tab" && args[1] === "create",
+  );
+  const move = calls.findIndex((args) => args[1] === "move");
+  assert.ok(hold >= 0 && hold < move);
+  assert.ok(calls[hold]?.includes(HERDR_SUBAGENT_HOLD_LABEL));
+  assert.deepEqual(calls[move], [
+    "pane",
+    "move",
+    "w4:p5CM",
+    "--new-tab",
+    "--workspace",
+    "w30",
+    "--label",
+    "land-demo-prod-kustomize",
+    "--no-focus",
+  ]);
+});
+
+test("herdr detach creates pi-subagents when no subagent workspace remains", () => {
+  const previous = process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+  process.env.PI_SUBAGENT_HERDR_WORKSPACE = "w3Y";
+  const calls: string[][] = [];
+  const execute: HerdrCommand = (args) => {
+    calls.push(args);
+    if (args[0] === "pane" && args[1] === "get") {
+      return paneGet(args[2]!, "w4:t1");
+    }
+    if (args[0] === "workspace" && args[1] === "list") {
+      return ok({ workspaces: [] });
+    }
+    if (args[0] === "workspace" && args[1] === "create") {
+      return ok({
+        workspace: { workspace_id: "w31" },
+        tab: { tab_id: "w31:t1" },
+        root_pane: { pane_id: "w31:p1" },
+      });
+    }
+    if (args[1] === "move") {
+      return ok({
+        move_result: { pane: { pane_id: "w31:p4" } },
+        type: "pane_move",
+      });
+    }
+    return ok({ type: "ok" });
+  };
+  try {
+    assert.equal(detachHerdrPane("w4:p9", "Scout", execute), "w31:p4");
+  } finally {
+    if (previous == null) delete process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+    else process.env.PI_SUBAGENT_HERDR_WORKSPACE = previous;
+  }
+  const rename = calls.findIndex(
+    (args) => args[0] === "tab" && args[1] === "rename",
+  );
+  const move = calls.findIndex((args) => args[1] === "move");
+  assert.ok(rename >= 0 && rename < move);
+  assert.deepEqual(calls[rename], [
+    "tab",
+    "rename",
+    "w31:t1",
+    HERDR_SUBAGENT_HOLD_LABEL,
+  ]);
+  assert.equal(
+    calls.some((args) => args[0] === "tab" && args[1] === "close"),
+    false,
+  );
+  assert.deepEqual(calls[move], [
+    "pane",
+    "move",
+    "w4:p9",
+    "--new-tab",
+    "--workspace",
+    "w31",
+    "--label",
+    "Scout",
+    "--no-focus",
+  ]);
 });
 
 test("herdr wins over leftover TMUX when HERDR_ENV is set", () => {

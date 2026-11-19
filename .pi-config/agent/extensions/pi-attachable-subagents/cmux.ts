@@ -13,7 +13,7 @@ import {
   mkdirSync,
   statSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
 const execFileAsync = promisify(execFile);
@@ -1088,12 +1088,27 @@ function herdrResult(args: string[], execute: HerdrCommand = runHerdr): any {
   return payload?.result ?? payload;
 }
 
+export const HERDR_SUBAGENT_WORKSPACE_LABEL = "pi-subagents";
+export const HERDR_SUBAGENT_HOLD_LABEL = "hold";
+
+const herdrTerminalByPane = new Map<string, string>();
+let activeHerdrSubagentWorkspaceId: string | undefined;
+
+export function currentHerdrSubagentWorkspaceId(): string | undefined {
+  return activeHerdrSubagentWorkspaceId;
+}
+
+function rememberHerdrPane(paneId: string, terminalId: string): void {
+  herdrTerminalByPane.set(paneId, terminalId);
+}
+
 function herdrPane(
   paneId: string,
   execute: HerdrCommand = runHerdr,
 ): {
   pane_id: string;
   tab_id: string;
+  terminal_id?: string;
 } {
   const result = herdrResult(["pane", "get", paneId], execute);
   const pane = result?.pane ?? result;
@@ -1102,31 +1117,241 @@ function herdrPane(
   if (typeof id !== "string" || typeof tabId !== "string") {
     throw new Error(`Unexpected herdr pane get output for ${paneId}`);
   }
-  return { pane_id: id, tab_id: tabId };
+  const terminalId = pane?.terminal_id;
+  return {
+    pane_id: id,
+    tab_id: tabId,
+    ...(typeof terminalId === "string" && terminalId
+      ? { terminal_id: terminalId }
+      : {}),
+  };
+}
+
+/** A cross-workspace move changes the public pane id. The terminal id does not. */
+function herdrTarget(paneId: string, execute: HerdrCommand = runHerdr): string {
+  try {
+    const pane = herdrPane(paneId, execute);
+    const terminalId = pane.terminal_id ?? herdrTerminalByPane.get(paneId);
+    if (terminalId) {
+      rememberHerdrPane(pane.pane_id, terminalId);
+      rememberHerdrPane(paneId, terminalId);
+    }
+    return pane.pane_id;
+  } catch (error) {
+    const terminalId = herdrTerminalByPane.get(paneId);
+    if (!terminalId) return paneId;
+    const listed = herdrResult(["pane", "list"], execute);
+    const panes = Array.isArray(listed?.panes) ? listed.panes : [];
+    const match = panes.find(
+      (pane: { pane_id?: unknown; terminal_id?: unknown }) =>
+        pane?.terminal_id === terminalId && typeof pane.pane_id === "string",
+    );
+    if (!match?.pane_id) throw error;
+    rememberHerdrPane(match.pane_id, terminalId);
+    rememberHerdrPane(paneId, terminalId);
+    return match.pane_id;
+  }
+}
+
+function sleepMs(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withHerdrWorkspaceLock<T>(body: () => T): T {
+  const lockDir = join(tmpdir(), "pi-subagents-workspace.lock");
+  for (let attempt = 0; attempt < 40; attempt++) {
+    try {
+      mkdirSync(lockDir);
+      try {
+        return body();
+      } finally {
+        rmSync(lockDir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      sleepMs(50);
+    }
+  }
+  return body();
+}
+
+function herdrWorkspaces(
+  execute: HerdrCommand,
+): Array<{ workspace_id?: string; label?: string }> {
+  const result = herdrResult(["workspace", "list"], execute);
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.workspaces)) return result.workspaces;
+  return [];
+}
+
+function herdrTabs(
+  workspaceId: string,
+  execute: HerdrCommand,
+): Array<{ tab_id?: string; label?: string }> {
+  const result = herdrResult(
+    ["tab", "list", "--workspace", workspaceId],
+    execute,
+  );
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.tabs)) return result.tabs;
+  return [];
+}
+
+function herdrWorkspaceIdFromPane(paneId: string): string | undefined {
+  const workspaceId = paneId.split(":")[0];
+  if (!workspaceId || workspaceId === paneId) return undefined;
+  return workspaceId;
+}
+
+function ensureHerdrSubagentHoldUnlocked(
+  workspaceId: string,
+  execute: HerdrCommand,
+  bootstrapTabId?: string,
+): void {
+  if (bootstrapTabId) {
+    try {
+      herdrResult(
+        ["tab", "rename", bootstrapTabId, HERDR_SUBAGENT_HOLD_LABEL],
+        execute,
+      );
+    } catch {
+      // The bootstrap pane still keeps the workspace open.
+    }
+    return;
+  }
+  const tabs = herdrTabs(workspaceId, execute);
+  if (tabs.some((tab) => tab.label === HERDR_SUBAGENT_HOLD_LABEL)) return;
+  herdrResult(
+    [
+      "tab",
+      "create",
+      "--label",
+      HERDR_SUBAGENT_HOLD_LABEL,
+      "--cwd",
+      homedir(),
+      "--no-focus",
+      "--workspace",
+      workspaceId,
+    ],
+    execute,
+  );
+}
+
+function ensureHerdrSubagentWorkspaceUnlocked(
+  execute: HerdrCommand,
+  preferredId?: string,
+): { workspaceId: string; created: boolean } {
+  const workspaces = herdrWorkspaces(execute);
+  const preferred = preferredId
+    ? workspaces.find((workspace) => workspace.workspace_id === preferredId)
+    : undefined;
+  const existing =
+    preferred ??
+    workspaces.find(
+      (workspace) => workspace.label === HERDR_SUBAGENT_WORKSPACE_LABEL,
+    );
+  if (existing?.workspace_id) {
+    activeHerdrSubagentWorkspaceId = existing.workspace_id;
+    ensureHerdrSubagentHoldUnlocked(existing.workspace_id, execute);
+    return { workspaceId: existing.workspace_id, created: false };
+  }
+  const created = herdrResult(
+    [
+      "workspace",
+      "create",
+      "--label",
+      HERDR_SUBAGENT_WORKSPACE_LABEL,
+      "--cwd",
+      homedir(),
+      "--no-focus",
+    ],
+    execute,
+  );
+  const workspaceId = created?.workspace?.workspace_id;
+  if (typeof workspaceId !== "string" || !workspaceId) {
+    throw new Error(
+      `Unexpected herdr workspace create output: ${workspaceId || "(empty)"}`,
+    );
+  }
+  activeHerdrSubagentWorkspaceId = workspaceId;
+  const bootstrapTabId = created?.tab?.tab_id;
+  ensureHerdrSubagentHoldUnlocked(
+    workspaceId,
+    execute,
+    typeof bootstrapTabId === "string" && bootstrapTabId
+      ? bootstrapTabId
+      : undefined,
+  );
+  return { workspaceId, created: true };
+}
+
+function ensureHerdrSubagentWorkspace(execute: HerdrCommand): {
+  workspaceId: string;
+  created: boolean;
+} {
+  return withHerdrWorkspaceLock(() =>
+    ensureHerdrSubagentWorkspaceUnlocked(execute),
+  );
+}
+
+function keepHerdrSubagentWorkspace(
+  workspaceId: string,
+  execute: HerdrCommand,
+): void {
+  withHerdrWorkspaceLock(() => {
+    const match = herdrWorkspaces(execute).find(
+      (workspace) => workspace.workspace_id === workspaceId,
+    );
+    if (!match?.workspace_id) return;
+    const isSubagentWorkspace =
+      match.label === HERDR_SUBAGENT_WORKSPACE_LABEL ||
+      match.workspace_id === activeHerdrSubagentWorkspaceId ||
+      match.workspace_id === process.env.PI_SUBAGENT_HERDR_WORKSPACE;
+    if (!isSubagentWorkspace) return;
+    ensureHerdrSubagentHoldUnlocked(match.workspace_id, execute);
+  });
 }
 
 export function createHerdrSurface(
   name: string,
   execute: HerdrCommand = runHerdr,
 ): string {
-  const args = [
-    "tab",
-    "create",
-    "--label",
-    name,
-    "--cwd",
-    process.cwd(),
-    "--no-focus",
-  ];
-  if (process.env.HERDR_WORKSPACE_ID) {
-    args.push("--workspace", process.env.HERDR_WORKSPACE_ID);
-  }
-  const result = herdrResult(args, execute);
+  const workspace = ensureHerdrSubagentWorkspace(execute);
+  const result = herdrResult(
+    [
+      "tab",
+      "create",
+      "--label",
+      name,
+      "--cwd",
+      process.cwd(),
+      "--no-focus",
+      "--workspace",
+      workspace.workspaceId,
+    ],
+    execute,
+  );
   const paneId = result?.root_pane?.pane_id;
   if (typeof paneId !== "string" || !paneId) {
     throw new Error(
       `Unexpected herdr tab create output: ${paneId || "(empty)"}`,
     );
+  }
+  if (workspace.created) {
+    const callerWorkspace = process.env.HERDR_WORKSPACE_ID;
+    if (callerWorkspace) {
+      try {
+        herdrResult(["workspace", "focus", callerWorkspace], execute);
+      } catch {
+        // The child tab was created without focus. Restoring focus is cosmetic.
+      }
+    }
+  }
+  try {
+    const pane = herdrPane(paneId, execute);
+    if (pane.terminal_id) rememberHerdrPane(pane.pane_id, pane.terminal_id);
+  } catch {
+    // The pane id is already valid. Terminal tracking is only for a later move.
   }
   return paneId;
 }
@@ -1140,26 +1365,36 @@ function claimHerdrTabGeometry(tabId: string, execute: HerdrCommand): void {
   }
 }
 
+export type HerdrAttachResult = {
+  action: "focused" | "moved";
+  paneId: string;
+};
+
 export function attachHerdrPane(
   childPane: string,
   managerPane: string,
   execute: HerdrCommand = runHerdr,
-): "focused" | "moved" {
-  const child = herdrPane(childPane, execute);
+): HerdrAttachResult {
+  const childId = herdrTarget(childPane, execute);
+  const child = herdrPane(childId, execute);
   const manager = herdrPane(managerPane, execute);
+  const terminalId = child.terminal_id ?? herdrTerminalByPane.get(childPane);
+  if (terminalId) rememberHerdrPane(child.pane_id, terminalId);
   if (child.tab_id === manager.tab_id) {
     try {
-      herdrResult(["agent", "focus", childPane], execute);
+      herdrResult(["agent", "focus", child.pane_id], execute);
     } catch {
       herdrResult(["tab", "focus", child.tab_id], execute);
     }
-    return "focused";
+    return { action: "focused", paneId: child.pane_id };
   }
-  herdrResult(
+  const sourceWorkspaceId = herdrWorkspaceIdFromPane(child.pane_id);
+  if (sourceWorkspaceId) keepHerdrSubagentWorkspace(sourceWorkspaceId, execute);
+  const moved = herdrResult(
     [
       "pane",
       "move",
-      childPane,
+      child.pane_id,
       "--tab",
       manager.tab_id,
       "--target-pane",
@@ -1172,8 +1407,16 @@ export function attachHerdrPane(
     ],
     execute,
   );
+  const paneId = moved?.move_result?.pane?.pane_id;
+  const nextPaneId =
+    typeof paneId === "string" && paneId ? paneId : child.pane_id;
+  const nextTerminalId = moved?.move_result?.pane?.terminal_id ?? terminalId;
+  if (typeof nextTerminalId === "string" && nextTerminalId) {
+    rememberHerdrPane(nextPaneId, nextTerminalId);
+    rememberHerdrPane(childPane, nextTerminalId);
+  }
   claimHerdrTabGeometry(manager.tab_id, execute);
-  return "moved";
+  return { action: "moved", paneId: nextPaneId };
 }
 
 export function detachHerdrPane(
@@ -1181,15 +1424,35 @@ export function detachHerdrPane(
   tabLabel: string,
   execute: HerdrCommand = runHerdr,
 ): string {
-  const origin = herdrPane(childPane, execute);
-  herdrResult(
-    ["pane", "move", childPane, "--new-tab", "--label", tabLabel, "--no-focus"],
+  const workspaceId = withHerdrWorkspaceLock(() => {
+    const resolved = ensureHerdrSubagentWorkspaceUnlocked(
+      execute,
+      process.env.PI_SUBAGENT_HERDR_WORKSPACE,
+    );
+    process.env.PI_SUBAGENT_HERDR_WORKSPACE = resolved.workspaceId;
+    return resolved.workspaceId;
+  });
+  const currentId = herdrTarget(childPane, execute);
+  const origin = herdrPane(currentId, execute);
+  const moved = herdrResult(
+    [
+      "pane",
+      "move",
+      origin.pane_id,
+      "--new-tab",
+      "--workspace",
+      workspaceId,
+      "--label",
+      tabLabel,
+      "--no-focus",
+    ],
     execute,
   );
   // Moving the child removes the split, so the survivor's rect is the full tab.
   // Tab focus ioctls that rect into the PTY. It does not change the ratio.
   claimHerdrTabGeometry(origin.tab_id, execute);
-  return childPane;
+  const paneId = moved?.move_result?.pane?.pane_id;
+  return typeof paneId === "string" && paneId ? paneId : origin.pane_id;
 }
 
 /**
@@ -1562,16 +1825,17 @@ export function sendCommand(surface: string, command: string): void {
   }
 
   if (backend === "herdr") {
+    const paneId = herdrTarget(surface);
     execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
       "pane",
       "send-text",
-      surface,
+      paneId,
       command,
     ]);
     execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
       "pane",
       "send-keys",
-      surface,
+      paneId,
       "enter",
     ]);
     return;
@@ -1638,16 +1902,17 @@ export function sendPrompt(surface: string, message: string): void {
     return;
   }
   if (backend === "herdr") {
+    const paneId = herdrTarget(surface);
     execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
       "pane",
       "send-text",
-      surface,
+      paneId,
       message,
     ]);
     execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
       "pane",
       "send-keys",
-      surface,
+      paneId,
       "enter",
     ]);
     return;
@@ -1691,7 +1956,7 @@ export function sendEscape(surface: string): void {
     execFileSync(process.env.HERDR_BIN_PATH || "herdr", [
       "pane",
       "send-keys",
-      surface,
+      herdrTarget(surface),
       "esc",
     ]);
     return;
@@ -1774,7 +2039,15 @@ export function readScreen(surface: string, lines = 50): string {
   if (backend === "herdr") {
     return execFileSync(
       process.env.HERDR_BIN_PATH || "herdr",
-      ["pane", "read", surface, "--source", "recent", "--lines", String(lines)],
+      [
+        "pane",
+        "read",
+        herdrTarget(surface),
+        "--source",
+        "recent",
+        "--lines",
+        String(lines),
+      ],
       { encoding: "utf8" },
     );
   }
@@ -1831,7 +2104,15 @@ export async function readScreenAsync(
   if (backend === "herdr") {
     const { stdout } = await execFileAsync(
       process.env.HERDR_BIN_PATH || "herdr",
-      ["pane", "read", surface, "--source", "recent", "--lines", String(lines)],
+      [
+        "pane",
+        "read",
+        herdrTarget(surface),
+        "--source",
+        "recent",
+        "--lines",
+        String(lines),
+      ],
       { encoding: "utf8" },
     );
     return stdout;
@@ -1879,7 +2160,7 @@ export function closeSurface(surface: string): void {
   }
 
   if (backend === "herdr") {
-    herdrResult(["pane", "close", surface]);
+    herdrResult(["pane", "close", herdrTarget(surface)]);
     return;
   }
 
