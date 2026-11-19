@@ -17,7 +17,7 @@ The `/fast` command toggles Fast Mode. The `--fast` flag enables it at startup.
 
 New subagents inherit the requested Fast Mode state. Fast Mode becomes active only when the subagent uses a supported model.
 
-The extension only changes requests for an exact model in `supportedModels`. It also requires a supported API and a matching payload model.
+The extension changes a request only for a model in `supportedModels`. A final `*` matches the start of the model name. The request also needs a supported API and the same payload model.
 
 If another extension sets `service_tier`, this extension keeps that value.
 

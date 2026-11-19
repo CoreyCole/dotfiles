@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { FAST_STATUS_KEY } from "../src/capabilities.ts";
-import { DEFAULT_SUPPORTED_MODELS, FastConfigStore } from "../src/fast-config-store.ts";
+import {
+  DEFAULT_SUPPORTED_MODELS,
+  FastConfigStore,
+} from "../src/fast-config-store.ts";
 import { FAST_DESIRED_HANDOFF_ENV } from "../src/fast-desired-handoff.ts";
 import { FastStateEngine } from "../src/fast-state-engine.ts";
 import { ServiceTierInjector } from "../src/service-tier-injector.ts";
@@ -17,16 +23,66 @@ test("uses the pi-fast name for status, config, and child handoff", () => {
   assert.equal(paths.project, "/work/.pi/extensions/pi-fast.json");
 });
 
-test("enables Fast Mode for the supported xAI Grok models", () => {
-  for (const id of ["grok-4.3", "grok-4.5", "grok-4.6", "grok-build-0.1"]) {
+test("enables Fast Mode for every xAI Grok model", () => {
+  for (const id of [
+    "grok-4.3",
+    "grok-4.5",
+    "grok-4.6",
+    "grok-4.7",
+    "grok-build-0.1",
+    "grok-9",
+  ]) {
     const engine = new FastStateEngine({
       desiredActive: true,
       supportedModels: DEFAULT_SUPPORTED_MODELS,
       currentModel: { provider: "xai", id },
     });
 
-    assert.equal(engine.snapshot().active, true, `xai/${id} must support Fast Mode`);
+    assert.equal(
+      engine.snapshot().active,
+      true,
+      `xai/${id} must support Fast Mode`,
+    );
   }
+
+  for (const currentModel of [
+    { provider: "xai", id: "fast" },
+    { provider: "openai", id: "grok-4.7" },
+  ]) {
+    const engine = new FastStateEngine({
+      desiredActive: true,
+      supportedModels: DEFAULT_SUPPORTED_MODELS,
+      currentModel,
+    });
+
+    assert.equal(
+      engine.snapshot().active,
+      false,
+      `${currentModel.provider}/${currentModel.id} must stay unsupported`,
+    );
+  }
+});
+
+test("keeps a trailing Grok wildcard and drops other patterns", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-fast-"));
+  const home = join(root, "home");
+  const configDir = join(home, ".pi", "agent", "extensions");
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(
+    join(configDir, "pi-fast.json"),
+    JSON.stringify({
+      supportedModels: ["xai/grok-*", "xai/grok-*extra", "openai/*gpt", "*"],
+    }),
+  );
+
+  const warnings = [];
+  const config = await new FastConfigStore({
+    home,
+    warn: (warning) => warnings.push(warning.code),
+  }).load(join(root, "work"));
+
+  assert.deepEqual(config.supportedModels, ["xai/grok-*"]);
+  assert.deepEqual(warnings, ["config-supported-models-dropped"]);
 });
 
 for (const model of [
@@ -59,11 +115,17 @@ test("does not inject for a different payload model or unsupported API", () => {
   const payload = { model: "grok-4.5" };
 
   assert.equal(
-    injector.inject(payload, active, { api: "openai-responses", id: "grok-4.6" }),
+    injector.inject(payload, active, {
+      api: "openai-responses",
+      id: "grok-4.6",
+    }),
     payload,
   );
   assert.equal(
-    injector.inject(payload, active, { api: "anthropic-messages", id: "grok-4.5" }),
+    injector.inject(payload, active, {
+      api: "anthropic-messages",
+      id: "grok-4.5",
+    }),
     payload,
   );
 });

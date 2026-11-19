@@ -1,19 +1,27 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { FastColorResolutionResult, FastColorValue } from "./fast-colors.ts";
-import { isLegacyFastLabelColorLiteral, normalizeFastColorValue, resolveFastColorValueDetailed } from "./fast-colors.ts";
-import { emitFastWarning, warnToConsole, type FastWarning } from "./fast-warnings.ts";
+import type {
+  FastColorResolutionResult,
+  FastColorValue,
+} from "./fast-colors.ts";
+import {
+  isLegacyFastLabelColorLiteral,
+  normalizeFastColorValue,
+  resolveFastColorValueDetailed,
+} from "./fast-colors.ts";
+import {
+  emitFastWarning,
+  warnToConsole,
+  type FastWarning,
+} from "./fast-warnings.ts";
 
 export const DEFAULT_SUPPORTED_MODELS = [
   "openai/gpt-5.4",
   "openai/gpt-5.5",
   "openai-codex/gpt-5.4",
   "openai-codex/gpt-5.5",
-  "xai/grok-4.3",
-  "xai/grok-4.5",
-  "xai/grok-4.6",
-  "xai/grok-build-0.1",
+  "xai/grok-*",
 ] as const;
 
 export type FooterMode = "replace" | "status" | "off";
@@ -72,7 +80,11 @@ export interface FastConfigOperationOptions {
 
 export interface FastConfigRepository {
   load(cwd: string, options?: FastConfigOperationOptions): Promise<FastConfig>;
-  writeDesiredActive(cwd: string, desiredActive: boolean, options?: FastConfigOperationOptions): Promise<boolean>;
+  writeDesiredActive(
+    cwd: string,
+    desiredActive: boolean,
+    options?: FastConfigOperationOptions,
+  ): Promise<boolean>;
 }
 
 interface FastConfigPaths {
@@ -142,8 +154,14 @@ function isFooterMode(value: unknown): value is FooterMode {
   return value === "replace" || value === "status" || value === "off";
 }
 
-function containsPatternIntentMetacharacter(value: string): boolean {
-  return /[\*\[\]\(\)\{\}\?\+\|\^\$\\]/.test(value);
+function containsUnsupportedPattern(value: string): boolean {
+  const starIndex = value.lastIndexOf("*");
+  const prefix = starIndex === -1 ? value : value.slice(0, starIndex);
+  return (
+    (starIndex !== -1 && starIndex !== value.length - 1) ||
+    prefix.includes("*") ||
+    /[\[\]\(\)\{\}\?\+\|\^\$\\]/.test(prefix)
+  );
 }
 
 function normalizeSupportedModelEntry(value: unknown): string | undefined {
@@ -159,7 +177,7 @@ function normalizeSupportedModelEntry(value: unknown): string | undefined {
     /\s/.test(trimmed) ||
     separatorIndex <= 0 ||
     separatorIndex === trimmed.length - 1 ||
-    containsPatternIntentMetacharacter(trimmed)
+    containsUnsupportedPattern(trimmed)
   ) {
     return undefined;
   }
@@ -167,9 +185,16 @@ function normalizeSupportedModelEntry(value: unknown): string | undefined {
   return trimmed;
 }
 
-function normalizeSupportedModels(value: unknown): SupportedModelsNormalizationResult {
+function normalizeSupportedModels(
+  value: unknown,
+): SupportedModelsNormalizationResult {
   if (!Array.isArray(value)) {
-    return { supportedModels: undefined, invalidEntries: [], allInvalid: false, notArray: true };
+    return {
+      supportedModels: undefined,
+      invalidEntries: [],
+      allInvalid: false,
+      notArray: true,
+    };
   }
 
   const supportedModels: string[] = [];
@@ -204,7 +229,9 @@ function parseJsonRecord(text: string): JsonRecord {
 
 function normalizeStringRecord(source: JsonRecord): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(source).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    Object.entries(source).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
   );
 }
 
@@ -217,14 +244,19 @@ function migratedDesiredActive(source: JsonRecord, fallback: boolean): boolean {
     return source.desiredActive;
   }
 
-  if (!hasOwnField(source, "desiredActive") && typeof source.active === "boolean") {
+  if (
+    !hasOwnField(source, "desiredActive") &&
+    typeof source.active === "boolean"
+  ) {
     return source.active;
   }
 
   return fallback;
 }
 
-function invalidFastColorReason(resolution: FastColorResolutionResult | undefined): string {
+function invalidFastColorReason(
+  resolution: FastColorResolutionResult | undefined,
+): string {
   if (resolution?.kind !== "invalid") {
     return "it is not a supported color token";
   }
@@ -288,7 +320,10 @@ function footerVarsForValidation(footer: JsonRecord): Record<string, string> {
   return isRecord(footer.vars) ? normalizeStringRecord(footer.vars) : {};
 }
 
-function sanitizeFooterRecordForWrite(source: JsonRecord, warningContext?: ConfigWarningContext): JsonRecord {
+function sanitizeFooterRecordForWrite(
+  source: JsonRecord,
+  warningContext?: ConfigWarningContext,
+): JsonRecord {
   const next: JsonRecord = { ...source };
 
   if (hasOwnField(next, "mode") && !isFooterMode(next.mode)) {
@@ -336,16 +371,25 @@ function sanitizeFooterRecordForWrite(source: JsonRecord, warningContext?: Confi
   return next;
 }
 
-function sanitizeConfigRecordForWrite(source: JsonRecord, warningContext?: ConfigWarningContext): JsonRecord {
+function sanitizeConfigRecordForWrite(
+  source: JsonRecord,
+  warningContext?: ConfigWarningContext,
+): JsonRecord {
   const next: JsonRecord = { ...source };
 
   delete next.active;
 
-  if (hasOwnField(next, "persistState") && typeof next.persistState !== "boolean") {
+  if (
+    hasOwnField(next, "persistState") &&
+    typeof next.persistState !== "boolean"
+  ) {
     delete next.persistState;
   }
 
-  if (hasOwnField(next, "desiredActive") && typeof next.desiredActive !== "boolean") {
+  if (
+    hasOwnField(next, "desiredActive") &&
+    typeof next.desiredActive !== "boolean"
+  ) {
     delete next.desiredActive;
   }
 
@@ -370,7 +414,11 @@ function sanitizeConfigRecordForWrite(source: JsonRecord, warningContext?: Confi
   return next;
 }
 
-function mergeKnownConfig(base: FastConfig, source: JsonRecord, warningContext?: ConfigWarningContext): FastConfig {
+function mergeKnownConfig(
+  base: FastConfig,
+  source: JsonRecord,
+  warningContext?: ConfigWarningContext,
+): FastConfig {
   const next: FastConfig = {
     ...base,
     supportedModels: [...base.supportedModels],
@@ -431,7 +479,10 @@ function defaultWarningSink(warning: FastConfigWarning): void {
   warnToConsole(warning);
 }
 
-function emitWarning(warn: FastConfigWarningSink, warning: FastConfigWarning): void {
+function emitWarning(
+  warn: FastConfigWarningSink,
+  warning: FastConfigWarning,
+): void {
   emitFastWarning(warn, warning);
 }
 
@@ -475,7 +526,9 @@ function emitSupportedModelsWarnings(
 }
 
 function isMissingPathError(error: unknown): boolean {
-  return isRecord(error) && (error.code === "ENOENT" || error.code === "ENOTDIR");
+  return (
+    isRecord(error) && (error.code === "ENOENT" || error.code === "ENOTDIR")
+  );
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -487,9 +540,15 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-async function readConfigRecord(path: string, warn: FastConfigWarningSink): Promise<ConfigReadResult> {
+async function readConfigRecord(
+  path: string,
+  warn: FastConfigWarningSink,
+): Promise<ConfigReadResult> {
   try {
-    return { kind: "loaded", record: parseJsonRecord(await readFile(path, "utf8")) };
+    return {
+      kind: "loaded",
+      record: parseJsonRecord(await readFile(path, "utf8")),
+    };
   } catch (error) {
     if (isMissingPathError(error)) {
       return { kind: "missing" };
@@ -505,9 +564,15 @@ async function readConfigRecord(path: string, warn: FastConfigWarningSink): Prom
   }
 }
 
-async function readWriteTargetConfigRecord(path: string, warn: FastConfigWarningSink): Promise<ConfigReadResult> {
+async function readWriteTargetConfigRecord(
+  path: string,
+  warn: FastConfigWarningSink,
+): Promise<ConfigReadResult> {
   try {
-    return { kind: "loaded", record: parseJsonRecord(await readFile(path, "utf8")) };
+    return {
+      kind: "loaded",
+      record: parseJsonRecord(await readFile(path, "utf8")),
+    };
   } catch (error) {
     if (isMissingPathError(error)) {
       return { kind: "missing" };
@@ -548,7 +613,9 @@ async function selectWriteTarget(paths: FastConfigPaths): Promise<string> {
   return (await pathExists(paths.project)) ? paths.project : paths.global;
 }
 
-function rawRecordForWrite(readResult: Extract<ConfigReadResult, { kind: "loaded" | "missing" }>): JsonRecord {
+function rawRecordForWrite(
+  readResult: Extract<ConfigReadResult, { kind: "loaded" | "missing" }>,
+): JsonRecord {
   if (readResult.kind === "loaded") {
     return readResult.record;
   }
@@ -572,11 +639,16 @@ export class FastConfigStore implements FastConfigRepository {
     };
   }
 
-  private warningSink(options: FastConfigOperationOptions | undefined): FastConfigWarningSink {
+  private warningSink(
+    options: FastConfigOperationOptions | undefined,
+  ): FastConfigWarningSink {
     return options?.warn ?? this.warn;
   }
 
-  async load(cwd: string, options?: FastConfigOperationOptions): Promise<FastConfig> {
+  async load(
+    cwd: string,
+    options?: FastConfigOperationOptions,
+  ): Promise<FastConfig> {
     const paths = this.paths(cwd);
     const warn = this.warningSink(options);
     let config = defaultFastConfig();
@@ -585,16 +657,27 @@ export class FastConfigStore implements FastConfigRepository {
     const projectConfig = await readConfigRecord(paths.project, warn);
 
     if (globalConfig.kind === "missing" && projectConfig.kind === "missing") {
-      await writeConfigRecord(paths.global, configToRawRecord(config), warn, "config-default-write-failed");
+      await writeConfigRecord(
+        paths.global,
+        configToRawRecord(config),
+        warn,
+        "config-default-write-failed",
+      );
       return config;
     }
 
     if (globalConfig.kind === "loaded") {
-      config = mergeKnownConfig(config, globalConfig.record, { path: paths.global, warn });
+      config = mergeKnownConfig(config, globalConfig.record, {
+        path: paths.global,
+        warn,
+      });
     }
 
     if (projectConfig.kind === "loaded") {
-      config = mergeKnownConfig(config, projectConfig.record, { path: paths.project, warn });
+      config = mergeKnownConfig(config, projectConfig.record, {
+        path: paths.project,
+        warn,
+      });
     }
 
     return config;
@@ -614,7 +697,10 @@ export class FastConfigStore implements FastConfigRepository {
       return false;
     }
 
-    const next = sanitizeConfigRecordForWrite(rawRecordForWrite(existing), { path: target, warn });
+    const next = sanitizeConfigRecordForWrite(rawRecordForWrite(existing), {
+      path: target,
+      warn,
+    });
     next.desiredActive = desiredActive;
 
     return await writeConfigRecord(target, next, warn, "config-write-failed");
