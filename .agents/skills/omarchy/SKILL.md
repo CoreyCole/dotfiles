@@ -114,6 +114,7 @@ See `references/` for detailed documentation:
 - [`references/bluetooth-qc-findings-2026-09-17.md`](references/bluetooth-qc-findings-2026-09-17.md) — Bose QC PipeWire graph snapshot; resume after kernel 7.2.3 reboot before WirePlumber edits
 - [`references/rcmd-hyprland.md`](references/rcmd-hyprland.md) — rcmd-style application activation across Hyprland workspaces and monitors
 - [`references/quattro-migration.md`](references/quattro-migration.md) — guarded Omarchy 3 to Quattro migration for symlinked dotfiles and unconfigured Snapper
+- [`references/app-launcher-entries.md`](references/app-launcher-entries.md) — XDG desktop entries for the Apps overlay, including a portable Electron tarball such as Antigravity IDE
 
 ## Related Skills
 
