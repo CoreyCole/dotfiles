@@ -1,5 +1,12 @@
 -- Personal appearance overrides loaded after Omarchy defaults and the theme.
 
+-- Omarchy uses 0.49 so a sliver of the next column stays visible. That is not a 50/50 split.
+hl.config({
+	scrolling = {
+		column_width = 0.5,
+	},
+})
+
 hl.config({
 	general = {
 		gaps_in = 0,

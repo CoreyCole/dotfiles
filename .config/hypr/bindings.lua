@@ -131,6 +131,28 @@ local function assigned_target(number)
 	end
 end
 
+local function group_for_monitor(monitor)
+	if not monitor then
+		return nil
+	end
+	for _, group in ipairs(workspace_groups) do
+		for _, selector in ipairs(group.monitors) do
+			local found = hl.get_monitor(selector)
+			if found and found.id == monitor.id then
+				return group
+			end
+		end
+	end
+end
+
+local function allowed_count(group)
+	return group.last - group.first + 1
+end
+
+local function slot_of(id)
+	return ((id - 1) % 10) + 1
+end
+
 local function focus_assigned_workspace(number)
 	local monitor, slot = assigned_target(number)
 	if not monitor then
@@ -180,6 +202,123 @@ for number = 1, 10 do
 		move_to_assigned_workspace(n, false)
 	end)
 end
+
+-- Tab and scroll walk the focused monitor's own 1-10. Stop at the strip edge
+-- so they cannot open a fourth workspace on the left or the right.
+local function cycle_assigned(delta)
+	local monitor = hl.get_active_monitor()
+	local group = group_for_monitor(monitor)
+	if not monitor or not group then
+		return
+	end
+
+	local count = allowed_count(group)
+	local active = monitor.active_workspace
+	local slot = 1
+	if active and active.id and active.id > 0 then
+		slot = slot_of(active.id)
+	end
+	if slot < 1 or slot > count then
+		slot = 1
+	end
+
+	local next_slot = slot + delta
+	if next_slot < 1 or next_slot > count then
+		return
+	end
+	o.workspaces.focus(next_slot, monitor.name)()
+end
+
+o.rebind("SUPER + TAB", "Next workspace", function()
+	cycle_assigned(1)
+end)
+o.rebind("SUPER + SHIFT + TAB", "Previous workspace", function()
+	cycle_assigned(-1)
+end)
+o.rebind("SUPER + mouse_down", "Scroll active workspace forward", function()
+	cycle_assigned(1)
+end)
+o.rebind("SUPER + mouse_up", "Scroll active workspace backward", function()
+	cycle_assigned(-1)
+end)
+
+local confining = false
+
+local function move_window_to(window, monitor, slot)
+	if not window or not monitor or not window.address then
+		return
+	end
+	local id = tostring(o.workspaces.workspace_id(monitor, slot))
+	hl.dispatch(hl.dsp.window.move({
+		workspace = id,
+		follow = false,
+		window = "address:" .. window.address,
+	}))
+end
+
+local function settle_monitor(monitor)
+	local group = group_for_monitor(monitor)
+	if not monitor or not group then
+		return
+	end
+	local active = monitor.active_workspace
+	if not active or not active.id or active.id < 1 then
+		return
+	end
+	if slot_of(active.id) <= allowed_count(group) then
+		return
+	end
+	o.workspaces.focus(allowed_count(group), monitor.name)()
+end
+
+-- 1-3 stay on the vertical monitor, 4-6 on the LG, 7-10 on the TV.
+-- A window that lands past that screen's slots moves to the last allowed slot.
+local function confine_window(window)
+	if confining or not window or not window.workspace then
+		return
+	end
+	local workspace = window.workspace
+	local id = workspace.id
+	if not id or id < 1 or workspace.special then
+		return
+	end
+
+	local monitor = workspace.monitor or (hl.get_workspace(tostring(id)) or {}).monitor
+	if not monitor then
+		return
+	end
+
+	local target_monitor, target_slot
+	if id <= 10 then
+		target_monitor, target_slot = assigned_target(id)
+	end
+
+	local group = group_for_monitor(monitor)
+	if not target_monitor and group and slot_of(id) > allowed_count(group) then
+		target_monitor = monitor
+		target_slot = allowed_count(group)
+	end
+	if not target_monitor or not target_slot then
+		return
+	end
+	if target_monitor.name == monitor.name and slot_of(id) == target_slot then
+		return
+	end
+
+	confining = true
+	move_window_to(window, target_monitor, target_slot)
+	settle_monitor(monitor)
+	confining = false
+end
+
+local function confine_later(window)
+	hl.timer(function()
+		confine_window(window)
+	end, { type = "oneshot", timeout = 30 })
+end
+
+hl.on("window.open", confine_later)
+hl.on("window.move_to_workspace", confine_later)
 
 -- Dictation keys from before Alt + Space and Right Alt became the defaults.
 -- Remove these lines to give the keys back to applications.
